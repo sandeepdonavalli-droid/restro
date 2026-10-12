@@ -121,7 +121,6 @@
     const button = event.currentTarget; button.disabled = true; button.textContent = 'Checking…';
     try { await window.RestroConnectivity?.refresh?.(); } finally { button.disabled = false; button.textContent = 'Check now'; syncSummaries(); }
   });
-  document.querySelector('#settings-test-sound').addEventListener('click', () => window.RestroSound?.play('alert'));
   document.querySelector('#settings-brightness-range').addEventListener('input', event => window.RestroDeviceControls?.setBrightness(event.target.value));
 
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });

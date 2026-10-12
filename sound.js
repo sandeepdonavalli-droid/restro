@@ -3,12 +3,12 @@
 // In the Android app, window.RESTRODevice.setVolume(level) (optional) also sets the
 // device's media volume. In a browser it controls the sounds RESTRO itself plays.
 (() => {
-  const VOLUME_KEY = 'restro.sound.volume.v1', TOUCH_KEY = 'restro.sound.touch.v1', STYLE_KEY = 'restro.sound.touchStyle.v1';
-  let volume = 70, touchSounds = false, audio = null, lastTap = 0, touchStyle = 'soft';
+  const VOLUME_KEY = 'restro.sound.volume.v1', TOUCH_KEY = 'restro.sound.touch.v2', STYLE_KEY = 'restro.sound.touchStyle.v2';
+  let volume = 70, touchSounds = true, audio = null, lastTap = 0, touchStyle = 'click'; // defaults: touch sounds on, Click
   try {
     const saved = Number(localStorage.getItem(VOLUME_KEY));
     if (localStorage.getItem(VOLUME_KEY) !== null && Number.isFinite(saved)) volume = Math.max(0, Math.min(100, Math.round(saved)));
-    touchSounds = localStorage.getItem(TOUCH_KEY) === 'true';
+    if (localStorage.getItem(TOUCH_KEY) !== null) touchSounds = localStorage.getItem(TOUCH_KEY) === 'true';
     const style = localStorage.getItem(STYLE_KEY); if (style) touchStyle = style;
   } catch {}
 
@@ -66,7 +66,7 @@
     { id: 'drop', name: 'Droplet', detail: 'Short rising blip', play: (c, l) => tone(c, l, { type: 'sine', from: 500, to: 1400, length: .06, peak: 1 }) },
     { id: 'beep', name: 'POS beep', detail: 'Classic register beep', play: (c, l) => tone(c, l, { type: 'square', from: 1850, length: .05, peak: .35 }) }
   ];
-  if (!STYLES.some(style => style.id === touchStyle)) touchStyle = 'soft';
+  if (!STYLES.some(style => style.id === touchStyle)) touchStyle = 'click';
   function playTouch(id = touchStyle) {
     if (!volume) return;
     const ctx = context(); if (!ctx) return;

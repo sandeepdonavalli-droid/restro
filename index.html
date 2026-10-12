@@ -27,8 +27,8 @@
   <script src="wifi.js?v=3" defer></script>
   <script src="bluetooth.js?v=3" defer></script>
   <script src="device-controls.js?v=8" defer></script>
-  <script src="sound.js?v=2" defer></script>
-  <script src="settings.js?v=5" defer></script>
+  <script src="sound.js?v=3" defer></script>
+  <script src="settings.js?v=6" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=5" defer></script>
@@ -159,7 +159,6 @@
             <div class="settings-group">
               <div class="settings-item settings-slider-row"><span class="settings-row-copy"><strong id="settings-volume-label">Volume</strong><span id="settings-volume-value">70%</span></span><div class="settings-slider-line"><svg class="volume-glyph slider-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path class="volume-wave" d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/><path class="volume-mute" d="m16 9.5 5 5m0-5-5 5"/></svg><input id="settings-volume-range" type="range" min="0" max="100" step="1" value="70" aria-labelledby="settings-volume-label"></div></div>
               <label class="settings-item settings-switch-row" for="settings-touch-sounds"><span class="settings-row-copy"><strong>Touch sounds</strong><span>A soft click when you tap buttons and switches</span></span><input id="settings-touch-sounds" class="settings-switch" type="checkbox" role="switch"></label>
-              <div class="settings-item settings-status"><span class="settings-row-copy"><strong>Test sound</strong><span>Plays at the current volume</span></span><button id="settings-test-sound" class="bt-action" type="button">Play</button></div>
             </div>
             <p class="settings-group-label">Touch sound</p>
             <div id="settings-touch-styles" class="settings-group touch-styles" role="radiogroup" aria-label="Touch sound"></div>
