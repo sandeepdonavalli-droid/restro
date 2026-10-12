@@ -5,7 +5,7 @@
   const trigger=document.querySelector('#quick-controls-open');
   const settings=document.querySelector('#device-settings-dialog');
   const content=document.querySelector('#device-settings-content');
-  let pull=null,returnFocus=null,brightness=100,cameraStream=null,photoUrl=null;
+  let pull=null,returnFocus=null,brightness=100,cameraStream=null,photoUrl=null,inlineTarget=null;
   const pairedDevices=new Map();
 
   // The Android shell may supply this adapter. The browser never simulates an OS toggle.
@@ -59,6 +59,8 @@
   window.addEventListener('restro:connectivity-changed',updateConnectionStatus);
   function section(markup){content.innerHTML=`<div class="device-section">${markup}</div>`;}
   function showSettings(title,markup){
+    // Settings renders the same panels in place instead of opening a dialog.
+    if(inlineTarget){inlineTarget.innerHTML=`<div class="device-section">${markup}</div>`;return;}
     drawer.close();
     document.querySelector('#device-settings-title').textContent=title;
     section(markup);settings.showModal();
@@ -88,7 +90,7 @@
         const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true});
         if(!device.gatt)throw new Error('This device does not support a Bluetooth data connection.');
         await device.gatt.connect();pairedDevices.set(device.id,device);
-        device.addEventListener('gattserverdisconnected',()=>{pairedDevices.delete(device.id);updateConnectionStatus();if(settings.open)renderBluetoothDevices();},{once:true});
+        device.addEventListener('gattserverdisconnected',()=>{pairedDevices.delete(device.id);updateConnectionStatus();if(document.querySelector('#bluetooth-devices'))renderBluetoothDevices();},{once:true});
         renderBluetoothDevices();updateConnectionStatus();feedback.textContent='Device connected.';
       }catch(error){feedback.textContent=error.name==='NotFoundError'?'No device selected.':error.message||'Could not connect. Check the device and try again.';}
     });
@@ -123,11 +125,22 @@
     dimmer.style.opacity=opacity;
     document.querySelector('#quick-brightness-value').textContent=`${brightness}%`;
     document.querySelector('#quick-brightness-status').textContent=`${brightness}%`;
+    brightnessRange.value=String(brightness);
+    window.dispatchEvent(new CustomEvent('restro:brightness-changed',{detail:{brightness}}));
     if(typeof deviceHost()?.setBrightness==='function'){
       try{Promise.resolve(deviceHost().setBrightness(brightness)).then(()=>{dimmer.style.opacity='0';}).catch(()=>{});}catch{}
     }
   }
   brightnessRange.addEventListener('input',event=>setBrightness(event.target.value));
+  window.RestroDeviceControls=Object.freeze({
+    renderInto(kind,container){
+      const panel={wifi:networkSettings,bluetooth:bluetoothSettings,pazzer:pazzerSettings}[kind];
+      if(!panel||!container)return;
+      inlineTarget=container;try{panel();}finally{inlineTarget=null;}
+    },
+    setBrightness,
+    get brightness(){return brightness;}
+  });
 
   const camera=document.querySelector('#camera-dialog');
   const video=document.querySelector('#camera-video'),photo=document.querySelector('#camera-photo'),message=document.querySelector('#camera-message');

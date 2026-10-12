@@ -12,19 +12,20 @@
   <link rel="stylesheet" href="device-controls.css?v=2">
   <link rel="stylesheet" href="system-navigation.css?v=5">
   <link rel="stylesheet" href="themes.css?v=2">
-  <link rel="stylesheet" href="theme-settings.css?v=2">
+  <link rel="stylesheet" href="settings.css?v=1">
   <link rel="stylesheet" href="app-widget-controls.css?v=3">
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
   <link rel="stylesheet" href="connectivity-status.css?v=2">
   <script src="theme-data.js?v=2"></script>
   <script src="theme-artwork.js?v=2"></script>
-  <script src="themes.js?v=2"></script>
+  <script src="themes.js?v=3"></script>
   <script src="app-layout.js?v=2" defer></script>
-  <script src="app.js?v=21" defer></script>
+  <script src="app.js?v=22" defer></script>
   <script src="insights.js?v=9" defer></script>
   <script src="connectivity-status.js?v=3" defer></script>
-  <script src="device-controls.js?v=5" defer></script>
+  <script src="device-controls.js?v=6" defer></script>
+  <script src="settings.js?v=1" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=4" defer></script>
@@ -104,18 +105,61 @@
   <dialog id="screen-lock-dialog" class="screen-lock-dialog" aria-labelledby="screen-lock-title">
     <div class="lock-screen-content"><svg class="lock-screen-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><time id="lock-clock"></time><p id="lock-restaurant"></p><h2 id="screen-lock-title">Screen locked</h2><button id="screen-unlock" type="button" class="primary-button">Unlock</button></div>
   </dialog>
-  <dialog id="settings-dialog" class="dialog settings-dialog" aria-labelledby="settings-title">
-    <div class="dialog-heading"><div class="settings-heading"><button id="themes-back" class="icon-button" type="button" aria-label="Back to settings" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button><h2 id="settings-title">Settings</h2></div><button class="icon-button" data-close aria-label="Close settings"><svg class="icon"><use href="#close"/></svg></button></div>
-    <div id="settings-general">
-    <form id="restaurant-form"><label for="restaurant-input">Restaurant name</label><input id="restaurant-input" name="restaurant" maxlength="48" required autocomplete="organization"><p class="field-note">Displayed in uppercase in the top banner.</p><button class="primary-button" type="submit">Save changes</button></form>
-    <section class="appearance-settings" aria-labelledby="appearance-title"><h3 id="appearance-title">Appearance</h3><button id="themes-open" class="theme-settings-row" type="button"><span id="current-theme-swatch" class="theme-current-swatch" aria-hidden="true"></span><span class="theme-settings-copy"><strong>Themes</strong><span id="current-theme-name">Graphite Copper</span></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button></section>
-    <section id="browser-preview-settings" class="appearance-settings" aria-labelledby="browser-preview-title"><h3 id="browser-preview-title">Browser preview</h3><label class="wifi-preview-row" for="wifi-preview-toggle"><span>Show Wi-Fi icon</span><input id="wifi-preview-toggle" type="checkbox" role="switch" aria-describedby="wifi-preview-note"></label><p id="wifi-preview-note" class="field-note" role="status">Show a sample Wi-Fi icon for browser visual testing. Internet status stays live.</p></section>
+  <dialog id="settings-dialog" class="settings-app" aria-labelledby="settings-title">
+    <div class="settings-shell" data-view="list">
+      <nav class="settings-nav" aria-label="Settings categories">
+        <div class="settings-nav-top"><h2 id="settings-title" tabindex="-1" autofocus>Settings</h2><button class="settings-icon-button" type="button" data-close aria-label="Close settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+        <label class="settings-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg><span class="visually-hidden">Search settings</span><input id="settings-search" type="search" placeholder="Search settings" autocomplete="off" enterkeyhint="search"></label>
+        <button class="settings-profile" type="button" data-page="restaurant" data-keywords="restaurant name profile banner title shop business">
+          <span id="settings-profile-avatar" class="settings-avatar" aria-hidden="true">R</span>
+          <span class="settings-row-copy"><strong id="settings-profile-name">RESTAURANT NAME</strong><span>Restaurant profile</span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+        </button>
+        <ul class="settings-list">
+          <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet wi-fi wifi online offline connection browser preview icon signal"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a16 16 0 0 1 20 0M5.5 12a11 11 0 0 1 13 0M9 15.5a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary">Checking connection…</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="devices" data-keywords="connected devices bluetooth pazzer pager hardware printer pair"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="12" height="9" rx="1.5"/><path d="M6 18h6M9 14v4"/><rect x="17" y="8" width="4.5" height="10" rx="1.2"/></svg></span><span class="settings-row-copy"><strong>Connected devices</strong><span id="settings-devices-summary">Bluetooth, Pazzer</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="display" data-keywords="display brightness screen dim light"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></span><span class="settings-row-copy"><strong>Display</strong><span id="settings-display-summary">Brightness 100%</span></span></button></li>
+          <li><button id="themes-open" class="settings-row" type="button" data-page="themes" data-keywords="themes appearance style colour color wallpaper look skin"><span id="current-theme-swatch" class="settings-row-icon theme-current-swatch" aria-hidden="true"></span><span class="settings-row-copy"><strong>Themes</strong><span id="current-theme-name">Matte Clay</span></span></button></li>
+        </ul>
+        <p id="settings-no-results" class="settings-no-results" hidden>No settings match your search.</p>
+      </nav>
+      <section class="settings-detail" aria-labelledby="settings-page-title">
+        <header class="settings-detail-top"><button id="settings-back" class="settings-icon-button" type="button" aria-label="Back to settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg></button><h3 id="settings-page-title">Restaurant profile</h3></header>
+        <div class="settings-pages">
+          <section class="settings-page" data-page="restaurant" data-title="Restaurant profile">
+            <form id="restaurant-form" class="settings-group">
+              <div class="settings-item settings-field"><label for="restaurant-input">Restaurant name</label><input id="restaurant-input" name="restaurant" maxlength="48" required autocomplete="organization"><p class="field-note">Displayed in uppercase in the top banner.</p><div class="settings-actions"><button class="primary-button" type="submit">Save changes</button></div></div>
+            </form>
+          </section>
+          <section class="settings-page" data-page="network" data-title="Network &amp; internet" hidden>
+            <p class="settings-group-label">Wi-Fi</p>
+            <div id="settings-wifi-slot" class="settings-group settings-device-slot"></div>
+            <section id="browser-preview-settings" class="settings-subsection" aria-labelledby="browser-preview-title">
+              <p id="browser-preview-title" class="settings-group-label">Browser preview</p>
+              <div class="settings-group">
+                <label class="settings-item settings-switch-row" for="wifi-preview-toggle"><span class="settings-row-copy"><strong>Show Wi-Fi icon</strong><span id="wifi-preview-note" role="status">Show a sample Wi-Fi icon for browser visual testing. Internet status stays live.</span></span><input id="wifi-preview-toggle" class="settings-switch" type="checkbox" role="switch"></label>
+              </div>
+            </section>
+          </section>
+          <section class="settings-page" data-page="devices" data-title="Connected devices" hidden>
+            <p class="settings-group-label">Bluetooth</p>
+            <div id="settings-bluetooth-slot" class="settings-group settings-device-slot"></div>
+            <p class="settings-group-label">Pazzer</p>
+            <div id="settings-pazzer-slot" class="settings-group settings-device-slot"></div>
+          </section>
+          <section class="settings-page" data-page="display" data-title="Display" hidden>
+            <div class="settings-group">
+              <div class="settings-item settings-slider-row"><span class="settings-row-copy"><strong id="settings-brightness-label">Brightness</strong><span id="settings-brightness-value">100%</span></span><input id="settings-brightness-range" type="range" min="20" max="100" step="1" value="100" aria-labelledby="settings-brightness-label"></div>
+            </div>
+            <p class="settings-footnote">Also in quick controls. Pull down from the top banner.</p>
+          </section>
+          <section id="settings-themes" class="settings-page settings-themes" data-page="themes" data-title="Themes" hidden>
+            <p class="theme-description">Choose a theme for your POS.</p>
+            <div id="theme-options" class="theme-options" role="radiogroup" aria-label="Color themes"></div>
+            <div class="theme-apply-row"><div><strong id="theme-selection-name">Matte Clay</strong><p id="theme-apply-status" class="field-note" role="status" aria-live="polite">Current theme</p></div><button id="theme-apply" class="primary-button" type="button" disabled>Apply theme</button></div>
+          </section>
+        </div>
+      </section>
     </div>
-    <section id="settings-themes" class="settings-themes" aria-label="Choose a theme" hidden>
-      <p class="theme-description">Choose a theme for your POS.</p>
-      <div id="theme-options" class="theme-options" role="radiogroup" aria-label="Color themes"></div>
-      <div class="theme-apply-row"><div><strong id="theme-selection-name">Graphite Copper</strong><p id="theme-apply-status" class="field-note" role="status" aria-live="polite">Current theme</p></div><button id="theme-apply" class="primary-button" type="button" disabled>Apply theme</button></div>
-    </section>
   </dialog>
   <dialog id="analytics-dialog" class="dialog analytics-dialog" aria-labelledby="analytics-title">
     <div class="dialog-heading"><div><h2 id="analytics-title">Analytics</h2><p class="muted">Today <span id="report-date"></span> · Sample data</p></div><button class="icon-button" data-close aria-label="Close analytics"><svg class="icon"><use href="#close"/></svg></button></div>

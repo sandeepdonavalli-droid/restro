@@ -38,10 +38,7 @@
   });
 
   document.addEventListener('DOMContentLoaded', () => {
-    const dialog = document.querySelector('#settings-dialog');
-    const general = document.querySelector('#settings-general');
-    const themesView = document.querySelector('#settings-themes');
-    const back = document.querySelector('#themes-back');
+    // The theme picker lives in place on the Settings > Themes page.
     const options = document.querySelector('#theme-options');
     const applyButton = document.querySelector('#theme-apply');
     const status = document.querySelector('#theme-apply-status');
@@ -52,6 +49,7 @@
       element.style.setProperty('--swatch-top', theme.tokens['tile-top']);
       element.style.setProperty('--swatch-bottom', theme.tokens['tile-bottom']);
       element.style.setProperty('--swatch-edge', theme.tokens.edge);
+      element.style.setProperty('--swatch-accent', theme.tokens.accent);
     }
     function refresh() {
       const current = byId.get(activeId), pending = byId.get(pendingId);
@@ -71,19 +69,10 @@
       pendingId = id; refresh();
       if (focus) buttons.get(id).focus({ preventScroll: true });
     }
-    function showGeneral() {
-      pendingId = activeId;
-      themesView.hidden = true; general.hidden = false; back.hidden = true;
-      dialog.classList.remove('showing-themes');
-      document.querySelector('#settings-title').textContent = 'Settings';
-      refresh();
-    }
-    function goBack() {
-      if (themesView.hidden) return false;
-      showGeneral(); document.querySelector('#themes-open').focus({ preventScroll: true });
-      return true;
-    }
-    window.RestroThemeSettings = Object.freeze({ reset: showGeneral, goBack });
+    window.RestroThemePicker = Object.freeze({
+      reset() { pendingId = activeId; refresh(); },
+      focusCurrent() { const button = buttons.get(pendingId); button?.focus({ preventScroll: true }); button?.scrollIntoView({ block: 'nearest' }); }
+    });
 
     // Preview each selected skin using the same shared app/artwork catalog.
     for (const theme of catalog) {
@@ -117,18 +106,9 @@
       else return;
       event.preventDefault(); select(catalog[next].id, true); buttons.get(catalog[next].id).scrollIntoView({ block: 'nearest' });
     });
-    document.querySelector('#themes-open').addEventListener('click', () => {
-      pendingId = activeId;
-      general.hidden = true; themesView.hidden = false; back.hidden = false;
-      dialog.classList.add('showing-themes'); document.querySelector('#settings-title').textContent = 'Themes';
-      refresh(); buttons.get(activeId).focus({ preventScroll: true }); buttons.get(activeId).scrollIntoView({ block: 'nearest' });
-    });
-    back.addEventListener('click', goBack);
     applyButton.addEventListener('click', () => {
       if (apply(pendingId)) { refresh(); status.textContent = `${byId.get(activeId).name} applied`; }
     });
-    dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
-    dialog.addEventListener('close', showGeneral);
     window.addEventListener('restro:theme-changed', () => { pendingId = activeId; refresh(); });
     refresh();
   }, { once: true });
