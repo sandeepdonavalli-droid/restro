@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1b2022">
+  <meta name="description" content="RESTRO restaurant POS dashboard with movable apps and swipeable pages.">
+  <title>RESTRO · Restaurant POS</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%231b2022'/%3E%3Cpath d='M10 8h11a9 9 0 0 1 3 17l7 8h-9l-6-8v8h-6V8zm6 6v5h5a2.5 2.5 0 0 0 0-5z' fill='%23f6ae71'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/01-base.css">
+  <link rel="stylesheet" href="css/02-artwork.css">
+  <link rel="stylesheet" href="css/03-quick-drawer.css">
+  <link rel="stylesheet" href="css/04-system-bars.css">
+  <link rel="stylesheet" href="css/05-theme-colors.css">
+  <link rel="stylesheet" href="css/06-settings.css">
+  <link rel="stylesheet" href="css/07-controls.css">
+  <link rel="stylesheet" href="css/08-fullscreen.css">
+  <link rel="stylesheet" href="css/09-battery.css">
+  <script src="js/theme-catalog.js"></script>
+  <script src="js/theme-engine.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/device-bridge.js"></script>
+</head>
+<body>
+  <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="gear" viewBox="2.7 3.1 18.6 18.6"><path d="m9.2 3 .8-1h4l.8 1 .4 2 1.7 1 1.9-.5 1.4 2.4-1.5 1.5v2l1.5 1.5-1.4 2.4-1.9-.5-1.7 1-.4 2-.8 1h-4l-.8-1-.4-2-1.7-1-1.9.5-1.4-2.4 1.5-1.5v-2L3.9 8l1.4-2.4 1.9.5 1.7-1Z" transform="translate(0 2)"/><circle cx="12" cy="12" r="3.5"/></symbol>
+    <symbol id="wifi" viewBox="0 0 24 24"><path d="M2 8a17 17 0 0 1 20 0M5.5 11.5a11 11 0 0 1 13 0M9 15a5 5 0 0 1 6 0"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="signal" viewBox="0 0 24 24"><path d="M3 20v-4M9 20V12M15 20V8M21 20V4" stroke-width="4"/></symbol>
+    <symbol id="chart" viewBox="0 0 24 24"><path d="M5 20v-5M12 20V9M19 20V4" stroke-width="4"/></symbol>
+    <symbol id="receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 7h6M9 11h6M9 15h3"/></symbol>
+    <symbol id="table" viewBox="0 0 24 24"><path d="M7 9h10M12 9v11M3 7v7h4v6M21 7v7h-4v6"/></symbol>
+    <symbol id="chef" viewBox="0 0 24 24"><path d="M6 14a5 5 0 1 1 2-9 5 5 0 0 1 8 0 5 5 0 1 1 2 9v6H6v-6Z"/><path d="M6 16h12"/></symbol>
+    <symbol id="clock-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></symbol>
+    <symbol id="phone" viewBox="0 0 24 24"><path d="m5 3-2 3c0 8 7 15 15 15l3-2-5-5-3 2a12 12 0 0 1-5-5l2-3-5-5Z"/></symbol>
+    <symbol id="hardware" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 5h8v5H8zM8 14h1m3 0h1m3 0h1M8 17h1m3 0h1m3 0h1M8 20h1m3 0h1m3 0h1"/></symbol>
+    <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  </svg>
+  <div class="app-shell">
+    <header class="top-banner" title="Pull down for quick controls">
+      <button id="quick-controls-open" class="quick-controls-trigger sr-only" type="button" aria-label="Open quick controls" aria-haspopup="dialog" aria-controls="quick-controls-dialog">Quick controls</button>
+      <div class="identity">
+        <span id="restaurant-name" class="restaurant-name banner-label">RESTAURANT NAME</span>
+      </div>
+      <div class="system-status">
+        <span class="online-status"><span id="online-dot" class="status-dot"></span><span id="online-text" class="banner-label">Online</span></span>
+        <span class="header-divider" aria-hidden="true"></span>
+        <time id="clock" class="header-time"><span class="clock-text banner-label">5:30 PM</span></time>
+        <span class="battery-status" role="img" hidden><svg class="battery" viewBox="0 0 29.4 14" aria-hidden="true"><rect x=".7" y=".7" width="25.4" height="12.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect class="battery-fill" x="2.5" y="2.5" width="0" height="9" rx="1.4" fill="currentColor"/><rect x="28" y="4.25" width="1.4" height="5.5" rx=".7" fill="currentColor"/><path class="battery-flash" d="m14.6 2.4-4.3 5.3h3l-1.2 3.9 4.4-5.8h-3.1l1.2-3.4Z" fill="#fff" hidden/></svg></span>
+        <span class="network-slot" title="Cellular strength · device preview"><svg class="icon signal"><use href="#signal"/></svg></span>
+        <span class="network-slot" title="Wi-Fi strength · device preview"><svg class="icon wifi" viewBox="0 0 24 24"><g transform="translate(0 -2.1) scale(1 1.205)"><path d="M2 8a17 17 0 0 1 20 0M5.5 11.5a11 11 0 0 1 13 0M9 15a5 5 0 0 1 6 0"/><circle cx="12" cy="18.5" r="1.5" fill="currentColor" stroke="none"/></g></svg></span>
+      </div>
+    </header>
+    <main class="dashboard">
+      <section class="workspace" aria-label="Restaurant apps">
+        <div id="main-shortcuts" class="main-shortcuts" aria-label="Main shortcuts"></div>
+        <section class="more-apps" aria-labelledby="more-heading">
+          <div class="more-heading-row"><h1 id="more-heading">More Apps</h1></div>
+          <div class="launcher-content">
+          <div id="apps-panel" class="apps-panel">
+          <div id="apps-viewport" class="apps-viewport" tabindex="0" aria-label="More Apps. Swipe left or right, or use arrow keys to change pages.">
+            <div id="pages-track" class="pages-track"></div>
+          </div>
+          <div class="pagination">
+            <div id="page-dots" class="page-dots" role="tablist" aria-label="App pages"></div>
+            <p id="swipe-hint" hidden>Swipe left for more</p>
+          </div>
+          </div>
+          <aside id="insight-widget" class="insight-widget" aria-labelledby="insights-heading">
+            <div class="insight-stack"><div class="insight-card">
+            <div class="insight-heading"><h2 id="insights-heading">Insights</h2></div>
+            <div id="insight-content" class="insight-content" role="group" aria-roledescription="carousel" tabindex="0" aria-label="Restaurant insights" aria-live="off"></div>
+            <div id="insight-progress" class="insight-progress" aria-hidden="true"></div>
+            <div class="insight-footer"><time id="insight-date"></time><span>Sample data</span></div>
+            <p id="insight-announcement" class="sr-only" aria-live="polite"></p>
+            </div></div>
+          </aside>
+          </div>
+          <p class="sr-only" id="page-announcement" aria-live="polite"></p>
+        </section>
+      </section>
+    </main>
+    <nav id="system-navigation" class="bottom-banner" aria-label="System navigation">
+      <div class="android-controls">
+        <button id="system-back" type="button" class="system-control" aria-label="Back" title="Back"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 4 5 12l12 8Z"/></svg></button>
+        <button id="system-home" type="button" class="system-control" aria-label="Home" title="Home"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></button>
+        <button id="system-recents" type="button" class="system-control" aria-label="Recent apps" title="Recent apps"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx=".8"/></svg></button>
+      </div>
+      <div class="bottom-brand-lock"><span class="footer-identity"><svg class="footer-logo" viewBox="4 19 394 312" aria-hidden="true"><path d="M202 19c14 4 65 57 71 108 8 56-39 145-71 184-30-38-69-119-70-159-2-54 42-116 64-131 2-2 4-2 6-2Z"/><path d="M57 86c19 2 56 22 71 45-1 36 13 76 30 108-24-23-58-40-91-52-20-24-24-57-16-94 1-6 3-8 6-7Z"/><path d="M346 86c-19 2-56 22-71 45 1 36-13 76-30 108 24-23 58-40 91-52 20-24 24-57 16-94-1-6-3-8-6-7Z"/><path d="M8 188c67 1 157 35 186 138-96 7-167-12-187-128-2-6-3-9 1-10Z"/><path d="M394 188c-67 1-157 35-184 138 94 7 165-12 185-128 2-6 3-9-1-10Z"/></svg><span class="footer-brand banner-label">RESTRO</span></span><button id="system-lock" type="button" class="system-control lock-control" aria-label="Lock screen" title="Lock screen"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><path class="lock-shackle" d="M8 10V7a4 4 0 0 1 8 0v3"/><path class="lock-body" fill-rule="evenodd" d="M7 10h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Zm5 3a1.5 1.5 0 0 0-.75 2.8V18h1.5v-2.2A1.5 1.5 0 0 0 12 13Z"/></svg></button></div>
+    </nav>
+  </div>
+  <dialog id="recents-dialog" class="dialog recents-dialog" aria-labelledby="recents-title">
+    <div class="dialog-heading"><h2 id="recents-title">Recent apps</h2><button class="icon-button" data-close aria-label="Close recent apps"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div id="recent-apps-list" class="recent-apps-list"></div>
+  </dialog>
+  <dialog id="screen-lock-dialog" class="screen-lock-dialog" aria-labelledby="screen-lock-title">
+    <div class="lock-screen-content"><svg class="lock-screen-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><time id="lock-clock"></time><p id="lock-restaurant"></p><h2 id="screen-lock-title">Screen locked</h2><button id="screen-unlock" type="button" class="primary-button">Unlock</button></div>
+  </dialog>
+  <dialog id="settings-dialog" class="dialog settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-heading"><div class="settings-heading"><button id="themes-back" class="icon-button" type="button" aria-label="Back to settings" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button><h2 id="settings-title">Settings</h2></div><button class="icon-button" data-close aria-label="Close settings"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div id="settings-general">
+    <form id="restaurant-form"><label for="restaurant-input">Restaurant name</label><input id="restaurant-input" name="restaurant" maxlength="48" required autocomplete="organization"><p class="field-note">Displayed in uppercase in the top banner.</p><button class="primary-button" type="submit">Save changes</button></form>
+    <section class="appearance-settings" aria-labelledby="appearance-title"><h3 id="appearance-title">Appearance</h3><button id="themes-open" class="theme-settings-row" type="button"><span id="current-theme-swatch" class="theme-current-swatch" aria-hidden="true"></span><span class="theme-settings-copy"><strong>Themes</strong><span id="current-theme-name">Graphite Copper</span></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button></section>
+    </div>
+    <section id="settings-themes" class="settings-themes" aria-label="Choose a theme" hidden>
+      <p class="theme-description">Choose a palette for every app and page.</p>
+      <div id="theme-options" class="theme-options" role="radiogroup" aria-label="Color themes"></div>
+      <div class="theme-apply-row"><div><strong id="theme-selection-name">Graphite Copper</strong><p id="theme-apply-status" class="field-note" role="status" aria-live="polite">Current theme</p></div><button id="theme-apply" class="primary-button" type="button" disabled>Apply theme</button></div>
+    </section>
+  </dialog>
+  <dialog id="analytics-dialog" class="dialog analytics-dialog" aria-labelledby="analytics-title">
+    <div class="dialog-heading"><div><h2 id="analytics-title">Analytics</h2><p class="muted">Today <span id="report-date"></span> · Sample data</p></div><button class="icon-button" data-close aria-label="Close analytics"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div class="report-summary"><div><span>Sales</span><strong>₹18,450</strong></div><div><span>Orders</span><strong>42</strong></div><div><span>Average order</span><strong>₹439.29</strong></div></div>
+    <section class="sales-chart" aria-labelledby="sales-chart-title"><h3 id="sales-chart-title">Sales through the day</h3><div class="chart-bars" id="chart-bars" aria-label="Hourly sales chart"></div></section>
+  </dialog>
+  <dialog id="delete-app-dialog" class="dialog delete-app-dialog" aria-labelledby="delete-app-title">
+    <div id="delete-app-art" class="delete-app-art" aria-hidden="true"></div>
+    <h2 id="delete-app-title">Do you want to delete this app?</h2>
+    <p id="delete-app-error" class="field-note" role="alert"></p>
+    <div class="delete-app-actions"><button id="delete-app-no" class="secondary-button" type="button" autofocus>No</button><button id="delete-app-yes" class="primary-button" type="button">Yes</button></div>
+  </dialog>
+  <dialog id="order-details-dialog" class="dialog insight-detail-dialog" aria-labelledby="order-details-title">
+    <div class="dialog-heading"><div><h2 id="order-details-title">Order #042</h2><p class="muted">Last order · Dine-in · Sample data</p></div><button class="icon-button" data-close aria-label="Close last order"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div class="insight-order-state"><span>Paid by UPI</span><strong>₹480</strong></div>
+    <table class="insight-detail-table"><thead><tr><th scope="col">Item</th><th scope="col">Qty</th><th scope="col">Amount</th></tr></thead><tbody><tr><td>Masala dosa</td><td>2</td><td>₹360</td></tr><tr><td>Filter coffee</td><td>2</td><td>₹120</td></tr></tbody><tfoot><tr><th scope="row" colspan="2">Total paid</th><td>₹480</td></tr></tfoot></table>
+  </dialog>
+  <dialog id="most-sold-dialog" class="dialog insight-detail-dialog" aria-labelledby="most-sold-title">
+    <div class="dialog-heading"><div><h2 id="most-sold-title">Most sold items</h2><p class="muted">Today · Sample data</p></div><button class="icon-button" data-close aria-label="Close most sold items"><svg class="icon"><use href="#close"/></svg></button></div>
+    <table class="insight-detail-table"><thead><tr><th scope="col">Rank</th><th scope="col">Item</th><th scope="col">Sold</th></tr></thead><tbody><tr><td>1</td><td>Masala dosa</td><td>68</td></tr><tr><td>2</td><td>Idli</td><td>54</td></tr><tr><td>3</td><td>Filter coffee</td><td>42</td></tr><tr><td>4</td><td>Biryani</td><td>28</td></tr><tr><td>5</td><td>Pulav</td><td>19</td></tr></tbody></table>
+  </dialog>
+  <dialog id="move-dialog" class="dialog move-dialog" aria-labelledby="move-title">
+    <div class="dialog-heading"><h2 id="move-title">Move app</h2><button class="icon-button" data-close aria-label="Close app arrangement"><svg class="icon"><use href="#close"/></svg></button></div>
+    <p id="move-description" class="muted"></p>
+    <form id="move-form"><label for="move-page">Page</label><select id="move-page"></select><label for="move-position">Position</label><select id="move-position"></select><button class="primary-button" type="submit">Move app</button></form>
+  </dialog>
+  <dialog id="help-dialog" class="dialog help-dialog" aria-labelledby="help-title">
+    <div class="dialog-heading"><h2 id="help-title">Help</h2><button class="icon-button" data-close aria-label="Close help"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div class="help-sections"><div><h3>Change pages</h3><p>Swipe left or right inside More Apps. On a computer, drag the page, click the dots, or use the left and right arrow keys.</p></div><div><h3>Arrange your apps</h3><p>Hold an app, then drag it before another app. The following apps move along in the same order. Hold near the left or right edge to change pages. Tap outside More Apps or tap blank space inside its panel to finish arranging.</p></div><div><h3>Delete an app</h3><p>In edit mode, tap an app’s minus button. Choose Yes to delete it, or No to return to the same edit page.</p></div><div><h3>Manage pages</h3><p>Hold an app or an empty slot to edit. Swipe beyond the last page and tap the plus to add a page. On an empty page, use the delete icon in its top-right corner.</p></div><div><h3>Keyboard controls</h3><p>Focus an app and press M to choose its page and position. Focus an empty slot and press Space to edit pages. Press Escape to finish arranging.</p></div></div>
+  </dialog>
+  <dialog id="quick-controls-dialog" class="quick-drawer" aria-labelledby="quick-controls-title">
+    <div class="quick-drawer-heading"><div><p class="quick-eyebrow">RESTRO</p><h2 id="quick-controls-title">Quick controls</h2></div><button class="icon-button" data-close aria-label="Close quick controls"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div class="quick-controls-grid">
+      <button type="button" class="quick-control teal-control" data-control="bluetooth"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 7 12 10-6 5V2l6 5L6 17"/></svg></span><span>Bluetooth</span><small id="quick-bluetooth-status">Connections</small></button>
+      <button type="button" class="quick-control teal-control" data-control="wifi"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#wifi"/></svg></span><span>Wi-Fi</span><small id="quick-wifi-status">Network settings</small></button>
+      <button type="button" class="quick-control ivory-control" data-control="camera"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h4l2-3h4l2 3h4v14H4Z"/><circle cx="12" cy="13" r="4"/></svg></span><span>Camera</span><small>Open camera</small></button>
+      <button type="button" class="quick-control copper-control" data-control="brightness"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></span><span>Brightness</span><small id="quick-brightness-status">100%</small></button>
+      <button type="button" class="quick-control ivory-control" data-control="calculator"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h1m6 0h1M8 15h1m6 0h1M8 19h1m6 0h1"/></svg></span><span>Calculator</span><small>Quick calculation</small></button>
+      <button type="button" class="quick-control copper-control" data-control="pazzer"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="12" rx="2"/><path d="M8 21h8m-4-6v6M7 7h6m-6 4h4"/><path d="m15 8 2 2 4-4"/></svg></span><span>Pazzer</span><small>Connect settings</small></button>
+      <button type="button" class="quick-control ivory-control" data-control="settings"><span class="quick-control-icon selected-gear"><img data-app-icon="settings" alt="" draggable="false"></span><span>Settings</span><small>Restaurant settings</small></button>
+    </div>
+    <div class="quick-brightness"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><label class="sr-only" for="quick-brightness-range">Screen brightness</label><input type="range" id="quick-brightness-range" min="20" max="100" value="100"><output id="quick-brightness-value" for="quick-brightness-range">100%</output></div>
+    <section class="quick-notifications" aria-labelledby="system-notifications-title">
+      <div class="notification-heading"><h2 id="system-notifications-title">Notifications</h2><span id="system-notification-count" class="notification-count" hidden></span></div>
+      <div id="system-notification-list" class="notification-list" role="list" aria-label="System notifications" hidden></div>
+      <div id="system-notifications-empty" class="notification-empty"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><p>No notifications</p></div>
+      <p id="system-notification-announcement" class="sr-only" role="status" aria-live="polite"></p>
+    </section>
+    <button class="quick-drawer-handle" type="button" aria-label="Collapse quick controls"><span></span></button>
+  </dialog>
+  <dialog id="device-settings-dialog" class="dialog device-settings-dialog" aria-labelledby="device-settings-title">
+    <div class="dialog-heading"><div><p class="quick-eyebrow">DEVICE</p><h2 id="device-settings-title">Connections</h2></div><button class="icon-button" data-close aria-label="Close device settings"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div id="device-settings-content"></div>
+  </dialog>
+  <dialog id="camera-dialog" class="dialog camera-dialog" aria-labelledby="camera-title">
+    <div class="dialog-heading"><h2 id="camera-title">Camera</h2><button class="icon-button" data-close aria-label="Close camera"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div class="camera-preview"><video id="camera-video" autoplay playsinline muted hidden></video><img id="camera-photo" alt="Captured photo" hidden><p id="camera-message">Open the camera to take a photo.</p></div>
+    <div class="camera-actions"><button type="button" id="camera-start" class="primary-button">Open camera</button><button type="button" id="camera-capture" class="primary-button" hidden>Take photo</button><button type="button" id="camera-retake" class="secondary-button" hidden>Retake</button><a id="camera-save" class="primary-button" download="restro-photo.jpg" hidden>Save photo</a></div>
+  </dialog>
+  <dialog id="calculator-dialog" class="dialog calculator-dialog" aria-labelledby="calculator-title">
+    <div class="dialog-heading"><h2 id="calculator-title">Calculator</h2><button class="icon-button" data-close aria-label="Close calculator"><svg class="icon"><use href="#close"/></svg></button></div>
+    <output id="calculator-display" class="calculator-display" aria-live="polite">0</output>
+    <div class="calculator-keys">
+      <button data-calc="clear">AC</button><button data-calc="sign" aria-label="Change sign">+/−</button><button data-calc="percent" aria-label="Percent">%</button><button data-calc="/" class="calc-operator" aria-label="Divide">÷</button>
+      <button data-calc="7">7</button><button data-calc="8">8</button><button data-calc="9">9</button><button data-calc="*" class="calc-operator" aria-label="Multiply">×</button>
+      <button data-calc="4">4</button><button data-calc="5">5</button><button data-calc="6">6</button><button data-calc="-" class="calc-operator" aria-label="Subtract">−</button>
+      <button data-calc="1">1</button><button data-calc="2">2</button><button data-calc="3">3</button><button data-calc="+" class="calc-operator" aria-label="Add">+</button>
+      <button data-calc="backspace" aria-label="Backspace">⌫</button><button data-calc="0">0</button><button data-calc=".">.</button><button data-calc="=" class="calc-equals" aria-label="Equals">=</button>
+    </div>
+  </dialog>
+  <div id="screen-dimmer" aria-hidden="true"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <!-- Browser-only test harness (see js/dev-battery-preview.js) -->
+  <details id="battery-preview-controls" style="position:fixed;left:20px;bottom:44px;z-index:60;padding:10px 14px;border-radius:10px;background:var(--palette-panel,#243239);color:var(--palette-text,#fff);border:1px solid var(--palette-line);font:14px Arial;box-shadow:0 3px 10px #0003"><summary style="cursor:pointer">Battery preview</summary><label style="display:block;margin:12px 0 6px" for="battery-preview-state">Sample device status</label><select id="battery-preview-state" style="font:inherit;max-width:260px;padding:8px"><option value="normal">Unplugged · 82%</option><option value="plugged">Plugged in · 82%</option><option value="low">Low · 19%</option><option value="boundary">Unplugged · 20%</option><option value="full">Plugged in · 100% (full)</option><option value="empty">Unplugged · 0%</option><option value="absent">Device without a battery</option></select></details>
+  <script src="js/01-layout.js"></script>
+  <script src="js/02-launcher.js"></script>
+  <script src="js/03-insights.js"></script>
+  <script src="js/04-quick-controls.js"></script>
+  <script src="js/05-battery-status.js"></script>
+  <script src="js/06-notifications.js"></script>
+  <script src="js/07-navigation.js"></script>
+  <script src="js/dev-battery-preview.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+// Browser-only test harness: lets you switch the sample battery state.
+// Remove this file and the #battery-preview-controls element for production.
+document.addEventListener('DOMContentLoaded',()=>{document.querySelector('#battery-preview-state').addEventListener('change',event=>{const states={normal:{hasBattery:true,percentage:82,plugged:false},plugged:{hasBattery:true,percentage:82,plugged:true},low:{hasBattery:true,percentage:19,plugged:false},boundary:{hasBattery:true,percentage:20,plugged:false},full:{hasBattery:true,percentage:100,plugged:true,charging:false},empty:{hasBattery:true,percentage:0,plugged:false},absent:{hasBattery:false}};window.RestroBatteryPreview.set(states[event.target.value]);});});

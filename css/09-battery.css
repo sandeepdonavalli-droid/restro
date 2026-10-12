@@ -1,0 +1,7 @@
+/* Battery meaning stays consistent across all themes. Preserve the status-bar slot. */
+.battery-status{color:#fff}
+.battery-status[data-battery-state="charging"]{color:#62d36b}
+.battery-status[data-battery-state="low"]{color:#ff5c5c}
+.battery-status[hidden]{display:flex;visibility:hidden}
+.battery-flash{fill:#fff}
+.battery-flash[hidden]{display:none}

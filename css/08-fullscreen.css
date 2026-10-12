@@ -1,0 +1,27 @@
+/* Fill the display while retaining the Android navigation strip at the bottom. */
+.quick-drawer{inset:0;height:100dvh;max-height:100dvh;margin:0;border:0;border-radius:0;overflow:hidden;padding-bottom:calc(var(--header-height) + env(safe-area-inset-bottom,0px));box-sizing:border-box}
+.quick-drawer[open]{display:flex;flex-direction:column}
+.quick-drawer-heading,.quick-controls-grid,.quick-brightness,.quick-drawer-handle{flex-shrink:0}
+.quick-drawer-heading,.quick-controls-grid{width:100%}
+.quick-brightness{width:min(100%,630px);box-sizing:border-box}
+.quick-notifications{display:flex;flex-direction:column;flex:1;min-height:0;gap:16px;width:100%;max-width:1180px;margin:24px auto 0;color:var(--palette-text)}
+.notification-heading{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.notification-heading h2{font-size:20px;font-weight:550;letter-spacing:-.2px}
+.notification-count{display:grid;place-items:center;min-width:28px;height:28px;padding:0 8px;border-radius:14px;background:var(--palette-accent-wash);color:var(--palette-accent-ink);font-size:14px;font-variant-numeric:tabular-nums}
+.notification-list{display:flex;flex-direction:column;flex:1;min-height:0;gap:12px;padding:2px 3px 12px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--palette-track) transparent}
+.system-notification{display:flex;align-items:flex-start;gap:18px;flex-shrink:0;padding:20px 22px;background:linear-gradient(140deg,var(--palette-panel-top),var(--palette-panel));border:1px solid var(--palette-line);border-radius:16px;box-shadow:inset 0 1px 0 var(--palette-highlight),0 4px 12px var(--palette-soft-shadow)}
+.notification-icon{display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;border-radius:12px;background:var(--palette-accent-wash);color:var(--palette-accent-ink)}
+.notification-icon>.icon{width:24px;height:24px;stroke-width:1.7}
+.notification-icon>.app-art{width:40px;height:36px;filter:brightness(1.10) saturate(1.16)}
+.notification-copy{flex:1;min-width:0}
+.notification-meta{display:flex;align-items:baseline;justify-content:space-between;gap:18px;margin-bottom:8px;font-size:14px;line-height:1.4;color:var(--palette-muted)}
+.notification-meta span{overflow-wrap:anywhere}.notification-meta time{white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums}
+.notification-copy h3{font-size:17px;font-weight:550;line-height:1.4;letter-spacing:-.1px;overflow-wrap:anywhere}
+.notification-message{font-size:15px;line-height:1.55;margin-top:6px;color:var(--palette-muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.notification-empty{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;flex:1;min-height:0;border:1px solid var(--palette-line);border-radius:16px;margin-bottom:12px;background:var(--palette-panel);color:var(--palette-muted)}
+.notification-empty .icon{width:38px;height:38px;color:var(--palette-accent-ink);opacity:.65;stroke-width:1.5}
+.notification-empty p{font-size:16px;line-height:1.5}
+.quick-notifications [hidden]{display:none}
+.quick-drawer-handle{height:32px;min-height:32px}
+@media(max-width:740px){.quick-notifications{margin-top:18px;gap:12px}.notification-heading h2{font-size:18px}.system-notification{padding:16px;gap:12px}.notification-icon{width:38px;height:38px}.notification-meta{gap:10px}.notification-copy h3{font-size:16px}}
+@media(min-width:741px) and (max-height:680px){.quick-drawer{padding-top:16px}.quick-drawer-heading{margin-bottom:16px}.quick-control{padding-top:12px;padding-bottom:12px;gap:6px}.quick-control-icon{width:40px;height:40px}.quick-brightness{margin-top:18px;padding-top:10px;padding-bottom:10px}.quick-notifications{margin-top:16px;gap:12px}}
