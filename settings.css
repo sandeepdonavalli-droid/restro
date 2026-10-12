@@ -231,3 +231,12 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 .touch-style-play{border:0;padding:0;margin:0;cursor:pointer}
 .touch-style-play:hover{filter:brightness(.96)}
 .touch-style-play:focus-visible{outline:2px solid var(--palette-accent);outline-offset:2px}
+
+/* My Profile contact fields */
+.settings-app input[type=email],.settings-app input[type=tel]{width:100%;min-height:56px;padding:14px 16px;font-size:18px;border-radius:14px;border:1px solid var(--palette-line);background:var(--palette-bg);color:var(--palette-text);outline:none}
+.settings-app input[type=email]:focus,.settings-app input[type=tel]:focus{border-color:var(--palette-accent);box-shadow:0 0 0 1px var(--palette-accent)}
+.phone-field{display:flex;align-items:stretch}
+.phone-prefix{flex:none;display:grid;place-items:center;padding:0 14px;border:1px solid var(--palette-line);border-right:0;border-radius:14px 0 0 14px;background:var(--palette-panel);color:var(--palette-muted);font-size:18px;font-variant-numeric:tabular-nums}
+.settings-app .phone-field input[type=tel]{border-radius:0 14px 14px 0;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.field-error{margin:0;font-size:14px;line-height:1.45;color:#b42318;font-weight:600}
+.field-error::before{content:"! ";}

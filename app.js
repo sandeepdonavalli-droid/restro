@@ -210,7 +210,7 @@ $('#delete-app-dialog').addEventListener('cancel',event=>{if(deletingApp)event.p
 $('#delete-app-dialog').addEventListener('close',()=>{deleteAppId=null;const slot=$(`.apps-page[data-page="${currentPage}"] .app-tile`);slot?.focus({preventScroll:true});});
 function syncInstalledControls(){$$('[data-control="settings"]').forEach(control=>{control.hidden=!isInstalledApp('settings');});}
 window.addEventListener('restro:app-uninstalled',syncInstalledControls);syncInstalledControls();
-function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
+function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroProfile?.fill();window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
 function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}}
 function openMove(id){
   moveId=id;setArranging(true);$('#move-description').textContent=`Choose where to insert ${apps[id].name}. Following apps keep their order.`;
@@ -296,7 +296,31 @@ const uppercaseRestaurantName=value=>value.trim().toLocaleUpperCase('en-IN').sli
 let restaurantName='RESTAURANT NAME';try{restaurantName=localStorage.getItem('restro.restaurantName')||restaurantName;}catch{}
 restaurantName=uppercaseRestaurantName(restaurantName)||'RESTAURANT NAME';$('#restaurant-name').textContent=restaurantName;
 try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}
-$('#restaurant-form').addEventListener('submit',event=>{event.preventDefault();const value=uppercaseRestaurantName($('#restaurant-input').value);if(!value){$('#restaurant-input').setCustomValidity('Enter a restaurant name.');$('#restaurant-input').reportValidity();return;}restaurantName=value;$('#restaurant-input').setCustomValidity('');$('#restaurant-name').textContent=restaurantName;try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}window.dispatchEvent(new CustomEvent('restro:restaurant-renamed',{detail:{name:restaurantName}}));toast('Restaurant name saved');alignBannerText();});
+// My Profile: restaurant name, email, mobile. Stored on this device until the
+// RESTRO backend exists (Phase 2 of the security plan), then moved there.
+window.RestroProfile=(()=>{
+  const KEY='restro.profile.v1';let profile={email:'',mobile:''};
+  try{const saved=JSON.parse(localStorage.getItem(KEY)||'null');if(saved&&typeof saved==='object')profile={email:String(saved.email||''),mobile:String(saved.mobile||'')};}catch{}
+  const digits=value=>String(value).replace(/\D/g,'').replace(/^(?:91|0)(?=\d{10}$)/,'');
+  const pretty=value=>value.length>5?`${value.slice(0,5)} ${value.slice(5)}`:value;
+  const showError=(id,message)=>{const el=$(id);el.textContent=message;el.hidden=!message;};
+  return{
+    get email(){return profile.email;},get mobile(){return profile.mobile;},
+    fill(){$('#profile-email').value=profile.email;$('#profile-mobile').value=pretty(profile.mobile);showError('#profile-email-error','');showError('#profile-mobile-error','');},
+    // Returns the cleaned values, or null after showing what to fix.
+    read(){
+      const email=$('#profile-email').value.trim().toLowerCase(),mobile=digits($('#profile-mobile').value);
+      let ok=true;
+      if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){showError('#profile-email-error','Enter an email like name@example.com.');ok=false;}else showError('#profile-email-error','');
+      if(mobile&&!/^[6-9]\d{9}$/.test(mobile)){showError('#profile-mobile-error','Enter a 10-digit mobile number starting with 6, 7, 8 or 9.');ok=false;}else showError('#profile-mobile-error','');
+      return ok?{email,mobile}:null;
+    },
+    save(values){profile=values;try{localStorage.setItem(KEY,JSON.stringify(profile));}catch{}this.fill();}
+  };
+})();
+$('#profile-mobile').addEventListener('input',event=>{const input=event.target,clean=input.value.replace(/[^\d ]/g,'');if(clean!==input.value)input.value=clean;$('#profile-mobile-error').hidden=true;});
+$('#profile-email').addEventListener('input',()=>{$('#profile-email-error').hidden=true;});
+$('#restaurant-form').addEventListener('submit',event=>{event.preventDefault();const value=uppercaseRestaurantName($('#restaurant-input').value);if(!value){$('#restaurant-input').setCustomValidity('Enter a restaurant name.');$('#restaurant-input').reportValidity();return;}const contact=window.RestroProfile.read();if(!contact)return;restaurantName=value;$('#restaurant-input').setCustomValidity('');$('#restaurant-name').textContent=restaurantName;try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}window.RestroProfile.save(contact);window.dispatchEvent(new CustomEvent('restro:restaurant-renamed',{detail:{name:restaurantName}}));toast('Profile saved');alignBannerText();});
 $('#restaurant-input').addEventListener('input',event=>{
   const input=event.target,start=input.selectionStart,end=input.selectionEnd,value=input.value;
   input.setCustomValidity('');input.value=value.toLocaleUpperCase('en-IN');
