@@ -9,3 +9,9 @@ point at the .webp files. Everything else is byte-for-byte the live source.
 
 Run locally:  python3 -m http.server 8000   then open http://localhost:8000
 Publish prep: python3 tools/build.py        (writes dist/index.html)
+
+## Where it runs
+
+- Website: https://sandeepdonavalli-droid.github.io/restro/ (GitHub Pages, deploys on every push to `main`)
+- Tablet preview: Claude artifact, republished with `tools/build.py`
+- Android native features (Wi-Fi list, Bluetooth scan): see ANDROID-BRIDGE.md
