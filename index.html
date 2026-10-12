@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="device-controls.css?v=2">
   <link rel="stylesheet" href="system-navigation.css?v=5">
   <link rel="stylesheet" href="themes.css?v=2">
-  <link rel="stylesheet" href="settings.css?v=3">
+  <link rel="stylesheet" href="settings.css?v=4">
   <link rel="stylesheet" href="app-widget-controls.css?v=3">
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
@@ -27,8 +27,8 @@
   <script src="wifi.js?v=3" defer></script>
   <script src="bluetooth.js?v=3" defer></script>
   <script src="device-controls.js?v=8" defer></script>
-  <script src="sound.js?v=1" defer></script>
-  <script src="settings.js?v=4" defer></script>
+  <script src="sound.js?v=2" defer></script>
+  <script src="settings.js?v=5" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=5" defer></script>
@@ -161,6 +161,8 @@
               <label class="settings-item settings-switch-row" for="settings-touch-sounds"><span class="settings-row-copy"><strong>Touch sounds</strong><span>A soft click when you tap buttons and switches</span></span><input id="settings-touch-sounds" class="settings-switch" type="checkbox" role="switch"></label>
               <div class="settings-item settings-status"><span class="settings-row-copy"><strong>Test sound</strong><span>Plays at the current volume</span></span><button id="settings-test-sound" class="bt-action" type="button">Play</button></div>
             </div>
+            <p class="settings-group-label">Touch sound</p>
+            <div id="settings-touch-styles" class="settings-group touch-styles" role="radiogroup" aria-label="Touch sound"></div>
             <p class="settings-footnote">Volume is also in quick controls. Pull down from the top banner.</p>
           </section>
           <section id="settings-themes" class="settings-page settings-themes" data-page="themes" data-title="Themes" hidden>

@@ -101,7 +101,7 @@
     const paired = bt?.connectedCount || 0;
     document.querySelector('#settings-bluetooth-summary').textContent = bt?.unavailableReason ? 'Not available here' : bt && !bt.on ? 'Off' : paired ? `${paired} connected` : 'On · Not connected';
     const sound = window.RestroSound;
-    if (sound) document.querySelector('#settings-sound-summary').textContent = sound.volume ? `Volume ${sound.volume}%${sound.touchSounds ? ' · Touch sounds on' : ''}` : 'Muted';
+    if (sound) document.querySelector('#settings-sound-summary').textContent = sound.volume ? `Volume ${sound.volume}%${sound.touchSounds ? ` · Touch: ${sound.touchStyle.name}` : ''}` : 'Muted';
 
     const brightness = window.RestroDeviceControls?.brightness ?? 100;
     document.querySelector('#settings-display-summary').textContent = `Brightness ${brightness}%`;
