@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="device-controls.css?v=2">
   <link rel="stylesheet" href="system-navigation.css?v=6">
   <link rel="stylesheet" href="themes.css?v=2">
-  <link rel="stylesheet" href="settings.css?v=6">
+  <link rel="stylesheet" href="settings.css?v=7">
   <link rel="stylesheet" href="app-widget-controls.css?v=3">
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
@@ -21,7 +21,7 @@
   <script src="theme-artwork.js?v=2"></script>
   <script src="themes.js?v=4"></script>
   <script src="app-layout.js?v=2" defer></script>
-  <script src="app.js?v=24" defer></script>
+  <script src="app.js?v=25" defer></script>
   <script src="insights.js?v=9" defer></script>
   <script src="connectivity-status.js?v=4" defer></script>
   <script src="wifi.js?v=3" defer></script>
@@ -131,7 +131,7 @@
             <form id="restaurant-form" class="settings-group">
               <div class="settings-item settings-field"><label for="restaurant-input">Restaurant name</label><input id="restaurant-input" name="restaurant" maxlength="48" required autocomplete="organization"></div>
               <div class="settings-item settings-field"><label for="profile-email">Email</label><input id="profile-email" name="email" type="email" maxlength="120" autocomplete="email" inputmode="email" placeholder="name@example.com"><p id="profile-email-error" class="field-error" role="alert" hidden></p></div>
-              <div class="settings-item settings-field"><label for="profile-mobile">Mobile number</label><div class="phone-field"><span class="phone-prefix" aria-hidden="true">+91</span><input id="profile-mobile" name="mobile" type="tel" maxlength="11" autocomplete="tel-national" inputmode="numeric" placeholder="98765 43210" aria-describedby="profile-mobile-hint"></div><p id="profile-mobile-hint" class="field-note">10-digit Indian mobile number</p><p id="profile-mobile-error" class="field-error" role="alert" hidden></p></div>
+              <div class="settings-item settings-field"><label for="profile-mobile">Mobile number</label><div class="phone-field"><label class="visually-hidden" for="profile-country">Country code</label><select id="profile-country" name="country" class="phone-country" autocomplete="tel-country-code"></select><input id="profile-mobile" name="mobile" type="tel" maxlength="16" autocomplete="tel-national" inputmode="numeric" placeholder="98765 43210" aria-describedby="profile-mobile-hint"></div><p id="profile-mobile-hint" class="field-note">10-digit mobile number</p><p id="profile-mobile-error" class="field-error" role="alert" hidden></p></div>
               <div class="settings-item settings-actions"><button class="primary-button" type="submit">Save changes</button></div>
             </form>
           </section>

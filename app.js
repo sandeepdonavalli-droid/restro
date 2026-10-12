@@ -299,21 +299,57 @@ try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}
 // My Profile: restaurant name, email, mobile. Stored on this device until the
 // RESTRO backend exists (Phase 2 of the security plan), then moved there.
 window.RestroProfile=(()=>{
-  const KEY='restro.profile.v1';let profile={email:'',mobile:''};
-  try{const saved=JSON.parse(localStorage.getItem(KEY)||'null');if(saved&&typeof saved==='object')profile={email:String(saved.email||''),mobile:String(saved.mobile||'')};}catch{}
-  const digits=value=>String(value).replace(/\D/g,'').replace(/^(?:91|0)(?=\d{10}$)/,'');
-  const pretty=value=>value.length>5?`${value.slice(0,5)} ${value.slice(5)}`:value;
+  const KEY='restro.profile.v1';
+  // Country → calling code and national mobile number length (digits). `start` = allowed first digits.
+  const COUNTRIES=[
+    {iso:'IN',name:'India',code:'91',len:[10],start:'6789',sample:'98765 43210'},
+    {iso:'AE',name:'United Arab Emirates',code:'971',len:[9],start:'5',sample:'50 123 4567'},
+    {iso:'SA',name:'Saudi Arabia',code:'966',len:[9],start:'5',sample:'51 234 5678'},
+    {iso:'QA',name:'Qatar',code:'974',len:[8],sample:'3312 3456'},
+    {iso:'KW',name:'Kuwait',code:'965',len:[8],sample:'5001 2345'},
+    {iso:'OM',name:'Oman',code:'968',len:[8],sample:'9212 3456'},
+    {iso:'BH',name:'Bahrain',code:'973',len:[8],sample:'3600 1234'},
+    {iso:'NP',name:'Nepal',code:'977',len:[10],start:'9',sample:'984 1234567'},
+    {iso:'LK',name:'Sri Lanka',code:'94',len:[9],start:'7',sample:'71 234 5678'},
+    {iso:'BD',name:'Bangladesh',code:'880',len:[10],start:'1',sample:'1812 345678'},
+    {iso:'SG',name:'Singapore',code:'65',len:[8],start:'89',sample:'8123 4567'},
+    {iso:'MY',name:'Malaysia',code:'60',len:[9,10],start:'1',sample:'12 345 6789'},
+    {iso:'GB',name:'United Kingdom',code:'44',len:[10],start:'7',sample:'7400 123456'},
+    {iso:'US',name:'United States',code:'1',len:[10],sample:'201 555 0123'},
+    {iso:'CA',name:'Canada',code:'1',len:[10],sample:'506 234 5678'},
+    {iso:'AU',name:'Australia',code:'61',len:[9],start:'4',sample:'412 345 678'},
+    {iso:'NZ',name:'New Zealand',code:'64',len:[8,9,10],start:'2',sample:'21 123 4567'},
+    {iso:'DE',name:'Germany',code:'49',len:[10,11],start:'1',sample:'151 23456789'},
+    {iso:'FR',name:'France',code:'33',len:[9],start:'67',sample:'6 12 34 56 78'},
+    {iso:'ZA',name:'South Africa',code:'27',len:[9],start:'678',sample:'71 123 4567'}
+  ];
+  const byIso=iso=>COUNTRIES.find(c=>c.iso===iso)||COUNTRIES[0];
+  let profile={email:'',mobile:'',country:'IN'};
+  try{const saved=JSON.parse(localStorage.getItem(KEY)||'null');if(saved&&typeof saved==='object')profile={email:String(saved.email||''),mobile:String(saved.mobile||''),country:byIso(saved.country).iso};}catch{}
+  const select=$('#profile-country');
+  for(const c of COUNTRIES){const o=document.createElement('option');o.value=c.iso;o.textContent=`+${c.code}  ${c.name}`;select.append(o);}
+  const current=()=>byIso(select.value);
+  // Keep national digits only: drop a pasted +code / 00code prefix and a trunk 0.
+  const digits=(value,c)=>{let d=String(value).replace(/\D/g,'');const max=Math.max(...c.len);if(d.length>max&&d.startsWith('00'+c.code))d=d.slice(2+c.code.length);else if(d.length>max&&d.startsWith(c.code))d=d.slice(c.code.length);if(d.length>max&&d.startsWith('0'))d=d.slice(1);else if(d.length===max+1&&d.startsWith('0'))d=d.slice(1);return d;};
+  const pretty=(value,c)=>{const sample=c.sample.split(' ').map(part=>part.length);let out='',i=0;for(const n of sample){if(i>=value.length)break;out+=(out?' ':'')+value.slice(i,i+n);i+=n;}if(i<value.length)out+=value.slice(i);return out;};
+  const lengths=c=>c.len.length>1?`${c.len[0]}–${c.len.at(-1)}`:String(c.len[0]);
+  const describe=()=>{const c=current();$('#profile-mobile-hint').textContent=`${lengths(c)}-digit mobile number in ${c.name}`;$('#profile-mobile').placeholder=c.sample;};
   const showError=(id,message)=>{const el=$(id);el.textContent=message;el.hidden=!message;};
+  select.addEventListener('change',()=>{describe();showError('#profile-mobile-error','');});
   return{
     get email(){return profile.email;},get mobile(){return profile.mobile;},
-    fill(){$('#profile-email').value=profile.email;$('#profile-mobile').value=pretty(profile.mobile);showError('#profile-email-error','');showError('#profile-mobile-error','');},
+    get country(){return byIso(profile.country);},
+    get international(){return profile.mobile?`+${byIso(profile.country).code} ${pretty(profile.mobile,byIso(profile.country))}`:'';},
+    countries:COUNTRIES.map(({iso,name,code})=>({iso,name,code})),
+    fill(){select.value=profile.country;describe();$('#profile-email').value=profile.email;$('#profile-mobile').value=pretty(profile.mobile,byIso(profile.country));showError('#profile-email-error','');showError('#profile-mobile-error','');},
     // Returns the cleaned values, or null after showing what to fix.
     read(){
-      const email=$('#profile-email').value.trim().toLowerCase(),mobile=digits($('#profile-mobile').value);
+      const c=current(),email=$('#profile-email').value.trim().toLowerCase(),mobile=digits($('#profile-mobile').value,c);
       let ok=true;
       if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){showError('#profile-email-error','Enter an email like name@example.com.');ok=false;}else showError('#profile-email-error','');
-      if(mobile&&!/^[6-9]\d{9}$/.test(mobile)){showError('#profile-mobile-error','Enter a 10-digit mobile number starting with 6, 7, 8 or 9.');ok=false;}else showError('#profile-mobile-error','');
-      return ok?{email,mobile}:null;
+      const badLength=mobile&&!c.len.includes(mobile.length),badStart=mobile&&c.start&&!c.start.includes(mobile[0]);
+      if(badLength||badStart){showError('#profile-mobile-error',`Enter a ${lengths(c)}-digit ${c.name} mobile number${c.start?` starting with ${[...c.start].join(', ').replace(/, (\d)$/,' or $1')}`:''}.`);ok=false;}else showError('#profile-mobile-error','');
+      return ok?{email,mobile,country:c.iso}:null;
     },
     save(values){profile=values;try{localStorage.setItem(KEY,JSON.stringify(profile));}catch{}this.fill();}
   };
