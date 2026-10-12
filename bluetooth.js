@@ -194,7 +194,7 @@
   }
   function masterSwitch() {
     const label = document.createElement('label'); label.className = 'radio-master' + (isOn() ? ' on' : '');
-    label.innerHTML = '<span class="radio-master-copy"><strong>Use Bluetooth</strong><span></span></span><input type="checkbox" class="settings-switch" role="switch">';
+    label.innerHTML = '<span class="radio-master-copy"><strong>Bluetooth</strong><span></span></span><input type="checkbox" class="settings-switch" role="switch">';
     label.querySelector('.radio-master-copy span').textContent = reasonCache ? 'Not available here' : isOn() ? 'On' : 'Off';
     const input = label.querySelector('input'); input.checked = isOn(); input.disabled = !canToggle();
     input.addEventListener('change', () => setOn(input.checked));
@@ -214,8 +214,8 @@
     }
 
     const head = document.createElement('div'); head.className = 'bt-head';
-    head.innerHTML = `<span class="bt-head-icon">${bluetoothIcon}</span><span class="bt-head-copy"><strong>Bluetooth</strong><span></span></span>`;
-    head.querySelector('.bt-head-copy span').textContent = reason ? 'Unavailable here' : connected.size ? `${connected.size} connected` : 'Ready to connect';
+    head.innerHTML = `<span class="bt-head-icon">${bluetoothIcon}</span><span class="bt-head-copy"><strong></strong></span>`;
+    head.querySelector('.bt-head-copy strong').textContent = reason ? 'Unavailable here' : connected.size ? `${connected.size} connected` : 'Ready to connect';
     const scanButton = document.createElement('button'); scanButton.type = 'button'; scanButton.className = 'primary-button bt-scan';
     scanButton.textContent = scanning ? 'Stop' : hasHost() || canLiveScan() ? 'Scan for devices' : 'Pair new device';
     scanButton.disabled = Boolean(reason) && !scanning;

@@ -142,11 +142,11 @@
     const status = window.RestroConnectivity?.getStatus?.();
 
     const head = document.createElement('div'); head.className = 'bt-head';
-    head.innerHTML = `<span class="bt-head-icon">${signalIcon(current ? current.level : 4, false)}</span><span class="bt-head-copy"><strong>Wi-Fi</strong><span></span></span>`;
-    head.querySelector('.bt-head-copy span').textContent = current ? `Connected to ${current.ssid}${preview() ? ' (sample)' : ''}`
+    head.innerHTML = `<span class="bt-head-icon">${signalIcon(current ? current.level : 4, false)}</span><span class="bt-head-copy"><strong></strong></span>`;
+    head.querySelector('.bt-head-copy strong').textContent = current ? `Connected to ${current.ssid}${preview() ? ' (sample)' : ''}`
       : hasHost() ? (enabled ? 'Not connected' : 'Off')
       : status?.wifi?.connected ? 'Connected (network name not shared by this browser)' : 'Managed by this device';
-    root.append(masterSwitch('Use Wi-Fi', hasHost() ? (enabled ? 'On' : 'Off') : 'Preview · your device’s real Wi-Fi is unchanged', isOn(), canToggle(), setEnabled));
+    root.append(masterSwitch('Wi-Fi', hasHost() ? (enabled ? 'On' : 'Off') : 'Preview · your device’s real Wi-Fi is unchanged', isOn(), canToggle(), setEnabled));
     if (!isOn() && hasHost()) { panel.replaceChildren(root); return; }
     if (hasHost() || preview()) {
       const refresh = document.createElement('button'); refresh.type = 'button'; refresh.className = 'primary-button bt-scan';
@@ -158,7 +158,7 @@
     const note = document.createElement('p'); note.className = 'bt-message'; note.setAttribute('role', 'status');
     note.textContent = message || (hasHost() ? (networks.length ? 'Tap a network to connect.' : '')
       : preview() ? 'Sample networks for testing the screens and status bar icon. Your device’s real Wi-Fi is unchanged.'
-      : 'Web browsers can’t switch, search for or join Wi-Fi networks, on any website, so this device’s own settings manage its Wi-Fi. In the RESTRO Android app, this switch turns Wi-Fi on and off and nearby networks are listed here. Turn on Use Wi-Fi to preview these screens with sample networks.');
+      : 'Web browsers can’t switch, search for or join Wi-Fi networks, on any website, so this device’s own settings manage its Wi-Fi. In the RESTRO Android app, this switch turns Wi-Fi on and off and nearby networks are listed here. Turn on Wi-Fi above to preview these screens with sample networks.');
     if (note.textContent) root.append(note);
 
     if (hasHost() || preview()) {
