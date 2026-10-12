@@ -3,23 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1b2022">
+  <meta name="theme-color" content="#303f46">
   <meta name="description" content="RESTRO restaurant POS dashboard with movable apps and swipeable pages.">
   <title>RESTRO · Restaurant POS</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%231b2022'/%3E%3Cpath d='M10 8h11a9 9 0 0 1 3 17l7 8h-9l-6-8v8h-6V8zm6 6v5h5a2.5 2.5 0 0 0 0-5z' fill='%23f6ae71'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="css/01-base.css">
-  <link rel="stylesheet" href="css/02-artwork.css">
-  <link rel="stylesheet" href="css/03-quick-drawer.css">
-  <link rel="stylesheet" href="css/04-system-bars.css">
-  <link rel="stylesheet" href="css/05-theme-colors.css">
-  <link rel="stylesheet" href="css/06-settings.css">
-  <link rel="stylesheet" href="css/07-controls.css">
-  <link rel="stylesheet" href="css/08-fullscreen.css">
-  <link rel="stylesheet" href="css/09-battery.css">
-  <script src="js/theme-catalog.js"></script>
-  <script src="js/theme-engine.js"></script>
-  <script src="js/assets.js"></script>
-  <script src="js/device-bridge.js"></script>
+  <link rel="stylesheet" href="styles.css?v=23">
+  <link rel="stylesheet" href="quality-layout.css?v=4">
+  <link rel="stylesheet" href="device-controls.css?v=2">
+  <link rel="stylesheet" href="system-navigation.css?v=5">
+  <link rel="stylesheet" href="themes.css?v=2">
+  <link rel="stylesheet" href="theme-settings.css?v=2">
+  <link rel="stylesheet" href="app-widget-controls.css?v=3">
+  <link rel="stylesheet" href="notification-shade.css?v=1">
+  <link rel="stylesheet" href="battery-status.css?v=1">
+  <link rel="stylesheet" href="connectivity-status.css?v=2">
+  <script src="theme-data.js?v=2"></script>
+  <script src="theme-artwork.js?v=2"></script>
+  <script src="themes.js?v=2"></script>
+  <script src="app-layout.js?v=2" defer></script>
+  <script src="app.js?v=21" defer></script>
+  <script src="insights.js?v=9" defer></script>
+  <script src="connectivity-status.js?v=3" defer></script>
+  <script src="device-controls.js?v=5" defer></script>
+  <script src="battery-status.js?v=1" defer></script>
+  <script src="notifications.js?v=1" defer></script>
+  <script src="system-navigation.js?v=4" defer></script>
 </head>
 <body>
   <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -43,12 +51,12 @@
         <span id="restaurant-name" class="restaurant-name banner-label">RESTAURANT NAME</span>
       </div>
       <div class="system-status">
-        <span class="online-status"><span id="online-dot" class="status-dot"></span><span id="online-text" class="banner-label">Online</span></span>
+        <span class="online-status"><span id="online-dot" class="status-dot offline"></span><span id="online-text" class="banner-label">Offline</span></span>
         <span class="header-divider" aria-hidden="true"></span>
         <time id="clock" class="header-time"><span class="clock-text banner-label">5:30 PM</span></time>
         <span class="battery-status" role="img" hidden><svg class="battery" viewBox="0 0 29.4 14" aria-hidden="true"><rect x=".7" y=".7" width="25.4" height="12.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect class="battery-fill" x="2.5" y="2.5" width="0" height="9" rx="1.4" fill="currentColor"/><rect x="28" y="4.25" width="1.4" height="5.5" rx=".7" fill="currentColor"/><path class="battery-flash" d="m14.6 2.4-4.3 5.3h3l-1.2 3.9 4.4-5.8h-3.1l1.2-3.4Z" fill="#fff" hidden/></svg></span>
-        <span class="network-slot" title="Cellular strength · device preview"><svg class="icon signal"><use href="#signal"/></svg></span>
-        <span class="network-slot" title="Wi-Fi strength · device preview"><svg class="icon wifi" viewBox="0 0 24 24"><g transform="translate(0 -2.1) scale(1 1.205)"><path d="M2 8a17 17 0 0 1 20 0M5.5 11.5a11 11 0 0 1 13 0M9 15a5 5 0 0 1 6 0"/><circle cx="12" cy="18.5" r="1.5" fill="currentColor" stroke="none"/></g></svg></span>
+        <span id="cellular-status" class="network-slot" role="img" hidden><svg class="icon signal" viewBox="0 0 24 24" aria-hidden="true"><path data-signal-level="1" d="M3 20v-4" stroke-width="4"/><path data-signal-level="2" d="M9 20V12" stroke-width="4"/><path data-signal-level="3" d="M15 20V8" stroke-width="4"/><path data-signal-level="4" d="M21 20V4" stroke-width="4"/></svg></span>
+        <span id="wifi-status" class="network-slot" role="img" hidden><svg class="icon wifi" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(0 -2.1) scale(1 1.205)"><path data-wifi-level="4" d="M2 8a17 17 0 0 1 20 0"/><path data-wifi-level="3" d="M5.5 11.5a11 11 0 0 1 13 0"/><path data-wifi-level="2" d="M9 15a5 5 0 0 1 6 0"/><circle data-wifi-level="1" class="wifi-dot" cx="12" cy="18.5" r="1.5" fill="currentColor" stroke="none"/><g class="wifi-warning" hidden><path d="M12 11.4v4.5"/><circle cx="12" cy="18.5" r="1.1"/></g></g></svg></span>
       </div>
     </header>
     <main class="dashboard">
@@ -101,9 +109,10 @@
     <div id="settings-general">
     <form id="restaurant-form"><label for="restaurant-input">Restaurant name</label><input id="restaurant-input" name="restaurant" maxlength="48" required autocomplete="organization"><p class="field-note">Displayed in uppercase in the top banner.</p><button class="primary-button" type="submit">Save changes</button></form>
     <section class="appearance-settings" aria-labelledby="appearance-title"><h3 id="appearance-title">Appearance</h3><button id="themes-open" class="theme-settings-row" type="button"><span id="current-theme-swatch" class="theme-current-swatch" aria-hidden="true"></span><span class="theme-settings-copy"><strong>Themes</strong><span id="current-theme-name">Graphite Copper</span></span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button></section>
+    <section id="browser-preview-settings" class="appearance-settings" aria-labelledby="browser-preview-title"><h3 id="browser-preview-title">Browser preview</h3><label class="wifi-preview-row" for="wifi-preview-toggle"><span>Show Wi-Fi icon</span><input id="wifi-preview-toggle" type="checkbox" role="switch" aria-describedby="wifi-preview-note"></label><p id="wifi-preview-note" class="field-note" role="status">Show a sample Wi-Fi icon for browser visual testing. Internet status stays live.</p></section>
     </div>
     <section id="settings-themes" class="settings-themes" aria-label="Choose a theme" hidden>
-      <p class="theme-description">Choose a palette for every app and page.</p>
+      <p class="theme-description">Choose a theme for your POS.</p>
       <div id="theme-options" class="theme-options" role="radiogroup" aria-label="Color themes"></div>
       <div class="theme-apply-row"><div><strong id="theme-selection-name">Graphite Copper</strong><p id="theme-apply-status" class="field-note" role="status" aria-live="polite">Current theme</p></div><button id="theme-apply" class="primary-button" type="button" disabled>Apply theme</button></div>
     </section>
@@ -115,9 +124,13 @@
   </dialog>
   <dialog id="delete-app-dialog" class="dialog delete-app-dialog" aria-labelledby="delete-app-title">
     <div id="delete-app-art" class="delete-app-art" aria-hidden="true"></div>
-    <h2 id="delete-app-title">Do you want to delete this app?</h2>
+    <h2 id="delete-app-title">Uninstall this app?</h2>
     <p id="delete-app-error" class="field-note" role="alert"></p>
     <div class="delete-app-actions"><button id="delete-app-no" class="secondary-button" type="button" autofocus>No</button><button id="delete-app-yes" class="primary-button" type="button">Yes</button></div>
+  </dialog>
+  <dialog id="qr-studio-dialog" class="dialog qr-studio-dialog" aria-labelledby="qr-studio-title">
+    <div class="dialog-heading"><h2 id="qr-studio-title">QR Studio</h2><button class="icon-button" data-close aria-label="Close QR Studio"><svg class="icon"><use href="#close"/></svg></button></div>
+    <div id="qr-studio-art" class="qr-studio-art" aria-hidden="true"></div>
   </dialog>
   <dialog id="order-details-dialog" class="dialog insight-detail-dialog" aria-labelledby="order-details-title">
     <div class="dialog-heading"><div><h2 id="order-details-title">Order #042</h2><p class="muted">Last order · Dine-in · Sample data</p></div><button class="icon-button" data-close aria-label="Close last order"><svg class="icon"><use href="#close"/></svg></button></div>
@@ -135,7 +148,7 @@
   </dialog>
   <dialog id="help-dialog" class="dialog help-dialog" aria-labelledby="help-title">
     <div class="dialog-heading"><h2 id="help-title">Help</h2><button class="icon-button" data-close aria-label="Close help"><svg class="icon"><use href="#close"/></svg></button></div>
-    <div class="help-sections"><div><h3>Change pages</h3><p>Swipe left or right inside More Apps. On a computer, drag the page, click the dots, or use the left and right arrow keys.</p></div><div><h3>Arrange your apps</h3><p>Hold an app, then drag it before another app. The following apps move along in the same order. Hold near the left or right edge to change pages. Tap outside More Apps or tap blank space inside its panel to finish arranging.</p></div><div><h3>Delete an app</h3><p>In edit mode, tap an app’s minus button. Choose Yes to delete it, or No to return to the same edit page.</p></div><div><h3>Manage pages</h3><p>Hold an app or an empty slot to edit. Swipe beyond the last page and tap the plus to add a page. On an empty page, use the delete icon in its top-right corner.</p></div><div><h3>Keyboard controls</h3><p>Focus an app and press M to choose its page and position. Focus an empty slot and press Space to edit pages. Press Escape to finish arranging.</p></div></div>
+    <div class="help-sections"><div><h3>Change pages</h3><p>Swipe left or right inside More Apps. On a computer, drag the page, click the dots, or use the left and right arrow keys.</p></div><div><h3>Arrange your apps</h3><p>Hold an app, then drag it before another app. The following apps move along in the same order. Hold near the left or right edge to change pages. Tap outside More Apps or tap blank space inside its panel to finish arranging.</p></div><div><h3>Uninstall an app</h3><p>In edit mode, tap an app’s minus button. Choose Yes to uninstall it, or No to return to the same edit page.</p></div><div><h3>Manage pages</h3><p>Hold an app or an empty slot to edit. Swipe beyond the last page and tap the plus to add a page. On an empty page, use the delete icon in its top-right corner.</p></div><div><h3>Keyboard controls</h3><p>Focus an app and press M to choose its page and position. Focus an empty slot and press Space to edit pages. Press Escape to finish arranging.</p></div></div>
   </dialog>
   <dialog id="quick-controls-dialog" class="quick-drawer" aria-labelledby="quick-controls-title">
     <div class="quick-drawer-heading"><div><p class="quick-eyebrow">RESTRO</p><h2 id="quick-controls-title">Quick controls</h2></div><button class="icon-button" data-close aria-label="Close quick controls"><svg class="icon"><use href="#close"/></svg></button></div>
@@ -179,15 +192,5 @@
   </dialog>
   <div id="screen-dimmer" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <!-- Browser-only test harness (see js/dev-battery-preview.js) -->
-  <details id="battery-preview-controls" style="position:fixed;left:20px;bottom:44px;z-index:60;padding:10px 14px;border-radius:10px;background:var(--palette-panel,#243239);color:var(--palette-text,#fff);border:1px solid var(--palette-line);font:14px Arial;box-shadow:0 3px 10px #0003"><summary style="cursor:pointer">Battery preview</summary><label style="display:block;margin:12px 0 6px" for="battery-preview-state">Sample device status</label><select id="battery-preview-state" style="font:inherit;max-width:260px;padding:8px"><option value="normal">Unplugged · 82%</option><option value="plugged">Plugged in · 82%</option><option value="low">Low · 19%</option><option value="boundary">Unplugged · 20%</option><option value="full">Plugged in · 100% (full)</option><option value="empty">Unplugged · 0%</option><option value="absent">Device without a battery</option></select></details>
-  <script src="js/01-layout.js"></script>
-  <script src="js/02-launcher.js"></script>
-  <script src="js/03-insights.js"></script>
-  <script src="js/04-quick-controls.js"></script>
-  <script src="js/05-battery-status.js"></script>
-  <script src="js/06-notifications.js"></script>
-  <script src="js/07-navigation.js"></script>
-  <script src="js/dev-battery-preview.js"></script>
 </body>
 </html>

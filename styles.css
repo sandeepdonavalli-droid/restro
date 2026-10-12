@@ -64,6 +64,8 @@
  .top-banner{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:repeat(2,minmax(0,1fr));row-gap:0;column-gap:var(--banner-gap);padding-top:0;padding-bottom:0;align-items:center}
  .avatar{font-size:12px}
  .settings-button{grid-column:2;width:22px;min-width:22px;height:16px;min-height:16px}
+ .identity{grid-column:1;grid-row:2;min-width:0}
+ .system-status{grid-column:2;grid-row:2;justify-content:flex-end}
  .identity .header-divider,.system-status .header-divider{height:12px}
  .status-dot{width:6px;height:6px}
  .battery{width:22px;height:12px}
@@ -98,7 +100,7 @@
 .more-heading-row .text-button{font-size:14px;padding:5px 13px}
 .app-tile .settings-art{display:flex;align-items:flex-end;justify-content:center}
 .app-tile .settings-art svg{width:auto;height:85%;aspect-ratio:1;color:#e0c4a9;fill:#6b7777;stroke:currentColor;stroke-width:1.35;stroke-linejoin:round;filter:drop-shadow(0 4px 3px #0005)}
-@media(max-width:740px){.top-banner{grid-template-columns:minmax(0,1fr)}.system-status{justify-content:flex-end}}
+@media(max-width:740px){.top-banner{grid-template-columns:minmax(0,1fr) max-content}.system-status{justify-content:flex-end}}
 
 /* Reserve the same two-line label space for every app on compact pages. */
 @media(max-width:900px){.app-label{white-space:normal;min-height:2.4em}}

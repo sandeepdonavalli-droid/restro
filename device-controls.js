@@ -49,11 +49,14 @@
     if(event.clientY>rect.bottom||event.clientX<rect.left||event.clientX>rect.right)drawer.close();
   });
   function updateConnectionStatus(){
-    document.querySelector('#quick-wifi-status').textContent=navigator.onLine?'Network settings':'Offline';
+    const status=window.RestroConnectivity?.getStatus();
+    document.querySelector('#quick-wifi-status').textContent=status?.preview?.wifi?'Visual preview':status?.wifi.connected?(status.wifi.internetAvailable===false?'No internet access':'Connected'):'Network settings';
     document.querySelector('#quick-bluetooth-status').textContent=pairedDevices.size?`${pairedDevices.size} connected`:'Connections';
+    const summary=document.querySelector('#wifi-internet-status');if(summary)summary.textContent=status?.internetAvailable?'Internet available':'No internet connection';
   }
   window.addEventListener('online',updateConnectionStatus);
   window.addEventListener('offline',updateConnectionStatus);
+  window.addEventListener('restro:connectivity-changed',updateConnectionStatus);
   function section(markup){content.innerHTML=`<div class="device-section">${markup}</div>`;}
   function showSettings(title,markup){
     drawer.close();
@@ -70,7 +73,8 @@
   }
   function networkSettings(){
     const hasHost=typeof deviceHost()?.openSettings==='function';
-    showSettings('Wi-Fi',`<div class="connection-summary"><svg class="icon" aria-hidden="true"><use href="#wifi"/></svg><div><strong>${navigator.onLine?'Internet available':'No internet connection'}</strong><p>Manage your device’s Wi-Fi connection.</p></div></div><button id="wifi-settings-button" class="primary-button"${hasHost?'':' disabled'}>Open Wi-Fi settings</button><p id="wifi-feedback" class="device-note" role="status">${hasHost?'Choose a network in device settings.':'Wi-Fi settings are available on the RESTRO Android device.'}</p>`);
+    const status=window.RestroConnectivity?.getStatus();
+    showSettings('Wi-Fi',`<div class="connection-summary"><svg class="icon" aria-hidden="true"><use href="#wifi"/></svg><div><strong id="wifi-internet-status">${status?.internetAvailable?'Internet available':'No internet connection'}</strong><p>Manage your device’s Wi-Fi connection.</p></div></div><button id="wifi-settings-button" class="primary-button"${hasHost?'':' disabled'}>Open Wi-Fi settings</button><p id="wifi-feedback" class="device-note" role="status">${hasHost?'Choose a network in device settings.':'Wi-Fi settings are available on the RESTRO Android device.'}</p>`);
     document.querySelector('#wifi-settings-button').addEventListener('click',()=>hostSettings('wifi',document.querySelector('#wifi-feedback')));
   }
   function bluetoothSettings(){

@@ -37,7 +37,7 @@
     if(insight.id!=='greeting')body.title=`Open ${insight.label.toLowerCase()}`;else body.removeAttribute('title');
     const icon=document.createElement('span');icon.className='insight-icon';icon.setAttribute('aria-hidden','true');
     if(insight.id==='daily-sales'){
-      const image=document.createElement('img');image.src=window.RestroPreviewAssets['assets/insights-sales.svg'];image.alt='';image.draggable=false;icon.append(image);
+      icon.append(artNode({key:'insight-sales',url:'assets/insights-sales.svg',w:220,h:160}));
     }else{
       const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),use=document.createElementNS('http://www.w3.org/2000/svg','use');
       svg.setAttribute('class','icon');svg.setAttribute('viewBox','0 0 24 24');use.setAttribute('href',`#${insight.icon}`);svg.append(use);icon.append(svg);
@@ -65,20 +65,23 @@
   function schedule(){clearTimeout(timer);if(gesture)return;startedAt=performance.now();timer=setTimeout(()=>showInsight(index+1),remainingMs);}
   function finishTransition(){clearTimeout(transitionTimer);transitionTimer=null;animations.forEach(animation=>animation.cancel());animations=[];stack.classList.remove('deck-transitioning');}
   const poses=['translateX(0px) scaleX(1)','translateX(4px) scaleX(1.02)','translateX(-2px) scaleX(1.045)','translateX(0px) scaleX(1.065)'];
-  function animateCard(card,keyframes){animations.push(card.animate(keyframes,{duration:transitionMs,easing:'cubic-bezier(.28,.6,.28,1)'}));}
-  function showInsight(next,manual=false){
+  function animateCard(card,keyframes,duration=transitionMs){animations.push(card.animate(keyframes,{duration,easing:'cubic-bezier(.28,.6,.28,1)',fill:'both'}));}
+  function showInsight(next,manual=false,dragX=0){
     finishTransition();const previous=[...deck],forward=next>index,hadFocus=document.activeElement===content;
     index=(next+insights.length)%insights.length;remainingMs=rotationMs;applyDeck();
+    widget.dataset.deckDirection=forward?'clockwise':'counterclockwise';widget.dataset.deckSource=manual?'manual':'automatic';
     if(!motion.matches&&typeof surface.animate==='function'){
       stack.classList.add('deck-transitioning');suppressClickUntil=performance.now()+transitionMs;
       for(const record of previous){
         const from=previous.indexOf(record),to=deck.indexOf(record);
         if(forward&&from===0){
-          animateCard(record.card,[{transform:poses[0],zIndex:5,offset:0},{transform:'translateX(-58%) scaleX(.94)',zIndex:5,offset:.4},{transform:'translateX(-58%) scaleX(1.065)',zIndex:0,offset:.42},{transform:poses[3],zIndex:0,offset:1}]);
+          animateCard(record.card,[{transform:dragX?`translateX(${dragX}px) scaleX(1)`:poses[0],zIndex:5,offset:0},{transform:'translateX(-58%) scaleX(.94)',zIndex:5,offset:.4},{transform:'translateX(-58%) scaleX(1.065)',zIndex:0,offset:.42},{transform:poses[3],zIndex:0,offset:1}]);
         }else if(forward&&from===1){
           animateCard(record.card,[{transform:poses[1],zIndex:4,offset:0},{transform:'translateX(22%) scaleX(.98)',zIndex:4,offset:.3},{transform:poses[0],zIndex:4,offset:1}]);
         }else if(!forward&&from===3){
-          animateCard(record.card,[{transform:poses[3],zIndex:0,offset:0},{transform:'translateX(58%) scaleX(.94)',zIndex:0,offset:.4},{transform:'translateX(58%) scaleX(.94)',zIndex:5,offset:.42},{transform:poses[0],zIndex:5,offset:1}]);
+          animateCard(record.card,[{transform:poses[3],zIndex:0,offset:0},{transform:'translateX(-58%) scaleX(1.065)',zIndex:0,offset:.58},{transform:'translateX(-58%) scaleX(.94)',zIndex:5,offset:.6},{transform:poses[0],zIndex:5,offset:1}]);
+        }else if(!forward&&from===0){
+          animateCard(record.card,[{transform:dragX?`translateX(${dragX}px) scaleX(1)`:poses[0],zIndex:4,offset:0},{transform:'translateX(22%) scaleX(.98)',zIndex:4,offset:.7},{transform:poses[1],zIndex:3,offset:1}]);
         }else animateCard(record.card,[{transform:poses[from]},{transform:poses[to]}]);
       }
       transitionTimer=setTimeout(finishTransition,transitionMs+40);
@@ -89,10 +92,17 @@
   function finishGesture(event,cancel=false){
     if(!gesture||gesture.id!==event.pointerId)return;const state=gesture;gesture=null;
     if(state.surface.hasPointerCapture(event.pointerId))state.surface.releasePointerCapture(event.pointerId);
-    widget.classList.remove('interacting','swiping');state.content.style.removeProperty('--insight-drag-x');
+    widget.classList.remove('interacting','swiping');state.surface.style.removeProperty('transform');delete widget.dataset.dragOffset;
     const dx=event.clientX-state.x,elapsed=performance.now()-state.started,threshold=Math.min(surface.clientWidth*.16,60);
     if(state.horizontal||state.vertical||Math.hypot(dx,event.clientY-state.y)>8)suppressClickUntil=performance.now()+550;
-    if(!cancel&&state.horizontal&&(Math.abs(dx)>=threshold||Math.abs(dx)>28&&elapsed<250))showInsight(index+(dx<0?1:-1),true);else schedule();
+    if(!cancel&&state.horizontal&&(Math.abs(dx)>=threshold||Math.abs(dx)>28&&elapsed<250))showInsight(index+(dx<0?1:-1),true,state.offset||0);
+    else{
+      if(state.horizontal&&!motion.matches&&typeof state.surface.animate==='function'){
+        animateCard(state.surface,[{transform:`translateX(${state.offset||0}px) scaleX(1)`},{transform:poses[0]}],180);
+        transitionTimer=setTimeout(finishTransition,220);
+      }
+      schedule();
+    }
   }
   for(const record of records){
     record.card.addEventListener('pointerdown',event=>{
@@ -104,7 +114,11 @@
     record.card.addEventListener('pointermove',event=>{
       if(!gesture||gesture.id!==event.pointerId)return;const dx=event.clientX-gesture.x,dy=event.clientY-gesture.y;
       if(!gesture.horizontal&&!gesture.vertical){if(Math.abs(dy)>10&&Math.abs(dy)>Math.abs(dx)*1.25)gesture.vertical=true;else if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)*1.25){gesture.horizontal=true;widget.classList.add('swiping');}}
-      if(gesture.horizontal){event.preventDefault();const limit=surface.clientWidth*.3;gesture.content.style.setProperty('--insight-drag-x',`${Math.max(-limit,Math.min(limit,dx))}px`);}
+      if(gesture.horizontal){
+        event.preventDefault();const limit=surface.clientWidth*.58;gesture.offset=Math.max(-limit,Math.min(limit,dx));
+        gesture.surface.style.transform=`translateX(${gesture.offset}px) scaleX(1)`;
+        widget.dataset.dragOffset=String(gesture.offset);
+      }
     });
     record.card.addEventListener('pointerup',event=>finishGesture(event));record.card.addEventListener('pointercancel',event=>finishGesture(event,true));record.card.addEventListener('lostpointercapture',event=>finishGesture(event,true));
     record.content.addEventListener('keydown',event=>{

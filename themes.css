@@ -1,0 +1,89 @@
+/* Shared selected visual skins. The launcher layout and workflows remain unchanged. */
+html[data-restro-theme]{color-scheme:var(--palette-scheme);--bg:var(--palette-bg);--panel:var(--palette-panel);--ivory:var(--palette-text);--muted:var(--palette-muted);--copper:var(--palette-accent);--teal:var(--palette-accent);--line:var(--palette-line)}
+html[data-restro-theme] body{background:var(--palette-bg);color:var(--palette-text)}
+html[data-restro-theme] .app-shell{background:radial-gradient(ellipse at 38% 45%,var(--palette-bg-top) 0%,var(--palette-bg) 64%,var(--palette-bg-end) 100%)}
+html[data-restro-theme] .top-banner,html[data-restro-theme] .bottom-banner{background:linear-gradient(110deg,var(--palette-bar-top),var(--palette-bar));border-color:var(--palette-bar-line);color:#f3f0e9}
+html[data-restro-theme] .top-banner .restaurant-name,html[data-restro-theme] .system-status,html[data-restro-theme] .header-time,html[data-restro-theme] .system-control,html[data-restro-theme] .footer-identity{color:#f3f0e9}
+html[data-restro-theme] .shortcut,html[data-restro-theme] .app-tile,html[data-restro-theme] .recent-app-card{border-color:var(--palette-edge);background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom) 82%);color:var(--palette-text)}
+html[data-restro-theme] .shortcut{box-shadow:inset 0 1px 1px var(--palette-highlight),0 6px 13px var(--palette-shadow)}
+html[data-restro-theme] .app-tile,html[data-restro-theme] .recent-app-card{box-shadow:inset 0 1px 1px var(--palette-highlight),0 3px 7px var(--palette-shadow)}
+html[data-restro-theme] .main-shortcuts{border-color:var(--palette-line)}
+html[data-restro-theme] .apps-panel,html[data-restro-theme] .insight-widget{border-color:var(--palette-panel-edge);background:linear-gradient(135deg,var(--palette-panel-top),var(--palette-panel) 80%);box-shadow:inset 0 1px 0 var(--palette-highlight),0 6px 16px var(--palette-soft-shadow)}
+html[data-restro-theme] .more-heading-row h1,html[data-restro-theme] .shortcut-label,html[data-restro-theme] .app-label{color:var(--palette-text)}
+html[data-restro-theme] .page-dot{background:var(--palette-dot)}
+html[data-restro-theme] .page-dot[aria-selected="true"]{background:linear-gradient(145deg,var(--palette-accent-top),var(--palette-accent))}
+html[data-restro-theme] .insight-stack:before{border-color:var(--palette-side-edge);background:linear-gradient(90deg,var(--palette-side-top),var(--palette-side-middle) 18%,var(--palette-side-bottom) 80%,var(--palette-side-top))}
+html[data-restro-theme] .insight-stack:after{border-color:var(--palette-side-edge);background:linear-gradient(90deg,var(--palette-side-middle),var(--palette-side-bottom) 12%,var(--palette-side-middle) 90%,var(--palette-side-top))}
+html[data-restro-theme] .insight-card{border-color:var(--palette-edge);background:linear-gradient(140deg,var(--palette-tile-top),var(--palette-card-middle) 65%,var(--palette-tile-bottom));box-shadow:inset 0 0 0 1px var(--palette-edge-glow),inset 0 1px 1px var(--palette-highlight),0 0 3px var(--palette-edge-glow),6px 0 16px var(--palette-shadow),-6px 0 16px var(--palette-soft-shadow)}
+html[data-restro-theme] .insight-heading h2,html[data-restro-theme] .insight-label,html[data-restro-theme] .insight-value,html[data-restro-theme] .insight-summary{color:var(--palette-text)}
+html[data-restro-theme] .insight-detail,html[data-restro-theme] .insight-footer{color:var(--palette-muted)}
+html[data-restro-theme] .insight-note,html[data-restro-theme] .insight-icon .icon{color:var(--palette-accent-ink)}
+html[data-restro-theme] .insight-pause{border-color:var(--palette-line);background:linear-gradient(var(--palette-tile-top),var(--palette-tile-bottom));color:var(--palette-accent-ink)}
+html[data-restro-theme] .insight-progress>span{background:var(--palette-track)}
+html[data-restro-theme] .insight-progress>span.active:after{background:linear-gradient(90deg,var(--palette-accent-top),var(--palette-accent))}
+html[data-restro-theme] .arranging .app-slot.empty{border-color:var(--palette-line)}
+html[data-restro-theme] .add-page-control,html[data-restro-theme] .page-delete-control{border-color:var(--palette-edge);background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));color:var(--palette-accent-ink)}
+html[data-restro-theme] .drag-ghost{border-color:var(--palette-accent);background:var(--palette-tile-bottom)}
+html[data-restro-theme] .dialog,html[data-restro-theme] .quick-drawer{background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));border-color:var(--palette-line);color:var(--palette-text)}
+html[data-restro-theme] .dialog h2,html[data-restro-theme] .dialog h3,html[data-restro-theme] .device-section h3{color:var(--palette-text)}
+html[data-restro-theme] .dialog p,html[data-restro-theme] .dialog li,html[data-restro-theme] .field-note,html[data-restro-theme] .device-note,html[data-restro-theme] .connection-summary p,html[data-restro-theme] .camera-preview p{color:var(--palette-muted)}
+html[data-restro-theme] .dialog input,html[data-restro-theme] .dialog select,html[data-restro-theme] .calculator-display{background:var(--palette-panel);border-color:var(--palette-line);color:var(--palette-text)}
+html[data-restro-theme] .primary-button,html[data-restro-theme] .calc-equals{background:linear-gradient(140deg,var(--palette-accent-top),var(--palette-accent));color:var(--palette-on-accent);border-color:var(--palette-edge)}
+html[data-restro-theme] .secondary-button,html[data-restro-theme] .page-manager-row,html[data-restro-theme] .delete-app-page,html[data-restro-theme] .move-grid button,html[data-restro-theme] .calculator-keys button{background:var(--palette-panel);border-color:var(--palette-line);color:var(--palette-text)}
+html[data-restro-theme] .text-button,html[data-restro-theme] .quick-eyebrow,html[data-restro-theme] .calculator-keys .calc-operator{color:var(--palette-accent-ink)}
+html[data-restro-theme] .quick-control{background:linear-gradient(140deg,var(--palette-tile-top),var(--palette-tile-bottom));border-color:var(--palette-line);color:var(--palette-text)}
+html[data-restro-theme] .quick-control small{color:var(--palette-muted)}
+html[data-restro-theme] .quick-control-icon,html[data-restro-theme] .copper-control .quick-control-icon,html[data-restro-theme] .ivory-control .quick-control-icon{color:var(--palette-accent-ink);background:var(--palette-accent-wash)}
+html[data-restro-theme] .quick-control-icon.selected-gear{background:transparent}
+html[data-restro-theme] .quick-brightness,html[data-restro-theme] .connection-summary,html[data-restro-theme] .device-list li{background:var(--palette-panel);border-color:var(--palette-line);color:var(--palette-accent-ink)}
+html[data-restro-theme] .quick-brightness output{color:var(--palette-text)}
+html[data-restro-theme] .quick-brightness input{accent-color:var(--palette-accent)}
+html[data-restro-theme] .connection-summary .icon{color:var(--palette-accent-ink)}
+html[data-restro-theme] .device-state{color:var(--palette-accent-ink)}
+html[data-restro-theme] .screen-lock-dialog{background:radial-gradient(ellipse at 38% 45%,var(--palette-bg-top),var(--palette-bg-end));color:var(--palette-text)}
+html[data-restro-theme] .screen-lock-dialog::backdrop{background:var(--palette-bg-end)}
+html[data-restro-theme] .lock-screen-symbol{stroke:var(--palette-accent-ink)}
+html[data-restro-theme] .lock-screen-content h2,html[data-restro-theme] .recent-apps-empty{color:var(--palette-muted)}
+html[data-restro-theme] .toast{background:var(--palette-bar);border-color:var(--palette-bar-line);color:#f3f0e9}
+html[data-restro-theme] .battery-percentage{fill:#fff}
+html[data-restro-theme] .muted,html[data-restro-theme] .report-summary span,html[data-restro-theme] .chart-column span,html[data-restro-theme] .page-empty{color:var(--palette-muted)}
+html[data-restro-theme] .report-summary strong,html[data-restro-theme] .recent-app-card span,html[data-restro-theme] .lock-screen-content #lock-clock,html[data-restro-theme] .lock-screen-content #lock-restaurant{color:var(--palette-text)}
+html[data-restro-theme] .sales-chart,html[data-restro-theme] .camera-preview{background:var(--palette-panel);border-color:var(--palette-line)}
+html[data-restro-theme] .chart-bar{background:linear-gradient(0deg,var(--palette-accent),var(--palette-accent-top))}
+html[data-restro-theme] .chart-column:nth-child(even) .chart-bar{background:linear-gradient(0deg,var(--palette-edge),var(--palette-accent-top))}
+html[data-restro-theme] .quick-control:hover,html[data-restro-theme] .calculator-keys button:hover,html[data-restro-theme] .secondary-button:hover{background:var(--palette-panel-top);border-color:var(--palette-accent)}
+html[data-restro-theme] .calculator-keys .calc-equals{background:linear-gradient(140deg,var(--palette-accent-top),var(--palette-accent));color:var(--palette-on-accent)}
+html[data-restro-theme] .app-tile:hover .app-label{color:var(--palette-text)}
+html[data-restro-theme] .app-slot.drop-target{background:var(--palette-accent-wash);border-color:var(--palette-accent);box-shadow:inset 0 0 0 1px var(--palette-edge-glow)}
+html[data-restro-theme] .text-button{border-color:var(--palette-edge)}
+html[data-restro-theme] .quick-controls-trigger:focus-visible{background:var(--palette-panel);color:var(--palette-text)}
+html[data-restro-theme] .quick-drawer-handle span{background:var(--palette-edge)}
+html[data-restro-theme] .quick-drawer-heading .icon-button{background:var(--palette-accent-wash)}
+html[data-restro-theme] .camera-actions .primary-button{color:var(--palette-on-accent)}
+html[data-restro-theme] .dialog .help-sections h3{color:var(--palette-accent-ink)}
+html[data-restro-theme] .dialog::backdrop,html[data-restro-theme] .quick-drawer::backdrop{background:var(--palette-backdrop)}
+
+/* Original approved artwork is displayed unchanged through shared SVG viewports. */
+html[data-restro-theme] .app-art.theme-art{filter:none;mix-blend-mode:multiply;mask-image:linear-gradient(to right,transparent,#000 8%,#000 92%,transparent),linear-gradient(to bottom,transparent,#000 6%,#000 94%,transparent);mask-composite:intersect;overflow:hidden}
+html[data-restro-theme] .app-art.theme-art svg{width:100%;height:100%;overflow:hidden}
+html[data-restro-theme] .app-art.clean-art{mix-blend-mode:normal;mask-image:none;filter:none}
+html[data-restro-theme] .insight-icon .app-art{width:100%;height:100%;display:block}
+html[data-restro-theme] .quick-control-icon.selected-gear .app-art{width:100%;height:100%}
+html[data-restro-theme] .quick-control-icon.selected-gear .app-art.theme-art{mask-image:radial-gradient(ellipse,#000 52%,transparent 75%)}
+html[data-restro-theme="A"] .shortcut{box-shadow:inset 0 1px 1px #fff,0 7px 17px #53677824}
+html[data-restro-theme="A"] .app-tile{box-shadow:inset 0 1px 1px #fff,0 4px 10px #53677824}
+html[data-restro-theme="C"] .shortcut,html[data-restro-theme="C"] .app-tile{border-color:#ffffffee;box-shadow:inset 0 0 0 1px #c7e1f499,0 5px 13px #2b79a01b;background:linear-gradient(140deg,#fbfdffcc,#d9effc88);backdrop-filter:blur(8px)}
+html[data-restro-theme="C"] .apps-panel,html[data-restro-theme="C"] .insight-widget{border-color:#fff;background:linear-gradient(135deg,#f5fbffb8,#e3f3ff99)}
+html[data-restro-theme="C"] .insight-card{border-color:#ffffff;box-shadow:inset 0 0 0 1px #c5ddf4,6px 0 15px #5389ab20,-6px 0 15px #5389ab15}
+html[data-restro-theme="D"] .shortcut{box-shadow:inset 0 1px 1px #ffffffa0,0 5px 12px #5a4c3720}
+html[data-restro-theme="D"] .app-tile{box-shadow:0 3px 8px #5a4c371c;background:linear-gradient(145deg,#fcfaf7,#f0ece5)}
+html[data-restro-theme="D"] .insight-card{background:linear-gradient(145deg,#fcfaf7,#f4f0e9);box-shadow:inset 0 1px 1px #ffffffb0,6px 0 16px #5a4c3720,-6px 0 16px #5a4c3716}
+html[data-restro-theme="H"] .shortcut{box-shadow:0 3px 8px #33455618}
+html[data-restro-theme="H"] .app-tile{box-shadow:0 2px 5px #33455618;background:linear-gradient(145deg,#fff,#f7f9fb)}
+html[data-restro-theme="H"] .apps-panel,html[data-restro-theme="H"] .insight-widget{box-shadow:0 3px 9px #33455612}
+html[data-restro-theme="G"] .insight-value{color:var(--palette-accent-ink)}
+html[data-restro-theme="P"] .shortcut{box-shadow:inset 0 1px 0 #fff,0 4px 8px #32433a24}
+html[data-restro-theme="P"] .app-tile{box-shadow:inset 0 1px 0 #fff,0 3px 6px #32433a20}
+/* Selected-skin specificity must never reveal empty edit-mode grids or tiles. */
+html[data-restro-theme] .arranging .app-tile{background:transparent!important;border-color:transparent!important;box-shadow:none!important;backdrop-filter:none!important}
+html[data-restro-theme] .arranging .app-slot.empty:not(.drop-target){background:transparent!important;border-color:transparent!important;box-shadow:none!important}

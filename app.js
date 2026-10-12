@@ -21,22 +21,24 @@ const apps = {
   help:{name:'Help',art:art('master',778,668,155,123)},
   store:{name:'App Store',art:art('apps',980,659,211,146)},
   analytics:{name:'Analytics',art:art('analytics',70,490,172,144)},
-  settings:{name:'Settings',art:{file:'settings-g39.png',w:1254,h:1254,viewBox:'22 150 1221 986'}}
+  settings:{name:'Settings',art:{file:'settings-g39.png',w:1254,h:1254,viewBox:'22 150 1221 986'}},
+  'qr-studio':{name:'QR Studio',art:{url:'assets/qr-studio/D.webp',w:1536,h:1024,viewBox:'48 405 244 264',sprite:true,themeId:'D'}}
 };
+shortcuts.forEach(item=>{item.art.key=item.id;});
+Object.entries(apps).forEach(([id,item])=>{item.art.key=id;});
 const removedAppIds=new Set();
-try{const saved=JSON.parse(localStorage.getItem('restro.batteryPreview.removedApps.v1')||'[]');if(Array.isArray(saved))saved.forEach(id=>{if(Object.hasOwn(apps,id))removedAppIds.add(id);});}catch{}
+try{const saved=JSON.parse(localStorage.getItem('restro.removedApps.v1')||'[]');if(Array.isArray(saved))saved.forEach(id=>{if(Object.hasOwn(apps,id))removedAppIds.add(id);});}catch{}
 function isInstalledApp(id){return Object.hasOwn(apps,id)&&!removedAppIds.has(id);}
 function installedAppIds(){return Object.keys(apps).filter(isInstalledApp);}
 // Every surface, including theme previews and quick controls, uses this artwork catalog.
-function artSource(a){const key=`assets/icons/${a.file||`${a.source}-${a.x}-${a.y}-${a.w}-${a.h}.png`}`;return window.RestroPreviewAssets[key];}
-document.querySelectorAll('[data-app-icon]').forEach(image=>{const item=apps[image.dataset.appIcon];if(item)image.src=artSource(item.art);});
+function artSource(a){return a.url||`assets/icons/${a.file||`${a.source}-${a.x}-${a.y}-${a.w}-${a.h}.png`}`;}
 const PAGE_CAPACITY=RestroLayout.capacity;
 const defaultPages=[installedAppIds(),[],[]];
 const collapsedDefault=[Object.keys(apps)];
 let savedPages=null;
 try {
-  const current=localStorage.getItem('restro.batteryPreview.appLayout.v4');
-  savedPages=JSON.parse(current||localStorage.getItem('restro.batteryPreview.appLayout.v3')||localStorage.getItem('restro.batteryPreview.appLayout.v2')||localStorage.getItem('restro.batteryPreview.appLayout.v1')||'null');
+  const current=localStorage.getItem('restro.appLayout.v4');
+  savedPages=JSON.parse(current||localStorage.getItem('restro.appLayout.v3')||localStorage.getItem('restro.appLayout.v2')||localStorage.getItem('restro.appLayout.v1')||'null');
   // Repair the previous default once; later user page additions/deletions persist.
   if(!current&&JSON.stringify(savedPages)===JSON.stringify(collapsedDefault))savedPages=defaultPages;
 }catch{}
@@ -50,12 +52,29 @@ const artworkOffsets={
   'master-997-474-178-133':4.5,'master-46-667-196-124':8,'master-299-674-173-117':6.5,'master-532-657-172-134':6,
   'master-778-668-155-123':3.5,'apps-980-659-211-146':0,'analytics-70-490-172-144':-3.5
 };
-function artNode(a){
+let artworkWindowId=0;
+function artNode(definition,themeId){
   const wrapper=document.createElement('span');wrapper.className='app-art';wrapper.setAttribute('aria-hidden','true');
-  if(a.file){
+  wrapper._restroArt=definition;
+  if(definition.key)wrapper.dataset.artworkKey=definition.key;
+  if(themeId)wrapper.dataset.artworkTheme=themeId;
+  const a=window.RestroArtwork.resolve(definition,themeId);
+  if(a.file||a.url){
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-    svg.setAttribute('viewBox',a.viewBox||`0 0 ${a.w} ${a.h}`);svg.setAttribute('preserveAspectRatio','xMidYMax meet');svg.setAttribute('focusable','false');
+    svg.setAttribute('viewBox',a.viewBox||`0 0 ${a.w} ${a.h}`);svg.setAttribute('preserveAspectRatio',a.sprite||a.clean?'xMidYMid meet':'xMidYMax meet');svg.setAttribute('focusable','false');
     const image=document.createElementNS('http://www.w3.org/2000/svg','image');image.setAttribute('href',artSource(a));image.setAttribute('width',a.w);image.setAttribute('height',a.h);
+    if(a.sprite){
+      wrapper.classList.add('theme-art');wrapper.dataset.renderedTheme=a.themeId;
+      // Clip the exact artwork window. SVG's meet padding must not show adjacent
+      // labels, tile edges or other icons from the untouched original sheet.
+      const ns='http://www.w3.org/2000/svg',defs=document.createElementNS(ns,'defs'),clip=document.createElementNS(ns,'clipPath'),rect=document.createElementNS(ns,'rect');
+      const clipId=`restro-art-window-${++artworkWindowId}`,[x,y,w,h]=a.viewBox.split(' ').map(Number);
+      clip.id=clipId;clip.setAttribute('clipPathUnits','userSpaceOnUse');
+      for(const [name,value] of Object.entries({x,y,width:w,height:h}))rect.setAttribute(name,value);
+      clip.append(rect);defs.append(clip);svg.append(defs);image.setAttribute('clip-path',`url(#${clipId})`);
+    }
+    if(a.clean){wrapper.classList.add('theme-art','clean-art');wrapper.dataset.renderedTheme=a.themeId;}
+    if(a.selection)wrapper.dataset.artworkSelection=a.selection;
     svg.append(image);wrapper.append(svg);return wrapper;
   }
   if(a.symbol){
@@ -68,6 +87,24 @@ function artNode(a){
   const image=document.createElementNS('http://www.w3.org/2000/svg','image');image.setAttribute('href',artSource(a));image.setAttribute('width',a.w);image.setAttribute('height',a.h);
   svg.append(image);wrapper.append(svg);return wrapper;
 }
+function refreshArtwork(){
+  document.querySelectorAll('.app-art[data-artwork-key]').forEach(wrapper=>{
+    const key=wrapper.dataset.artworkKey;
+    const definition=wrapper._restroArt||apps[key]?.art||shortcuts.find(item=>item.id===key)?.art||(key==='insight-sales'?{key,url:'assets/insights-sales.svg',w:220,h:160}:null);
+    if(!definition)return;
+    const replacement=artNode(definition,wrapper.dataset.artworkTheme);
+    wrapper.replaceChildren(...replacement.childNodes);
+    wrapper.classList.toggle('theme-art',replacement.classList.contains('theme-art'));
+    wrapper.classList.toggle('clean-art',replacement.classList.contains('clean-art'));
+    if(replacement.dataset.renderedTheme)wrapper.dataset.renderedTheme=replacement.dataset.renderedTheme;
+    else delete wrapper.dataset.renderedTheme;
+    if(replacement.dataset.artworkSelection)wrapper.dataset.artworkSelection=replacement.dataset.artworkSelection;
+    else delete wrapper.dataset.artworkSelection;
+  });
+}
+window.addEventListener('restro:theme-changed',refreshArtwork);
+window.addEventListener('restro:artwork-changed',refreshArtwork);
+document.querySelectorAll('[data-app-icon]').forEach(image=>{const item=apps[image.dataset.appIcon];if(item)image.replaceWith(artNode(item.art));});
 
 for(const item of shortcuts){
   const node=document.createElement('div');node.className='shortcut';node.dataset.app=item.id;
@@ -84,7 +121,7 @@ function renderPages(){
         const item=apps[id],tile=document.createElement('div');tile.className='app-tile';tile.dataset.id=id;tile.tabIndex=0;tile.setAttribute('role','group');tile.setAttribute('aria-label',`${item.name}. Hold to rearrange or press M to move.`);
         const label=document.createElement('span');label.className='app-label';label.textContent=item.name;tile.append(artNode(item.art),label);
         if(arranging){
-          const remove=document.createElement('button');remove.type='button';remove.className='app-remove-button';remove.setAttribute('aria-label',`Delete ${item.name}`);remove.title=`Delete ${item.name}`;
+          const remove=document.createElement('button');remove.type='button';remove.className='app-remove-button';remove.setAttribute('aria-label',`Uninstall ${item.name}`);remove.title=`Uninstall ${item.name}`;
           remove.innerHTML='<span class="app-remove-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></span>';
           remove.addEventListener('click',event=>{event.stopPropagation();requestAppDeletion(id);});tile.append(remove);
         }
@@ -125,7 +162,7 @@ function goToPage(page){
   currentPage=next;updatePage();return true;
 }
 function setArranging(value){if(arranging===value)return;arranging=value;if(!value)currentPage=Math.min(currentPage,pages.length-1);renderPages();}
-function saveLayout(){try{localStorage.setItem('restro.batteryPreview.appLayout.v4',JSON.stringify(pages));}catch{}}
+function saveLayout(){try{localStorage.setItem('restro.appLayout.v4',JSON.stringify(pages));}catch{}}
 function moveApp(id,targetPage,targetPosition){
   if(!isInstalledApp(id))throw new Error('Choose an installed app.');
   const moved=RestroLayout.move(pages,id,targetPage,targetPosition);pages=moved.pages;
@@ -141,24 +178,24 @@ function openDialog(id){const dialog=$(`#${id}`);if(!dialog.open)dialog.showModa
 function requestAppDeletion(id){
   if(!arranging||!isInstalledApp(id)||deletingApp)return;
   endDrag(true);clearTimeout(holdTimer);holdTimer=null;gesture=null;deleteAppId=id;
-  $('#delete-app-title').textContent=`Do you want to delete this "${apps[id].name}"?`;
+  $('#delete-app-title').textContent=`Uninstall "${apps[id].name}"?`;
   $('#delete-app-art').replaceChildren(artNode(apps[id].art));$('#delete-app-error').textContent='';
   openDialog('delete-app-dialog');$('#delete-app-no').focus({preventScroll:true});
 }
 async function confirmAppDeletion(){
   const id=deleteAppId;if(!id||deletingApp||!isInstalledApp(id))return;
-  deletingApp=true;$('#delete-app-yes').disabled=true;$('#delete-app-no').disabled=true;$('#delete-app-yes').textContent='Deleting…';
+  deletingApp=true;$('#delete-app-yes').disabled=true;$('#delete-app-no').disabled=true;$('#delete-app-yes').textContent='Uninstalling…';
   try{
     // The Android host removes its package when present; the web POS keeps a durable installed-app list.
     const host=window.RESTRODevice;
     if(typeof host?.uninstallApp==='function'){
-      const result=await host.uninstallApp(id);if(result===false||result?.success===false)throw new Error('The app could not be deleted. Please try again.');
+      const result=await host.uninstallApp(id);if(result===false||result?.success===false)throw new Error('The app could not be uninstalled. Please try again.');
     }
     removedAppIds.add(id);pages=pages.map(page=>page.filter(appId=>appId!==id));
-    try{localStorage.setItem('restro.batteryPreview.removedApps.v1',JSON.stringify([...removedAppIds]));}catch{}
+    try{localStorage.setItem('restro.removedApps.v1',JSON.stringify([...removedAppIds]));}catch{}
     saveLayout();renderPages();window.dispatchEvent(new CustomEvent('restro:app-uninstalled',{detail:{id,name:apps[id].name}}));
-    $('#delete-app-dialog').close();toast(`${apps[id].name} deleted`);
-  }catch(error){$('#delete-app-error').textContent=error.message||'The app could not be deleted. Please try again.';}
+    $('#delete-app-dialog').close();toast(`${apps[id].name} uninstalled`);
+  }catch(error){$('#delete-app-error').textContent=error.message||'The app could not be uninstalled. Please try again.';}
   finally{deletingApp=false;$('#delete-app-yes').disabled=false;$('#delete-app-no').disabled=false;$('#delete-app-yes').textContent='Yes';}
 }
 $('#delete-app-yes').addEventListener('click',confirmAppDeletion);
@@ -168,7 +205,7 @@ $('#delete-app-dialog').addEventListener('close',()=>{deleteAppId=null;const slo
 function syncInstalledControls(){$$('[data-control="settings"]').forEach(control=>{control.hidden=!isInstalledApp('settings');});}
 window.addEventListener('restro:app-uninstalled',syncInstalledControls);syncInstalledControls();
 function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
-function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');}
+function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}}
 function openMove(id){
   moveId=id;setArranging(true);$('#move-description').textContent=`Choose where to insert ${apps[id].name}. Following apps keep their order.`;
   const select=$('#move-page');select.replaceChildren();pages.forEach((_,p)=>{const option=document.createElement('option');option.value=p;option.textContent=`Page ${p+1}`;select.append(option);});
@@ -250,10 +287,10 @@ $$('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.ta
 $('#move-page').addEventListener('change',updateMovePositions);
 $('#move-form').addEventListener('submit',event=>{event.preventDefault();const result=moveApp(moveId,Number($('#move-page').value),Number($('#move-position').value));$('#move-dialog').close();toast(`${apps[moveId].name} moved to page ${result.page}`);});
 const uppercaseRestaurantName=value=>value.trim().toLocaleUpperCase('en-IN').slice(0,48);
-let restaurantName='RESTAURANT NAME';try{restaurantName=localStorage.getItem('restro.batteryPreview.restaurantName')||restaurantName;}catch{}
+let restaurantName='RESTAURANT NAME';try{restaurantName=localStorage.getItem('restro.restaurantName')||restaurantName;}catch{}
 restaurantName=uppercaseRestaurantName(restaurantName)||'RESTAURANT NAME';$('#restaurant-name').textContent=restaurantName;
-try{localStorage.setItem('restro.batteryPreview.restaurantName',restaurantName);}catch{}
-$('#restaurant-form').addEventListener('submit',event=>{event.preventDefault();const value=uppercaseRestaurantName($('#restaurant-input').value);if(!value){$('#restaurant-input').setCustomValidity('Enter a restaurant name.');$('#restaurant-input').reportValidity();return;}restaurantName=value;$('#restaurant-input').setCustomValidity('');$('#restaurant-name').textContent=restaurantName;try{localStorage.setItem('restro.batteryPreview.restaurantName',restaurantName);}catch{}$('#settings-dialog').close();toast('Restaurant name saved');alignBannerText();});
+try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}
+$('#restaurant-form').addEventListener('submit',event=>{event.preventDefault();const value=uppercaseRestaurantName($('#restaurant-input').value);if(!value){$('#restaurant-input').setCustomValidity('Enter a restaurant name.');$('#restaurant-input').reportValidity();return;}restaurantName=value;$('#restaurant-input').setCustomValidity('');$('#restaurant-name').textContent=restaurantName;try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}$('#settings-dialog').close();toast('Restaurant name saved');alignBannerText();});
 $('#restaurant-input').addEventListener('input',event=>{
   const input=event.target,start=input.selectionStart,end=input.selectionEnd,value=input.value;
   input.setCustomValidity('');input.value=value.toLocaleUpperCase('en-IN');
@@ -303,6 +340,17 @@ function alignBannerText(){
     label.style.setProperty('--banner-baseline-shift',`${target-center}px`);
     if(label.classList.contains('footer-brand'))group.style.setProperty('--footer-logo-height',`${ink.bottom-ink.top}px`);
   }
+  // Every top-banner label shares the clock's actual baseline, including the
+  // restaurant name in the compact status row. Footer optical centering stays separate.
+  const anchor=$('.top-banner .clock-text .banner-baseline');
+  if(anchor){
+    const baseline=anchor.getBoundingClientRect().y;
+    for(const label of $$('.top-banner .banner-label')){
+      const current=label.querySelector('.banner-baseline').getBoundingClientRect().y;
+      const shift=parseFloat(label.style.getPropertyValue('--banner-baseline-shift'))||0;
+      label.style.setProperty('--banner-baseline-shift',`${shift+baseline-current}px`);
+    }
+  }
 }
 function alignDashboardText(){alignBannerText();}
 function updateClock(){
@@ -316,11 +364,9 @@ function updateClock(){
 window.addEventListener('resize',alignDashboardText);
 document.fonts.ready.then(alignDashboardText);
 document.fonts.addEventListener('loadingdone',alignDashboardText);
-function updateOnline(){const online=navigator.onLine;$('#online-text').textContent=online?'Online':'Offline';$('#online-dot').classList.toggle('offline',!online);alignBannerText();}
-window.addEventListener('online',updateOnline);window.addEventListener('offline',updateOnline);
 const hours=['9 AM','10 AM','11 AM','12 PM','1 PM','3 PM','5 PM'],sales=[1200,2450,3500,3100,1700,3800,2700];
 sales.forEach((value,i)=>{const column=document.createElement('div');column.className='chart-column';const bar=document.createElement('div');bar.className='chart-bar';bar.style.height=`${value/3800*100}%`;bar.dataset.value=`₹${value.toLocaleString('en-IN')}`;bar.setAttribute('aria-label',`${hours[i]}: ${bar.dataset.value}`);const label=document.createElement('span');label.textContent=hours[i];column.append(bar,label);$('#chart-bars').append(column);});
-renderPages();saveLayout();updateClock();updateOnline();setInterval(updateClock,15000);
+renderPages();saveLayout();updateClock();setInterval(updateClock,15000);
 if(document.modelContext?.registerTool){
   const context=document.modelContext,lifecycle=new AbortController();
   const register=tool=>{try{Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};

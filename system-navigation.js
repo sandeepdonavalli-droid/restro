@@ -9,7 +9,7 @@
   const dialogs=[...document.querySelectorAll('dialog')];
   const navigation=[...bar.querySelectorAll('.system-control')];
   let locked=false;
-  try{locked=sessionStorage.getItem('restro.batteryPreview.screenLocked')==='true';}catch{}
+  try{locked=sessionStorage.getItem('restro.screenLocked')==='true';}catch{}
 
   function closeViews(){
     for(const dialog of dialogs)if(dialog.open&&dialog!==lock)dialog.close();
@@ -22,7 +22,7 @@
     document.querySelector('#lock-restaurant').textContent=document.querySelector('#restaurant-name').textContent;
   }
   function remember(dialog){
-    const appIds={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help'};
+    const appIds={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio'};
     const controls={'calculator-dialog':'calculator','camera-dialog':'camera'};
     const insightViews={'order-details-dialog':{id:'last-order',name:'Last order',symbol:'receipt'},'most-sold-dialog':{id:'most-sold',name:'Most sold items',symbol:'chef'}};
     if(insightViews[dialog.id]){
@@ -92,12 +92,12 @@
   });
   window.addEventListener('restro:app-uninstalled',event=>{recentApps.delete(event.detail.id);if(recents.open)renderRecents();});
   document.querySelector('#system-lock').addEventListener('click',async()=>{
-    if(locked)return;closeViews();locked=true;try{sessionStorage.setItem('restro.batteryPreview.screenLocked','true');}catch{}
+    if(locked)return;closeViews();locked=true;try{sessionStorage.setItem('restro.screenLocked','true');}catch{}
     syncLock();for(const button of navigation)button.disabled=true;lock.showModal();positionBar();
     await nativeAction('lockScreen');
   });
   function unlock(){
-    locked=false;try{sessionStorage.removeItem('restro.batteryPreview.screenLocked');}catch{}
+    locked=false;try{sessionStorage.removeItem('restro.screenLocked');}catch{}
     for(const button of navigation)button.disabled=false;lock.close();positionBar();document.querySelector('#system-lock').focus({preventScroll:true});
   }
   document.querySelector('#screen-unlock').addEventListener('click',unlock);
