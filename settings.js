@@ -81,9 +81,6 @@
   }
 
   function syncSummaries() {
-    const name = document.querySelector('#restaurant-name')?.textContent.trim() || 'RESTAURANT NAME';
-    document.querySelector('#settings-profile-name').textContent = name;
-    document.querySelector('#settings-profile-avatar').textContent = name.charAt(0) || 'R';
 
     const status = window.RestroConnectivity?.getStatus?.();
     const online = status ? status.internetAvailable : navigator.onLine;

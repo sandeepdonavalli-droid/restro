@@ -28,7 +28,7 @@
   <script src="bluetooth.js?v=3" defer></script>
   <script src="device-controls.js?v=8" defer></script>
   <script src="sound.js?v=3" defer></script>
-  <script src="settings.js?v=6" defer></script>
+  <script src="settings.js?v=7" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=5" defer></script>
@@ -113,11 +113,8 @@
       <nav class="settings-nav" aria-label="Settings categories">
         <div class="settings-nav-top"><h2 id="settings-title" tabindex="-1" autofocus>Settings</h2><button class="settings-icon-button" type="button" data-close aria-label="Close settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
         <label class="settings-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg><span class="visually-hidden">Search settings</span><input id="settings-search" type="search" placeholder="Search settings" autocomplete="off" enterkeyhint="search"></label>
-        <button class="settings-profile" type="button" data-page="restaurant" data-keywords="my profile restaurant name banner title shop business">
-          <span id="settings-profile-avatar" class="settings-avatar" aria-hidden="true">R</span>
-          <span class="settings-row-copy"><strong id="settings-profile-name">RESTAURANT NAME</strong><span>My Profile</span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
-        </button>
         <ul class="settings-list">
+          <li><button class="settings-row" type="button" data-page="restaurant" data-keywords="my profile restaurant name banner title shop business"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg></span><span class="settings-row-copy"><strong>My Profile</strong></span></button></li>
           <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a16 16 0 0 1 20 0M5.5 12a11 11 0 0 1 13 0M9 15.5a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary">Managed by this device</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary">Checking connection…</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="bluetooth" data-keywords="bluetooth connected devices pair scan printer scanner headset"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10-5 4.5V2.5L17 7 7 17"/></svg></span><span class="settings-row-copy"><strong>Bluetooth</strong><span id="settings-bluetooth-summary">Not connected</span></span></button></li>
