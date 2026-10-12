@@ -13,6 +13,11 @@
   const available = new Map();   // id -> { id, name, rssi, device? }
   let known = [];                // [{ id, name }] devices used before
   let scanning = false, stopScan = null, message = '', panel = null;
+  // On/off. Android app: the Bluetooth radio. Browser: whether RESTRO uses Bluetooth
+  // (a website can't switch the radio itself).
+  const ON_KEY = 'restro.bluetooth.enabled.v1';
+  let appOn = true, hostOn = true, reasonCache = '';
+  try { appOn = localStorage.getItem(ON_KEY) !== 'false'; } catch {}
 
   try { const saved = JSON.parse(localStorage.getItem(KNOWN_KEY) || '[]'); if (Array.isArray(saved)) known = saved.filter(d => d && d.id); } catch {}
 
@@ -34,10 +39,7 @@
 
   // Why Bluetooth cannot be used here, or '' when it can.
   async function blocker() {
-    if (hasHost()) {
-      try { if (typeof host().isEnabled === 'function' && await host().isEnabled() === false) return 'Bluetooth is off. Turn it on in device settings.'; } catch {}
-      return '';
-    }
+    if (hasHost()) return '';
     if (!web()) return 'This browser can’t use Bluetooth. Open RESTRO in Chrome or Edge on Android, Windows, macOS or ChromeOS. Safari, iPhone, iPad and Firefox don’t support it.';
     if (!window.isSecureContext) return 'Bluetooth needs a secure (https) page.';
     const policy = document.permissionsPolicy || document.featurePolicy;
@@ -73,6 +75,7 @@
 
   async function scan() {
     const reason = await blocker(); if (reason) { say(reason); return; }
+    if (!isOn()) { say('Turn on Bluetooth first.'); return; }
     if (hasHost()) {
       available.clear(); scanning = true; say('Searching for nearby devices…');
       try {
@@ -168,10 +171,47 @@
   }
   const signal = rssi => typeof rssi === 'number' ? (rssi > -60 ? 'Strong signal' : rssi > -80 ? 'Good signal' : 'Weak signal') : 'Available';
 
+  const isOn = () => hasHost() ? hostOn : appOn && !reasonCache;
+  const canToggle = () => hasHost() ? typeof host().setEnabled === 'function' : !reasonCache;
+  async function setOn(on) {
+    if (!canToggle()) return;
+    if (hasHost()) {
+      try { await host().setEnabled(on); hostOn = on; message = on ? '' : 'Bluetooth is off.'; if (!on) { connected.clear(); available.clear(); } }
+      catch (error) { message = error?.message || 'Couldn’t change Bluetooth.'; }
+      changed(); return;
+    }
+    appOn = on; try { localStorage.setItem(ON_KEY, String(on)); } catch {}
+    if (!on) {
+      if (scanning) finishScan();
+      for (const entry of connected.values()) { try { entry.device?.gatt?.disconnect(); } catch {} }
+      connected.clear(); available.clear(); message = 'Bluetooth is off. RESTRO won’t connect to devices.';
+    } else message = '';
+    changed();
+  }
+  async function refreshState() {
+    reasonCache = await blocker();
+    if (hasHost() && typeof host().isEnabled === 'function') { try { hostOn = (await host().isEnabled()) !== false; } catch {} }
+  }
+  function masterSwitch() {
+    const label = document.createElement('label'); label.className = 'radio-master' + (isOn() ? ' on' : '');
+    label.innerHTML = '<span class="radio-master-copy"><strong>Use Bluetooth</strong><span></span></span><input type="checkbox" class="settings-switch" role="switch">';
+    label.querySelector('.radio-master-copy span').textContent = reasonCache ? 'Not available here' : isOn() ? 'On' : 'Off';
+    const input = label.querySelector('input'); input.checked = isOn(); input.disabled = !canToggle();
+    input.addEventListener('change', () => setOn(input.checked));
+    return label;
+  }
+
   async function render() {
     if (!panel?.isConnected) return;
-    const reason = await blocker();
+    await refreshState();
+    const reason = reasonCache;
     const root = document.createElement('div'); root.className = 'bt-panel-inner';
+    root.append(masterSwitch());
+    if (!isOn()) {
+      const off = document.createElement('p'); off.className = 'bt-message'; off.setAttribute('role', 'status');
+      off.textContent = reason || message || (hasHost() ? 'Bluetooth is off.' : 'Bluetooth is off. RESTRO won’t connect to devices.');
+      root.append(off); panel.replaceChildren(root); return;
+    }
 
     const head = document.createElement('div'); head.className = 'bt-head';
     head.innerHTML = `<span class="bt-head-icon">${bluetoothIcon}</span><span class="bt-head-copy"><strong>Bluetooth</strong><span></span></span>`;
@@ -211,7 +251,12 @@
     } catch {}
   }
 
+  refreshState().then(() => window.dispatchEvent(new CustomEvent('restro:bluetooth-changed', { detail: { connected: connected.size } })));
   window.RestroBluetooth = Object.freeze({
+    get on() { return isOn(); },
+    get canToggle() { return canToggle(); },
+    get unavailableReason() { return reasonCache; },
+    setOn,
     mount(container) { panel = container; message = ''; render(); loadPaired(); },
     get connectedCount() { return connected.size; }
   });

@@ -74,13 +74,29 @@
     message = 'Sample network disconnected.'; await scan(); changed();
   }
 
+  // On/off. Android app: real Wi-Fi radio. Browser: turns the labelled preview on/off.
+  const isOn = () => hasHost() ? enabled : preview();
+  const canToggle = () => hasHost() ? typeof host().setEnabled === 'function' : window.RestroConnectivity?.getStatus?.().source !== 'native';
   async function setEnabled(on) {
-    if (typeof host()?.setEnabled !== 'function') return;
+    if (!canToggle()) return;
+    if (!hasHost()) {
+      if (!on) { sampleConnected = null; networks = []; }
+      message = on ? '' : 'Wi-Fi preview is off.';
+      window.RestroConnectivity?.setWifiPreview?.(on); changed(); return;
+    }
     try { await host().setEnabled(on); enabled = on; networks = []; if (on) await scan(); else say('Wi-Fi is off.'); window.RestroConnectivity?.refresh?.(); changed(); }
-    catch (error) { say(error?.message || 'Couldn’t change Wi-Fi.'); }
+    catch (error) { say(error?.message || 'Couldn’t change Wi-Fi.'); changed(); }
   }
 
   // ---------- Rendering ----------
+  function masterSwitch(title, detail, checked, enabledSwitch, onChange) {
+    const label = document.createElement('label'); label.className = 'radio-master' + (checked ? ' on' : '');
+    label.innerHTML = '<span class="radio-master-copy"><strong></strong><span></span></span><input type="checkbox" class="settings-switch" role="switch">';
+    label.querySelector('strong').textContent = title; label.querySelector('.radio-master-copy span').textContent = detail;
+    const input = label.querySelector('input'); input.checked = checked; input.disabled = !enabledSwitch;
+    input.addEventListener('change', () => onChange(input.checked));
+    return label;
+  }
   function signalIcon(level, secure) {
     const arcs = [
       '<circle cx="12" cy="18.5" r="1.6" fill="currentColor" stroke="none" data-l="1"/>',
@@ -130,11 +146,8 @@
     head.querySelector('.bt-head-copy span').textContent = current ? `Connected to ${current.ssid}${preview() ? ' (sample)' : ''}`
       : hasHost() ? (enabled ? 'Not connected' : 'Off')
       : status?.wifi?.connected ? 'Connected (network name not shared by this browser)' : 'Managed by this device';
-    if (hasHost() && typeof host().setEnabled === 'function') {
-      const toggle = document.createElement('input'); toggle.type = 'checkbox'; toggle.className = 'settings-switch'; toggle.setAttribute('role', 'switch');
-      toggle.setAttribute('aria-label', 'Use Wi-Fi'); toggle.checked = enabled; toggle.addEventListener('change', () => setEnabled(toggle.checked));
-      head.append(toggle);
-    }
+    root.append(masterSwitch('Use Wi-Fi', hasHost() ? (enabled ? 'On' : 'Off') : 'Preview · your device’s real Wi-Fi is unchanged', isOn(), canToggle(), setEnabled));
+    if (!isOn() && hasHost()) { panel.replaceChildren(root); return; }
     if (hasHost() || preview()) {
       const refresh = document.createElement('button'); refresh.type = 'button'; refresh.className = 'primary-button bt-scan';
       refresh.textContent = scanning ? 'Searching…' : 'Scan'; refresh.disabled = scanning || !enabled;
@@ -145,7 +158,7 @@
     const note = document.createElement('p'); note.className = 'bt-message'; note.setAttribute('role', 'status');
     note.textContent = message || (hasHost() ? (networks.length ? 'Tap a network to connect.' : '')
       : preview() ? 'Sample networks for testing the screens and status bar icon. Your device’s real Wi-Fi is unchanged.'
-      : 'Web browsers can’t search for or join Wi-Fi networks, on any website. Join networks in this device’s Wi-Fi settings. In the RESTRO Android app, nearby networks are listed here. To test this screen, turn on Show Wi-Fi icon in Settings › Wi-Fi.');
+      : 'Web browsers can’t switch, search for or join Wi-Fi networks, on any website, so this device’s own settings manage its Wi-Fi. In the RESTRO Android app, this switch turns Wi-Fi on and off and nearby networks are listed here. Turn on Use Wi-Fi to preview these screens with sample networks.');
     if (note.textContent) root.append(note);
 
     if (hasHost() || preview()) {
@@ -170,7 +183,12 @@
     if (preview() && !networks.length) scan(); else render();
   });
 
+  (async () => { try { if (hasHost() && typeof host().isEnabled === 'function') { enabled = (await host().isEnabled()) !== false; changed(); } } catch {} })();
   window.RestroWifi = Object.freeze({
+    get on() { return isOn(); },
+    get canToggle() { return canToggle(); },
+    get isPreview() { return !hasHost(); },
+    setOn: setEnabled,
     mount(container) { panel = container; message = ''; open = null; render(); scan(); },
     get sampleNetwork() { return sampleConnected; }
   });

@@ -34,7 +34,7 @@
     if(appId)name=apps[appId].name;
     else if(dialog.id==='device-settings-dialog'){
       name=document.querySelector('#device-settings-title').textContent;
-      control={'Wi-Fi':'wifi','Bluetooth':'bluetooth','Pazzer Connect':'pazzer'}[name];
+      control={'Wi-Fi':'wifi','Bluetooth':'bluetooth','Pager Hub':'pager-hub'}[name];
     }else if(control)name=control==='calculator'?'Calculator':'Camera';
     if(!name||!appId&&!control)return;
     const key=appId||control;recentApps.delete(key);recentApps.set(key,{appId,control,name});

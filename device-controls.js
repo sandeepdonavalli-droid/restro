@@ -83,7 +83,7 @@
   }
   async function pazzerSettings(){
     const host=deviceHost(),hasHost=typeof host?.openSettings==='function';
-    showSettings('Pazzer Connect',`<div class="connection-summary"><svg class="icon" aria-hidden="true"><use href="#hardware"/></svg><div><strong>Your Pazzer hardware</strong><p>Connections for this POS setup.</p></div></div><h3>Connected hardware</h3><ul id="pazzer-devices" class="device-list"><li>${host?'Checking connected hardware…':'No Pazzer hardware connected'}</li></ul><button id="pazzer-settings-button" class="primary-button"${hasHost?'':' disabled'}>Open Pazzer settings</button><p id="pazzer-feedback" class="device-note" role="status">${hasHost?'Manage your paired hardware in Pazzer Connect.':'Connect your setup through Pazzer Connect on the RESTRO Android device.'}</p>`);
+    showSettings('Pager Hub',`<div class="connection-summary"><svg class="icon" aria-hidden="true"><use href="#hardware"/></svg><div><strong>Your Pazzer hardware</strong><p>Connections for this POS setup.</p></div></div><h3>Connected hardware</h3><ul id="pazzer-devices" class="device-list"><li>${host?'Checking connected hardware…':'No Pazzer hardware connected'}</li></ul><button id="pazzer-settings-button" class="primary-button"${hasHost?'':' disabled'}>Open Pazzer settings</button><p id="pazzer-feedback" class="device-note" role="status">${hasHost?'Manage your paired hardware in Pazzer Connect.':'Connect your setup through Pazzer Connect on the RESTRO Android device.'}</p>`);
     document.querySelector('#pazzer-settings-button').addEventListener('click',()=>hostSettings('pazzer',document.querySelector('#pazzer-feedback')));
     if(typeof host?.getPazzerDevices!=='function'){
       if(host)document.querySelector('#pazzer-devices').firstElementChild.textContent='Open Pazzer settings to view connected hardware';
@@ -109,6 +109,7 @@
     }
   }
   brightnessRange.addEventListener('input',event=>setBrightness(event.target.value));
+  window.RestroPagerHub=Object.freeze({open(){if(document.querySelector('dialog[open]:not(#quick-controls-dialog)'))return;pazzerSettings();}});
   window.RestroDeviceControls=Object.freeze({
     renderInto(kind,container){
       const panel={wifi:networkSettings,bluetooth:bluetoothSettings,pazzer:pazzerSettings}[kind];
@@ -200,7 +201,7 @@
     switch(button.dataset.control){
       case 'wifi':networkSettings();break;
       case 'bluetooth':bluetoothSettings();break;
-      case 'pazzer':pazzerSettings();break;
+      case 'pager-hub':pazzerSettings();break;
       case 'camera':openCamera();break;
       case 'brightness':brightnessRange.focus();break;
       case 'calculator':drawer.close();calculator.showModal();break;

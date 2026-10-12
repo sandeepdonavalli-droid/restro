@@ -96,8 +96,16 @@
     mobile.hidden = !status?.hasCellular;
     if (status?.hasCellular) document.querySelector('#settings-mobile-status').textContent = status.cellular.connected ? (status.cellular.level === null ? 'Connected' : `Connected · signal ${status.cellular.level} of 4`) : 'Not connected';
     document.querySelector('#settings-wifi-summary').textContent = sample ? `${sample} (sample)` : status?.preview?.wifi ? 'Preview on' : status?.wifi?.connected ? 'Connected' : status?.source === 'browser' ? 'Managed by this device' : 'Not connected';
-    const paired = window.RestroBluetooth?.connectedCount || 0;
-    document.querySelector('#settings-bluetooth-summary').textContent = paired ? `${paired} connected` : 'Not connected';
+    const wifi = window.RestroWifi, bt = window.RestroBluetooth;
+    if (wifi && !wifi.on && !wifi.isPreview) document.querySelector('#settings-wifi-summary').textContent = 'Off';
+    const paired = bt?.connectedCount || 0;
+    document.querySelector('#settings-bluetooth-summary').textContent = bt?.unavailableReason ? 'Not available here' : bt && !bt.on ? 'Off' : paired ? `${paired} connected` : 'On · Not connected';
+    // Row switches
+    const wifiSwitch = document.querySelector('#settings-wifi-switch'), btSwitch = document.querySelector('#settings-bluetooth-switch');
+    if (wifi) { wifiSwitch.checked = wifi.on; wifiSwitch.disabled = !wifi.canToggle; wifiSwitch.setAttribute('aria-label', wifi.isPreview ? 'Wi-Fi preview' : 'Wi-Fi'); }
+    if (bt) { btSwitch.checked = bt.on; btSwitch.disabled = !bt.canToggle; }
+    const sound = window.RestroSound;
+    if (sound) document.querySelector('#settings-sound-summary').textContent = sound.volume ? `Volume ${sound.volume}%${sound.touchSounds ? ' · Touch sounds on' : ''}` : 'Muted';
 
     const brightness = window.RestroDeviceControls?.brightness ?? 100;
     document.querySelector('#settings-display-summary').textContent = `Brightness ${brightness}%`;
@@ -117,6 +125,9 @@
     const button = event.currentTarget; button.disabled = true; button.textContent = 'Checking…';
     try { await window.RestroConnectivity?.refresh?.(); } finally { button.disabled = false; button.textContent = 'Check now'; syncSummaries(); }
   });
+  document.querySelector('#settings-wifi-switch').addEventListener('change', event => window.RestroWifi?.setOn(event.target.checked));
+  document.querySelector('#settings-bluetooth-switch').addEventListener('change', event => window.RestroBluetooth?.setOn(event.target.checked));
+  document.querySelector('#settings-test-sound').addEventListener('click', () => window.RestroSound?.play('alert'));
   document.querySelector('#settings-brightness-range').addEventListener('input', event => window.RestroDeviceControls?.setBrightness(event.target.value));
 
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
@@ -131,7 +142,7 @@
   twoPane.addEventListener('change', () => {
     if (twoPane.matches) { shell.dataset.view = 'list'; show(current); }
   });
-  for (const type of ['restro:connectivity-changed', 'restro:brightness-changed', 'restro:bluetooth-changed', 'restro:wifi-changed', 'restro:restaurant-renamed', 'online', 'offline']) {
+  for (const type of ['restro:connectivity-changed', 'restro:brightness-changed', 'restro:bluetooth-changed', 'restro:wifi-changed', 'restro:volume-changed', 'restro:restaurant-renamed', 'online', 'offline']) {
     window.addEventListener(type, syncSummaries);
   }
 

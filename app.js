@@ -104,12 +104,18 @@ function refreshArtwork(){
 }
 window.addEventListener('restro:theme-changed',refreshArtwork);
 window.addEventListener('restro:artwork-changed',refreshArtwork);
-document.querySelectorAll('[data-app-icon]').forEach(image=>{const item=apps[image.dataset.appIcon];if(item)image.replaceWith(artNode(item.art));});
+document.querySelectorAll('[data-app-icon]').forEach(image=>{const item=apps[image.dataset.appIcon]||shortcuts.find(entry=>entry.id===image.dataset.appIcon);if(item)image.replaceWith(artNode(item.art));});
 
 for(const item of shortcuts){
   const node=document.createElement('div');node.className='shortcut';node.dataset.app=item.id;
   const label=document.createElement('span');label.className='shortcut-label';label.textContent=item.name;
   node.append(artNode(item.art),label);$('#main-shortcuts').append(node);
+  if(item.id==='pager-hub'){
+    // Pager Hub opens from here and from its quick-controls tile.
+    node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Pager Hub');
+    node.addEventListener('click',()=>window.RestroPagerHub?.open());
+    node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroPagerHub?.open();}});
+  }
 }
 function renderPages(){
   track.replaceChildren();

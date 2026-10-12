@@ -10,7 +10,7 @@ automatically; nothing else needs to change.
 | Method | Returns | Android API |
 | --- | --- | --- |
 | `isEnabled()` | `true` / `false` | `WifiManager.isWifiEnabled()` |
-| `setEnabled(on)` *(optional)* | — | Settings panel (`Settings.Panel.ACTION_WIFI`) on Android 10+ |
+| `setEnabled(on)` | — | Drives the Wi-Fi switches in Settings. `WifiManager.setWifiEnabled` works for system/device-owner apps; otherwise open `Settings.Panel.ACTION_WIFI` |
 | `scan()` | `[{ ssid, level, secure, connected, saved }]` | `WifiManager.startScan()` + `getScanResults()`; `level` = `calculateSignalLevel(rssi, 5)` (0–4) |
 | `connect(ssid, password?)` | `true` / `false` | `WifiNetworkSuggestion` or `WifiNetworkSpecifier` (Android 10+) |
 | `disconnect()` | — | `ConnectivityManager.unregisterNetworkCallback` / remove suggestion |
@@ -27,6 +27,7 @@ Permissions: `ACCESS_FINE_LOCATION` (or `NEARBY_WIFI_DEVICES` on Android 13+),
 | Method | Returns | Android API |
 | --- | --- | --- |
 | `isEnabled()` | `true` / `false` | `BluetoothAdapter.isEnabled()` |
+| `setEnabled(on)` | — | Drives the Bluetooth switches. `BluetoothAdapter.enable()/disable()` for system/device-owner apps; otherwise `ACTION_REQUEST_ENABLE` |
 | `startScan(onDevice)` | a `stop()` function | `BluetoothLeScanner.startScan` and/or `BluetoothAdapter.startDiscovery()`; call `onDevice({ id, name, rssi })` per device |
 | `connect(id)` | `true` / `false` | `BluetoothDevice.createBond()` / `connectGatt()` / RFCOMM for printers |
 | `disconnect(id)` | — | `BluetoothGatt.disconnect()` / close socket |
@@ -35,3 +36,8 @@ Permissions: `ACCESS_FINE_LOCATION` (or `NEARBY_WIFI_DEVICES` on Android 13+),
 Permissions: `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT` (Android 12+), `ACCESS_FINE_LOCATION` (older).
 
 All methods may return promises. Throw an `Error` with a short message to show it to the user.
+
+## Sound: `RESTRODevice.setVolume(level)`
+
+Optional. `level` is 0–100 from the Volume sliders (Settings › Sound and quick controls).
+Map it to `AudioManager.setStreamVolume(STREAM_MUSIC, level * max / 100, 0)`.

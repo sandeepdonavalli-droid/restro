@@ -195,3 +195,28 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 
 /* Quick-control dialog hosts the same panels */
 .device-settings-dialog .wifi-panel,.device-settings-dialog .bt-panel{margin-top:4px}
+
+/* List rows with an on/off switch (Android split row) */
+.settings-row-split{display:flex;align-items:center;gap:0;border-radius:36px}
+.settings-row-split .settings-row{flex:1;min-width:0}
+.settings-row-divider{flex:none;width:1px;height:32px;margin:0 14px 0 4px;background:var(--palette-line)}
+.settings-row-split .settings-switch{margin-right:14px}
+
+/* "Use Wi-Fi" / "Use Bluetooth" master switch */
+.radio-master{display:flex;align-items:center;gap:16px;min-height:72px;padding:14px 20px 14px 22px;border-radius:24px;background:var(--palette-bg);cursor:pointer}
+.radio-master.on{background:var(--palette-accent-wash)}
+.radio-master-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.radio-master-copy strong{font-size:18px;font-weight:500;color:var(--palette-text)}
+.radio-master.on .radio-master-copy strong{color:var(--palette-accent-ink)}
+.radio-master-copy span{font-size:14px;color:var(--palette-muted)}
+.radio-master:has(input:disabled){cursor:default}
+
+/* Volume */
+.settings-slider-line{display:flex;align-items:center;gap:14px}
+.settings-slider-line input{flex:1;min-width:0;height:32px;margin:0;accent-color:var(--palette-accent);cursor:pointer}
+.settings-app .slider-glyph{width:24px;height:24px;color:var(--palette-accent-ink)}
+.volume-glyph .volume-mute{display:none}
+.volume-glyph.muted .volume-mute{display:inline}
+.volume-glyph.muted .volume-wave{display:none}
+.quick-volume{margin-top:8px!important}
+.quick-volume .icon{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
