@@ -53,8 +53,9 @@
     }
     function refresh() {
       const current = byId.get(activeId), pending = byId.get(pendingId);
-      document.querySelector('#current-theme-name').textContent = current.name;
-      paintSwatch(document.querySelector('#current-theme-swatch'), current);
+      const currentName = document.querySelector('#current-theme-name'), swatch = document.querySelector('#current-theme-swatch');
+      if (currentName) currentName.textContent = current.name;
+      if (swatch) paintSwatch(swatch, current);
       document.querySelector('#theme-selection-name').textContent = pending.name;
       status.textContent = pendingId === activeId ? 'Current theme' : 'Ready to apply';
       applyButton.disabled = pendingId === activeId;

@@ -36,14 +36,13 @@
       entry.classList.toggle('selected', selected);
       if (selected) entry.setAttribute('aria-current', 'page'); else entry.removeAttribute('aria-current');
     }
-    if (id === 'themes') window.RestroThemePicker?.reset();
+    if (id === 'display') window.RestroThemePicker?.reset();
     renderLivePanels(id);
     dialog.querySelector('.settings-pages').scrollTop = 0;
     if (!twoPane.matches) shell.dataset.view = 'detail';
     if (focus) {
-      const target = id === 'restaurant' ? document.querySelector('#restaurant-input') : id === 'themes' ? null : back;
-      if (id === 'themes') window.RestroThemePicker?.focusCurrent();
-      else (twoPane.matches && target === back ? pages.get(id).querySelector('input,button,a') : target)?.focus({ preventScroll: true });
+      const target = id === 'restaurant' ? document.querySelector('#restaurant-input') : back;
+      (twoPane.matches && target === back ? pages.get(id).querySelector('input,button,a') : target)?.focus({ preventScroll: true });
     }
   }
 
@@ -101,7 +100,7 @@
     if (sound) document.querySelector('#settings-sound-summary').textContent = sound.volume ? `Volume ${sound.volume}%${sound.touchSounds ? ` · Touch: ${sound.touchStyle.name}` : ''}` : 'Muted';
 
     const brightness = window.RestroDeviceControls?.brightness ?? 100;
-    document.querySelector('#settings-display-summary').textContent = `Brightness ${brightness}%`;
+    document.querySelector('#settings-display-summary').textContent = `Brightness ${brightness}%${window.RestroThemes?.current ? ` · ${window.RestroThemes.current.name}` : ''}`;
     document.querySelector('#settings-brightness-value').textContent = `${brightness}%`;
     document.querySelector('#settings-brightness-range').value = String(brightness);
   }
@@ -132,7 +131,7 @@
   twoPane.addEventListener('change', () => {
     if (twoPane.matches) { shell.dataset.view = 'list'; show(current); }
   });
-  for (const type of ['restro:connectivity-changed', 'restro:brightness-changed', 'restro:bluetooth-changed', 'restro:wifi-changed', 'restro:volume-changed', 'restro:restaurant-renamed', 'online', 'offline']) {
+  for (const type of ['restro:connectivity-changed', 'restro:brightness-changed', 'restro:bluetooth-changed', 'restro:wifi-changed', 'restro:volume-changed', 'restro:theme-changed', 'restro:restaurant-renamed', 'online', 'offline']) {
     window.addEventListener(type, syncSummaries);
   }
 
