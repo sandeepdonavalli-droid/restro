@@ -3,7 +3,7 @@
   const cellular=document.querySelector('#cellular-status'),wifi=document.querySelector('#wifi-status');
   const dot=document.querySelector('#online-dot'),label=document.querySelector('#online-text');
   const previewToggle=document.querySelector('#wifi-preview-toggle'),previewSection=document.querySelector('#browser-preview-settings'),previewNote=document.querySelector('#wifi-preview-note');
-  let wifiPreview=false;
+  let wifiPreview=false,previewLevel=4;
   try{wifiPreview=window.localStorage.getItem('restro.wifiPreview.v1')==='true';}catch{}
   const connection=()=>navigator.connection||navigator.mozConnection||navigator.webkitConnection||navigator.network?.connection;
   const transport=value=>{
@@ -32,12 +32,12 @@
     cellular.hidden=!state.hasCellular;wifi.hidden=!(state.wifi.connected||preview);
     wifi.dataset.preview=String(preview);
     signal(cellular,'[data-signal-level]',state.cellular.level);
-    signal(wifi,'[data-wifi-level]',preview?4:state.wifi.level);
+    signal(wifi,'[data-wifi-level]',preview?previewLevel:state.wifi.level);
     const warning=state.wifi.connected&&state.wifi.internetAvailable===false;
     wifi.classList.toggle('no-internet',warning);wifi.querySelector('.wifi-warning').toggleAttribute('hidden',!warning);
     const strength=value=>value===null?'signal strength unavailable':`signal ${value} of 4`;
     const cellLabel=`Cellular · ${strength(state.cellular.level)}`;
-    const wifiLabel=(preview?'Wi-Fi · Visual preview · sample signal 4 of 4':`Wi-Fi · ${strength(state.wifi.level)}`)+(warning?' · No internet access':'');
+    const wifiLabel=(preview?`Wi-Fi · Visual preview · sample signal ${previewLevel} of 4`:`Wi-Fi · ${strength(state.wifi.level)}`)+(warning?' · No internet access':'');
     if(previewToggle){previewToggle.checked=wifiPreview;previewToggle.disabled=nativeActive;}
     if(previewSection)previewSection.hidden=nativeActive;
     if(previewNote)previewNote.textContent=preview?'Preview active. The Wi-Fi icon uses a sample signal; internet status stays live.':'Show a sample Wi-Fi icon for browser visual testing. Internet status stays live.';
@@ -175,9 +175,9 @@
       refreshing=null;if(refreshQueued){refreshQueued=false;refresh();}
     });return refreshing;
   }
-  function setWifiPreview(enabled){
+  function setWifiPreview(enabled,level){
     if(typeof enabled!=='boolean')return false;
-    wifiPreview=enabled;try{window.localStorage.setItem('restro.wifiPreview.v1',String(enabled));}catch{}
+    wifiPreview=enabled;previewLevel=typeof level==='number'?Math.max(0,Math.min(4,Math.round(level))):4;try{window.localStorage.setItem('restro.wifiPreview.v1',String(enabled));}catch{}
     render();return true;
   }
   previewToggle?.addEventListener?.('change',()=>setWifiPreview(previewToggle.checked));

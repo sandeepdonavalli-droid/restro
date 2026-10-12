@@ -143,3 +143,55 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 }
 @media (max-width:480px){.theme-options{grid-template-columns:minmax(0,1fr)}.settings-item{padding:16px 18px}}
 @media (prefers-reduced-motion:reduce){.settings-switch,.settings-switch::before{transition:none}}
+
+/* Wi-Fi and Bluetooth panels (Settings pages and quick-control dialogs) */
+.wifi-panel-inner,.bt-panel-inner{display:flex;flex-direction:column;gap:14px}
+.bt-head{display:flex;align-items:center;gap:16px;min-height:52px}
+.bt-head-icon{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--palette-accent-wash);color:var(--palette-accent-ink)}
+.bt-head-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bt-head-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.bt-head-copy strong{font-size:17px;font-weight:500;color:var(--palette-text)}
+.bt-head-copy span{font-size:14px;color:var(--palette-muted);overflow-wrap:anywhere}
+.bt-head .primary-button.bt-scan{margin:0;flex:none;min-height:44px;padding:10px 22px;border-radius:22px}
+.bt-message{margin:0;font-size:14px;line-height:1.5;color:var(--palette-muted)}
+.bt-section{display:flex;flex-direction:column;gap:8px}
+.bt-section h4{margin:6px 0 0;font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--palette-accent-ink)}
+.bt-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.bt-device,.bt-empty{display:flex;align-items:center;gap:14px;min-height:60px;padding:8px 10px 8px 14px;border-radius:16px;background:var(--palette-bg);color:var(--palette-text);font-size:15px}
+.bt-empty{color:var(--palette-muted);padding:8px 16px}
+.bt-device-icon{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--palette-accent-ink);background:var(--palette-accent-wash)}
+.bt-device-icon svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bt-device-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.bt-device-copy strong{font-weight:500;overflow-wrap:anywhere}
+.bt-device-copy span{font-size:13px;color:var(--palette-muted)}
+.bt-action{flex:none;min-height:40px;padding:8px 18px;margin:0;border-radius:20px;border:1px solid var(--palette-line);background:transparent;color:var(--palette-accent-ink);font-weight:600;font-size:14px;cursor:pointer}
+.bt-action:hover{background:var(--palette-accent-wash)}
+.bt-action-primary{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
+.bt-action-primary:hover{background:var(--palette-accent);filter:brightness(1.06)}
+.bt-action:disabled{opacity:.5;cursor:default}
+.bt-action:focus-visible{outline:2px solid var(--palette-accent);outline-offset:2px}
+.settings-status .bt-action{margin-left:auto}
+
+.wifi-network{display:flex;flex-direction:column;border-radius:16px;background:var(--palette-bg);overflow:hidden}
+.wifi-network.connected{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 40%,transparent)}
+.wifi-network-row{display:flex;align-items:center;gap:14px;width:100%;min-height:62px;margin:0;padding:8px 16px 8px 14px;border:0;background:transparent;color:var(--palette-text);text-align:left;cursor:pointer}
+.wifi-network-row:hover{background:var(--palette-accent-wash)}
+.wifi-network-row:focus-visible{outline:2px solid var(--palette-accent);outline-offset:-2px}
+.wifi-network-icon{flex:none;width:36px;height:36px;display:grid;place-items:center;color:var(--palette-accent-ink)}
+.wifi-network-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.wifi-network-copy strong{font-weight:500;font-size:15px;overflow-wrap:anywhere}
+.wifi-network-copy span{font-size:13px;color:var(--palette-muted)}
+.wifi-network.connected .wifi-network-copy span{color:var(--palette-accent-ink);font-weight:600}
+.wifi-signal{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+.wifi-signal .off{opacity:.22}
+.wifi-signal circle.off{opacity:.22}
+.wifi-lock{stroke-width:1.6;fill:var(--palette-bg)}
+.bt-head-icon .wifi-signal{width:22px;height:22px}
+.wifi-join{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px;padding:4px 14px 14px 64px}
+.wifi-join input{flex:1 1 200px;min-width:0;min-height:44px;padding:10px 14px;border-radius:12px;border:1px solid var(--palette-line);background:var(--palette-tile-top);color:var(--palette-text);font-size:16px;outline:none}
+.wifi-join input:focus{border-color:var(--palette-accent);box-shadow:0 0 0 1px var(--palette-accent)}
+.wifi-advanced{align-self:flex-start}
+@media (max-width:480px){.wifi-join{padding-left:14px}.bt-head{flex-wrap:wrap}}
+
+/* Quick-control dialog hosts the same panels */
+.device-settings-dialog .wifi-panel,.device-settings-dialog .bt-panel{margin-top:4px}

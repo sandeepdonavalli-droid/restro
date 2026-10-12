@@ -6,7 +6,6 @@
   const settings=document.querySelector('#device-settings-dialog');
   const content=document.querySelector('#device-settings-content');
   let pull=null,returnFocus=null,brightness=100,cameraStream=null,photoUrl=null,inlineTarget=null;
-  const pairedDevices=new Map();
 
   // The Android shell may supply this adapter. The browser never simulates an OS toggle.
   const deviceHost=()=>window.RESTRODevice;
@@ -50,20 +49,21 @@
   });
   function updateConnectionStatus(){
     const status=window.RestroConnectivity?.getStatus();
-    document.querySelector('#quick-wifi-status').textContent=status?.preview?.wifi?'Visual preview':status?.wifi.connected?(status.wifi.internetAvailable===false?'No internet access':'Connected'):'Network settings';
-    document.querySelector('#quick-bluetooth-status').textContent=pairedDevices.size?`${pairedDevices.size} connected`:'Connections';
+    document.querySelector('#quick-wifi-status').textContent=status?.preview?.wifi?(window.RestroWifi?.sampleNetwork?`${window.RestroWifi.sampleNetwork} (sample)`:'Visual preview'):status?.wifi.connected?(status.wifi.internetAvailable===false?'No internet access':'Connected'):'Network settings';
+    document.querySelector('#quick-bluetooth-status').textContent=window.RestroBluetooth?.connectedCount?`${window.RestroBluetooth.connectedCount} connected`:'Connections';
     const summary=document.querySelector('#wifi-internet-status');if(summary)summary.textContent=status?.internetAvailable?'Internet available':'No internet connection';
   }
   window.addEventListener('online',updateConnectionStatus);
   window.addEventListener('offline',updateConnectionStatus);
   window.addEventListener('restro:connectivity-changed',updateConnectionStatus);
-  function section(markup){content.innerHTML=`<div class="device-section">${markup}</div>`;}
+  window.addEventListener('restro:bluetooth-changed',updateConnectionStatus);
+  function section(markup){content.innerHTML=`<div class="device-section">${markup}</div>`;return content.firstElementChild;}
   function showSettings(title,markup){
     // Settings renders the same panels in place instead of opening a dialog.
-    if(inlineTarget){inlineTarget.innerHTML=`<div class="device-section">${markup}</div>`;return;}
+    if(inlineTarget){inlineTarget.innerHTML=`<div class="device-section">${markup}</div>`;return inlineTarget.firstElementChild;}
     drawer.close();
     document.querySelector('#device-settings-title').textContent=title;
-    section(markup);settings.showModal();
+    const node=section(markup);settings.showModal();return node;
   }
   async function hostSettings(kind,feedback){
     try{
@@ -74,35 +74,12 @@
     }catch(error){feedback.textContent=error.message||'Unable to open device settings.';}
   }
   function networkSettings(){
-    const hasHost=typeof deviceHost()?.openSettings==='function';
-    const status=window.RestroConnectivity?.getStatus();
-    showSettings('Wi-Fi',`<div class="connection-summary"><svg class="icon" aria-hidden="true"><use href="#wifi"/></svg><div><strong id="wifi-internet-status">${status?.internetAvailable?'Internet available':'No internet connection'}</strong><p>Manage your device’s Wi-Fi connection.</p></div></div><button id="wifi-settings-button" class="primary-button"${hasHost?'':' disabled'}>Open Wi-Fi settings</button><p id="wifi-feedback" class="device-note" role="status">${hasHost?'Choose a network in device settings.':'Wi-Fi settings are available on the RESTRO Android device.'}</p>`);
-    document.querySelector('#wifi-settings-button').addEventListener('click',()=>hostSettings('wifi',document.querySelector('#wifi-feedback')));
+    const section=showSettings('Wi-Fi','<div class="wifi-panel"></div>');
+    window.RestroWifi?.mount(section.querySelector('.wifi-panel'));
   }
   function bluetoothSettings(){
-    const hasHost=typeof deviceHost()?.openSettings==='function',hasBluetooth=typeof navigator.bluetooth?.requestDevice==='function';
-    showSettings('Bluetooth',`<div class="connection-summary"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 7 12 10-6 5V2l6 5L6 17"/></svg><div><strong>Bluetooth connections</strong><p>Connect a nearby device.</p></div></div><h3>Connected in this session</h3><ul id="bluetooth-devices" class="device-list"></ul><button id="bluetooth-connect" class="primary-button"${hasHost||hasBluetooth?'':' disabled'}>${hasHost?'Open Bluetooth settings':'Connect a device'}</button><p id="bluetooth-feedback" class="device-note" role="status">${hasHost?'Manage Bluetooth on your device.':hasBluetooth?'Keep your device nearby and in pairing mode.':'Bluetooth pairing is available on supported browsers and RESTRO Android devices.'}</p>`);
-    renderBluetoothDevices();
-    document.querySelector('#bluetooth-connect').addEventListener('click',async()=>{
-      const feedback=document.querySelector('#bluetooth-feedback');
-      if(hasHost){await hostSettings('bluetooth',feedback);return;}
-      try{
-        const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true});
-        if(!device.gatt)throw new Error('This device does not support a Bluetooth data connection.');
-        await device.gatt.connect();pairedDevices.set(device.id,device);
-        device.addEventListener('gattserverdisconnected',()=>{pairedDevices.delete(device.id);updateConnectionStatus();if(document.querySelector('#bluetooth-devices'))renderBluetoothDevices();},{once:true});
-        renderBluetoothDevices();updateConnectionStatus();feedback.textContent='Device connected.';
-      }catch(error){feedback.textContent=error.name==='NotFoundError'?'No device selected.':error.message||'Could not connect. Check the device and try again.';}
-    });
-  }
-  function renderBluetoothDevices(){
-    const list=document.querySelector('#bluetooth-devices');if(!list)return;list.replaceChildren();
-    if(!pairedDevices.size){const li=document.createElement('li');li.textContent='No connected devices';list.append(li);return;}
-    for(const device of pairedDevices.values()){
-      const li=document.createElement('li'),label=document.createElement('span'),button=document.createElement('button');
-      label.textContent=device.name||'Bluetooth device';button.className='secondary-button';button.textContent='Disconnect';
-      button.addEventListener('click',()=>{device.gatt.disconnect();pairedDevices.delete(device.id);renderBluetoothDevices();updateConnectionStatus();});li.append(label,button);list.append(li);
-    }
+    const section=showSettings('Bluetooth','<div class="bt-panel"></div>');
+    window.RestroBluetooth?.mount(section.querySelector('.bt-panel'));
   }
   async function pazzerSettings(){
     const host=deviceHost(),hasHost=typeof host?.openSettings==='function';

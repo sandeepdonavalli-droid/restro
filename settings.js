@@ -22,11 +22,8 @@
   function renderLivePanels(id) {
     const devices = window.RestroDeviceControls;
     if (!devices) return;
-    if (id === 'network') devices.renderInto('wifi', document.querySelector('#settings-wifi-slot'));
-    if (id === 'devices') {
-      devices.renderInto('bluetooth', document.querySelector('#settings-bluetooth-slot'));
-      devices.renderInto('pazzer', document.querySelector('#settings-pazzer-slot'));
-    }
+    if (id === 'wifi') devices.renderInto('wifi', document.querySelector('#settings-wifi-slot'));
+    if (id === 'bluetooth') devices.renderInto('bluetooth', document.querySelector('#settings-bluetooth-slot'));
   }
 
   function show(id, { focus = false } = {}) {
@@ -90,8 +87,17 @@
 
     const status = window.RestroConnectivity?.getStatus?.();
     const online = status ? status.internetAvailable : navigator.onLine;
-    const via = status?.wifi?.connected ? ' · Wi-Fi' : status?.cellular?.connected ? ' · Mobile data' : '';
-    document.querySelector('#settings-network-summary').textContent = (online ? 'Online' : 'Offline') + via;
+    const through = status?.wifi?.connected ? 'Wi-Fi' : status?.cellular?.connected ? 'Mobile data' : '';
+    const sample = status?.preview?.wifi ? window.RestroWifi?.sampleNetwork : null;
+    document.querySelector('#settings-network-summary').textContent = (online ? 'Online' : 'Offline') + (through ? ` · ${through}` : '');
+    document.querySelector('#settings-internet-status').textContent = online ? 'Connected to the internet' : 'No internet connection';
+    document.querySelector('#settings-network-type').textContent = through || (status?.source === 'browser' ? 'Not reported by this browser' : 'Not connected');
+    const mobile = document.querySelector('#settings-mobile-row');
+    mobile.hidden = !status?.hasCellular;
+    if (status?.hasCellular) document.querySelector('#settings-mobile-status').textContent = status.cellular.connected ? (status.cellular.level === null ? 'Connected' : `Connected · signal ${status.cellular.level} of 4`) : 'Not connected';
+    document.querySelector('#settings-wifi-summary').textContent = sample ? `${sample} (sample)` : status?.preview?.wifi ? 'Preview on' : status?.wifi?.connected ? 'Connected' : status?.source === 'browser' ? 'Managed by this device' : 'Not connected';
+    const paired = window.RestroBluetooth?.connectedCount || 0;
+    document.querySelector('#settings-bluetooth-summary').textContent = paired ? `${paired} connected` : 'Not connected';
 
     const brightness = window.RestroDeviceControls?.brightness ?? 100;
     document.querySelector('#settings-display-summary').textContent = `Brightness ${brightness}%`;
@@ -107,6 +113,10 @@
     const first = entries.find(entry => !(entry.closest('li') || entry).hidden);
     if (first) { event.preventDefault(); show(first.dataset.page, { focus: true }); }
   });
+  document.querySelector('#settings-internet-check').addEventListener('click', async event => {
+    const button = event.currentTarget; button.disabled = true; button.textContent = 'Checking…';
+    try { await window.RestroConnectivity?.refresh?.(); } finally { button.disabled = false; button.textContent = 'Check now'; syncSummaries(); }
+  });
   document.querySelector('#settings-brightness-range').addEventListener('input', event => window.RestroDeviceControls?.setBrightness(event.target.value));
 
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
@@ -121,7 +131,7 @@
   twoPane.addEventListener('change', () => {
     if (twoPane.matches) { shell.dataset.view = 'list'; show(current); }
   });
-  for (const type of ['restro:connectivity-changed', 'restro:brightness-changed', 'restro:restaurant-renamed', 'online', 'offline']) {
+  for (const type of ['restro:connectivity-changed', 'restro:brightness-changed', 'restro:bluetooth-changed', 'restro:wifi-changed', 'restro:restaurant-renamed', 'online', 'offline']) {
     window.addEventListener(type, syncSummaries);
   }
 
