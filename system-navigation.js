@@ -60,18 +60,84 @@
     if(typeof host?.[method]!=='function')return false;
     try{return await host[method]()!==false;}catch{return false;}
   }
+  // ---------- App switcher (Apple-style): slide through cards, swipe up to close ----------
+  function openRecent(recent){
+    recents.close();
+    if(recent.insightId)window.RestroInsights.openDetail(recent.insightId);
+    else if(recent.appId)openApp(recent.appId);
+    else if(recent.control==='pager-hub')window.RestroPagerHub?.open();
+    else document.querySelector(`[data-control="${recent.control}"]`)?.click();
+  }
+  function recentIcon(recent){
+    return recent.insightId?artNode({symbol:recent.symbol}):recent.appId?artNode(apps[recent.appId].art)
+      :recent.control==='pager-hub'?artNode(shortcuts.find(item=>item.id==='pager-hub').art)
+      :document.querySelector(`[data-control="${recent.control}"] .quick-control-icon`)?.cloneNode(true)||document.createElement('span');
+  }
+  function closeRecent(key,item){
+    recentApps.delete(key);
+    item.classList.add('switcher-gone');
+    setTimeout(()=>{item.remove();if(!recentApps.size)renderRecents();},260);
+  }
   function renderRecents(){
     recentList.replaceChildren();
     if(!recentApps.size){
-      const message=document.createElement('p');message.className='recent-apps-empty';message.textContent='Opened apps appear here.';recentList.append(message);return;
+      const message=document.createElement('p');message.className='recent-apps-empty';message.textContent='No recent apps';recentList.append(message);return;
     }
-    for(const recent of [...recentApps.values()].reverse()){
-      const button=document.createElement('button');button.type='button';button.className='recent-app-card';button.setAttribute('aria-label',`Open ${recent.name}`);
-      const icon=recent.insightId?artNode({symbol:recent.symbol}):recent.appId?artNode(apps[recent.appId].art):document.querySelector(`[data-control="${recent.control}"] .quick-control-icon`).cloneNode(true);
-      icon.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent=recent.name;button.append(icon,label);
-      button.addEventListener('click',()=>{recents.close();if(recent.insightId)window.RestroInsights.openDetail(recent.insightId);else if(recent.appId)openApp(recent.appId);else document.querySelector(`[data-control="${recent.control}"]`).click();});
-      recentList.append(button);
+    // Oldest on the left, most recent on the right (like iPhone/iPad).
+    for(const [key,recent] of recentApps){
+      const item=document.createElement('div');item.className='switcher-item';item.setAttribute('role','listitem');
+      const label=document.createElement('div');label.className='switcher-label';
+      const small=recentIcon(recent);small.setAttribute('aria-hidden','true');small.classList.add('switcher-label-icon');
+      const name=document.createElement('span');name.textContent=recent.name;label.append(small,name);
+      const card=document.createElement('button');card.type='button';card.className='switcher-card';
+      card.setAttribute('aria-label',`Open ${recent.name}. Swipe up or press Delete to close.`);
+      const bar=document.createElement('span');bar.className='switcher-card-bar';bar.textContent=recent.name;
+      const body=document.createElement('span');body.className='switcher-card-body';
+      const big=recentIcon(recent);big.setAttribute('aria-hidden','true');big.classList.add('switcher-card-icon');body.append(big);
+      card.append(bar,body);item.append(label,card);recentList.append(item);
+
+      // Swipe up to close; tap to open.
+      let start=null,dy=0,moved=false;
+      card.addEventListener('pointerdown',event=>{if(event.button!==0)return;start={x:event.clientX,y:event.clientY,t:performance.now(),id:event.pointerId};dy=0;moved=false;});
+      card.addEventListener('pointermove',event=>{
+        if(!start||event.pointerId!==start.id)return;
+        const dx=event.clientX-start.x,dyNow=event.clientY-start.y;
+        if(!moved&&Math.abs(dyNow)>8&&Math.abs(dyNow)>Math.abs(dx)){moved=true;card.setPointerCapture(event.pointerId);item.classList.add('switcher-dragging');}
+        if(!moved)return;
+        dy=Math.min(0,dyNow);item.style.transform=`translateY(${dy}px)`;item.style.opacity=String(Math.max(.2,1+dy/400));
+      });
+      const end=event=>{
+        if(!start||event.pointerId!==start.id)return;
+        const fast=dy<-60&&dy/(performance.now()-start.t)<-.6;
+        item.classList.remove('switcher-dragging');start=null;
+        if(moved&&(dy<-card.offsetHeight*.3||fast)){item.style.transform='translateY(-120vh)';item.style.opacity='0';closeRecent(key,item);}
+        else if(moved){item.style.transform='';item.style.opacity='';}
+      };
+      card.addEventListener('pointerup',end);card.addEventListener('pointercancel',end);
+      card.addEventListener('click',event=>{if(moved){event.preventDefault();moved=false;return;}openRecent(recent);});
+      card.addEventListener('keydown',event=>{
+        if(event.key==='Delete'||event.key==='Backspace'||event.key==='ArrowUp'){event.preventDefault();const next=item.previousElementSibling||item.nextElementSibling;item.style.transform='translateY(-120vh)';item.style.opacity='0';closeRecent(key,item);next?.querySelector('.switcher-card')?.focus();}
+        else if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();(event.key==='ArrowLeft'?item.previousElementSibling:item.nextElementSibling)?.querySelector('.switcher-card')?.focus();}
+      });
     }
+    requestAnimationFrame(()=>{recentList.scrollLeft=recentList.scrollWidth;const last=recentList.lastElementChild?.querySelector('.switcher-card');last?.focus({preventScroll:true});});
+  }
+  // Mouse: drag sideways to slide; vertical wheel slides too. Touch scrolls natively.
+  {
+    let drag=null;
+    recentList.addEventListener('pointerdown',event=>{if(event.pointerType!=='mouse'||event.button!==0)return;drag={x:event.clientX,left:recentList.scrollLeft,moved:false};});
+    window.addEventListener('pointermove',event=>{if(!drag)return;const dx=event.clientX-drag.x;if(Math.abs(dx)>6){drag.moved=true;recentList.classList.add('switcher-sliding');}if(drag.moved)recentList.scrollLeft=drag.left-dx;});
+    window.addEventListener('pointerup',event=>{if(!drag)return;const wasMoved=drag.moved,dx=event.clientX-drag.x,startLeft=drag.left;drag=null;recentList.classList.remove('switcher-sliding');
+      if(wasMoved){
+        // Snap to the next/previous card in the drag direction, like a swipe.
+        const items=[...recentList.querySelectorAll('.switcher-item')],centerOf=item=>item.offsetLeft+item.offsetWidth/2-recentList.clientWidth/2;
+        const current=items.reduce((best,item)=>Math.abs(centerOf(item)-startLeft)<Math.abs(centerOf(best)-startLeft)?item:best,items[0]);
+        let index=items.indexOf(current);if(Math.abs(dx)>50)index+=dx<0?1:-1;
+        const target=items[Math.max(0,Math.min(items.length-1,index))];if(target)recentList.scrollTo({left:centerOf(target),behavior:'smooth'});
+      }if(wasMoved){const stop=e=>{e.stopPropagation();e.preventDefault();};recentList.addEventListener('click',stop,{capture:true,once:true});setTimeout(()=>recentList.removeEventListener('click',stop,{capture:true}),0);}});
+    recentList.addEventListener('wheel',event=>{if(Math.abs(event.deltaY)>Math.abs(event.deltaX)){recentList.scrollLeft+=event.deltaY;event.preventDefault();}},{passive:false});
+    // Tapping empty space goes back, like the iPhone app switcher.
+    recents.addEventListener('click',event=>{if(event.target===recents||event.target===recentList||event.target.classList?.contains('switcher-item')||event.target.classList?.contains('recent-apps-empty'))recents.close();});
   }
   document.querySelector('#system-back').addEventListener('click',async()=>{
     if(locked)return;

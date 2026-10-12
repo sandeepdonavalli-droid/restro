@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="styles.css?v=23">
   <link rel="stylesheet" href="quality-layout.css?v=4">
   <link rel="stylesheet" href="device-controls.css?v=2">
-  <link rel="stylesheet" href="system-navigation.css?v=5">
+  <link rel="stylesheet" href="system-navigation.css?v=6">
   <link rel="stylesheet" href="themes.css?v=2">
   <link rel="stylesheet" href="settings.css?v=4">
   <link rel="stylesheet" href="app-widget-controls.css?v=3">
@@ -31,7 +31,7 @@
   <script src="settings.js?v=7" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
-  <script src="system-navigation.js?v=5" defer></script>
+  <script src="system-navigation.js?v=6" defer></script>
 </head>
 <body>
   <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -101,9 +101,10 @@
       <div class="bottom-brand-lock"><span class="footer-identity"><svg class="footer-logo" viewBox="4 19 394 312" aria-hidden="true"><path d="M202 19c14 4 65 57 71 108 8 56-39 145-71 184-30-38-69-119-70-159-2-54 42-116 64-131 2-2 4-2 6-2Z"/><path d="M57 86c19 2 56 22 71 45-1 36 13 76 30 108-24-23-58-40-91-52-20-24-24-57-16-94 1-6 3-8 6-7Z"/><path d="M346 86c-19 2-56 22-71 45 1 36-13 76-30 108 24-23 58-40 91-52 20-24 24-57 16-94-1-6-3-8-6-7Z"/><path d="M8 188c67 1 157 35 186 138-96 7-167-12-187-128-2-6-3-9 1-10Z"/><path d="M394 188c-67 1-157 35-184 138 94 7 165-12 185-128 2-6 3-9-1-10Z"/></svg><span class="footer-brand banner-label">RESTRO</span></span><button id="system-lock" type="button" class="system-control lock-control" aria-label="Lock screen" title="Lock screen"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><path class="lock-shackle" d="M8 10V7a4 4 0 0 1 8 0v3"/><path class="lock-body" fill-rule="evenodd" d="M7 10h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Zm5 3a1.5 1.5 0 0 0-.75 2.8V18h1.5v-2.2A1.5 1.5 0 0 0 12 13Z"/></svg></button></div>
     </nav>
   </div>
-  <dialog id="recents-dialog" class="dialog recents-dialog" aria-labelledby="recents-title">
-    <div class="dialog-heading"><h2 id="recents-title">Recent apps</h2><button class="icon-button" data-close aria-label="Close recent apps"><svg class="icon"><use href="#close"/></svg></button></div>
-    <div id="recent-apps-list" class="recent-apps-list"></div>
+  <dialog id="recents-dialog" class="app-switcher" aria-labelledby="recents-title">
+    <h2 id="recents-title" class="visually-hidden">Recent apps</h2>
+    <div id="recent-apps-list" class="switcher-track" role="list"></div>
+    <p class="switcher-hint">Slide to browse · Swipe up to close an app</p>
   </dialog>
   <dialog id="screen-lock-dialog" class="screen-lock-dialog" aria-labelledby="screen-lock-title">
     <div class="lock-screen-content"><svg class="lock-screen-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><time id="lock-clock"></time><p id="lock-restaurant"></p><h2 id="screen-lock-title">Screen locked</h2><button id="screen-unlock" type="button" class="primary-button">Unlock</button></div>
