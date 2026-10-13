@@ -158,4 +158,4 @@
 .ctr-back{background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
 .ctr-back:hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
 #counter-title:focus{outline:none}
-.ctr-titlebar h2{font-size:17.94px}
+.ctr-titlebar h2{font-size:17.94px;font-weight:500;color:var(--palette-accent-ink)}
