@@ -262,7 +262,7 @@
       body.replaceChildren(el('div', { class: 'ctr-crumb' }, el('span', { class: 'ctr-text-button ctr-crumb-root' }, 'All categories')),
         el('div', { class: 'ctr-grid categories' }, ...menu.categories.map(c =>
           el('button', { type: 'button', class: 'ctr-category', style: `--stripe:${c.color}`, onclick: () => { category = c.id; renderMenuBody(); } },
-            el('span', { class: 'ctr-category-name' }, c.name), el('span', { class: 'ctr-category-count' }, `${c.items.length} items`)))));
+            el('span', { class: 'ctr-category-name' }, c.name)))));
     }
     // Same view (e.g. after adding an item, or coming back to Counter): stay where it was scrolled. New view: start at the top.
     if (view !== scrollMemo.view) { scrollMemo.view = view; scrollMemo.menu = 0; }
