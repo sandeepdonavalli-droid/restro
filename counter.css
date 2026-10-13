@@ -153,3 +153,8 @@
 .ctr-back svg{width:14px;height:14px}
 .ctr-title-icon{display:block;width:32px;height:24px;justify-self:center}
 .ctr-titlebar .ctr-text-button{justify-self:end;min-height:24px;padding:2px 9px;border-radius:12px;font-size:12px}
+
+/* Home button: always highlighted in a light tint of the theme accent */
+.ctr-back{background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
+.ctr-back:hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
+#counter-title:focus{outline:none}

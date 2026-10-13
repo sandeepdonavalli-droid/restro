@@ -112,7 +112,7 @@
       el('div', { class: 'ctr-titlebar' },
         el('div', { class: 'ctr-title-left' },
           el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Home', title: 'Home', onclick: () => { const home = document.querySelector('#system-home'); if (home) home.click(); else dialog.close(); } }, svg(ICON.home)),
-          el('h2', { id: 'counter-title' }, 'Counter')),
+          el('h2', { id: 'counter-title', tabindex: '-1' }, 'Counter')),
         counterIcon(),
         el('button', { class: `ctr-text-button ${clearArmed ? 'armed' : ''}`, type: 'button', disabled: !order.lines.length, onclick: () => {
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
@@ -297,7 +297,7 @@
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
   window.RestroCounter = Object.freeze({
-    open() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); render(); dialog.showModal(); dialog.querySelector('#counter-search')?.focus({ preventScroll: true }); },
+    open() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); render(); dialog.showModal(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); },
     goBack,
     get order() { return JSON.parse(JSON.stringify(order)); }
   });
