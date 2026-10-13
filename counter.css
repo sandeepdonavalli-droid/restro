@@ -276,3 +276,9 @@
 .ctr-type-row .ctr-clear svg{width:17px;height:17px}
 .ctr-type-row .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
 .ctr-type-row .ctr-text-button.ctr-clear.armed,.ctr-type-row .ctr-text-button.ctr-clear.armed:hover{border-color:#b42318;background:#b42318;color:#fff;box-shadow:none}
+/* One line under the header across the whole screen: it starts right next to Home and runs under the menu's
+   Search · Held · New order to the far edge. Both panels share the band above it (56px), so everything sits level. */
+.ctr-order-head{padding-top:0}
+.ctr-titlebar{position:relative;min-height:56px;margin:0 0 0 8px;padding:6px 0 8px 4px;border-bottom:0}
+.ctr-titlebar::after{content:"";position:absolute;left:53px;right:-16px;bottom:0;height:1px;background:var(--palette-line);pointer-events:none}
+.ctr-menu-top{min-height:56px;padding:6px 18px 8px}
