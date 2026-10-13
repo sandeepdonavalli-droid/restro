@@ -182,3 +182,9 @@
 
 /* Order ticket: no divider lines between header, items and totals */
 .ctr-order-head,.ctr-foot{border-top:0;border-bottom:0}
+
+/* Title row as a banner in a soft tint of the theme */
+.ctr-titlebar{margin:2px 0 2px 8px;padding:6px 8px 6px 6px;border-radius:14px;background:linear-gradient(120deg,color-mix(in srgb,var(--palette-accent) 16%,var(--palette-tile-top)),color-mix(in srgb,var(--palette-accent) 7%,var(--palette-tile-top)));border:1px solid color-mix(in srgb,var(--palette-accent) 22%,transparent);box-shadow:0 2px 6px var(--palette-soft-shadow)}
+.ctr-titlebar .ctr-back{background:var(--palette-tile-top)}
+.ctr-titlebar .ctr-text-button:not(.armed){background:var(--palette-tile-top)}
+.ctr-titlebar .ctr-text-button:disabled{background:transparent}
