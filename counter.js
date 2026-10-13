@@ -19,7 +19,11 @@
   const nextNumber = () => { const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
 
   // ---------- state ----------
-  const blankOrder = () => ({ type: 'dine-in', table: '', lines: [], heldId: null });
+  const blankOrder = () => ({ type: 'dine-in', split: false, table: '', lines: [], heldId: null });
+  const TYPES = ['dine-in', 'takeaway', 'delivery'];
+  // With Split on, each line keeps its own type; otherwise every line follows the order type.
+  const lineType = line => order.split ? (line.type || order.type) : order.type;
+  const keyOf = line => `${line.id}@${lineType(line)}`;
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, clearArmed = false;
 
   // ---------- money (all maths in paise) ----------
@@ -55,7 +59,11 @@
     back: '<path d="M19 12H5m6-6-6 6 6 6"/>', home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/>',
     plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     held: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', chevron: '<path d="m15 6-6 6 6 6"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
-    check: '<path d="m5 12.5 4.5 4.5L19 7"/>'
+    check: '<path d="m5 12.5 4.5 4.5L19 7"/>',
+    'dine-in': '<path d="M7 3v7a2 2 0 0 0 2 2v9M11 3v7a2 2 0 0 1-2 2M9 3v6M16 21V3c2 1 3 3.5 3 7h-3"/>',
+    takeaway: '<path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+    delivery: '<path d="M3 7h10v9H3zM13 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.7"/><circle cx="17" cy="17.5" r="1.7"/>',
+    split: '<path d="M12 3v7M12 10l-6 6M12 10l6 6M6 16v5M18 16v5"/>'
   };
   // The Counter app's own artwork; it follows the active theme like the home tile.
   const counterIcon = () => {
@@ -66,14 +74,38 @@
 
   // ---------- actions ----------
   function add(id) {
-    const line = order.lines.find(l => l.id === id);
-    if (line) line.qty += 1; else order.lines.push({ id, qty: 1 });
+    const type = order.type, line = order.lines.find(l => l.id === id && lineType(l) === type);
+    if (line) line.qty += 1; else order.lines.push({ id, qty: 1, type });
     selected = null; clearArmed = false; render();
-    const row = dialog.querySelector(`[data-line="${id}"]`); row?.scrollIntoView({ block: 'nearest' }); row?.classList.add('just-added');
+    const row = dialog.querySelector(`[data-line="${id}@${type}"]`); row?.scrollIntoView({ block: 'nearest' }); row?.classList.add('just-added');
   }
-  function setQty(id, qty) {
-    order.lines = qty > 0 ? order.lines.map(l => l.id === id ? { ...l, qty } : l) : order.lines.filter(l => l.id !== id);
+  function setQty(key, qty) {
+    order.lines = qty > 0 ? order.lines.map(l => keyOf(l) === key ? { ...l, qty } : l) : order.lines.filter(l => keyOf(l) !== key);
     if (qty <= 0) selected = null; render();
+  }
+  // Merge lines that ended up with the same item and type.
+  function tidy() {
+    const merged = [];
+    for (const line of order.lines) {
+      const type = lineType(line), same = merged.find(m => m.id === line.id && m.type === type);
+      if (same) same.qty += line.qty; else merged.push({ id: line.id, qty: line.qty, type });
+    }
+    order.lines = merged;
+  }
+  function moveLine(key, type) {
+    const line = order.lines.find(l => keyOf(l) === key); if (!line) return;
+    line.type = type; tidy(); selected = `${line.id}@${type}`; render();
+  }
+  function setType(type) {
+    order.type = type;
+    if (!order.split) order.lines.forEach(l => { l.type = type; });
+    render();
+  }
+  function setSplit(on) {
+    if (on) order.lines.forEach(l => { l.type = l.type || order.type; });
+    order.split = on;
+    if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); toast(`Split off · all items ${typeLabel[order.type].toLowerCase()}`); }
+    selected = null; render();
   }
   function hold() {
     if (!order.lines.length) return false;
@@ -89,14 +121,14 @@
     const entry = held.find(h => h.heldId === id); if (!entry) return;
     if (order.lines.length && order.heldId !== id) hold();
     held = held.filter(h => h.heldId !== id); store(HELD_KEY, held);
-    order = { type: entry.type, table: entry.table || '', lines: entry.lines.filter(l => items.has(l.id)), heldId: entry.heldId };
+    order = { type: entry.type, split: Boolean(entry.split), table: entry.table || '', lines: entry.lines.filter(l => items.has(l.id)).map(l => ({ ...l, type: l.type || entry.type })), heldId: entry.heldId };
     sheet = null; selected = null; render(); toast('Order resumed');
   }
   function removeHeld(id) { held = held.filter(h => h.heldId !== id); store(HELD_KEY, held); render(); }
   function complete(received) {
     const t = totals(); if (!t.count || received < t.total) return;
     const number = nextNumber();
-    const done = { number, type: order.type, table: order.table, lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty })), ...t, method: 'cash', received, change: received - t.total, paidAt: new Date().toISOString() };
+    const done = { number, type: order.type, split: order.split, table: order.table, lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...t, method: 'cash', received, change: received - t.total, paidAt: new Date().toISOString() };
     const list = load(DONE_KEY, []); store(DONE_KEY, [done, ...(Array.isArray(list) ? list : [])].slice(0, 500));
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     receipt = done; sheet = 'receipt'; order = blankOrder(); selected = null; category = null; query = ''; render();
@@ -118,30 +150,44 @@
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
           order.lines = []; order.heldId = null; clearArmed = false; selected = null; render(); toast('Order cleared');
         } }, clearArmed ? 'Tap again to clear' : 'Clear')),
-      el('div', { class: 'ctr-type', role: 'radiogroup', 'aria-label': 'Order type' },
-        ...Object.entries(typeLabel).map(([key, label]) => el('button', { type: 'button', role: 'radio', 'aria-checked': String(order.type === key), class: order.type === key ? 'on' : '', onclick: () => { order.type = key; render(); } }, label))),
-      order.type === 'dine-in' ? el('label', { class: 'ctr-table' }, el('span', {}, 'Table'),
-        el('input', { id: 'counter-table', type: 'text', inputmode: 'numeric', maxlength: '4', placeholder: '—', value: order.table, oninput: e => { order.table = e.target.value.replace(/[^\dA-Za-z]/g, '').toUpperCase(); e.target.value = order.table; } })) : null);
+      el('div', { class: 'ctr-types' },
+        el('div', { class: 'ctr-type-buttons', role: 'radiogroup', 'aria-label': order.split ? 'Add new items as' : 'Order type' },
+          ...TYPES.map(key => el('button', { type: 'button', role: 'radio', 'aria-checked': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, svg(ICON[key]), typeLabel[key]))),
+        el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, onclick: () => setSplit(!order.split) }, svg(ICON.split), 'Split')),
+      order.split ? el('p', { class: 'ctr-split-note' }, `Split order · new items go to ${typeLabel[order.type]}. Tap an item to move it.`) : null);
 
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
-    for (const line of order.lines) {
-      const item = items.get(line.id), open = selected === line.id;
-      const li = el('li', { class: `ctr-line ${open ? 'open' : ''}`, 'data-line': line.id, style: `--stripe:${categoryOf.get(line.id).color}` },
-        el('button', { type: 'button', class: 'ctr-line-main', 'aria-expanded': String(open), onclick: () => { selected = open ? null : line.id; render(); } },
+    const lineRow = line => {
+      const item = items.get(line.id), key = keyOf(line), open = selected === key;
+      const li = el('li', { class: `ctr-line ${open ? 'open' : ''}`, 'data-line': key, style: `--stripe:${categoryOf.get(line.id).color}` },
+        el('button', { type: 'button', class: 'ctr-line-main', 'aria-expanded': String(open), onclick: () => { selected = open ? null : key; render(); } },
           vegMark(item.veg),
           el('span', { class: 'ctr-line-name' }, item.name),
           el('span', { class: 'ctr-line-qty' }, `×${line.qty}`),
           el('span', { class: 'ctr-line-price' }, rupees(item.price * line.qty))));
-      if (open) li.append(el('div', { class: 'ctr-line-edit' },
-        el('span', { class: 'ctr-unit' }, `${rupees(item.price)} each`),
-        el('div', { class: 'ctr-stepper' },
-          el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': `One less ${item.name}`, onclick: () => setQty(line.id, line.qty - 1) }, svg(ICON.minus)),
-          el('output', { 'aria-live': 'polite' }, String(line.qty)),
-          el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': `One more ${item.name}`, onclick: () => setQty(line.id, line.qty + 1) }, svg(ICON.plus))),
-        el('button', { type: 'button', class: 'ctr-text-button danger', onclick: () => setQty(line.id, 0) }, svg(ICON.trash), 'Remove')));
-      list.append(li);
-    }
+      if (open) {
+        li.append(el('div', { class: 'ctr-line-edit' },
+          el('span', { class: 'ctr-unit' }, `${rupees(item.price)} each`),
+          el('div', { class: 'ctr-stepper' },
+            el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': `One less ${item.name}`, onclick: () => setQty(key, line.qty - 1) }, svg(ICON.minus)),
+            el('output', { 'aria-live': 'polite' }, String(line.qty)),
+            el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': `One more ${item.name}`, onclick: () => setQty(key, line.qty + 1) }, svg(ICON.plus))),
+          el('button', { type: 'button', class: 'ctr-text-button danger', onclick: () => setQty(key, 0) }, svg(ICON.trash), 'Remove')));
+        if (order.split) li.append(el('div', { class: 'ctr-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
+          el('span', {}, 'Serve as'),
+          ...TYPES.map(type => el('button', { type: 'button', role: 'radio', 'aria-checked': String(lineType(line) === type), class: lineType(line) === type ? 'on' : '', onclick: () => moveLine(key, type) }, typeLabel[type]))));
+      }
+      return li;
+    };
+    if (order.split) {
+      for (const type of TYPES) {
+        const group = order.lines.filter(l => lineType(l) === type); if (!group.length) continue;
+        const count = group.reduce((n, l) => n + l.qty, 0);
+        list.append(el('li', { class: 'ctr-group' }, svg(ICON[type]), el('span', {}, typeLabel[type]), el('span', { class: 'ctr-group-count' }, `${count} item${count === 1 ? '' : 's'}`)));
+        group.forEach(line => list.append(lineRow(line)));
+      }
+    } else order.lines.forEach(line => list.append(lineRow(line)));
 
     const sums = el('dl', { class: 'ctr-sums' },
       el('dt', {}, `Subtotal${t.count ? ` · ${t.count} item${t.count === 1 ? '' : 's'}` : ''}`), el('dd', {}, money(t.subtotal)),
@@ -180,7 +226,7 @@
 
   const matches = () => { const q = query.trim().toLowerCase(); if (!q) return []; return [...items.values()].filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase() === q); };
   function itemTile(item) {
-    const qty = order.lines.find(l => l.id === item.id)?.qty || 0;
+    const qty = order.lines.filter(l => l.id === item.id).reduce((n, l) => n + l.qty, 0);
     return el('button', { type: 'button', class: 'ctr-item', style: `--stripe:${categoryOf.get(item.id).color}`, onclick: () => add(item.id), 'aria-label': `Add ${item.name}, ${rupees(item.price)}${qty ? `, ${qty} in order` : ''}` },
       el('span', { class: 'ctr-item-top' }, vegMark(item.veg), qty ? el('span', { class: 'ctr-badge' }, String(qty)) : null),
       el('span', { class: 'ctr-item-name' }, item.name), el('span', { class: 'ctr-item-price' }, rupees(item.price)));
@@ -247,7 +293,7 @@
       for (const h of held) {
         const count = h.lines.reduce((n, l) => n + l.qty, 0), time = new Date(h.savedAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
         list.append(el('li', {},
-          el('div', { class: 'ctr-held-copy' }, el('strong', {}, `${typeLabel[h.type]}${h.table ? ` · Table ${h.table}` : ''}`), el('span', {}, `${count} item${count === 1 ? '' : 's'} · ${money(h.total)} · saved ${time}`)),
+          el('div', { class: 'ctr-held-copy' }, el('strong', {}, h.split ? `Split · ${[...new Set(h.lines.map(l => typeLabel[l.type || h.type]))].join(' + ')}` : typeLabel[h.type]), el('span', {}, `${count} item${count === 1 ? '' : 's'} · ${money(h.total)} · saved ${time}`)),
           el('button', { type: 'button', class: 'ctr-text-button danger', 'aria-label': 'Delete held order', onclick: () => removeHeld(h.heldId) }, svg(ICON.trash)),
           el('button', { type: 'button', class: 'primary-button ctr-resume', onclick: () => resume(h.heldId) }, 'Resume')));
       }
@@ -259,7 +305,7 @@
         el('div', { class: 'ctr-sheet ctr-receipt', role: 'dialog', 'aria-label': 'Payment received' },
           el('span', { class: 'ctr-done-icon' }, svg(ICON.check)),
           el('h3', {}, 'Payment received'),
-          el('p', { class: 'ctr-receipt-meta' }, `Order #${receipt.number} · ${typeLabel[receipt.type]}${receipt.table ? ` · Table ${receipt.table}` : ''} · Cash`),
+          el('p', { class: 'ctr-receipt-meta' }, `Order #${receipt.number} · ${receipt.split ? `Split · ${[...new Set(receipt.lines.map(l => typeLabel[l.type]))].join(' + ')}` : typeLabel[receipt.type]} · Cash`),
           el('dl', { class: 'ctr-sums' },
             el('dt', {}, 'Total'), el('dd', {}, money(receipt.total)),
             el('dt', {}, 'Cash received'), el('dd', {}, money(receipt.received)),
