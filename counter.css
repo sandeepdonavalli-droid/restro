@@ -222,9 +222,12 @@
 
 /* Quantity controls float as separate buttons (no ribbon behind them) */
 .ctr-qty{gap:6px;padding:0;border:0;background:transparent;border-radius:0}
-.ctr-qty-btn{width:30px;height:30px;background:var(--palette-tile-top);border:1px solid var(--palette-line);box-shadow:0 2px 5px var(--palette-soft-shadow),0 1px 1px var(--palette-soft-shadow)}
+.ctr-qty-btn{position:relative;width:24px;height:24px;background:var(--palette-tile-top);border:1px solid var(--palette-line);box-shadow:0 2px 5px var(--palette-soft-shadow),0 1px 1px var(--palette-soft-shadow)}
 .ctr-qty-btn:hover{background:var(--palette-accent-wash)}
 .ctr-qty-btn:active{transform:scale(.94)}
+/* − and + are 20% smaller (24px, icon 13px); an invisible margin keeps them easy to tap */
+.ctr-qty-btn svg{width:13px;height:13px}
+.ctr-qty-btn::after{content:"";position:absolute;inset:-6px}
 .ctr-qty-num{min-width:32px;height:30px;border-radius:15px;background:var(--palette-accent-wash);box-shadow:0 2px 5px var(--palette-soft-shadow)}
 /* Same size and weight for the quantity and the price on each line */
 .ctr-qty-num,.ctr-line-price{font-size:15px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
