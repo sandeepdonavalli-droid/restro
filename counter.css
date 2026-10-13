@@ -221,3 +221,10 @@
 .ctr-pad-key{min-height:58px;margin:0;border:1px solid var(--palette-edge);border-radius:14px;background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));color:var(--palette-text);font-size:22px;font-weight:600;cursor:pointer}
 .ctr-pad-key:active{transform:scale(.97)}
 .ctr-pad-key.muted{color:var(--palette-accent-ink);font-size:18px}
+
+/* Quantity controls float as separate buttons (no ribbon behind them) */
+.ctr-qty{gap:6px;padding:0;border:0;background:transparent;border-radius:0}
+.ctr-qty-btn{width:30px;height:30px;background:var(--palette-tile-top);border:1px solid var(--palette-line);box-shadow:0 2px 5px var(--palette-soft-shadow),0 1px 1px var(--palette-soft-shadow)}
+.ctr-qty-btn:hover{background:var(--palette-accent-wash)}
+.ctr-qty-btn:active{transform:scale(.94)}
+.ctr-qty-num{min-width:32px;height:30px;border-radius:15px;background:var(--palette-accent-wash);box-shadow:0 2px 5px var(--palette-soft-shadow)}
