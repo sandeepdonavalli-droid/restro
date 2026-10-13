@@ -42,7 +42,7 @@
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery'];
-  // With Split on, each line keeps its own type; otherwise every line follows the order type.
+  // With Label on (called "split" in the code), each line keeps its own type; otherwise every line follows the order type.
   const lineType = line => order.split ? (line.type || order.type) : order.type;
   const keyOf = line => `${line.id}@${lineType(line)}`;
   let qtyKey = null, qtyValue = '';
@@ -137,7 +137,7 @@
   function setSplit(on) {
     if (on) order.lines.forEach(l => { l.type = l.type || order.type; });
     order.split = on;
-    if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); if (typeLabel[order.type]) toast(`Split off · all items ${typeLabel[order.type].toLowerCase()}`); }
+    if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); if (typeLabel[order.type]) toast(`Label off · all items ${typeLabel[order.type].toLowerCase()}`); }
     selected = null; render();
   }
   function hold() {
@@ -196,7 +196,7 @@
   }
   // How an order is described in Held orders and on the receipt: type, then the table or the customer.
   const describe = o => {
-    const type = o.split ? `Split · ${[...new Set(o.lines.map(l => typeLabel[l.type || o.type]).filter(Boolean))].join(' + ')}` : typeLabel[o.type] || '';
+    const type = o.split ? `Label · ${[...new Set(o.lines.map(l => typeLabel[l.type || o.type]).filter(Boolean))].join(' + ')}` : typeLabel[o.type] || '';
     const who = o.type === 'dine-in' && o.table ? `Table ${tableName(o.table)}` : o.type && o.type !== 'dine-in' && o.customer ? o.customer.name : '';
     return [type, who].filter(Boolean).join(' · ');
   };
@@ -208,12 +208,12 @@
           el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Home', title: 'Home', onclick: () => { const home = document.querySelector('#system-home'); if (home) home.click(); else dialog.close(); } }, svg(ICON.home)),
           el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter')),
         orderTarget()),
-      // Order type: names only on the left (Dine in · Takeaway / Delivery); Split above Trash on the right.
+      // Order type: names only on the left (Dine in · Takeaway / Delivery); Label above Trash on the right.
       el('div', { class: 'ctr-type-row' },
         el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
           ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key]))),
         el('div', { class: 'ctr-side' },
-          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Split'),
+          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Label'),
           el('button', { class: `ctr-text-button ctr-clear ${clearArmed ? 'armed' : ''}`, type: 'button', 'aria-label': clearArmed ? 'Tap again to clear the order' : 'Clear order', title: 'Clear order', disabled: !order.lines.length, onclick: () => {
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
           order.lines = []; order.heldId = null; clearArmed = false; selected = null; render(); toast('Order cleared');
@@ -235,7 +235,7 @@
         li.append(el('div', { class: 'ctr-line-edit' },
           el('span', { class: 'ctr-unit' }, `${rupees(item.price)} each`),
           el('button', { type: 'button', class: 'ctr-text-button danger', onclick: () => setQty(key, 0) }, svg(ICON.trash), 'Remove')));
-        // Split order: move this item to another order type (no label; the buttons match the order type buttons above).
+        // Label on: move this item to another order type (the buttons match the order type buttons above).
         if (order.split) li.append(el('div', { class: 'ctr-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
           ...TYPES.map(type => el('button', { type: 'button', role: 'radio', 'aria-checked': String(lineType(line) === type), class: lineType(line) === type ? 'on' : '', onclick: () => moveLine(key, type) }, typeLabel[type]))));
       }
