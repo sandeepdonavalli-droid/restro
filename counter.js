@@ -8,7 +8,7 @@
   const menu = window.RestroMenu;
   // Rendered into its own root so the system bar and toasts placed in the dialog survive re-renders.
   const root = document.createElement('div'); root.className = 'ctr-root'; dialog.prepend(root);
-  const HELD_KEY = 'restro.counter.held.v1', DONE_KEY = 'restro.counter.orders.v1', NUM_KEY = 'restro.counter.nextNumber.v1';
+  const HELD_KEY = 'restro.counter.held.v1', DONE_KEY = 'restro.counter.orders.v1', NUM_KEY = 'restro.counter.nextNumber.v1', DRAFT_KEY = 'restro.counter.current.v1';
   const items = new Map(), categoryOf = new Map();
   for (const category of menu.categories) for (const item of category.items) { items.set(item.id, item); categoryOf.set(item.id, category); }
 
@@ -26,6 +26,25 @@
   const keyOf = line => `${line.id}@${lineType(line)}`;
   let qtyKey = null, qtyValue = '';
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, clearArmed = false;
+  let cashInput = '';                                   // cash typed on the payment sheet
+  const scrollMemo = { lines: 0, menu: 0, view: '' };   // where the order list and the menu were scrolled
+
+  // Leaving Counter (Home, Recents, or the app/page restarting) keeps everything as it was:
+  // the order on screen, plus the category or search the menu was showing.
+  const saveDraft = () => store(DRAFT_KEY, { order, category, query });
+  (() => {
+    const saved = load(DRAFT_KEY, null);
+    if (!saved || typeof saved !== 'object') return;
+    const o = saved.order;
+    if (o && Array.isArray(o.lines)) {
+      const type = TYPES.includes(o.type) ? o.type : 'dine-in';
+      order = { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', heldId: typeof o.heldId === 'string' ? o.heldId : null,
+        lines: o.lines.filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000).map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type })) };
+      tidy();
+    }
+    if (menu.categories.some(c => c.id === saved.category)) category = saved.category;
+    if (typeof saved.query === 'string') query = saved.query.slice(0, 80);
+  })();
 
   // ---------- money (all maths in paise) ----------
   const totals = () => {
@@ -132,7 +151,7 @@
     const done = { number, type: order.type, split: order.split, table: order.table, lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...t, method: 'cash', received, change: received - t.total, paidAt: new Date().toISOString() };
     const list = load(DONE_KEY, []); store(DONE_KEY, [done, ...(Array.isArray(list) ? list : [])].slice(0, 500));
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
-    receipt = done; sheet = 'receipt'; order = blankOrder(); selected = null; category = null; query = ''; render();
+    receipt = done; sheet = 'receipt'; order = blankOrder(); selected = null; category = null; query = ''; cashInput = ''; render();
     window.RestroSound?.play('tick');
     window.dispatchEvent(new CustomEvent('restro:order-paid', { detail: done }));
   }
@@ -197,7 +216,7 @@
 
     const actions = el('div', { class: 'ctr-actions' },
       el('button', { type: 'button', class: 'ctr-secondary', disabled: !t.count, onclick: () => newOrder() }, 'Save'),
-      el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, onclick: () => { sheet = 'pay'; render(); } }, t.count ? `Pay ${money(t.total)}` : 'Pay'));
+      el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, t.count ? `Pay ${money(t.total)}` : 'Pay'));
 
     return el('section', { class: 'ctr-order', 'aria-label': 'Current order' }, header, list, el('div', { class: 'ctr-foot' }, sums, actions));
   }
@@ -227,27 +246,29 @@
       el('span', { class: 'ctr-item-name' }, item.name), el('span', { class: 'ctr-item-price' }, rupees(item.price)));
   }
   function renderMenuBody() {
+    saveDraft(); // every change to the order or to the menu view comes through here, so it is always kept
     const body = dialog.querySelector('.ctr-menu-body'); if (!body) return;
-    body.replaceChildren();
-    if (query.trim()) {
+    const q = query.trim(), view = q ? `q:${q}` : category ? `c:${category}` : 'all';
+    if (q) {
       const found = matches();
-      body.append(el('div', { class: 'ctr-crumb' }, el('strong', {}, found.length ? `${found.length} result${found.length === 1 ? '' : 's'} for “${query.trim()}”` : `No items match “${query.trim()}”`)),
+      body.replaceChildren(el('div', { class: 'ctr-crumb' }, el('strong', {}, found.length ? `${found.length} result${found.length === 1 ? '' : 's'} for “${q}”` : `No items match “${q}”`)),
         el('div', { class: 'ctr-grid items' }, ...found.map(itemTile)));
-      return;
-    }
-    if (category) {
+    } else if (category) {
       const c = menu.categories.find(x => x.id === category);
-      body.append(el('div', { class: 'ctr-crumb' },
+      body.replaceChildren(el('div', { class: 'ctr-crumb' },
         el('button', { type: 'button', class: 'ctr-text-button', onclick: () => { category = null; renderMenuBody(); } }, svg(ICON.chevron), 'All categories'),
         el('strong', { style: `--stripe:${c.color}`, class: 'ctr-crumb-name' }, c.name)),
         el('div', { class: 'ctr-grid items' }, ...c.items.map(itemTile)));
-      return;
+    } else {
+      // "All categories" stays at the top of the grid too: same look as the back button, without the arrow.
+      body.replaceChildren(el('div', { class: 'ctr-crumb' }, el('span', { class: 'ctr-text-button ctr-crumb-root' }, 'All categories')),
+        el('div', { class: 'ctr-grid categories' }, ...menu.categories.map(c =>
+          el('button', { type: 'button', class: 'ctr-category', style: `--stripe:${c.color}`, onclick: () => { category = c.id; renderMenuBody(); } },
+            el('span', { class: 'ctr-category-name' }, c.name), el('span', { class: 'ctr-category-count' }, `${c.items.length} items`)))));
     }
-    // "All categories" stays at the top of the grid too: same look as the back button, without the arrow.
-    body.append(el('div', { class: 'ctr-crumb' }, el('span', { class: 'ctr-text-button ctr-crumb-root' }, 'All categories')),
-      el('div', { class: 'ctr-grid categories' }, ...menu.categories.map(c =>
-        el('button', { type: 'button', class: 'ctr-category', style: `--stripe:${c.color}`, onclick: () => { category = c.id; renderMenuBody(); } },
-          el('span', { class: 'ctr-category-name' }, c.name), el('span', { class: 'ctr-category-count' }, `${c.items.length} items`)))));
+    // Same view (e.g. after adding an item, or coming back to Counter): stay where it was scrolled. New view: start at the top.
+    if (view !== scrollMemo.view) { scrollMemo.view = view; scrollMemo.menu = 0; }
+    if (dialog.open) { body.scrollTop = scrollMemo.menu; scrollMemo.menu = body.scrollTop; }
   }
 
   function sheetView() {
@@ -259,8 +280,9 @@
       const options = cashOptions(t.total);
       const change = el('output', { class: 'ctr-change' }, '');
       const completeBtn = el('button', { type: 'button', class: 'primary-button ctr-complete', disabled: true }, 'Complete payment');
-      const input = el('input', { id: 'counter-received', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: (t.total / 100).toString() });
+      const input = el('input', { id: 'counter-received', type: 'text', inputmode: 'decimal', autocomplete: 'off', placeholder: (t.total / 100).toString(), value: cashInput });
       const update = () => {
+        cashInput = input.value;
         const received = Math.round(parseFloat(input.value.replace(/[^\d.]/g, '')) * 100) || 0;
         const ok = received >= t.total;
         change.textContent = !input.value ? 'Enter the cash received' : ok ? `Change to give: ${money(received - t.total)}` : `Short by ${money(t.total - received)}`;
@@ -343,10 +365,10 @@
 
   function render() {
     const searchHadFocus = document.activeElement?.id === 'counter-search', tableHadFocus = document.activeElement?.id === 'counter-table';
-    const scroll = dialog.querySelector('.ctr-lines')?.scrollTop || 0;
     root.replaceChildren(el('div', { class: 'ctr-shell' }, orderPanel(), menuPanel()), sheetView() || '');
     renderMenuBody();
-    const lines = dialog.querySelector('.ctr-lines'); if (lines) lines.scrollTop = scroll;
+    const lines = dialog.querySelector('.ctr-lines');
+    if (lines && dialog.open) { lines.scrollTop = scrollMemo.lines; scrollMemo.lines = lines.scrollTop; }
     if (searchHadFocus) { const s = dialog.querySelector('#counter-search'); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
     if (tableHadFocus) dialog.querySelector('#counter-table')?.focus();
   }
@@ -361,6 +383,12 @@
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
+  // Remember scroll positions while Counter is on screen (a hidden list reports 0, so it is ignored then).
+  root.addEventListener('scroll', event => {
+    if (!dialog.open) return;
+    if (event.target.classList?.contains('ctr-lines')) scrollMemo.lines = event.target.scrollTop;
+    else if (event.target.classList?.contains('ctr-menu-body')) scrollMemo.menu = event.target.scrollTop;
+  }, true);
   // Toasts must show above this full-screen app.
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;
   new MutationObserver(() => {
@@ -369,7 +397,8 @@
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
   window.RestroCounter = Object.freeze({
-    open() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); render(); dialog.showModal(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); },
+    // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
+    open() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); },
     goBack,
     get order() { return JSON.parse(JSON.stringify(order)); }
   });
