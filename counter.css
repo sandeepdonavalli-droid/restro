@@ -242,11 +242,12 @@
 .ctr-dot{position:relative;width:10px;height:10px;margin:0;padding:0;border:0;border-radius:50%;background:var(--palette-dot,#c3c9c6);cursor:pointer}
 .ctr-dot::after{content:"";position:absolute;inset:-8px}
 .ctr-dot[aria-current="true"]{background:linear-gradient(145deg,var(--palette-accent-top,var(--palette-accent)),var(--palette-accent))}
-/* Rearranging (hold a tile): tiles float gently, the picked-up tile follows the finger, its new place is highlighted */
-.ctr-menu.arranging .ctr-page>.ctr-category,.ctr-menu.arranging .ctr-page>.ctr-item{cursor:move;animation:ctr-float 2.2s ease-in-out infinite alternate}
-.ctr-menu.arranging .ctr-page>:nth-child(3n+1){animation-delay:-.7s}
-.ctr-menu.arranging .ctr-page>:nth-child(3n+2){animation-delay:-1.4s}
-@keyframes ctr-float{from{transform:translateY(-2px)}to{transform:translateY(2px)}}
+/* Rearranging (hold a tile): the picked-up tile follows the finger, its new place is highlighted */
+/* Rearranging: tiles jiggle clearly (like the apps on the home screen), each a little out of step */
+.ctr-menu.arranging .ctr-page>[data-id]:not(.ctr-drag-origin){cursor:move;animation:ctr-jiggle .26s ease-in-out infinite alternate}
+.ctr-menu.arranging .ctr-page>[data-id]:nth-child(2n):not(.ctr-drag-origin){animation-duration:.3s;animation-delay:-.15s}
+.ctr-menu.arranging .ctr-page>[data-id]:nth-child(3n):not(.ctr-drag-origin){animation-duration:.28s;animation-delay:-.08s}
+@keyframes ctr-jiggle{from{transform:rotate(-1.1deg)}to{transform:rotate(1.1deg)}}
 .ctr-slot{border-radius:10px} /* empty places stay invisible (as on the home screen) until a tile is held over one */
 .ctr-page .ctr-drop-target{outline:2px solid var(--palette-accent);outline-offset:-2px;background:var(--palette-accent-wash)}
 .ctr-page .ctr-drag-origin{opacity:.2}
