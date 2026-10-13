@@ -101,10 +101,6 @@
     plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     held: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', chevron: '<path d="m15 6-6 6 6 6"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
     check: '<path d="m5 12.5 4.5 4.5L19 7"/>',
-    'dine-in': '<path d="M7 3v7a2 2 0 0 0 2 2v9M11 3v7a2 2 0 0 1-2 2M9 3v6M16 21V3c2 1 3 3.5 3 7h-3"/>',
-    takeaway: '<path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
-    delivery: '<path d="M3 7h10v9H3zM13 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.7"/><circle cx="17" cy="17.5" r="1.7"/>',
-    split: '<path d="M12 3v7M12 10l-6 6M12 10l6 6M6 16v5M18 16v5"/>',
     person: '<circle cx="12" cy="8" r="3.6"/><path d="M5 19.5c.9-3.6 3.6-5.6 7-5.6s6.1 2 7 5.6"/>',
     personAdd: '<circle cx="10" cy="8" r="3.6"/><path d="M3.5 19.5c.8-3.4 3.3-5.6 6.5-5.6 1.6 0 3 .5 4.1 1.4M18.5 13v6M15.5 16h6"/>'
   };
@@ -248,7 +244,7 @@
       for (const type of TYPES) {
         const group = order.lines.filter(l => lineType(l) === type); if (!group.length) continue;
         const count = group.reduce((n, l) => n + l.qty, 0);
-        list.append(el('li', { class: 'ctr-group' }, svg(ICON[type]), el('span', {}, typeLabel[type]), el('span', { class: 'ctr-group-count' }, `${count} item${count === 1 ? '' : 's'}`)));
+        list.append(el('li', { class: 'ctr-group' }, el('span', {}, typeLabel[type]), el('span', { class: 'ctr-group-count' }, `${count} item${count === 1 ? '' : 's'}`)));
         group.forEach(line => list.append(lineRow(line)));
       }
     } else order.lines.forEach(line => list.append(lineRow(line)));

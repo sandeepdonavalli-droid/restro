@@ -167,7 +167,6 @@
 
 /* Split groups in the order list */
 .ctr-group{display:flex;align-items:center;gap:8px;padding:10px 16px 4px;color:var(--palette-accent-ink);font-size:13px;font-weight:700;letter-spacing:.02em}
-.ctr-group svg{width:16px;height:16px}
 .ctr-group-count{margin-left:auto;font-weight:500;color:var(--palette-muted)}
 /* Split order: the item's order type, as buttons matching the order type buttons at the top (no label) */
 .ctr-move{display:grid;grid-template-columns:repeat(3,minmax(0,90px));gap:6px;padding:0 16px 12px 14px}
