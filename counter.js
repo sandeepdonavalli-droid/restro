@@ -50,8 +50,8 @@
   const totals = () => {
     const subtotal = order.lines.reduce((sum, line) => sum + items.get(line.id).price * 100 * line.qty, 0);
     const tax = Math.round(subtotal * menu.taxRate);
-    const gross = subtotal + tax, total = Math.round(gross / 100) * 100;
-    return { subtotal, tax, roundOff: total - gross, total, count: order.lines.reduce((n, l) => n + l.qty, 0) };
+    // Total is exactly subtotal + GST (no rounding to the rupee), so the rows on the ticket always add up.
+    return { subtotal, tax, total: subtotal + tax, count: order.lines.reduce((n, l) => n + l.qty, 0) };
   };
   const money = paise => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const rupees = value => `₹${value.toLocaleString('en-IN')}`;
@@ -208,14 +208,13 @@
     } else order.lines.forEach(line => list.append(lineRow(line)));
 
     const sums = el('dl', { class: 'ctr-sums' },
-      el('dt', {}, `Subtotal${t.count ? ` · ${t.count} item${t.count === 1 ? '' : 's'}` : ''}`), el('dd', {}, money(t.subtotal)),
+      el('dt', {}, 'Subtotal'), el('dd', {}, money(t.subtotal)),
       el('dt', {}, menu.taxLabel), el('dd', {}, money(t.tax)),
-      t.roundOff ? el('dt', {}, 'Round off') : null, t.roundOff ? el('dd', {}, `${t.roundOff > 0 ? '+' : '−'}${money(Math.abs(t.roundOff))}`) : null,
       el('dt', { class: 'ctr-total' }, 'Total'), el('dd', { class: 'ctr-total' }, money(t.total)));
 
     const actions = el('div', { class: 'ctr-actions' },
       el('button', { type: 'button', class: 'ctr-secondary', disabled: !t.count, onclick: () => newOrder() }, 'Save'),
-      el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, t.count ? `Pay ${money(t.total)}` : 'Pay'));
+      el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, 'aria-label': t.count ? `Pay ${money(t.total)}` : null, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, 'Pay'));
 
     return el('section', { class: 'ctr-order', 'aria-label': 'Current order' }, header, list, el('div', { class: 'ctr-foot' }, sums, actions));
   }
