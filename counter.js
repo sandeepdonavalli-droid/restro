@@ -231,8 +231,7 @@
     const top = el('div', { class: 'ctr-menu-top' }, search,
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), 'Held', held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => newOrder() }, svg(ICON.plus), 'New order'));
-    return el('section', { class: 'ctr-menu', 'aria-label': 'Menu' }, top, el('div', { class: 'ctr-menu-body' }),
-      menu.sample ? el('p', { class: 'ctr-sample' }, 'Sample menu. Replace it with your own in Menu.') : null);
+    return el('section', { class: 'ctr-menu', 'aria-label': 'Menu' }, top, el('div', { class: 'ctr-menu-body' }));
   }
 
   const matches = () => { const q = query.trim().toLowerCase(); if (!q) return []; return [...items.values()].filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase() === q); };

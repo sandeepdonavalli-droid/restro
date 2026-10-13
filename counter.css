@@ -76,7 +76,6 @@
 .ctr-tool:hover{border-color:var(--palette-accent)}
 .ctr-tool svg{width:20px;height:20px}
 .ctr-menu-body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px 18px 18px}
-.ctr-sample{flex:none;margin:0;padding:6px 18px 8px;font-size:12px;color:var(--palette-muted)}
 .ctr-crumb{display:flex;align-items:center;gap:10px;margin-bottom:12px;min-height:40px}
 .ctr-crumb strong{font-size:16px;font-weight:600}
 .ctr-crumb-name{padding-left:10px;border-left:4px solid var(--stripe)}
