@@ -148,10 +148,8 @@
 .ctr-titlebar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;min-height:24px;padding-left:4px}
 .ctr-title-left{display:flex;align-items:center;gap:4px;min-width:0}
 .ctr-titlebar h2{flex:none;font-size:13px;font-weight:600;line-height:1}
-.ctr-back{width:24px;height:24px;min-height:24px}
-.ctr-back svg{width:14px;height:14px}
-.ctr-title-icon{display:block;width:36px;height:28px}
-.ctr-titlebar .ctr-text-button{justify-self:end;min-height:24px;padding:2px 9px;border-radius:12px;font-size:12px}
+.ctr-back{width:34px;height:34px;min-height:34px}
+.ctr-back svg{width:19px;height:19px}
 
 /* Home button: always highlighted in a light tint of the theme accent */
 .ctr-back{background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
@@ -184,18 +182,6 @@
 .ctr-titlebar{margin:0 0 0 8px;padding:0 0 8px 4px;min-height:50px;border-bottom:1px solid var(--palette-line)}
 .ctr-title-left{gap:8px}
 
-/* Clear order: trash icon; asks once more before clearing */
-.ctr-titlebar .ctr-clear{width:24px;height:24px;min-height:24px;padding:0;justify-content:center;border-radius:50%;color:var(--palette-accent-ink)}
-.ctr-titlebar .ctr-clear svg{width:14px;height:14px}
-.ctr-titlebar .ctr-clear.armed{width:auto;padding:0 10px 0 8px;border-radius:12px;background:#b42318;color:#fff;gap:5px}
-/* Trash: larger and always highlighted in the theme tint, even when the order is empty */
-.ctr-titlebar .ctr-clear,.ctr-titlebar .ctr-clear:disabled{width:32px;height:32px;min-height:32px;opacity:1;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
-.ctr-titlebar .ctr-clear svg{width:19px;height:19px}
-.ctr-titlebar .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
-.ctr-titlebar .ctr-clear.armed{width:auto;height:32px;padding:0 12px 0 9px;background:#b42318;color:#fff;box-shadow:none}
-.ctr-titlebar .ctr-text-button.ctr-clear:not(.armed){background:var(--palette-accent-wash);opacity:1}
-.ctr-titlebar .ctr-clear.armed{width:32px;padding:0;border-radius:50%;background:#b42318;color:#fff;box-shadow:none}
-.ctr-titlebar .ctr-text-button.ctr-clear.armed,.ctr-titlebar .ctr-text-button.ctr-clear.armed:hover{background:#b42318;color:#fff;box-shadow:none}
 
 /* Order line: name | − qty + | price */
 .ctr-line-main{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:6px 16px 6px 12px;cursor:default}
@@ -281,3 +267,9 @@
 .ctr-table-box:active,.ctr-customer:active{transform:scale(.96)}
 /* Split needs an order type first */
 .ctr-type-btn.ctr-split:disabled{opacity:.45;cursor:default;border-color:var(--palette-edge)}
+/* Clear order (Trash): at the right end of the Split row, always tinted; turns red and asks once more before clearing */
+.ctr-type-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
+.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled{flex:none;width:32px;height:32px;min-height:32px;margin:0 0 3px;padding:0;justify-content:center;border-radius:50%;opacity:1;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
+.ctr-type-row .ctr-clear svg{width:19px;height:19px}
+.ctr-type-row .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
+.ctr-type-row .ctr-text-button.ctr-clear.armed,.ctr-type-row .ctr-text-button.ctr-clear.armed:hover{background:#b42318;color:#fff;box-shadow:none}
