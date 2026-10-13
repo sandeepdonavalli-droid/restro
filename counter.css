@@ -292,3 +292,17 @@
 .ctr-order{position:relative;border-right:0}
 .ctr-order::after{content:"";position:absolute;top:36px;right:0;bottom:0;width:1px;background:var(--palette-line);pointer-events:none}
 @media (max-width:700px){.ctr-order::after{display:none}}
+/* The header line is drawn once, as a single line across both panels, so it can never step or change thickness
+   where the order and the menu meet (two separate lines could round to different pixels on scaled screens).
+   It starts just right of Home (Home ends at 53px) and runs to the right edge. The divider below meets it cleanly. */
+.ctr-titlebar::after{content:none}
+.ctr-menu-top{border-bottom:0}
+.ctr-shell{position:relative}
+.ctr-shell::after{content:"";position:absolute;top:35px;left:59px;right:0;height:0;border-top:1px solid var(--palette-line);pointer-events:none}
+.ctr-order::after{top:35px;width:0;background:none;border-left:1px solid var(--palette-line);right:0}
+@media (max-width:700px){.ctr-shell::after{content:none}.ctr-titlebar::after{content:""}.ctr-menu-top{border-bottom:1px solid var(--palette-line)}}
+/* The band above the header line is painted once under both panels, so no faint seam can show where they meet. */
+.ctr-shell{background:linear-gradient(var(--palette-tile-top) 0 35px,transparent 35px)}
+/* Home's tint sits on the panel colour, so Home looks exactly the same in every app (Floor and Customers use the same rule). */
+.ctr-titlebar .ctr-back{background:linear-gradient(var(--palette-accent-wash),var(--palette-accent-wash)) var(--palette-tile-top)}
+.ctr-titlebar .ctr-back:hover{background:linear-gradient(color-mix(in srgb,var(--palette-accent) 22%,transparent),color-mix(in srgb,var(--palette-accent) 22%,transparent)) var(--palette-tile-top)}

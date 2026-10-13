@@ -39,3 +39,12 @@ button.floor-tile:active{transform:scale(.97)}
 .floor-tile.selected{border-color:var(--palette-accent);box-shadow:0 0 0 2px var(--palette-accent)}
 .floor-tile.selected .floor-table{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
 @media (prefers-reduced-motion:reduce){button.floor-tile{transition:none}}
+/* Header: the same as Counter's everywhere. Home is a 47x33 rounded block at the left edge whose bottom sits on the
+   header line; the line starts just right of it and runs to the far edge. The band above the line is 36px.
+   Its tint sits on Counter's panel colour, so it looks exactly the same on any page.
+   Opened from Counter, the same button shows a back arrow, because it returns to Counter. */
+.floor-head{position:relative;min-height:36px;margin:0;padding:1px 16px 2px 6px;border-bottom:0}
+.floor-head::after{content:"";position:absolute;left:59px;right:0;bottom:0;height:0;border-top:1px solid var(--palette-line);pointer-events:none}
+.floor-nav{position:relative;top:2px;width:47px;height:33px;border-radius:8px;background:linear-gradient(var(--palette-accent-wash),var(--palette-accent-wash)) var(--palette-tile-top)}
+.floor-nav:hover{background:linear-gradient(color-mix(in srgb,var(--palette-accent) 22%,transparent),color-mix(in srgb,var(--palette-accent) 22%,transparent)) var(--palette-tile-top)}
+.floor-nav svg{width:20px;height:20px}

@@ -52,3 +52,12 @@
 .cust-delete{margin:0 auto 0 0;min-height:40px;padding:0 12px;border:0;border-radius:12px;background:transparent;color:#b42318;font-size:14px;font-weight:600;cursor:pointer}
 .cust-delete.armed{background:#b42318;color:#fff}
 .cust-root .primary-button{margin:0;min-height:42px;padding:0 20px;border-radius:12px;font-size:15px;font-weight:600}
+/* Header: the same as Counter's everywhere. Home is a 47x33 rounded block at the left edge whose bottom sits on the
+   header line; the line starts just right of it and runs to the far edge. The band above the line is 36px.
+   Its tint sits on Counter's panel colour, so it looks exactly the same on any page.
+   Opened from Counter, or inside a customer's form, the same button shows a back arrow, because it goes back. */
+.cust-head{position:relative;min-height:36px;margin:0;padding:1px 16px 2px 6px;border-bottom:0}
+.cust-head::after{content:"";position:absolute;left:59px;right:0;bottom:0;height:0;border-top:1px solid var(--palette-line);pointer-events:none}
+.cust-nav{position:relative;top:2px;width:47px;height:33px;border-radius:8px;background:linear-gradient(var(--palette-accent-wash),var(--palette-accent-wash)) var(--palette-tile-top)}
+.cust-nav:hover{background:linear-gradient(color-mix(in srgb,var(--palette-accent) 22%,transparent),color-mix(in srgb,var(--palette-accent) 22%,transparent)) var(--palette-tile-top)}
+.cust-nav svg{width:20px;height:20px}
