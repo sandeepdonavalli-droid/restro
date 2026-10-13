@@ -151,6 +151,6 @@
 
 /* Tiles behave like app icons: no text selection on tap, a small press effect. */
 .shortcut,.app-tile,.shortcut-label,.app-label{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
-.shortcut{transition:transform .12s ease}
-.shortcut:active{transform:scale(.97)}
-@media (prefers-reduced-motion:reduce){.shortcut{transition:none}.shortcut:active{transform:none}}
+.shortcut,.app-tile{transition:transform .12s ease}
+.shortcut:active,body:not(.arranging) .app-tile:active{transform:scale(.96)}
+@media (prefers-reduced-motion:reduce){.shortcut,.app-tile{transition:none}.shortcut:active,body:not(.arranging) .app-tile:active{transform:none}}
