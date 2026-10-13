@@ -234,9 +234,4 @@
 /* Quantity and price read exactly like the dish name: same size, weight and colour */
 .ctr-line-name,.ctr-qty-num,.ctr-line-price{font-size:15px;font-weight:500;color:var(--palette-text)}
 
-/* Total is the one highlighted figure on the ticket */
-.ctr-foot .ctr-sums dt.ctr-total,.ctr-foot .ctr-sums dd.ctr-total{margin-top:6px;padding:10px 0;font-size:22px;font-weight:700;color:var(--palette-accent-ink);background:var(--palette-accent-wash)}
-.ctr-foot .ctr-sums dt.ctr-total{padding-left:14px;border-radius:12px 0 0 12px}
-.ctr-foot .ctr-sums dd.ctr-total{padding-right:14px;border-radius:0 12px 12px 0}
-.ctr-foot .ctr-sums{column-gap:0}.ctr-foot .ctr-sums dd{padding-left:12px}
 .ctr-line-edit,.ctr-move{padding-left:14px}
