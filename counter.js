@@ -195,16 +195,11 @@
       t.roundOff ? el('dt', {}, 'Round off') : null, t.roundOff ? el('dd', {}, `${t.roundOff > 0 ? '+' : '−'}${money(Math.abs(t.roundOff))}`) : null,
       el('dt', { class: 'ctr-total' }, 'Total'), el('dd', { class: 'ctr-total' }, money(t.total)));
 
-    const fast = el('div', { class: 'ctr-fast' }, el('p', {}, 'Fast pay with cash'),
-      el('div', { class: 'ctr-fast-row' },
-        ...cashOptions(t.total).map(value => el('button', { type: 'button', class: 'ctr-chip', disabled: !t.count, onclick: () => complete(value) }, money(value).replace('.00', ''))),
-        el('button', { type: 'button', class: 'ctr-chip', disabled: !t.count, onclick: () => { sheet = 'pay'; render(); } }, 'Custom')));
-
     const actions = el('div', { class: 'ctr-actions' },
       el('button', { type: 'button', class: 'ctr-secondary', disabled: !t.count, onclick: () => newOrder() }, 'Save'),
       el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, onclick: () => { sheet = 'pay'; render(); } }, t.count ? `Pay ${money(t.total)}` : 'Pay'));
 
-    return el('section', { class: 'ctr-order', 'aria-label': 'Current order' }, header, list, el('div', { class: 'ctr-foot' }, sums, fast, actions));
+    return el('section', { class: 'ctr-order', 'aria-label': 'Current order' }, header, list, el('div', { class: 'ctr-foot' }, sums, actions));
   }
 
   function menuPanel() {
