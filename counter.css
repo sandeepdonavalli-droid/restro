@@ -228,3 +228,6 @@
 .ctr-qty-btn:hover{background:var(--palette-accent-wash)}
 .ctr-qty-btn:active{transform:scale(.94)}
 .ctr-qty-num{min-width:32px;height:30px;border-radius:15px;background:var(--palette-accent-wash);box-shadow:0 2px 5px var(--palette-soft-shadow)}
+/* Same size and weight for the quantity and the price on each line */
+.ctr-qty-num,.ctr-line-price{font-size:15px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.ctr-qty-num{min-width:30px;width:auto}
