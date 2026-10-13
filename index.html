@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="system-navigation.css?v=6">
   <link rel="stylesheet" href="themes.css?v=2">
   <link rel="stylesheet" href="settings.css?v=7">
+  <link rel="stylesheet" href="counter.css?v=1">
   <link rel="stylesheet" href="app-widget-controls.css?v=3">
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
@@ -21,17 +22,19 @@
   <script src="theme-artwork.js?v=2"></script>
   <script src="themes.js?v=4"></script>
   <script src="app-layout.js?v=2" defer></script>
-  <script src="app.js?v=25" defer></script>
+  <script src="app.js?v=26" defer></script>
   <script src="insights.js?v=9" defer></script>
   <script src="connectivity-status.js?v=4" defer></script>
   <script src="wifi.js?v=3" defer></script>
   <script src="bluetooth.js?v=3" defer></script>
   <script src="device-controls.js?v=8" defer></script>
   <script src="sound.js?v=4" defer></script>
+  <script src="menu-data.js?v=1" defer></script>
+  <script src="counter.js?v=1" defer></script>
   <script src="settings.js?v=8" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
-  <script src="system-navigation.js?v=7" defer></script>
+  <script src="system-navigation.js?v=8" defer></script>
 </head>
 <body>
   <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -109,6 +112,7 @@
   <dialog id="screen-lock-dialog" class="screen-lock-dialog" aria-labelledby="screen-lock-title">
     <div class="lock-screen-content"><svg class="lock-screen-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><time id="lock-clock"></time><p id="lock-restaurant"></p><h2 id="screen-lock-title">Screen locked</h2><button id="screen-unlock" type="button" class="primary-button">Unlock</button></div>
   </dialog>
+  <dialog id="counter-dialog" class="counter-app" aria-labelledby="counter-title"></dialog>
   <dialog id="settings-dialog" class="settings-app" aria-labelledby="settings-title">
     <div class="settings-shell" data-view="list">
       <nav class="settings-nav" aria-label="Settings categories">

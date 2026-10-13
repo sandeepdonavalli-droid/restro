@@ -25,6 +25,7 @@
     const appIds={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio'};
     const controls={'calculator-dialog':'calculator','camera-dialog':'camera'};
     const insightViews={'order-details-dialog':{id:'last-order',name:'Last order',symbol:'receipt'},'most-sold-dialog':{id:'most-sold',name:'Most sold items',symbol:'chef'}};
+    if(dialog.id==='counter-dialog'){recentApps.delete('shortcut:register');recentApps.set('shortcut:register',{shortcutId:'register',name:'Counter'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
     if(insightViews[dialog.id]){
       const view=insightViews[dialog.id],key=`insight:${view.id}`;recentApps.delete(key);recentApps.set(key,{insightId:view.id,name:view.name,symbol:view.symbol});
       if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;
@@ -63,13 +64,14 @@
   // ---------- App switcher (Apple-style): slide through cards, swipe up to close ----------
   function openRecent(recent){
     recents.close();
-    if(recent.insightId)window.RestroInsights.openDetail(recent.insightId);
+    if(recent.shortcutId==='register')window.RestroCounter?.open();
+    else if(recent.insightId)window.RestroInsights.openDetail(recent.insightId);
     else if(recent.appId)openApp(recent.appId);
     else if(recent.control==='pager-hub')window.RestroPagerHub?.open();
     else document.querySelector(`[data-control="${recent.control}"]`)?.click();
   }
   function recentIcon(recent){
-    return recent.insightId?artNode({symbol:recent.symbol}):recent.appId?artNode(apps[recent.appId].art)
+    return recent.shortcutId?artNode(shortcuts.find(item=>item.id===recent.shortcutId).art):recent.insightId?artNode({symbol:recent.symbol}):recent.appId?artNode(apps[recent.appId].art)
       :recent.control==='pager-hub'?artNode(shortcuts.find(item=>item.id==='pager-hub').art)
       :document.querySelector(`[data-control="${recent.control}"] .quick-control-icon`)?.cloneNode(true)||document.createElement('span');
   }
@@ -142,7 +144,7 @@
   document.querySelector('#system-back').addEventListener('click',async()=>{
     if(locked)return;
     const opened=dialogs.filter(dialog=>dialog.open).at(-1);
-    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;opened.close();return;}
+    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;opened.close();return;}
     if(arranging){endDrag(true);setArranging(false);return;}
     if(currentPage>0){goToPage(currentPage-1);return;}
     await nativeAction('goBack');
