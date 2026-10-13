@@ -231,3 +231,5 @@
 /* Same size and weight for the quantity and the price on each line */
 .ctr-qty-num,.ctr-line-price{font-size:15px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
 .ctr-qty-num{min-width:30px;width:auto}
+/* Quantity and price read exactly like the dish name: same size, weight and colour */
+.ctr-line-name,.ctr-qty-num,.ctr-line-price{font-size:15px;font-weight:500;color:var(--palette-text)}
