@@ -11,11 +11,29 @@
   const HELD_KEY = 'restro.counter.held.v1', DONE_KEY = 'restro.counter.orders.v1', NUM_KEY = 'restro.counter.nextNumber.v1', DRAFT_KEY = 'restro.counter.current.v1';
   const items = new Map(), categoryOf = new Map();
   for (const category of menu.categories) for (const item of category.items) { items.set(item.id, item); categoryOf.set(item.id, category); }
+  const categoryById = new Map(menu.categories.map(c => [c.id, c]));
 
   // ---------- storage ----------
   const load = (key, fallback) => { try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return v ?? fallback; } catch { return fallback; } };
   const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
   let held = load(HELD_KEY, []); if (!Array.isArray(held)) held = [];
+  // The order of categories and items, as rearranged by holding a tile (kept on this device until the backend exists).
+  const ORDER_KEY = 'restro.counter.menuOrder.v1';
+  let menuOrder = load(ORDER_KEY, {}); if (!menuOrder || typeof menuOrder !== 'object' || Array.isArray(menuOrder)) menuOrder = {};
+  // Saved order first; anything new (or never moved) follows in menu order, so new tiles land at the end (and on the next page when one is full).
+  const ordered = (ids, saved) => {
+    const known = new Set(ids), seen = new Set(), out = [];
+    if (Array.isArray(saved)) for (const id of saved) if (known.has(id) && !seen.has(id)) { seen.add(id); out.push(id); }
+    for (const id of ids) if (!seen.has(id)) out.push(id);
+    return out;
+  };
+  const categoriesInOrder = () => ordered(menu.categories.map(c => c.id), menuOrder.categories).map(id => categoryById.get(id));
+  const itemsInOrder = c => ordered(c.items.map(i => i.id), menuOrder.items && typeof menuOrder.items === 'object' ? menuOrder.items[c.id] : null).map(id => items.get(id));
+  function saveMenuOrder(view, ids) {
+    if (view.kind === 'categories') menuOrder.categories = ids;
+    else { if (!menuOrder.items || typeof menuOrder.items !== 'object' || Array.isArray(menuOrder.items)) menuOrder.items = {}; menuOrder.items[view.catId] = ids; }
+    store(ORDER_KEY, menuOrder);
+  }
   const nextNumber = () => { const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
 
   // ---------- state ----------
@@ -27,7 +45,7 @@
   let qtyKey = null, qtyValue = '';
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, clearArmed = false;
   let cashInput = '';                                   // cash typed on the payment sheet
-  const scrollMemo = { lines: 0, menu: 0, view: '' };   // where the order list and the menu were scrolled
+  const scrollMemo = { lines: 0 };                      // where the order list was scrolled
 
   // Leaving Counter (Home, Recents, or the app/page restarting) keeps everything as it was:
   // the order on screen, plus the category or search the menu was showing.
@@ -234,37 +252,225 @@
     return el('section', { class: 'ctr-menu', 'aria-label': 'Menu' }, top, el('div', { class: 'ctr-menu-body' }));
   }
 
-  const matches = () => { const q = query.trim().toLowerCase(); if (!q) return []; return [...items.values()].filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase() === q); };
+  const matches = () => {
+    const q = query.trim().toLowerCase(); if (!q) return [];
+    return categoriesInOrder().flatMap(itemsInOrder).filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase() === q);
+  };
   function itemTile(item) {
     const qty = order.lines.filter(l => l.id === item.id).reduce((n, l) => n + l.qty, 0);
-    return el('button', { type: 'button', class: 'ctr-item', style: `--stripe:${categoryOf.get(item.id).color}`, onclick: () => add(item.id), 'aria-label': `Add ${item.name}, ${rupees(item.price)}${qty ? `, ${qty} in order` : ''}` },
+    return el('button', { type: 'button', class: 'ctr-item', 'data-id': item.id, style: `--stripe:${categoryOf.get(item.id).color}`, onclick: () => add(item.id), 'aria-label': `Add ${item.name}, ${rupees(item.price)}${qty ? `, ${qty} in order` : ''}` },
       el('span', { class: 'ctr-item-name' }, item.name), el('span', { class: 'ctr-item-price' }, rupees(item.price)));
   }
-  function renderMenuBody() {
-    saveDraft(); // every change to the order or to the menu view comes through here, so it is always kept
-    const body = dialog.querySelector('.ctr-menu-body'); if (!body) return;
-    const q = query.trim(), view = q ? `q:${q}` : category ? `c:${category}` : 'all';
+  const categoryTile = c => el('button', { type: 'button', class: 'ctr-category', 'data-id': c.id, style: `--stripe:${c.color}`, onclick: () => { category = c.id; renderMenuBody(); } },
+    el('span', { class: 'ctr-category-name' }, c.name));
+  // ---------- menu pages (like More apps on the home screen) ----------
+  // Tiles fill a page (3 categories / 4 items per row, as many rows as fit); the rest flow onto the next page.
+  // Swipe sideways or tap the dots to change page. Hold a tile to rearrange: drag it to a new place,
+  // hold it near the left or right edge to change page, then tap empty space (or Back) to finish.
+  const GAP = 10, TILE_MIN = 65;
+  const pageMemo = { view: '', page: 0 };
+  let menuState = null, pageCount = 1, arranging = false, drag = null, gesture = null, holdTimer = null, suppressClick = false, lastWheel = 0;
+  const columnsFor = (kind, width) => kind === 'categories'
+    ? ((width - 2 * GAP) / 3 >= 130 ? 3 : Math.max(1, Math.floor((width + GAP) / (130 + GAP))))
+    : ((width - 3 * GAP) / 4 >= 120 ? 4 : Math.max(1, Math.floor((width + GAP) / (120 + GAP))));
+
+  // What the menu shows: search results, one category's items, or all categories.
+  function menuView() {
+    const q = query.trim();
     if (q) {
       const found = matches();
-      body.replaceChildren(el('div', { class: 'ctr-crumb' }, el('strong', {}, found.length ? `${found.length} result${found.length === 1 ? '' : 's'} for “${q}”` : `No items match “${q}”`)),
-        el('div', { class: 'ctr-grid items' }, ...found.map(itemTile)));
-    } else if (category) {
-      const c = menu.categories.find(x => x.id === category);
-      body.replaceChildren(el('div', { class: 'ctr-crumb' },
-        el('button', { type: 'button', class: 'ctr-text-button', onclick: () => { category = null; renderMenuBody(); } }, svg(ICON.chevron), 'All categories'),
-        el('strong', { style: `--stripe:${c.color}`, class: 'ctr-crumb-name' }, c.name)),
-        el('div', { class: 'ctr-grid items' }, ...c.items.map(itemTile)));
-    } else {
-      // "All categories" stays at the top of the grid too: same look as the back button, without the arrow.
-      body.replaceChildren(el('div', { class: 'ctr-crumb' }, el('span', { class: 'ctr-text-button ctr-crumb-root' }, 'All categories')),
-        el('div', { class: 'ctr-grid categories' }, ...menu.categories.map(c =>
-          el('button', { type: 'button', class: 'ctr-category', style: `--stripe:${c.color}`, onclick: () => { category = c.id; renderMenuBody(); } },
-            el('span', { class: 'ctr-category-name' }, c.name)))));
+      return { key: `q:${q}`, kind: 'search', ids: found.map(i => i.id), tiles: found.map(itemTile),
+        crumb: [el('strong', {}, found.length ? `${found.length} result${found.length === 1 ? '' : 's'} for “${q}”` : `No items match “${q}”`)] };
     }
-    // Same view (e.g. after adding an item, or coming back to Counter): stay where it was scrolled. New view: start at the top.
-    if (view !== scrollMemo.view) { scrollMemo.view = view; scrollMemo.menu = 0; }
-    if (dialog.open) { body.scrollTop = scrollMemo.menu; scrollMemo.menu = body.scrollTop; }
+    const c = category && categoryById.get(category);
+    if (c) {
+      const list = itemsInOrder(c);
+      return { key: `c:${c.id}`, kind: 'items', catId: c.id, ids: list.map(i => i.id), tiles: list.map(itemTile),
+        crumb: [el('button', { type: 'button', class: 'ctr-text-button', onclick: () => { category = null; renderMenuBody(); } }, svg(ICON.chevron), 'All categories'),
+          el('strong', { style: `--stripe:${c.color}`, class: 'ctr-crumb-name' }, c.name)] };
+    }
+    const list = categoriesInOrder();
+    // "All categories" stays at the top of the grid too: same look as the back button, without the arrow.
+    return { key: 'all', kind: 'categories', ids: list.map(x => x.id), tiles: list.map(categoryTile),
+      crumb: [el('span', { class: 'ctr-text-button ctr-crumb-root' }, 'All categories')] };
   }
+
+  function renderMenuBody() {
+    saveDraft(); // every change to the order or to the menu view comes through here, so it is always kept
+    if (drag) endDrag(true);
+    const body = dialog.querySelector('.ctr-menu-body'); if (!body) return;
+    const view = menuView();
+    if (view.kind === 'search') arranging = false; // search results keep the menu's order
+    if (view.key !== pageMemo.view) { pageMemo.view = view.key; pageMemo.page = 0; }
+    menuState = view;
+    dialog.querySelector('.ctr-menu')?.classList.toggle('arranging', arranging);
+    const pager = el('div', { class: 'ctr-pager' }), dots = el('div', { class: 'ctr-dots' });
+    body.replaceChildren(el('div', { class: 'ctr-crumb' }, ...view.crumb), el('div', { class: 'ctr-pages' }, pager, dots));
+    layoutPages(view, pager, dots);
+  }
+
+  function layoutPages(view, pager, dots) {
+    const width = pager.clientWidth, height = pager.clientHeight;
+    if (!width || !height) { pageCount = 1; pager.append(el('div', { class: 'ctr-page' }, ...view.tiles)); return; } // not on screen: laid out when shown
+    const cols = columnsFor(view.kind, width), colWidth = (width - (cols - 1) * GAP) / cols;
+    // Every tile in the list gets the height of the tallest (a long name may take two lines), so rows stay even.
+    const probe = el('div', { class: 'ctr-probe', style: `width:${colWidth}px` }, ...view.tiles);
+    pager.append(probe);
+    const tileH = Math.max(TILE_MIN, ...view.tiles.map(t => t.offsetHeight));
+    probe.remove();
+    const rows = Math.max(1, Math.floor((height + GAP) / (tileH + GAP))), per = cols * rows;
+    const chunks = [];
+    for (let i = 0; i < view.tiles.length; i += per) chunks.push(view.tiles.slice(i, i + per));
+    if (!chunks.length) chunks.push([]);
+    // While rearranging, the last page shows its empty places (and a fresh page when it is full) for dropping a tile at the end.
+    if (arranging && chunks[chunks.length - 1].length === per) chunks.push([]);
+    const track = el('div', { class: 'ctr-track no-transition' });
+    chunks.forEach((tiles, p) => {
+      const page = el('div', { class: 'ctr-page', 'data-page': String(p), role: 'group', 'aria-label': `Page ${p + 1} of ${chunks.length}`,
+        style: `grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:${tileH}px` }, ...tiles);
+      if (arranging) for (let i = tiles.length; i < per; i++) page.append(el('div', { class: 'ctr-slot' }));
+      track.append(page);
+    });
+    pager.append(track);
+    pageCount = chunks.length;
+    pageMemo.page = Math.min(pageMemo.page, pageCount - 1);
+    if (pageCount > 1) dots.append(...chunks.map((_, p) => el('button', { type: 'button', class: 'ctr-dot', 'aria-label': `Page ${p + 1}`, onclick: () => goToMenuPage(p) })));
+    showMenuPage(false);
+  }
+  function showMenuPage(animate = true) {
+    const track = dialog.querySelector('.ctr-track'); if (!track) return;
+    track.classList.toggle('no-transition', !animate);
+    track.style.transform = `translateX(-${pageMemo.page * 100}%)`;
+    dialog.querySelectorAll('.ctr-page').forEach((page, p) => { page.inert = p !== pageMemo.page; });
+    dialog.querySelectorAll('.ctr-dot').forEach((dot, p) => dot.setAttribute('aria-current', String(p === pageMemo.page)));
+  }
+  function goToMenuPage(p) {
+    const next = Math.max(0, Math.min(pageCount - 1, p));
+    const changed = next !== pageMemo.page; pageMemo.page = next; showMenuPage(); return changed;
+  }
+  function setArranging(on) {
+    if (arranging === on) return;
+    if (!on && drag) endDrag(true);
+    arranging = on; renderMenuBody();
+  }
+
+  // Hold a tile to pick it up: it follows the finger, the place it would go is highlighted.
+  function startDrag(id, pointerId, x, y) {
+    if (!menuState || menuState.kind === 'search') return;
+    if (!arranging) setArranging(true); // redraws the tiles, so find the tile again
+    const tile = [...dialog.querySelectorAll('.ctr-page [data-id]')].find(t => t.dataset.id === id); if (!tile) return;
+    const rect = tile.getBoundingClientRect(), ghost = tile.cloneNode(true);
+    ghost.classList.add('ctr-drag-ghost'); ghost.removeAttribute('data-id'); ghost.setAttribute('aria-hidden', 'true'); ghost.tabIndex = -1;
+    ghost.style.width = `${rect.width}px`; ghost.style.height = `${rect.height}px`; ghost.style.left = `${x}px`; ghost.style.top = `${y}px`;
+    root.append(ghost); tile.classList.add('ctr-drag-origin');
+    drag = { id, pointerId, ghost, target: null, edgeTimer: null, edgeDir: 0 };
+    gesture = null;
+    try { dialog.querySelector('.ctr-pager').setPointerCapture(pointerId); } catch {}
+  }
+  function clearDropTarget() { dialog.querySelectorAll('.ctr-drop-target').forEach(n => n.classList.remove('ctr-drop-target')); }
+  function moveDrag(x, y) {
+    drag.ghost.style.left = `${x}px`; drag.ghost.style.top = `${y}px`;
+    clearDropTarget();
+    const spot = document.elementFromPoint(x, y)?.closest?.('.ctr-page [data-id], .ctr-page .ctr-slot');
+    const onPage = spot && Number(spot.closest('.ctr-page').dataset.page) === pageMemo.page;
+    drag.target = !onPage ? null : spot.classList.contains('ctr-slot') ? { end: true } : spot.dataset.id === drag.id ? null : { id: spot.dataset.id };
+    if (drag.target) spot.classList.add('ctr-drop-target');
+    // Held near the left or right edge: move to the previous or next page.
+    const r = dialog.querySelector('.ctr-pager').getBoundingClientRect(), inside = y >= r.top && y <= r.bottom;
+    const dir = inside && x > r.right - 46 && pageMemo.page < pageCount - 1 ? 1 : inside && x < r.left + 46 && pageMemo.page > 0 ? -1 : 0;
+    if (dir !== drag.edgeDir) {
+      clearTimeout(drag.edgeTimer); drag.edgeDir = dir;
+      if (dir) drag.edgeTimer = setTimeout(() => { if (!drag) return; goToMenuPage(pageMemo.page + dir); drag.edgeDir = 0; drag.target = null; clearDropTarget(); }, 650);
+    }
+  }
+  // Dropped: the tile takes the place it was dropped on (an empty place means the end); the others shift along.
+  function endDrag(cancel) {
+    const d = drag; if (!d) return; drag = null;
+    clearTimeout(d.edgeTimer); d.ghost.remove();
+    dialog.querySelectorAll('.ctr-drop-target, .ctr-drag-origin').forEach(n => n.classList.remove('ctr-drop-target', 'ctr-drag-origin'));
+    if (cancel || !d.target || !menuState) return;
+    const ids = [...menuState.ids], from = ids.indexOf(d.id); if (from < 0) return;
+    const to = d.target.end ? ids.length - 1 : ids.indexOf(d.target.id); if (to < 0 || to === from) return;
+    ids.splice(from, 1); ids.splice(to, 0, d.id);
+    saveMenuOrder(menuState, ids);
+    renderMenuBody();
+  }
+
+  root.addEventListener('pointerdown', event => {
+    if (arranging && !drag && !event.target.closest('.ctr-pages')) setArranging(false); // a tap anywhere else finishes rearranging
+    const pager = event.target.closest('.ctr-pager'); if (!pager || event.button !== 0 || drag) return;
+    suppressClick = false;
+    const tile = event.target.closest('.ctr-page [data-id]');
+    gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, start: performance.now(), tile, moved: false, horizontal: false };
+    clearTimeout(holdTimer); holdTimer = null;
+    if (tile && menuState?.kind !== 'search') {
+      const id = tile.dataset.id, x = event.clientX, y = event.clientY, pointerId = event.pointerId;
+      holdTimer = setTimeout(() => { holdTimer = null; if (gesture && !gesture.moved && gesture.id === pointerId) startDrag(id, pointerId, x, y); }, arranging ? 120 : 420);
+    }
+  });
+  root.addEventListener('pointermove', event => {
+    if (drag) { if (event.pointerId === drag.pointerId) { event.preventDefault(); moveDrag(event.clientX, event.clientY); } return; }
+    if (!gesture || event.pointerId !== gesture.id) return;
+    const dx = event.clientX - gesture.x, dy = event.clientY - gesture.y;
+    if (!gesture.moved && Math.hypot(dx, dy) > 8) { gesture.moved = true; clearTimeout(holdTimer); holdTimer = null; }
+    if (!gesture.horizontal && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      gesture.horizontal = true;
+      try { dialog.querySelector('.ctr-pager').setPointerCapture(event.pointerId); } catch {}
+    }
+    if (gesture.horizontal) {
+      event.preventDefault();
+      const track = dialog.querySelector('.ctr-track'); if (!track) return;
+      const offset = (pageMemo.page === 0 && dx > 0) || (pageMemo.page === pageCount - 1 && dx < 0) ? dx * .2 : dx; // a little give at the ends
+      track.classList.add('no-transition'); track.style.transform = `translateX(calc(-${pageMemo.page * 100}% + ${offset}px))`;
+    }
+  });
+  root.addEventListener('pointerup', event => {
+    clearTimeout(holdTimer); holdTimer = null;
+    if (drag) {
+      if (event.pointerId !== drag.pointerId) return;
+      suppressClick = true;
+      const r = dialog.querySelector('.ctr-pager')?.getBoundingClientRect(), outside = !r || event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom;
+      if (outside) setArranging(false); else endDrag(false); // let go outside the menu: no move, and rearranging ends (as on the home screen)
+      return;
+    }
+    if (!gesture || event.pointerId !== gesture.id) return;
+    const g = gesture; gesture = null;
+    if (g.horizontal) {
+      suppressClick = true;
+      const dx = event.clientX - g.x, width = dialog.querySelector('.ctr-pager')?.clientWidth || 1;
+      const flick = Math.abs(dx) > 35 && performance.now() - g.start < 260;
+      if (Math.abs(dx) > Math.min(width * .15, 95) || flick) goToMenuPage(pageMemo.page + (dx < 0 ? 1 : -1)); else showMenuPage();
+      return;
+    }
+    if (g.moved) { suppressClick = true; return; }
+    if (arranging && !g.tile) setArranging(false); // a tap on empty space finishes rearranging
+  });
+  root.addEventListener('pointercancel', event => {
+    clearTimeout(holdTimer); holdTimer = null;
+    if (drag && event.pointerId === drag.pointerId) endDrag(true);
+    if (gesture?.horizontal) showMenuPage();
+    gesture = null;
+  });
+  // No tap after a swipe or a drag, and no tapping tiles while rearranging (it doesn't add items or open categories).
+  root.addEventListener('click', event => {
+    if (!event.target.closest('.ctr-pager')) return;
+    if (suppressClick || arranging) { event.preventDefault(); event.stopPropagation(); }
+    suppressClick = false;
+  }, true);
+  root.addEventListener('contextmenu', event => { if (event.target.closest('.ctr-pager')) event.preventDefault(); });
+  root.addEventListener('wheel', event => {
+    if (!event.target.closest('.ctr-pager') || pageCount < 2) return;
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY; if (Math.abs(delta) < 8) return;
+    event.preventDefault();
+    const now = performance.now(); if (now - lastWheel > 480) { goToMenuPage(pageMemo.page + (delta > 0 ? 1 : -1)); lastWheel = now; }
+  }, { passive: false });
+  root.addEventListener('keydown', event => {
+    if (!event.target.closest('.ctr-pages') || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+    if (goToMenuPage(pageMemo.page + (event.key === 'ArrowRight' ? 1 : -1))) event.preventDefault();
+  });
+  // Turning the tablet (or resizing the window) re-flows the pages.
+  let relayout = 0;
+  window.addEventListener('resize', () => { cancelAnimationFrame(relayout); relayout = requestAnimationFrame(() => { if (dialog.open && !drag) renderMenuBody(); }); });
 
   function sheetView() {
     if (!sheet) return null;
@@ -359,6 +565,7 @@
   }
 
   function render() {
+    if (drag) endDrag(true);
     const searchHadFocus = document.activeElement?.id === 'counter-search', tableHadFocus = document.activeElement?.id === 'counter-table';
     root.replaceChildren(el('div', { class: 'ctr-shell' }, orderPanel(), menuPanel()), sheetView() || '');
     renderMenuBody();
@@ -373,17 +580,18 @@
     if (!dialog.open) return false;
     if (sheet && sheet !== 'receipt') { sheet = null; render(); return true; }
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
+    if (arranging) { setArranging(false); return true; }
     if (query) { query = ''; render(); return true; }
     if (category) { category = null; renderMenuBody(); return true; }
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
-  // Remember scroll positions while Counter is on screen (a hidden list reports 0, so it is ignored then).
+  // Remember where the order list was scrolled while Counter is on screen (a hidden list reports 0, so it is ignored then).
   root.addEventListener('scroll', event => {
-    if (!dialog.open) return;
-    if (event.target.classList?.contains('ctr-lines')) scrollMemo.lines = event.target.scrollTop;
-    else if (event.target.classList?.contains('ctr-menu-body')) scrollMemo.menu = event.target.scrollTop;
+    if (dialog.open && event.target.classList?.contains('ctr-lines')) scrollMemo.lines = event.target.scrollTop;
   }, true);
+  // Leaving Counter ends rearranging; the order, the page and everything else stay as they were.
+  dialog.addEventListener('close', () => { clearTimeout(holdTimer); holdTimer = null; gesture = null; if (drag) endDrag(true); arranging = false; });
   // Toasts must show above this full-screen app.
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;
   new MutationObserver(() => {
