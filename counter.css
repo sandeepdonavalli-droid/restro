@@ -148,8 +148,8 @@
 .ctr-titlebar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;min-height:24px;padding-left:4px}
 .ctr-title-left{display:flex;align-items:center;gap:4px;min-width:0}
 .ctr-titlebar h2{flex:none;font-size:13px;font-weight:600;line-height:1}
-.ctr-back{width:41px;height:41px;min-height:41px}
-.ctr-back svg{width:23px;height:23px}
+.ctr-back{width:33px;height:33px;min-height:33px}
+.ctr-back svg{width:18px;height:18px}
 
 /* Home button: always highlighted in a light tint of the theme accent */
 .ctr-back{background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
@@ -255,14 +255,14 @@
 .ctr-drag-ghost{position:fixed;z-index:30;margin:0;pointer-events:none;transform:translate(-50%,-50%) scale(1.05);transition:none;animation:none;box-shadow:0 12px 26px var(--palette-shadow,#0004);opacity:.96}
 @media (prefers-reduced-motion:reduce){.ctr-menu.arranging .ctr-page>*{animation:none}.ctr-track{transition:none}}
 /* Middle of the title row: a Table box for Dine in, Add Customer for Takeaway / Delivery (dashed until chosen) */
-.ctr-title-gap{display:block;width:42px;height:42px}
-.ctr-table-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:42px;height:42px;margin:0;padding:0;border:1.5px dashed color-mix(in srgb,var(--palette-accent) 55%,transparent);border-radius:11px;background:var(--palette-accent-wash);color:var(--palette-accent-ink);cursor:pointer}
-.ctr-table-label{font-size:10px;font-weight:600;line-height:1;opacity:.85}
-.ctr-table-box strong{font-size:11.5px;font-weight:700;line-height:1.1}
+.ctr-title-gap{display:block;width:33px;height:33px}
+.ctr-table-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:33px;height:33px;margin:0;padding:0;border:1.5px dashed color-mix(in srgb,var(--palette-accent) 55%,transparent);border-radius:9px;background:var(--palette-accent-wash);color:var(--palette-accent-ink);cursor:pointer}
+.ctr-table-label{font-size:9px;font-weight:600;line-height:1;opacity:.85}
+.ctr-table-box strong{font-size:10px;font-weight:700;line-height:1.1}
 .ctr-table-box.set{border-style:solid;border-color:var(--palette-accent);background:var(--palette-accent);color:var(--palette-on-accent)}
-.ctr-table-box.set strong{font-size:18px}
-.ctr-customer{display:inline-flex;align-items:center;gap:6px;max-width:200px;min-height:34px;margin:0;padding:0 12px;border:1.5px dashed color-mix(in srgb,var(--palette-accent) 55%,transparent);border-radius:11px;background:var(--palette-accent-wash);color:var(--palette-accent-ink);font-size:14px;font-weight:600;cursor:pointer}
-.ctr-customer svg{width:17px;height:17px}
+.ctr-table-box.set strong{font-size:15px}
+.ctr-customer{display:inline-flex;align-items:center;gap:6px;max-width:200px;min-height:28px;margin:0;padding:0 10px;border:1.5px dashed color-mix(in srgb,var(--palette-accent) 55%,transparent);border-radius:9px;background:var(--palette-accent-wash);color:var(--palette-accent-ink);font-size:13px;font-weight:600;cursor:pointer}
+.ctr-customer svg{width:15px;height:15px}
 .ctr-customer span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ctr-customer.set{border-style:solid;border-color:color-mix(in srgb,var(--palette-accent) 45%,transparent);background:var(--palette-tile-top);color:var(--palette-text)}
 .ctr-table-box:active,.ctr-customer:active{transform:scale(.96)}
@@ -277,8 +277,8 @@
 .ctr-type-row .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
 .ctr-type-row .ctr-text-button.ctr-clear.armed,.ctr-type-row .ctr-text-button.ctr-clear.armed:hover{border-color:#b42318;background:#b42318;color:#fff;box-shadow:none}
 /* One line under the header across the whole screen: it starts right next to Home and runs under the menu's
-   Search · Held · New order to the far edge. Both panels share the band above it (45px, 20% less than before), so everything sits level and higher. */
+   Search · Held · New order to the far edge. Both panels share the band above it (36px), so everything sits level and high; Home and the Table box are sized to fit. */
 .ctr-order-head{padding-top:0}
-.ctr-titlebar{position:relative;min-height:45px;margin:0 0 0 8px;padding:1px 0 2px 4px;border-bottom:0}
-.ctr-titlebar::after{content:"";position:absolute;left:53px;right:-16px;bottom:0;height:1px;background:var(--palette-line);pointer-events:none}
-.ctr-menu-top{min-height:45px;padding:1px 18px 2px}
+.ctr-titlebar{position:relative;min-height:36px;margin:0 0 0 8px;padding:1px 0 2px 4px;border-bottom:0}
+.ctr-titlebar::after{content:"";position:absolute;left:45px;right:-16px;bottom:0;height:1px;background:var(--palette-line);pointer-events:none}
+.ctr-menu-top{min-height:36px;padding:1px 18px 2px}
