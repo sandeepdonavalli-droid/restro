@@ -171,9 +171,10 @@
 .ctr-group{display:flex;align-items:center;gap:8px;padding:10px 16px 4px;color:var(--palette-accent-ink);font-size:13px;font-weight:700;letter-spacing:.02em}
 .ctr-group svg{width:16px;height:16px}
 .ctr-group-count{margin-left:auto;font-weight:500;color:var(--palette-muted)}
-.ctr-move{display:flex;align-items:center;gap:6px;padding:0 12px 12px 36px;flex-wrap:wrap}
-.ctr-move span{font-size:12.5px;color:var(--palette-muted);margin-right:2px}
-.ctr-move button{min-height:32px;margin:0;padding:4px 12px;border:1px solid var(--palette-edge);border-radius:16px;background:var(--palette-bg);color:var(--palette-text);font-size:12.5px;font-weight:600;cursor:pointer}
+/* Split order: the item's order type, as buttons matching the order type buttons at the top (no label) */
+.ctr-move{display:grid;grid-template-columns:repeat(3,minmax(0,112px));gap:8px;padding:0 16px 12px 14px}
+.ctr-move button{display:flex;align-items:center;justify-content:center;min-height:38px;margin:0;padding:6px 10px;border:1px solid var(--palette-edge);border-radius:12px;background:var(--palette-bg);color:var(--palette-text);font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px var(--palette-soft-shadow)}
+.ctr-move button:hover{border-color:var(--palette-accent)}
 .ctr-move button.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
 
 /* Order ticket: no divider lines between header, items and totals */

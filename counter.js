@@ -209,8 +209,8 @@
         li.append(el('div', { class: 'ctr-line-edit' },
           el('span', { class: 'ctr-unit' }, `${rupees(item.price)} each`),
           el('button', { type: 'button', class: 'ctr-text-button danger', onclick: () => setQty(key, 0) }, svg(ICON.trash), 'Remove')));
+        // Split order: move this item to another order type (no label; the buttons match the order type buttons above).
         if (order.split) li.append(el('div', { class: 'ctr-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
-          el('span', {}, 'Serve as'),
           ...TYPES.map(type => el('button', { type: 'button', role: 'radio', 'aria-checked': String(lineType(line) === type), class: lineType(line) === type ? 'on' : '', onclick: () => moveLine(key, type) }, typeLabel[type]))));
       }
       return li;
@@ -586,6 +586,12 @@
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
+  // Tapping anywhere outside the open (selected) item puts it back to a plain line. The tap still does its own job.
+  dialog.addEventListener('click', event => {
+    if (!selected || !dialog.open) return;
+    if (event.target.closest?.('.ctr-line')?.dataset.line === selected) return;
+    selected = null; render();
+  }, true);
   // Remember where the order list was scrolled while Counter is on screen (a hidden list reports 0, so it is ignored then).
   root.addEventListener('scroll', event => {
     if (dialog.open && event.target.classList?.contains('ctr-lines')) scrollMemo.lines = event.target.scrollTop;
