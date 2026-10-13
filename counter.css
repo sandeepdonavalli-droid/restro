@@ -199,3 +199,5 @@
 .ctr-titlebar .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
 .ctr-titlebar .ctr-clear.armed{width:auto;height:32px;padding:0 12px 0 9px;background:#b42318;color:#fff;box-shadow:none}
 .ctr-titlebar .ctr-text-button.ctr-clear:not(.armed){background:var(--palette-accent-wash);opacity:1}
+.ctr-titlebar .ctr-clear.armed{width:32px;padding:0;border-radius:50%;background:#b42318;color:#fff;box-shadow:none}
+.ctr-titlebar .ctr-text-button.ctr-clear.armed,.ctr-titlebar .ctr-text-button.ctr-clear.armed:hover{background:#b42318;color:#fff;box-shadow:none}

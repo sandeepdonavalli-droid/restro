@@ -149,7 +149,7 @@
         el('button', { class: `ctr-text-button ctr-clear ${clearArmed ? 'armed' : ''}`, type: 'button', 'aria-label': clearArmed ? 'Tap again to clear the order' : 'Clear order', title: 'Clear order', disabled: !order.lines.length, onclick: () => {
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
           order.lines = []; order.heldId = null; clearArmed = false; selected = null; render(); toast('Order cleared');
-        } }, svg(ICON.trash), clearArmed ? 'Tap again to clear' : null)),
+        } }, svg(ICON.trash))),
       el('div', { class: 'ctr-types' },
         el('div', { class: 'ctr-type-buttons', role: 'radiogroup', 'aria-label': order.split ? 'Add new items as' : 'Order type' },
           ...TYPES.map(key => el('button', { type: 'button', role: 'radio', 'aria-checked': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, svg(ICON[key]), typeLabel[key]))),
