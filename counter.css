@@ -280,5 +280,7 @@
    Search · Held · New order to the far edge. Both panels share the band above it (36px), so everything sits level and high; Home and the Table box are sized to fit. */
 .ctr-order-head{padding-top:0}
 .ctr-titlebar{position:relative;min-height:36px;margin:0 0 0 8px;padding:1px 0 2px 4px;border-bottom:0}
-.ctr-titlebar::after{content:"";position:absolute;left:45px;right:-16px;bottom:0;height:1px;background:var(--palette-line);pointer-events:none}
+.ctr-titlebar::after{content:"";position:absolute;left:43px;right:-16px;bottom:0;height:1px;background:var(--palette-line);pointer-events:none}
 .ctr-menu-top{min-height:36px;padding:1px 18px 2px}
+/* Home: a rounded square whose bottom edge sits on the header line (the line carries on just to its right) */
+.ctr-titlebar .ctr-back{position:relative;top:2px;border-radius:8px}
