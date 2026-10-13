@@ -101,6 +101,8 @@
     plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     held: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', chevron: '<path d="m15 6-6 6 6 6"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
     check: '<path d="m5 12.5 4.5 4.5L19 7"/>',
+    orders: '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9.5 8h5M9.5 12h5"/>',
+    history: '<path d="M3.6 12a8.4 8.4 0 1 0 2.5-6L3.6 8.5"/><path d="M3.6 4v4.5h4.5"/><path d="M12 7.6V12l3 1.8"/>',
     person: '<circle cx="12" cy="8" r="3.6"/><path d="M5 19.5c.9-3.6 3.6-5.6 7-5.6s6.1 2 7 5.6"/>',
     personAdd: '<circle cx="10" cy="8" r="3.6"/><path d="M3.5 19.5c.8-3.4 3.3-5.6 6.5-5.6 1.6 0 3 .5 4.1 1.4M18.5 13v6M15.5 16h6"/>'
   };
@@ -200,6 +202,21 @@
     const who = o.type === 'dine-in' && o.table ? `Table ${tableName(o.table)}` : o.type && o.type !== 'dine-in' && o.customer ? o.customer.name : '';
     return [type, who].filter(Boolean).join(' · ');
   };
+  // Paid orders (newest first), as kept on this device: shown in Orders (what was ordered) and Payment history (the money).
+  const paidOrders = () => {
+    const list = load(DONE_KEY, []);
+    return (Array.isArray(list) ? list : []).filter(o => o && typeof o === 'object' && Number.isFinite(o.number) && Number.isFinite(o.total) && Array.isArray(o.lines) && !Number.isNaN(Date.parse(o.paidAt)))
+      .map(o => ({ ...o, lines: o.lines.filter(l => l && typeof l.name === 'string' && Number.isFinite(l.qty) && Number.isFinite(l.price)) }));
+  };
+  const dayKey = when => { const d = new Date(when); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+  const dayLabel = when => {
+    const d = new Date(when), now = new Date(), yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    if (dayKey(d) === dayKey(now)) return 'Today';
+    if (dayKey(d) === dayKey(yesterday)) return 'Yesterday';
+    return d.toLocaleDateString('en-IN', d.getFullYear() === now.getFullYear() ? { weekday: 'short', day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+  const timeOf = when => new Date(when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card' };
   function orderPanel() {
     const t = totals();
     const header = el('div', { class: 'ctr-order-head' },
@@ -274,7 +291,8 @@
         } }));
     const top = el('div', { class: 'ctr-menu-top' }, search,
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), 'Held', held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
-      el('button', { type: 'button', class: 'ctr-tool', onclick: () => newOrder() }, svg(ICON.plus), 'New order'));
+      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'orders'; render(); } }, svg(ICON.orders), 'Orders'),
+      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'payments'; render(); } }, svg(ICON.history), 'Payment history'));
     return el('section', { class: 'ctr-menu', 'aria-label': 'Menu' }, top, el('div', { class: 'ctr-menu-body' }));
   }
 
@@ -602,6 +620,53 @@
       }
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet', role: 'dialog', 'aria-label': 'Held orders' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Held orders'), close), list));
+    }
+    // Orders: each paid order with what was ordered (tap one to see its items and totals).
+    // Payment history: each payment with how it was paid, and each day's total.
+    if (sheet === 'orders' || sheet === 'payments') {
+      const isOrders = sheet === 'orders', paid = paidOrders(), days = new Map();
+      for (const o of paid) { const k = dayKey(o.paidAt), d = days.get(k) || { count: 0, total: 0 }; d.count += 1; d.total += o.total; days.set(k, d); }
+      const list = el('ul', { class: 'ctr-history', 'aria-label': isOrders ? 'Paid orders' : 'Payments' });
+      if (!paid.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, isOrders ? 'No orders yet' : 'No payments yet'), el('span', {}, 'Paid orders show here.')));
+      const detail = o => el('div', { class: 'ctr-history-detail' },
+        el('dl', { class: 'ctr-sums' },
+          ...o.lines.flatMap(l => [el('dt', {}, `${l.qty} × ${l.name}`), el('dd', {}, rupees(l.price * l.qty))]),
+          el('dt', {}, 'Subtotal'), el('dd', {}, money(o.subtotal || 0)),
+          el('dt', {}, menu.taxLabel), el('dd', {}, money(o.tax || 0)),
+          el('dt', { class: 'ctr-total' }, 'Total'), el('dd', { class: 'ctr-total' }, money(o.total))));
+      const orderRow = o => {
+        const li = el('li', { class: 'ctr-history-row' }), who = describe(o);
+        const main = el('button', { type: 'button', class: 'ctr-history-main', 'aria-expanded': 'false', onclick: () => {
+            const open = li.classList.contains('open');
+            list.querySelectorAll('.ctr-history-row.open').forEach(row => { row.classList.remove('open'); row.querySelector('.ctr-history-detail')?.remove(); row.querySelector('.ctr-history-main').setAttribute('aria-expanded', 'false'); });
+            if (!open) { li.classList.add('open'); li.append(detail(o)); main.setAttribute('aria-expanded', 'true'); }
+          } },
+          el('span', { class: 'ctr-history-copy' },
+            el('strong', {}, `#${o.number}`, who ? el('span', { class: 'ctr-history-desc' }, ` · ${who}`) : null),
+            el('span', {}, o.lines.map(l => `${l.name} ×${l.qty}`).join(', '))),
+          el('span', { class: 'ctr-history-side' }, el('strong', {}, money(o.total)), el('span', {}, timeOf(o.paidAt))));
+        li.append(main);
+        return li;
+      };
+      const paymentRow = o => el('li', { class: 'ctr-history-row' },
+        el('div', { class: 'ctr-history-main' },
+          el('span', { class: 'ctr-history-copy' },
+            el('strong', {}, money(o.total), el('span', { class: 'ctr-history-desc' }, ` · ${methodLabel[o.method] || 'Cash'}`)),
+            el('span', {}, [`Order #${o.number}`, Number.isFinite(o.received) ? `Received ${money(o.received)}` : '', o.change > 0 ? `Change ${money(o.change)}` : ''].filter(Boolean).join(' · '))),
+          el('span', { class: 'ctr-history-side' }, el('span', {}, timeOf(o.paidAt)))));
+      let day = null;
+      for (const o of paid) {
+        const k = dayKey(o.paidAt);
+        if (k !== day) {
+          day = k; const d = days.get(k);
+          list.append(el('li', { class: 'ctr-history-day' }, el('span', {}, dayLabel(o.paidAt)),
+            el('span', {}, isOrders ? `${d.count} order${d.count === 1 ? '' : 's'}` : money(d.total))));
+        }
+        list.append(isOrders ? orderRow(o) : paymentRow(o));
+      }
+      const title = isOrders ? 'Orders' : 'Payment history';
+      return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
+        el('div', { class: 'ctr-sheet ctr-history-sheet', role: 'dialog', 'aria-label': title }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, title), close), list));
     }
     if (sheet === 'receipt' && receipt) {
       return el('div', { class: 'ctr-sheet-wrap' },

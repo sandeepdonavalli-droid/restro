@@ -277,7 +277,7 @@
 .ctr-type-row .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
 .ctr-type-row .ctr-text-button.ctr-clear.armed,.ctr-type-row .ctr-text-button.ctr-clear.armed:hover{border-color:#b42318;background:#b42318;color:#fff;box-shadow:none}
 /* One line under the header across the whole screen: it starts right next to Home and runs under the menu's
-   Search · Held · New order to the far edge. Both panels share the band above it (36px), so everything sits level and high; Home and the Table box are sized to fit. */
+   Search · Held · Orders · Payment history to the far edge. Both panels share the band above it (36px), so everything sits level and high; Home and the Table box are sized to fit. */
 .ctr-order-head{padding-top:0}
 .ctr-titlebar{position:relative;min-height:36px;margin:0 0 0 8px;padding:1px 0 2px 4px;border-bottom:0}
 .ctr-titlebar::after{content:"";position:absolute;left:43px;right:-16px;bottom:0;height:1px;background:var(--palette-line);pointer-events:none}
@@ -306,3 +306,25 @@
 /* Home's tint sits on the panel colour, so Home looks exactly the same in every app (Floor and Customers use the same rule). */
 .ctr-titlebar .ctr-back{background:linear-gradient(var(--palette-accent-wash),var(--palette-accent-wash)) var(--palette-tile-top)}
 .ctr-titlebar .ctr-back:hover{background:linear-gradient(color-mix(in srgb,var(--palette-accent) 22%,transparent),color-mix(in srgb,var(--palette-accent) 22%,transparent)) var(--palette-tile-top)}
+/* Menu bar: Search, then Held · Orders · Payment history (no New order: Save starts a fresh order).
+   Orders and Payment history open a sheet of paid orders by day, newest first. */
+.ctr-history-sheet{width:min(560px,100%)}
+.ctr-history{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.ctr-history .ctr-empty{min-height:120px}
+.ctr-history-day{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:8px 4px 0;font-size:13px;font-weight:700;color:var(--palette-accent-ink)}
+.ctr-history-day:first-child{padding-top:0}
+.ctr-history-day span:last-child{font-weight:600;color:var(--palette-muted);font-variant-numeric:tabular-nums}
+.ctr-history-row{border-radius:14px;background:var(--palette-bg)}
+.ctr-history-row.open{box-shadow:inset 0 0 0 1px var(--palette-accent)}
+.ctr-history-main{display:flex;align-items:center;gap:12px;width:100%;margin:0;padding:10px 14px;border:0;border-radius:14px;background:transparent;color:var(--palette-text);text-align:left;font:inherit}
+button.ctr-history-main{cursor:pointer}
+.ctr-history-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ctr-history-copy strong{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.ctr-history-desc{font-weight:500;color:var(--palette-muted)}
+.ctr-history-copy>span{overflow:hidden;font-size:13px;color:var(--palette-muted);text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ctr-history-side{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums}
+.ctr-history-side strong{font-size:15px;font-weight:600}
+.ctr-history-side span{font-size:13px;color:var(--palette-muted)}
+.ctr-history-detail{padding:0 14px 12px}
+.ctr-history-detail .ctr-sums{row-gap:6px;padding-top:10px;border-top:1px solid var(--palette-line);font-size:13px}
+.ctr-history-detail .ctr-sums .ctr-total{margin-top:2px;font-size:15px}
