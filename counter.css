@@ -87,10 +87,10 @@
 .ctr-category,.ctr-item{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;margin:0;border:1px solid var(--palette-edge);border-left:6px solid var(--stripe);border-radius:10px;background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));color:var(--palette-text);box-shadow:0 2px 5px var(--palette-soft-shadow);cursor:pointer;transition:transform .12s ease}
 .ctr-category:active,.ctr-item:active{transform:scale(.97)}
 /* Category tile: just the name (no item count), so more tiles fit */
-.ctr-category{justify-content:center;min-height:52px;padding:10px 14px}
+.ctr-category{justify-content:center;min-height:65px;padding:10px 14px} /* same height as an item tile */
 .ctr-category-name{font-size:16px;font-weight:600;line-height:1.3}
 /* Item tile: compact, just the name and the price (counts are on the order ticket), so more tiles fit */
-.ctr-item{gap:4px;min-height:64px;padding:10px 12px}
+.ctr-item{gap:4px;min-height:65px;padding:10px 12px}
 .ctr-item-name{flex:1;font-size:15px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
 .ctr-item-price{font-size:15px;color:var(--palette-accent-ink);font-weight:600;font-variant-numeric:tabular-nums}
 
