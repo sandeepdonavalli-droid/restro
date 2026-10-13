@@ -249,8 +249,9 @@
 .ctr-menu.arranging .ctr-page>[data-id]:nth-child(3n):not(.ctr-drag-origin){animation-duration:.28s;animation-delay:-.08s}
 @keyframes ctr-jiggle{from{transform:rotate(-1.1deg)}to{transform:rotate(1.1deg)}}
 .ctr-slot{border-radius:10px} /* empty places stay invisible (as on the home screen) until a tile is held over one */
-.ctr-page .ctr-drop-target{outline:2px solid var(--palette-accent);outline-offset:-2px;background:var(--palette-accent-wash)}
-.ctr-page .ctr-drag-origin{opacity:.2}
+/* The held tile's place (where it will land) shows as a highlighted outline while the other tiles make room */
+.ctr-page .ctr-drag-origin{background:var(--palette-accent-wash);outline:2px dashed var(--palette-accent);outline-offset:-2px;box-shadow:none}
+.ctr-page .ctr-drag-origin>*{opacity:.3}
 .ctr-drag-ghost{position:fixed;z-index:30;margin:0;pointer-events:none;transform:translate(-50%,-50%) scale(1.05);transition:none;animation:none;box-shadow:0 12px 26px var(--palette-shadow,#0004);opacity:.96}
 @media (prefers-reduced-motion:reduce){.ctr-menu.arranging .ctr-page>*{animation:none}.ctr-track{transition:none}}
 /* Middle of the title row: a Table box for Dine in, Add Customer for Takeaway / Delivery (dashed until chosen) */

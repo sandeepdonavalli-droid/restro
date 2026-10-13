@@ -133,9 +133,9 @@ function renderPages(){
   pages.forEach((page,p)=>{
     const section=document.createElement('section');section.className='apps-page';section.dataset.page=p;section.id=`apps-page-${p}`;section.setAttribute('role','tabpanel');section.setAttribute('aria-label',`Apps page ${p+1}`);
     for(let position=0;position<PAGE_CAPACITY;position++){
-      const id=page[position];const slot=document.createElement('div');slot.className='app-slot'+(!id?' empty':'');slot.dataset.page=p;slot.dataset.position=position;
+      const id=page[position];const slot=document.createElement('div');slot.className='app-slot'+(!id?' empty':'')+(drag&&drag.id===id?' drop-target':'');slot.dataset.page=p;slot.dataset.position=position;
       if(id){
-        const item=apps[id],tile=document.createElement('div');tile.className='app-tile';tile.dataset.id=id;tile.tabIndex=0;tile.setAttribute('role','group');tile.setAttribute('aria-label',`${item.name}. Hold to rearrange or press M to move.`);
+        const item=apps[id],tile=document.createElement('div');tile.className='app-tile'+(drag&&drag.id===id?' drag-origin':'');tile.dataset.id=id;tile.tabIndex=0;tile.setAttribute('role','group');tile.setAttribute('aria-label',`${item.name}. Hold to rearrange or press M to move.`);
         const label=document.createElement('span');label.className='app-label';label.textContent=item.name;tile.append(artNode(item.art),label);
         if(arranging){
           const remove=document.createElement('button');remove.type='button';remove.className='app-remove-button';remove.setAttribute('aria-label',`Uninstall ${item.name}`);remove.title=`Uninstall ${item.name}`;
@@ -234,20 +234,37 @@ function updateMovePositions(){
   for(let i=0;i<length;i++){const option=document.createElement('option');option.value=String(i);option.textContent=pages[page][i]?`Before ${apps[pages[page][i]].name}`:pages[page].length?'After the last app':'First app';$('#move-position').append(option);}
 }
 function startDrag(tile,event){
-  if(drag)return;const id=tile.dataset.id,rect=tile.getBoundingClientRect(),ghost=tile.cloneNode(true);setArranging(true);ghost.classList.add('drag-ghost');ghost.tabIndex=-1;ghost.setAttribute('aria-hidden','true');ghost.style.width=`${rect.width}px`;ghost.style.height=`${rect.height}px`;ghost.style.left=`${event.clientX}px`;ghost.style.top=`${event.clientY}px`;document.body.append(ghost);$(`.app-tile[data-id="${id}"]`).classList.add('drag-origin');
-  drag={id,ghost,startPage:currentPage,edgeTimer:null,edgeDirection:0,target:null,lastX:event.clientX,lastY:event.clientY};gesture=null;viewport.setPointerCapture(event.pointerId);
+  if(drag)return;const id=tile.dataset.id,rect=tile.getBoundingClientRect(),ghost=tile.cloneNode(true);setArranging(true);ghost.classList.add('drag-ghost');ghost.tabIndex=-1;ghost.setAttribute('aria-hidden','true');ghost.style.width=`${rect.width}px`;ghost.style.height=`${rect.height}px`;ghost.style.left=`${event.clientX}px`;ghost.style.top=`${event.clientY}px`;document.body.append(ghost);const origin=$(`.app-tile[data-id="${id}"]`);origin.classList.add('drag-origin');origin.closest('.app-slot')?.classList.add('drop-target');
+  drag={id,ghost,startPage:currentPage,edgeTimer:null,edgeDirection:0,target:null,lastX:event.clientX,lastY:event.clientY,original:pages.map(page=>[...page]),previewKey:''};gesture=null;viewport.setPointerCapture(event.pointerId);
+}
+// Where each app sits right now (its slot, which never tilts), to slide apps smoothly to their new places.
+function appPlaces(){const places=new Map();$$('.apps-page .app-tile').forEach(tile=>{const slot=tile.closest('.app-slot');places.set(tile.dataset.id,{page:slot.dataset.page,rect:slot.getBoundingClientRect()});});return places;}
+function slideFrom(before){
+  $$('.apps-page .app-tile').forEach(tile=>{
+    const was=before.get(tile.dataset.id),slot=tile.closest('.app-slot');if(!was||was.page!==slot.dataset.page||tile.classList.contains('drag-origin'))return;
+    const now=slot.getBoundingClientRect(),dx=was.rect.left-now.left,dy=was.rect.top-now.top;if(Math.abs(dx)<2&&Math.abs(dy)<2)return;
+    try{tile.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'translate(0,0)'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)',composite:'add'});}catch{}
+  });
+}
+// While dragging, the other apps make room live: the held app's place shows where it will land.
+function previewDrag(page,position){
+  const before=appPlaces();
+  pages=RestroLayout.place(drag.original,drag.id,page,position).pages;
+  renderPages();slideFrom(before);
 }
 function updateDrag(event){
   if(!drag)return;drag.lastX=event.clientX;drag.lastY=event.clientY;drag.ghost.style.left=`${event.clientX}px`;drag.ghost.style.top=`${event.clientY}px`;
-  const target=document.elementFromPoint(event.clientX,event.clientY)?.closest('.app-slot');$$('.drop-target').forEach(slot=>slot.classList.remove('drop-target'));
-  drag.target=target&&Number(target.dataset.page)===currentPage?{page:currentPage,position:Number(target.dataset.position)}:null;if(target&&drag.target)target.classList.add('drop-target');
+  const target=document.elementFromPoint(event.clientX,event.clientY)?.closest('.app-slot');
+  drag.target=target&&Number(target.dataset.page)===currentPage?{page:currentPage,position:Number(target.dataset.position)}:null;
+  if(drag.target){const key=`${drag.target.page}:${drag.target.position}`;if(key!==drag.previewKey){drag.previewKey=key;previewDrag(drag.target.page,drag.target.position);}}
   const bounds=viewport.getBoundingClientRect();const inside=event.clientY>=bounds.top&&event.clientY<=bounds.bottom;
   const direction=inside&&event.clientX>bounds.right-46&&currentPage<pages.length-1?1:inside&&event.clientX<bounds.left+46&&currentPage>0?-1:0;
-  if(direction!==drag.edgeDirection){clearTimeout(drag.edgeTimer);drag.edgeDirection=direction;if(direction)drag.edgeTimer=setTimeout(()=>{if(!drag)return;goToPage(currentPage+direction);drag.edgeDirection=0;drag.target=null;},650);}
+  if(direction!==drag.edgeDirection){clearTimeout(drag.edgeTimer);drag.edgeDirection=direction;if(direction)drag.edgeTimer=setTimeout(()=>{if(!drag)return;goToPage(currentPage+direction);drag.edgeDirection=0;drag.target=null;drag.previewKey='';},650);}
 }
 function endDrag(cancel=false){
   if(!drag)return;const state=drag;clearTimeout(state.edgeTimer);state.ghost.remove();$$('.drop-target,.drag-origin').forEach(node=>node.classList.remove('drop-target','drag-origin'));drag=null;
-  if(!cancel&&state.target){const result=moveApp(state.id,state.target.page,state.target.position);toast(`${apps[state.id].name} moved to page ${result.page}`);}
+  if(cancel){if(JSON.stringify(pages)!==JSON.stringify(state.original)){pages=state.original;renderPages();}else updatePage();return;}
+  if(JSON.stringify(pages)!==JSON.stringify(state.original)){saveLayout();renderPages();toast(`${apps[state.id].name} moved to page ${pages.findIndex(page=>page.includes(state.id))+1}`);}
   else updatePage();
 }
 viewport.addEventListener('pointerdown',event=>{

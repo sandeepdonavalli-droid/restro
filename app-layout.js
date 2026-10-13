@@ -33,6 +33,19 @@ const RestroLayout=Object.freeze({
     }
     return {pages:next,page:targetPage,position};
   },
+  // Dragging: the app takes exactly the place it is held over; apps after it on that page shift along
+  // (a full page passes its last app on to the next page). Used live while dragging and on drop.
+  place(pages,id,targetPage,targetPosition){
+    const next=pages.map(page=>[...page]);
+    const fromPage=next.findIndex(page=>page.includes(id));
+    if(fromPage===-1)throw new Error('Choose an installed app.');
+    next[fromPage].splice(next[fromPage].indexOf(id),1);
+    while(next.length<=targetPage)next.push([]);
+    const position=Math.max(0,Math.min(Number(targetPosition)||0,next[targetPage].length));
+    next[targetPage].splice(position,0,id);
+    for(let p=targetPage;next[p].length>15;p++){const carry=next[p].pop();if(!next[p+1])next.push([]);next[p+1].unshift(carry);}
+    return {pages:next,page:targetPage,position};
+  },
   addPage(pages){return [...pages.map(page=>[...page]),[]];},
   deletePage(pages,index){
     if(!Number.isInteger(index)||index<0||index>=pages.length)throw new Error('Choose a valid page.');
