@@ -155,8 +155,8 @@
   }
 
   function menuPanel() {
-    const search = el('label', { class: 'ctr-search' }, svg(ICON.search), el('span', { class: 'visually-hidden' }, 'Search menu or scan barcode'),
-      el('input', { id: 'counter-search', type: 'search', placeholder: 'Search menu or scan barcode', autocomplete: 'off', enterkeyhint: 'search', value: query,
+    const search = el('label', { class: 'ctr-search' }, svg(ICON.search), el('span', { class: 'visually-hidden' }, 'Search'),
+      el('input', { id: 'counter-search', type: 'search', placeholder: 'Search', autocomplete: 'off', enterkeyhint: 'search', value: query,
         oninput: e => { query = e.target.value; renderMenuBody(); },
         onkeydown: e => {
           if (e.key !== 'Enter') return;

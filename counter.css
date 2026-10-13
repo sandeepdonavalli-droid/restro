@@ -134,3 +134,12 @@
 @media (max-width:900px){.ctr-shell{grid-template-columns:minmax(300px,42%) minmax(0,1fr)}.ctr-tool{padding:0 12px}.ctr-grid.categories{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}}
 @media (max-width:700px){.ctr-shell{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr)}.ctr-order{border-right:0;border-bottom:1px solid var(--palette-line)}}
 @media (prefers-reduced-motion:reduce){.ctr-category,.ctr-item{transition:none}.ctr-line.just-added{animation:none}}
+
+/* Compact search row (half size) */
+.ctr-menu-top{gap:6px;padding:6px 18px}
+.ctr-search{min-height:24px;gap:6px;padding:0 10px;border-radius:12px}
+.ctr-search svg{width:12px;height:12px}
+.ctr-search input{min-height:22px;font-size:13px}
+.ctr-tool{min-height:24px;gap:4px;padding:0 9px;border-radius:12px;font-size:12px}
+.ctr-tool svg{width:12px;height:12px}
+.ctr-tool .ctr-badge{min-width:16px;height:16px;padding:0 4px;font-size:10px}
