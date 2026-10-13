@@ -90,7 +90,6 @@
     const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode(shortcuts.find(item => item.id === 'register').art) : document.createElement('span');
     art.classList.add('ctr-title-icon'); return art;
   };
-  const vegMark = veg => el('span', { class: `veg-mark ${veg ? 'veg' : 'non-veg'}`, role: 'img', 'aria-label': veg ? 'Vegetarian' : 'Non-vegetarian' });
 
   // ---------- actions ----------
   function add(id) {
@@ -242,8 +241,8 @@
   function itemTile(item) {
     const qty = order.lines.filter(l => l.id === item.id).reduce((n, l) => n + l.qty, 0);
     return el('button', { type: 'button', class: 'ctr-item', style: `--stripe:${categoryOf.get(item.id).color}`, onclick: () => add(item.id), 'aria-label': `Add ${item.name}, ${rupees(item.price)}${qty ? `, ${qty} in order` : ''}` },
-      el('span', { class: 'ctr-item-top' }, vegMark(item.veg), qty ? el('span', { class: 'ctr-badge' }, String(qty)) : null),
-      el('span', { class: 'ctr-item-name' }, item.name), el('span', { class: 'ctr-item-price' }, rupees(item.price)));
+      el('span', { class: 'ctr-item-name' }, item.name),
+      el('span', { class: 'ctr-item-foot' }, el('span', { class: 'ctr-item-price' }, rupees(item.price)), qty ? el('span', { class: 'ctr-badge' }, String(qty)) : null));
   }
   function renderMenuBody() {
     saveDraft(); // every change to the order or to the menu view comes through here, so it is always kept

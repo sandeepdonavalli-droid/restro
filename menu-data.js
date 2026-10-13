@@ -1,7 +1,7 @@
 'use strict';
 // SAMPLE MENU for the Counter screen. Replace with the restaurant's real menu
 // (later this comes from the RESTRO backend). Prices in rupees, before GST.
-// veg: true = green dot, false = red dot (Indian food labelling convention).
+// veg: true / false is kept in the data (for reports and filters later); it is not shown on screen.
 window.RestroMenu = {
   sample: true,
   currency: 'INR',
