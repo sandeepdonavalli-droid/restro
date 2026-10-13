@@ -57,6 +57,11 @@
     held: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', chevron: '<path d="m15 6-6 6 6 6"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
     check: '<path d="m5 12.5 4.5 4.5L19 7"/>'
   };
+  // The Counter app's own artwork; it follows the active theme like the home tile.
+  const counterIcon = () => {
+    const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode(shortcuts.find(item => item.id === 'register').art) : document.createElement('span');
+    art.classList.add('ctr-title-icon'); return art;
+  };
   const vegMark = veg => el('span', { class: `veg-mark ${veg ? 'veg' : 'non-veg'}`, role: 'img', 'aria-label': veg ? 'Vegetarian' : 'Non-vegetarian' });
 
   // ---------- actions ----------
@@ -105,8 +110,10 @@
     const t = totals();
     const header = el('div', { class: 'ctr-order-head' },
       el('div', { class: 'ctr-titlebar' },
-        el('button', { class: 'ctr-icon-button', type: 'button', 'aria-label': 'Close Counter', onclick: () => dialog.close() }, svg(ICON.back)),
-        el('h2', { id: 'counter-title' }, 'Counter'),
+        el('div', { class: 'ctr-title-left' },
+          el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Close Counter', onclick: () => dialog.close() }, svg(ICON.back)),
+          el('h2', { id: 'counter-title' }, 'Counter')),
+        counterIcon(),
         el('button', { class: `ctr-text-button ${clearArmed ? 'armed' : ''}`, type: 'button', disabled: !order.lines.length, onclick: () => {
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
           order.lines = []; order.heldId = null; clearArmed = false; selected = null; render(); toast('Order cleared');
