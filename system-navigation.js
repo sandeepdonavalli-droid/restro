@@ -22,10 +22,11 @@
     document.querySelector('#lock-restaurant').textContent=document.querySelector('#restaurant-name').textContent;
   }
   function remember(dialog){
-    const appIds={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio'};
+    const appIds={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','customers-dialog':'customers'};
     const controls={'calculator-dialog':'calculator','camera-dialog':'camera'};
     const insightViews={'order-details-dialog':{id:'last-order',name:'Last order',symbol:'receipt'},'most-sold-dialog':{id:'most-sold',name:'Most sold items',symbol:'chef'}};
     if(dialog.id==='counter-dialog'){recentApps.delete('shortcut:register');recentApps.set('shortcut:register',{shortcutId:'register',name:'Counter'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
+    if(dialog.id==='floor-dialog'){recentApps.delete('shortcut:floor');recentApps.set('shortcut:floor',{shortcutId:'floor',name:'Floor'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
     if(insightViews[dialog.id]){
       const view=insightViews[dialog.id],key=`insight:${view.id}`;recentApps.delete(key);recentApps.set(key,{insightId:view.id,name:view.name,symbol:view.symbol});
       if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;
@@ -65,6 +66,7 @@
   function openRecent(recent){
     recents.close();
     if(recent.shortcutId==='register')window.RestroCounter?.open();
+    else if(recent.shortcutId==='floor')window.RestroFloor?.open();
     else if(recent.insightId)window.RestroInsights.openDetail(recent.insightId);
     else if(recent.appId)openApp(recent.appId);
     else if(recent.control==='pager-hub')window.RestroPagerHub?.open();
@@ -144,7 +146,7 @@
   document.querySelector('#system-back').addEventListener('click',async()=>{
     if(locked)return;
     const opened=dialogs.filter(dialog=>dialog.open).at(-1);
-    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;opened.close();return;}
+    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;opened.close();return;}
     if(arranging){endDrag(true);setArranging(false);return;}
     if(currentPage>0){goToPage(currentPage-1);return;}
     await nativeAction('goBack');

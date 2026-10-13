@@ -115,6 +115,12 @@ for(const item of shortcuts){
     node.addEventListener('click',()=>window.RestroCounter?.open());
     node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroCounter?.open();}});
   }
+  if(item.id==='floor'){
+    // Floor shows the tables; Counter also opens it to pick a table for a dine-in order.
+    node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Floor');
+    node.addEventListener('click',()=>window.RestroFloor?.open());
+    node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroFloor?.open();}});
+  }
   if(item.id==='pager-hub'){
     // Pager Hub opens from here and from its quick-controls tile.
     node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Pager Hub');
@@ -216,7 +222,7 @@ $('#delete-app-dialog').addEventListener('close',()=>{deleteAppId=null;const slo
 function syncInstalledControls(){$$('[data-control="settings"]').forEach(control=>{control.hidden=!isInstalledApp('settings');});}
 window.addEventListener('restro:app-uninstalled',syncInstalledControls);syncInstalledControls();
 function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroProfile?.fill();window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
-function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}}
+function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}}
 function openMove(id){
   moveId=id;setArranging(true);$('#move-description').textContent=`Choose where to insert ${apps[id].name}. Following apps keep their order.`;
   const select=$('#move-page');select.replaceChildren();pages.forEach((_,p)=>{const option=document.createElement('option');option.value=p;option.textContent=`Page ${p+1}`;select.append(option);});
@@ -294,7 +300,7 @@ $('#apps-panel').addEventListener('pointerup',event=>{
 });
 $('#apps-panel').addEventListener('pointercancel',()=>{blankPanelPress=null;});
 $$('[data-close]').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
-$$('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target!==dialog||dialog.classList.contains('settings-app')||dialog.classList.contains('counter-app'))return;const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom){dialog.close();if(arranging)setArranging(false);}}));
+$$('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target!==dialog||dialog.classList.contains('settings-app')||dialog.classList.contains('counter-app')||dialog.classList.contains('floor-app')||dialog.classList.contains('customers-app'))return;const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom){dialog.close();if(arranging)setArranging(false);}}));
 $('#move-page').addEventListener('change',updateMovePositions);
 $('#move-form').addEventListener('submit',event=>{event.preventDefault();const result=moveApp(moveId,Number($('#move-page').value),Number($('#move-position').value));$('#move-dialog').close();toast(`${apps[moveId].name} moved to page ${result.page}`);});
 const uppercaseRestaurantName=value=>value.trim().toLocaleUpperCase('en-IN').slice(0,48);

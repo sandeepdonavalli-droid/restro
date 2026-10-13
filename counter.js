@@ -37,7 +37,10 @@
   const nextNumber = () => { const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
 
   // ---------- state ----------
-  const blankOrder = () => ({ type: 'dine-in', split: false, table: '', lines: [], heldId: null });
+  // A new order starts with no order type. Dine in can have a table (picked on the Floor); Takeaway / Delivery a customer.
+  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, lines: [], heldId: null });
+  const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
+    ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery'];
   // With Split on, each line keeps its own type; otherwise every line follows the order type.
   const lineType = line => order.split ? (line.type || order.type) : order.type;
@@ -55,8 +58,8 @@
     if (!saved || typeof saved !== 'object') return;
     const o = saved.order;
     if (o && Array.isArray(o.lines)) {
-      const type = TYPES.includes(o.type) ? o.type : 'dine-in';
-      order = { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', heldId: typeof o.heldId === 'string' ? o.heldId : null,
+      const type = TYPES.includes(o.type) ? o.type : null;
+      order = { type, split: Boolean(type) && o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer), heldId: typeof o.heldId === 'string' ? o.heldId : null,
         lines: o.lines.filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000).map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type })) };
       tidy();
     }
@@ -101,7 +104,9 @@
     'dine-in': '<path d="M7 3v7a2 2 0 0 0 2 2v9M11 3v7a2 2 0 0 1-2 2M9 3v6M16 21V3c2 1 3 3.5 3 7h-3"/>',
     takeaway: '<path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
     delivery: '<path d="M3 7h10v9H3zM13 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.7"/><circle cx="17" cy="17.5" r="1.7"/>',
-    split: '<path d="M12 3v7M12 10l-6 6M12 10l6 6M6 16v5M18 16v5"/>'
+    split: '<path d="M12 3v7M12 10l-6 6M12 10l6 6M6 16v5M18 16v5"/>',
+    person: '<circle cx="12" cy="8" r="3.6"/><path d="M5 19.5c.9-3.6 3.6-5.6 7-5.6s6.1 2 7 5.6"/>',
+    personAdd: '<circle cx="10" cy="8" r="3.6"/><path d="M3.5 19.5c.8-3.4 3.3-5.6 6.5-5.6 1.6 0 3 .5 4.1 1.4M18.5 13v6M15.5 16h6"/>'
   };
   // The Counter app's own artwork; it follows the active theme like the home tile.
   const counterIcon = () => {
@@ -141,7 +146,7 @@
   function setSplit(on) {
     if (on) order.lines.forEach(l => { l.type = l.type || order.type; });
     order.split = on;
-    if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); toast(`Split off · all items ${typeLabel[order.type].toLowerCase()}`); }
+    if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); if (typeLabel[order.type]) toast(`Split off · all items ${typeLabel[order.type].toLowerCase()}`); }
     selected = null; render();
   }
   function hold() {
@@ -158,14 +163,15 @@
     const entry = held.find(h => h.heldId === id); if (!entry) return;
     if (order.lines.length && order.heldId !== id) hold();
     held = held.filter(h => h.heldId !== id); store(HELD_KEY, held);
-    order = { type: entry.type, split: Boolean(entry.split), table: entry.table || '', lines: entry.lines.filter(l => items.has(l.id)).map(l => ({ ...l, type: l.type || entry.type })), heldId: entry.heldId };
+    const type = TYPES.includes(entry.type) ? entry.type : null;
+    order = { type, split: Boolean(type) && Boolean(entry.split), table: entry.table || '', customer: cleanCustomer(entry.customer), lines: entry.lines.filter(l => items.has(l.id)).map(l => ({ ...l, type: l.type || type })), heldId: entry.heldId };
     sheet = null; selected = null; render(); toast('Order resumed');
   }
   function removeHeld(id) { held = held.filter(h => h.heldId !== id); store(HELD_KEY, held); render(); }
   function complete(received) {
     const t = totals(); if (!t.count || received < t.total) return;
     const number = nextNumber();
-    const done = { number, type: order.type, split: order.split, table: order.table, lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...t, method: 'cash', received, change: received - t.total, paidAt: new Date().toISOString() };
+    const done = { number, type: order.type, split: order.split, table: order.table, customer: order.customer, lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...t, method: 'cash', received, change: received - t.total, paidAt: new Date().toISOString() };
     const list = load(DONE_KEY, []); store(DONE_KEY, [done, ...(Array.isArray(list) ? list : [])].slice(0, 500));
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     receipt = done; sheet = 'receipt'; order = blankOrder(); selected = null; category = null; query = ''; cashInput = ''; render();
@@ -175,14 +181,43 @@
 
   // ---------- rendering ----------
   const typeLabel = { 'dine-in': 'Dine in', takeaway: 'Takeaway', delivery: 'Delivery' };
+  const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
+  // Middle of the title row: empty until an order type is chosen. Dine in → a Table box (opens the Floor);
+  // Takeaway / Delivery → Add Customer (opens Customers). Once chosen, they show the table / the customer.
+  function orderTarget() {
+    if (order.type === 'dine-in') {
+      const name = tableName(order.table);
+      return el('button', { type: 'button', class: `ctr-table-box${name ? ' set' : ''}`, 'aria-label': name ? `Table ${name}. Tap to change the table` : 'Select a table', onclick: pickTable },
+        el('span', { class: 'ctr-table-label' }, 'Table'), el('strong', {}, name || 'Select'));
+    }
+    if (order.type === 'takeaway' || order.type === 'delivery') {
+      const c = order.customer;
+      return el('button', { type: 'button', class: `ctr-customer${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer },
+        svg(c ? ICON.person : ICON.personAdd), el('span', {}, c ? c.name : 'Add Customer'));
+    }
+    return el('span', { class: 'ctr-title-gap', 'aria-hidden': 'true' });
+  }
+  function pickTable() {
+    window.RestroFloor?.open({ pick: true, current: order.table, onPick: table => { order.table = table.id; render(); } });
+  }
+  function pickCustomer() {
+    window.RestroCustomers?.open({ pick: true, needAddress: order.type === 'delivery', current: order.customer?.id, onPick: c => { order.customer = cleanCustomer(c); render(); } });
+  }
+  // How an order is described in Held orders and on the receipt: type, then the table or the customer.
+  const describe = o => {
+    const type = o.split ? `Split · ${[...new Set(o.lines.map(l => typeLabel[l.type || o.type]).filter(Boolean))].join(' + ')}` : typeLabel[o.type] || '';
+    const who = o.type === 'dine-in' && o.table ? `Table ${tableName(o.table)}` : o.type && o.type !== 'dine-in' && o.customer ? o.customer.name : '';
+    return [type, who].filter(Boolean).join(' · ');
+  };
   function orderPanel() {
     const t = totals();
     const header = el('div', { class: 'ctr-order-head' },
       el('div', { class: 'ctr-titlebar' },
         el('div', { class: 'ctr-title-left' },
           el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Home', title: 'Home', onclick: () => { const home = document.querySelector('#system-home'); if (home) home.click(); else dialog.close(); } }, svg(ICON.home)),
-          el('h2', { id: 'counter-title', tabindex: '-1' }, 'Counter')),
-        counterIcon(),
+          counterIcon(),
+          el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter')),
+        orderTarget(),
         el('button', { class: `ctr-text-button ctr-clear ${clearArmed ? 'armed' : ''}`, type: 'button', 'aria-label': clearArmed ? 'Tap again to clear the order' : 'Clear order', title: 'Clear order', disabled: !order.lines.length, onclick: () => {
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
           order.lines = []; order.heldId = null; clearArmed = false; selected = null; render(); toast('Order cleared');
@@ -190,7 +225,7 @@
       // Order type: names only, two rows on the left — Dine in · Takeaway / Delivery · Split.
       el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
         ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key])),
-        el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, onclick: () => setSplit(!order.split) }, 'Split')));
+        el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Split')));
 
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
@@ -542,7 +577,7 @@
       for (const h of held) {
         const count = h.lines.reduce((n, l) => n + l.qty, 0), time = new Date(h.savedAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
         list.append(el('li', {},
-          el('div', { class: 'ctr-held-copy' }, el('strong', {}, h.split ? `Split · ${[...new Set(h.lines.map(l => typeLabel[l.type || h.type]))].join(' + ')}` : typeLabel[h.type]), el('span', {}, `${count} item${count === 1 ? '' : 's'} · ${money(h.total)} · saved ${time}`)),
+          el('div', { class: 'ctr-held-copy' }, el('strong', {}, describe(h) || 'Order'), el('span', {}, `${count} item${count === 1 ? '' : 's'} · ${money(h.total)} · saved ${time}`)),
           el('button', { type: 'button', class: 'ctr-text-button danger', 'aria-label': 'Delete held order', onclick: () => removeHeld(h.heldId) }, svg(ICON.trash)),
           el('button', { type: 'button', class: 'primary-button ctr-resume', onclick: () => resume(h.heldId) }, 'Resume')));
       }
@@ -554,7 +589,7 @@
         el('div', { class: 'ctr-sheet ctr-receipt', role: 'dialog', 'aria-label': 'Payment received' },
           el('span', { class: 'ctr-done-icon' }, svg(ICON.check)),
           el('h3', {}, 'Payment received'),
-          el('p', { class: 'ctr-receipt-meta' }, `Order #${receipt.number} · ${receipt.split ? `Split · ${[...new Set(receipt.lines.map(l => typeLabel[l.type]))].join(' + ')}` : typeLabel[receipt.type]} · Cash`),
+          el('p', { class: 'ctr-receipt-meta' }, [`Order #${receipt.number}`, describe(receipt), 'Cash'].filter(Boolean).join(' · ')),
           el('dl', { class: 'ctr-sums' },
             el('dt', {}, 'Total'), el('dd', {}, money(receipt.total)),
             el('dt', {}, 'Cash received'), el('dd', {}, money(receipt.received)),
@@ -609,6 +644,11 @@
     // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
     open() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); },
     goBack,
+    tablesInUse() {
+      const used = held.filter(h => h.table && (h.type === 'dine-in' || h.split)).map(h => h.table);
+      if (order.table && order.lines.length && (order.type === 'dine-in' || order.split)) used.push(order.table);
+      return used;
+    },
     get order() { return JSON.parse(JSON.stringify(order)); }
   });
 })();

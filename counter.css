@@ -150,7 +150,7 @@
 .ctr-titlebar h2{flex:none;font-size:13px;font-weight:600;line-height:1}
 .ctr-back{width:24px;height:24px;min-height:24px}
 .ctr-back svg{width:14px;height:14px}
-.ctr-title-icon{display:block;width:32px;height:24px;justify-self:center}
+.ctr-title-icon{display:block;width:36px;height:28px}
 .ctr-titlebar .ctr-text-button{justify-self:end;min-height:24px;padding:2px 9px;border-radius:12px;font-size:12px}
 
 /* Home button: always highlighted in a light tint of the theme accent */
@@ -180,11 +180,9 @@
 /* Order ticket: no divider lines between header, items and totals */
 .ctr-order-head,.ctr-foot{border-top:0;border-bottom:0}
 
-/* Title row as a banner in a soft tint of the theme */
-.ctr-titlebar{margin:2px 0 2px 8px;padding:6px 8px 6px 6px;border-radius:14px;background:linear-gradient(120deg,color-mix(in srgb,var(--palette-accent) 16%,var(--palette-tile-top)),color-mix(in srgb,var(--palette-accent) 7%,var(--palette-tile-top)));border:1px solid color-mix(in srgb,var(--palette-accent) 22%,transparent);box-shadow:0 2px 6px var(--palette-soft-shadow)}
-.ctr-titlebar .ctr-back{background:var(--palette-tile-top)}
-.ctr-titlebar .ctr-text-button:not(.armed){background:var(--palette-tile-top)}
-.ctr-titlebar .ctr-text-button:disabled{background:transparent}
+/* Title row: no banner, just a line underneath. Home and the Counter icon on the left, the order's table or customer in the middle, Trash on the right */
+.ctr-titlebar{margin:0 0 0 8px;padding:0 0 8px 4px;min-height:50px;border-bottom:1px solid var(--palette-line)}
+.ctr-title-left{gap:8px}
 
 /* Clear order: trash icon; asks once more before clearing */
 .ctr-titlebar .ctr-clear{width:24px;height:24px;min-height:24px;padding:0;justify-content:center;border-radius:50%;color:var(--palette-accent-ink)}
@@ -269,3 +267,17 @@
 .ctr-page .ctr-drag-origin{opacity:.2}
 .ctr-drag-ghost{position:fixed;z-index:30;margin:0;pointer-events:none;transform:translate(-50%,-50%) scale(1.05);transition:none;animation:none;box-shadow:0 12px 26px var(--palette-shadow,#0004);opacity:.96}
 @media (prefers-reduced-motion:reduce){.ctr-menu.arranging .ctr-page>*{animation:none}.ctr-track{transition:none}}
+/* Middle of the title row: a Table box for Dine in, Add Customer for Takeaway / Delivery (dashed until chosen) */
+.ctr-title-gap{display:block;width:42px;height:42px}
+.ctr-table-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:42px;height:42px;margin:0;padding:0;border:1.5px dashed color-mix(in srgb,var(--palette-accent) 55%,transparent);border-radius:11px;background:var(--palette-accent-wash);color:var(--palette-accent-ink);cursor:pointer}
+.ctr-table-label{font-size:10px;font-weight:600;line-height:1;opacity:.85}
+.ctr-table-box strong{font-size:11.5px;font-weight:700;line-height:1.1}
+.ctr-table-box.set{border-style:solid;border-color:var(--palette-accent);background:var(--palette-accent);color:var(--palette-on-accent)}
+.ctr-table-box.set strong{font-size:18px}
+.ctr-customer{display:inline-flex;align-items:center;gap:6px;max-width:200px;min-height:34px;margin:0;padding:0 12px;border:1.5px dashed color-mix(in srgb,var(--palette-accent) 55%,transparent);border-radius:11px;background:var(--palette-accent-wash);color:var(--palette-accent-ink);font-size:14px;font-weight:600;cursor:pointer}
+.ctr-customer svg{width:17px;height:17px}
+.ctr-customer span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctr-customer.set{border-style:solid;border-color:color-mix(in srgb,var(--palette-accent) 45%,transparent);background:var(--palette-tile-top);color:var(--palette-text)}
+.ctr-table-box:active,.ctr-customer:active{transform:scale(.96)}
+/* Split needs an order type first */
+.ctr-type-btn.ctr-split:disabled{opacity:.45;cursor:default;border-color:var(--palette-edge)}
