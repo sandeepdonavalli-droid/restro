@@ -282,5 +282,13 @@
 .ctr-titlebar{position:relative;min-height:36px;margin:0 0 0 8px;padding:1px 0 2px 4px;border-bottom:0}
 .ctr-titlebar::after{content:"";position:absolute;left:43px;right:-16px;bottom:0;height:1px;background:var(--palette-line);pointer-events:none}
 .ctr-menu-top{min-height:36px;padding:1px 18px 2px}
-/* Home: a rounded square whose bottom edge sits on the header line (the line carries on just to its right) */
-.ctr-titlebar .ctr-back{position:relative;top:2px;border-radius:8px}
+/* Home: a rounded block whose bottom edge sits on the header line (the line carries on just to its right).
+   It reaches out to the left edge for a bigger look and more room to tap. */
+.ctr-titlebar .ctr-back{position:relative;top:2px;width:47px;margin-left:-14px;border-radius:8px}
+.ctr-titlebar .ctr-back svg{width:20px;height:20px}
+/* Everything above the header line is one panel: one colour across the whole width and no divider in it.
+   The divider between the order and the menu starts at the header line. */
+.ctr-menu-top{background:var(--palette-tile-top)}
+.ctr-order{position:relative;border-right:0}
+.ctr-order::after{content:"";position:absolute;top:36px;right:0;bottom:0;width:1px;background:var(--palette-line);pointer-events:none}
+@media (max-width:700px){.ctr-order::after{display:none}}
