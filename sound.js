@@ -129,7 +129,7 @@
   // Touch sounds: a soft click on buttons and switches.
   document.addEventListener('pointerdown', event => {
     if (!touchSounds || event.button !== 0) return;
-    if (!event.target.closest?.('button,[role="switch"],input[type="checkbox"],.app-tile,a')) return;
+    if (!event.target.closest?.('button,[role="button"],[role="switch"],input[type="checkbox"],input[type="radio"],select,.app-tile,.shortcut,.page-dot,a')) return;
     if (event.target.closest('.touch-style')) return; // the picker plays its own preview
     const now = performance.now(); if (now - lastTap < 60) return; lastTap = now;
     playTouch();
