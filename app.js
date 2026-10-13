@@ -237,15 +237,18 @@ function startDrag(tile,event){
   if(drag)return;const id=tile.dataset.id,rect=tile.getBoundingClientRect(),ghost=tile.cloneNode(true);setArranging(true);ghost.classList.add('drag-ghost');ghost.tabIndex=-1;ghost.setAttribute('aria-hidden','true');ghost.style.width=`${rect.width}px`;ghost.style.height=`${rect.height}px`;ghost.style.left=`${event.clientX}px`;ghost.style.top=`${event.clientY}px`;document.body.append(ghost);const origin=$(`.app-tile[data-id="${id}"]`);origin.classList.add('drag-origin');origin.closest('.app-slot')?.classList.add('drop-target');
   drag={id,ghost,startPage:currentPage,edgeTimer:null,edgeDirection:0,target:null,lastX:event.clientX,lastY:event.clientY,original:pages.map(page=>[...page]),previewKey:''};gesture=null;viewport.setPointerCapture(event.pointerId);
 }
-// Where each app sits right now (its slot, which never tilts), to slide apps smoothly to their new places.
-function appPlaces(){const places=new Map();$$('.apps-page .app-tile').forEach(tile=>{const slot=tile.closest('.app-slot');places.set(tile.dataset.id,{page:slot.dataset.page,rect:slot.getBoundingClientRect()});});return places;}
+// Where each app is shown right now (its centre, so the jiggle doesn't matter and a slide in progress is included).
+function appPlaces(){const places=new Map();$$('.apps-page .app-tile').forEach(tile=>{const r=tile.getBoundingClientRect();places.set(tile.dataset.id,{page:tile.closest('.app-slot').dataset.page,x:r.left+r.width/2,y:r.top+r.height/2});});return places;}
+// Apps that changed place slide from where they were shown to their new place.
 function slideFrom(before){
   $$('.apps-page .app-tile').forEach(tile=>{
-    const was=before.get(tile.dataset.id),slot=tile.closest('.app-slot');if(!was||was.page!==slot.dataset.page||tile.classList.contains('drag-origin'))return;
-    const now=slot.getBoundingClientRect(),dx=was.rect.left-now.left,dy=was.rect.top-now.top;if(Math.abs(dx)<2&&Math.abs(dy)<2)return;
+    const was=before.get(tile.dataset.id);if(!was||was.page!==tile.closest('.app-slot').dataset.page||tile.classList.contains('drag-origin'))return;
+    const r=tile.getBoundingClientRect(),dx=was.x-(r.left+r.width/2),dy=was.y-(r.top+r.height/2);if(Math.abs(dx)<1&&Math.abs(dy)<1)return;
     try{tile.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'translate(0,0)'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)',composite:'add'});}catch{}
   });
 }
+// The place under the finger, from the grid itself: apps sliding past never change it (no back-and-forth shaking).
+function slotAt(x,y){return $$(`.apps-page[data-page="${currentPage}"] .app-slot`).find(slot=>{const r=slot.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;})||null;}
 // While dragging, the other apps make room live: the held app's place shows where it will land.
 function previewDrag(page,position){
   const before=appPlaces();
@@ -254,7 +257,7 @@ function previewDrag(page,position){
 }
 function updateDrag(event){
   if(!drag)return;drag.lastX=event.clientX;drag.lastY=event.clientY;drag.ghost.style.left=`${event.clientX}px`;drag.ghost.style.top=`${event.clientY}px`;
-  const target=document.elementFromPoint(event.clientX,event.clientY)?.closest('.app-slot');
+  const target=slotAt(event.clientX,event.clientY);
   drag.target=target&&Number(target.dataset.page)===currentPage?{page:currentPage,position:Number(target.dataset.position)}:null;
   if(drag.target){const key=`${drag.target.page}:${drag.target.position}`;if(key!==drag.previewKey){drag.previewKey=key;previewDrag(drag.target.page,drag.target.position);}}
   const bounds=viewport.getBoundingClientRect();const inside=event.clientY>=bounds.top&&event.clientY<=bounds.bottom;

@@ -398,23 +398,36 @@
     gesture = null;
     try { dialog.querySelector('.ctr-pager').setPointerCapture(pointerId); } catch {}
   }
-  // Where each tile sits in its page (layout position, unaffected by the jiggle), to slide tiles to their new places.
-  const tilePlaces = () => new Map([...dialog.querySelectorAll('.ctr-page [data-id]')].map(t => [t.dataset.id, { page: t.closest('.ctr-page').dataset.page, x: t.offsetLeft, y: t.offsetTop }]));
+  // Where each tile is shown right now: its centre (the jiggle doesn't move it), including a slide in progress.
+  const centreOf = t => { const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
   function previewOrder(order) {
-    const before = tilePlaces(), byId = new Map([...dialog.querySelectorAll('.ctr-page [data-id]')].map(t => [t.dataset.id, t]));
+    const tiles = [...dialog.querySelectorAll('.ctr-page [data-id]')], byId = new Map(tiles.map(t => [t.dataset.id, t]));
+    const before = new Map(tiles.map(t => [t.dataset.id, { page: t.closest('.ctr-page').dataset.page, ...centreOf(t) }]));
+    tiles.forEach(t => t.getAnimations().forEach(a => { if (a.id === 'ctr-slide') a.cancel(); }));
     drag.order = order;
     buildPages(order.map(id => byId.get(id)).filter(Boolean));
+    // Tiles that changed place slide from where they were shown to their new place.
     for (const tile of dialog.querySelectorAll('.ctr-page [data-id]')) {
       const was = before.get(tile.dataset.id); if (!was || tile.dataset.id === drag.id || was.page !== tile.closest('.ctr-page').dataset.page) continue;
-      const dx = was.x - tile.offsetLeft, dy = was.y - tile.offsetTop; if (!dx && !dy) continue;
-      try { tile.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', composite: 'add' }); } catch {}
+      const now = centreOf(tile), dx = was.x - now.x, dy = was.y - now.y; if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      try { const a = tile.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', composite: 'add' }); a.id = 'ctr-slide'; } catch {}
     }
+  }
+  // The place under the finger, worked out from the page's grid: tiles sliding past never change it (no back-and-forth shaking).
+  function cellAt(x, y) {
+    const pager = dialog.querySelector('.ctr-pager'), page = dialog.querySelector(`.ctr-page[data-page="${pageMemo.page}"]`);
+    if (!pager || !page || !menuLayout) return null;
+    const r = pager.getBoundingClientRect(), { cols, tileH } = menuLayout, colW = (r.width - (cols - 1) * GAP) / cols;
+    const px = x - r.left, py = y - r.top; if (px < 0 || py < 0 || px > r.width || py > r.height) return null;
+    const col = Math.floor(px / (colW + GAP)), row = Math.floor(py / (tileH + GAP));
+    if (col >= cols || px - col * (colW + GAP) > colW || py - row * (tileH + GAP) > tileH) return null; // in a gap between tiles
+    return page.children[row * cols + col] || null; // a tile, or an empty place
   }
   function moveDrag(x, y) {
     drag.ghost.style.left = `${x}px`; drag.ghost.style.top = `${y}px`;
     // Over another tile: take its place now (the others shift along). Over an empty place: go to the end.
-    const spot = document.elementFromPoint(x, y)?.closest?.('.ctr-page [data-id], .ctr-page .ctr-slot');
-    if (spot && Number(spot.closest('.ctr-page').dataset.page) === pageMemo.page && spot.dataset.id !== drag.id) {
+    const spot = cellAt(x, y);
+    if (spot && spot.dataset.id !== drag.id && (spot.dataset.id || spot.classList.contains('ctr-slot'))) {
       const order = drag.order.filter(id => id !== drag.id);
       order.splice(spot.classList.contains('ctr-slot') ? order.length : drag.order.indexOf(spot.dataset.id), 0, drag.id);
       if (order.join('|') !== drag.order.join('|')) previewOrder(order);
