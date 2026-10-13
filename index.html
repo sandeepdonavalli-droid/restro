@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%231b2022'/%3E%3Cpath d='M10 8h11a9 9 0 0 1 3 17l7 8h-9l-6-8v8h-6V8zm6 6v5h5a2.5 2.5 0 0 0 0-5z' fill='%23f6ae71'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css?v=26">
   <link rel="stylesheet" href="quality-layout.css?v=4">
-  <link rel="stylesheet" href="device-controls.css?v=2">
+  <link rel="stylesheet" href="device-controls.css?v=3">
   <link rel="stylesheet" href="system-navigation.css?v=6">
   <link rel="stylesheet" href="themes.css?v=2">
   <link rel="stylesheet" href="settings.css?v=7">
@@ -31,7 +31,7 @@
   <script src="settings.js?v=8" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
-  <script src="system-navigation.js?v=6" defer></script>
+  <script src="system-navigation.js?v=7" defer></script>
 </head>
 <body>
   <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -168,8 +168,7 @@
             </div>
             <p class="settings-group-label">Touch sound</p>
             <div id="settings-touch-styles" class="settings-group touch-styles" role="radiogroup" aria-label="Touch sound"></div>
-            <p class="settings-footnote">Volume is also in quick controls. Pull down from the top banner.</p>
-          </section>
+                      </section>
         </div>
       </section>
     </div>
@@ -214,12 +213,10 @@
       <button type="button" class="quick-control teal-control" data-control="wifi"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#wifi"/></svg></span><span>Wi-Fi</span><small id="quick-wifi-status">Network settings</small></button>
       <button type="button" class="quick-control ivory-control" data-control="camera"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h4l2-3h4l2 3h4v14H4Z"/><circle cx="12" cy="13" r="4"/></svg></span><span>Camera</span><small>Open camera</small></button>
       <button type="button" class="quick-control copper-control" data-control="brightness"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></span><span>Brightness</span><small id="quick-brightness-status">100%</small></button>
-      <button type="button" class="quick-control copper-control" data-control="pager-hub"><span class="quick-control-icon selected-gear"><img data-app-icon="pager-hub" alt="" draggable="false"></span><span>Pager Hub</span><small>Pagers &amp; hardware</small></button>
       <button type="button" class="quick-control ivory-control" data-control="calculator"><span class="quick-control-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h1m6 0h1M8 15h1m6 0h1M8 19h1m6 0h1"/></svg></span><span>Calculator</span><small>Quick calculation</small></button>
       <button type="button" class="quick-control ivory-control" data-control="settings"><span class="quick-control-icon selected-gear"><img data-app-icon="settings" alt="" draggable="false"></span><span>Settings</span><small>Restaurant settings</small></button>
     </div>
     <div class="quick-brightness"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><label class="sr-only" for="quick-brightness-range">Screen brightness</label><input type="range" id="quick-brightness-range" min="20" max="100" value="100"><output id="quick-brightness-value" for="quick-brightness-range">100%</output></div>
-    <div class="quick-brightness quick-volume"><svg class="icon volume-glyph" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path class="volume-wave" d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/><path class="volume-mute" d="m16 9.5 5 5m0-5-5 5"/></svg><label class="sr-only" for="quick-volume-range">Volume</label><input type="range" id="quick-volume-range" min="0" max="100" value="70"><output id="quick-volume-value" for="quick-volume-range">70%</output></div>
     <section class="quick-notifications" aria-labelledby="system-notifications-title">
       <div class="notification-heading"><h2 id="system-notifications-title">Notifications</h2><span id="system-notification-count" class="notification-count" hidden></span></div>
       <div id="system-notification-list" class="notification-list" role="list" aria-label="System notifications" hidden></div>

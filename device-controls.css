@@ -8,7 +8,7 @@
 .quick-eyebrow{font-size:11px;letter-spacing:2px;font-weight:600;color:var(--copper);margin-bottom:6px}
 .quick-drawer h2{font-size:24px;font-weight:550;letter-spacing:-.4px}
 .quick-drawer-heading .icon-button{width:40px;height:40px;padding:8px;border-radius:50%;background:#ffffff09}
-.quick-controls-grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:14px}
+.quick-controls-grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
 .quick-control{display:flex;flex-direction:column;align-items:center;gap:9px;min-width:0;padding:18px 10px 16px;border:1px solid #65737944;border-radius:16px;background:linear-gradient(140deg,#ffffff06,#ffffff02);box-shadow:0 4px 10px #0001;color:var(--ivory);font-size:16px;font-weight:500}
 .quick-control:hover{border-color:#a1b5bd70;background:#ffffff08}
 .quick-control:active{transform:scale(.97)}
@@ -54,7 +54,7 @@
 .calculator-keys .calc-equals{background:linear-gradient(140deg,#ebbb96,#dfa16e);color:#242321}
 #screen-dimmer{position:fixed;inset:0;z-index:100;pointer-events:none;background:#000;opacity:0}
 @keyframes quick-drop{from{transform:translateY(-100%);opacity:.3}to{transform:translateY(0);opacity:1}}
-@media(max-width:1050px){.quick-controls-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}}
+@media(max-width:1050px){.quick-controls-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}}
 @media(max-width:900px){.quick-drawer{padding:22px 26px 0}.quick-control{font-size:14px;padding:16px 6px}.quick-control small{font-size:11px}}
 @media(max-width:740px){.quick-drawer{padding:20px 18px 0}.quick-drawer-heading{margin-bottom:18px}.quick-controls-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.quick-control{font-size:14px;padding:14px 5px;gap:7px}.quick-control-icon{width:42px;height:42px;border-radius:13px}.quick-control small{font-size:10px}.quick-brightness{margin-top:18px;padding:12px 15px;gap:12px}.quick-drawer h2{font-size:22px}}
 @media(prefers-reduced-motion:reduce){.quick-drawer[open]{animation:none}.quick-control:active{transform:none}}
