@@ -157,9 +157,9 @@
 #counter-title:focus{outline:none}
 .ctr-titlebar h2{font-size:17.94px;font-weight:500;color:var(--palette-accent-ink)}
 
-/* Order type: names only, in two rows on the left (Dine in · Takeaway / Delivery · Split) */
-.ctr-types{display:grid;grid-template-columns:repeat(2,112px);gap:8px;justify-content:start;margin-left:8px}
-.ctr-type-btn{display:flex;align-items:center;justify-content:center;min-height:38px;margin:0;padding:6px 10px;border:1px solid var(--palette-edge);border-radius:12px;background:var(--palette-bg);color:var(--palette-text);font-weight:600;font-size:14px;cursor:pointer;box-shadow:0 1px 3px var(--palette-soft-shadow)}
+/* Order type: names only, in two rows on the left (Dine in · Takeaway / Delivery · Split); 20% smaller than before (90x30) */
+.ctr-types{display:grid;grid-template-columns:repeat(2,90px);gap:6px;justify-content:start;margin-left:8px}
+.ctr-type-btn{display:flex;align-items:center;justify-content:center;min-height:30px;margin:0;padding:5px 8px;border:1px solid var(--palette-edge);border-radius:10px;background:var(--palette-bg);color:var(--palette-text);font-weight:600;font-size:11.2px;cursor:pointer;box-shadow:0 1px 3px var(--palette-soft-shadow)}
 .ctr-type-btn:hover{border-color:var(--palette-accent)}
 .ctr-type-btn.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
 .ctr-split{border-style:dashed}
@@ -170,8 +170,8 @@
 .ctr-group svg{width:16px;height:16px}
 .ctr-group-count{margin-left:auto;font-weight:500;color:var(--palette-muted)}
 /* Split order: the item's order type, as buttons matching the order type buttons at the top (no label) */
-.ctr-move{display:grid;grid-template-columns:repeat(3,minmax(0,112px));gap:8px;padding:0 16px 12px 14px}
-.ctr-move button{display:flex;align-items:center;justify-content:center;min-height:38px;margin:0;padding:6px 10px;border:1px solid var(--palette-edge);border-radius:12px;background:var(--palette-bg);color:var(--palette-text);font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px var(--palette-soft-shadow)}
+.ctr-move{display:grid;grid-template-columns:repeat(3,minmax(0,90px));gap:6px;padding:0 16px 12px 14px}
+.ctr-move button{display:flex;align-items:center;justify-content:center;min-height:30px;margin:0;padding:5px 8px;border:1px solid var(--palette-edge);border-radius:10px;background:var(--palette-bg);color:var(--palette-text);font-size:11.2px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px var(--palette-soft-shadow)}
 .ctr-move button:hover{border-color:var(--palette-accent)}
 .ctr-move button.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
 
@@ -269,7 +269,7 @@
 .ctr-type-btn.ctr-split:disabled{opacity:.45;cursor:default;border-color:var(--palette-edge)}
 /* Clear order (Trash): at the right end of the Split row, always tinted; turns red and asks once more before clearing */
 .ctr-type-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
-.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled{flex:none;width:32px;height:32px;min-height:32px;margin:0 0 3px;padding:0;justify-content:center;border-radius:50%;opacity:1;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
+.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled{flex:none;width:32px;height:32px;min-height:32px;margin:0 0 -1px;padding:0;justify-content:center;border-radius:50%;opacity:1;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
 .ctr-type-row .ctr-clear svg{width:19px;height:19px}
 .ctr-type-row .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
 .ctr-type-row .ctr-text-button.ctr-clear.armed,.ctr-type-row .ctr-text-button.ctr-clear.armed:hover{background:#b42318;color:#fff;box-shadow:none}
