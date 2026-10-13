@@ -241,8 +241,7 @@
   function itemTile(item) {
     const qty = order.lines.filter(l => l.id === item.id).reduce((n, l) => n + l.qty, 0);
     return el('button', { type: 'button', class: 'ctr-item', style: `--stripe:${categoryOf.get(item.id).color}`, onclick: () => add(item.id), 'aria-label': `Add ${item.name}, ${rupees(item.price)}${qty ? `, ${qty} in order` : ''}` },
-      el('span', { class: 'ctr-item-name' }, item.name),
-      el('span', { class: 'ctr-item-foot' }, el('span', { class: 'ctr-item-price' }, rupees(item.price)), qty ? el('span', { class: 'ctr-badge' }, String(qty)) : null));
+      el('span', { class: 'ctr-item-name' }, item.name), el('span', { class: 'ctr-item-price' }, rupees(item.price)));
   }
   function renderMenuBody() {
     saveDraft(); // every change to the order or to the menu view comes through here, so it is always kept
