@@ -48,6 +48,7 @@
   let qtyKey = null, qtyValue = '';
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, clearArmed = false;
   let cashInput = '';                                   // cash typed on the payment sheet
+  let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
   const scrollMemo = { lines: 0 };                      // where the order list was scrolled
 
   // Leaving Counter (Home, Recents, or the app/page restarting) keeps everything as it was:
@@ -161,6 +162,18 @@
     sheet = null; selected = null; render(); toast('Order resumed');
   }
   function removeHeld(id) { held = held.filter(h => h.heldId !== id); store(HELD_KEY, held); render(); }
+  // A table tapped on the Floor: its open order (on screen or held) if it has one, otherwise a new Dine in order
+  // with the table already chosen, ready for items. An order that was on screen with items waits in Held.
+  function openTable(id) {
+    const forTable = o => o.table === id && (o.type === 'dine-in' || o.split);
+    query = ''; category = null;
+    if (forTable(order) && order.lines.length) { selected = null; sheet = null; render(); return; }
+    const waiting = held.find(forTable);
+    if (waiting) { resume(waiting.heldId); return; }
+    const saved = hold();
+    order = { ...blankOrder(), type: 'dine-in', table: id }; selected = null; sheet = null; clearArmed = false; render();
+    if (saved) toast(`Order saved · ${held.length} held`);
+  }
   function complete(received) {
     const t = totals(); if (!t.count || received < t.total) return;
     const number = nextNumber();
@@ -702,6 +715,7 @@
     if (arranging) { setArranging(false); return true; }
     if (query) { query = ''; render(); return true; }
     if (category) { category = null; renderMenuBody(); return true; }
+    if (fromFloor && window.RestroFloor) { fromFloor = false; window.RestroFloor.open(); return true; } // opened from a table: Back returns to the Floor
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
@@ -724,9 +738,12 @@
     if (dialog.open) dialog.append(toastNode); else if (toastNode.parentElement === dialog) toastHome.append(toastNode);
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
+  // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
+  function openCounter() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
   window.RestroCounter = Object.freeze({
-    // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
-    open() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); },
+    open() { fromFloor = false; openCounter(); },
+    // From the Floor: Counter opens on that table's order (Dine in, table chosen).
+    openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; openTable(id); },
     goBack,
     tablesInUse() {
       const used = held.filter(h => h.table && (h.type === 'dine-in' || h.split)).map(h => h.table);

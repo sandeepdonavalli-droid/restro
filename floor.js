@@ -1,7 +1,8 @@
 'use strict';
 // Floor: the restaurant's tables.
 // - From Counter (Dine in → Table box): tap a table to put it on the order; Counter comes straight back.
-// - From the home screen's Floor shortcut: see the tables and which ones are in use.
+// - From the home screen's Floor shortcut: see which tables are in use; tap a table to open its order in Counter
+//   (Dine in, that table chosen; a table in use opens the order it already has).
 (() => {
   const dialog = document.querySelector('#floor-dialog');
   if (!dialog) return;
@@ -59,8 +60,7 @@
       el('span', { class: 'floor-meta' }, `${table.seats} seats`, status ? el('span', { class: 'floor-status' }, status) : null)];
     const label = `Table ${table.name}, ${table.seats} seats${status ? `, ${status.toLowerCase()}` : ''}`;
     const cls = `floor-tile${selected ? ' selected' : ''}${busy ? ' busy' : ''}`;
-    return pick ? el('button', { type: 'button', class: cls, 'aria-label': label, onclick: () => choose(table) }, ...body)
-      : el('div', { class: cls, role: 'img', 'aria-label': label }, ...body);
+    return el('button', { type: 'button', class: cls, 'aria-label': pick ? label : `${label}. Open its order`, onclick: () => pick ? choose(table) : window.RestroCounter?.openTable(table.id) }, ...body);
   }
 
   function choose(table) {
