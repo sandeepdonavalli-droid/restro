@@ -235,3 +235,5 @@
 .ctr-line-name,.ctr-qty-num,.ctr-line-price{font-size:15px;font-weight:500;color:var(--palette-text)}
 
 .ctr-line-edit,.ctr-move{padding-left:14px}
+/* "All categories" on the category grid is a label (you are already there): no arrow, no tap highlight */
+.ctr-crumb .ctr-crumb-root,.ctr-crumb .ctr-crumb-root:hover{background:transparent;cursor:default}

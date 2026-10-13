@@ -243,9 +243,11 @@
         el('div', { class: 'ctr-grid items' }, ...c.items.map(itemTile)));
       return;
     }
-    body.append(el('div', { class: 'ctr-grid categories' }, ...menu.categories.map(c =>
-      el('button', { type: 'button', class: 'ctr-category', style: `--stripe:${c.color}`, onclick: () => { category = c.id; renderMenuBody(); } },
-        el('span', { class: 'ctr-category-name' }, c.name), el('span', { class: 'ctr-category-count' }, `${c.items.length} items`)))));
+    // "All categories" stays at the top of the grid too: same look as the back button, without the arrow.
+    body.append(el('div', { class: 'ctr-crumb' }, el('span', { class: 'ctr-text-button ctr-crumb-root' }, 'All categories')),
+      el('div', { class: 'ctr-grid categories' }, ...menu.categories.map(c =>
+        el('button', { type: 'button', class: 'ctr-category', style: `--stripe:${c.color}`, onclick: () => { category = c.id; renderMenuBody(); } },
+          el('span', { class: 'ctr-category-name' }, c.name), el('span', { class: 'ctr-category-count' }, `${c.items.length} items`)))));
   }
 
   function sheetView() {
