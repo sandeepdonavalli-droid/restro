@@ -24,6 +24,7 @@
   // With Split on, each line keeps its own type; otherwise every line follows the order type.
   const lineType = line => order.split ? (line.type || order.type) : order.type;
   const keyOf = line => `${line.id}@${lineType(line)}`;
+  let qtyKey = null, qtyValue = '';
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, clearArmed = false;
 
   // ---------- money (all maths in paise) ----------
@@ -161,18 +162,17 @@
     const lineRow = line => {
       const item = items.get(line.id), key = keyOf(line), open = selected === key;
       const li = el('li', { class: `ctr-line ${open ? 'open' : ''}`, 'data-line': key, style: `--stripe:${categoryOf.get(line.id).color}` },
-        el('button', { type: 'button', class: 'ctr-line-main', 'aria-expanded': String(open), onclick: () => { selected = open ? null : key; render(); } },
-          vegMark(item.veg),
-          el('span', { class: 'ctr-line-name' }, item.name),
-          el('span', { class: 'ctr-line-qty' }, `×${line.qty}`),
-          el('span', { class: 'ctr-line-price' }, rupees(item.price * line.qty))));
+        el('div', { class: 'ctr-line-main' },
+          el('button', { type: 'button', class: 'ctr-line-select', 'aria-expanded': String(open), onclick: () => { selected = open ? null : key; render(); } },
+            vegMark(item.veg), el('span', { class: 'ctr-line-name' }, item.name)),
+          el('div', { class: 'ctr-qty' },
+            el('button', { type: 'button', class: 'ctr-qty-btn', 'aria-label': `One less ${item.name}`, onclick: () => setQty(key, line.qty - 1) }, svg(ICON.minus)),
+            el('button', { type: 'button', class: 'ctr-qty-num', 'aria-label': `Quantity ${line.qty}. Tap to type a quantity`, onclick: () => { qtyKey = key; qtyValue = ''; sheet = 'qty'; render(); } }, String(line.qty)),
+            el('button', { type: 'button', class: 'ctr-qty-btn', 'aria-label': `One more ${item.name}`, onclick: () => setQty(key, line.qty + 1) }, svg(ICON.plus))),
+          el('button', { type: 'button', class: 'ctr-line-price', tabindex: '-1', 'aria-hidden': 'true', onclick: () => { selected = open ? null : key; render(); } }, rupees(item.price * line.qty))));
       if (open) {
         li.append(el('div', { class: 'ctr-line-edit' },
           el('span', { class: 'ctr-unit' }, `${rupees(item.price)} each`),
-          el('div', { class: 'ctr-stepper' },
-            el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': `One less ${item.name}`, onclick: () => setQty(key, line.qty - 1) }, svg(ICON.minus)),
-            el('output', { 'aria-live': 'polite' }, String(line.qty)),
-            el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': `One more ${item.name}`, onclick: () => setQty(key, line.qty + 1) }, svg(ICON.plus))),
           el('button', { type: 'button', class: 'ctr-text-button danger', onclick: () => setQty(key, 0) }, svg(ICON.trash), 'Remove')));
         if (order.split) li.append(el('div', { class: 'ctr-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
           el('span', {}, 'Serve as'),
@@ -281,6 +281,35 @@
       setTimeout(() => { input.focus(); update(); });
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet', role: 'dialog', 'aria-label': 'Take payment' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Take payment'), close), body));
+    }
+    if (sheet === 'qty') {
+      const line = order.lines.find(l => keyOf(l) === qtyKey);
+      if (!line) { sheet = null; return null; }
+      const item = items.get(line.id);
+      const display = el('output', { class: 'ctr-pad-display', 'aria-live': 'polite' }, qtyValue || String(line.qty));
+      if (!qtyValue) display.classList.add('placeholder');
+      const press = k => {
+        if (k === 'C') qtyValue = '';
+        else if (k === '⌫') qtyValue = qtyValue.slice(0, -1);
+        else if (qtyValue.length < 3) qtyValue = (qtyValue === '0' ? '' : qtyValue) + k;
+        render();
+      };
+      const setBtn = el('button', { type: 'button', class: 'primary-button ctr-complete', disabled: !qtyValue, onclick: () => { const n = parseInt(qtyValue, 10); sheet = null; qtyKey = null; setQty(keyOf(line), Number.isFinite(n) ? n : line.qty); if (n === 0) toast(`${item.name} removed`); } }, qtyValue === '0' ? 'Remove item' : 'Set quantity');
+      const pad = el('div', { class: 'ctr-pad' }, ...['1','2','3','4','5','6','7','8','9','C','0','⌫'].map(k =>
+        el('button', { type: 'button', class: `ctr-pad-key ${k === 'C' || k === '⌫' ? 'muted' : ''}`, 'aria-label': k === '⌫' ? 'Backspace' : k === 'C' ? 'Clear' : k, onclick: () => press(k) }, k)));
+      setTimeout(() => {
+        const handler = e => {
+          if (sheet !== 'qty') { document.removeEventListener('keydown', handler, true); return; }
+          if (/^\d$/.test(e.key)) { e.preventDefault(); press(e.key); }
+          else if (e.key === 'Backspace') { e.preventDefault(); press('⌫'); }
+          else if (e.key === 'Enter' && qtyValue) { e.preventDefault(); dialog.querySelector('.ctr-pad-sheet .ctr-complete')?.click(); }
+        };
+        if (!dialog._padKeys) { dialog._padKeys = true; document.addEventListener('keydown', e => { if (sheet === 'qty') handler(e); }, true); }
+      });
+      return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
+        el('div', { class: 'ctr-sheet ctr-pad-sheet', role: 'dialog', 'aria-label': `Quantity for ${item.name}` },
+          el('div', { class: 'ctr-sheet-head' }, el('h3', {}, item.name), close),
+          display, pad, setBtn));
     }
     if (sheet === 'held') {
       const list = el('ul', { class: 'ctr-held' });

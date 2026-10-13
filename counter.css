@@ -201,3 +201,23 @@
 .ctr-titlebar .ctr-text-button.ctr-clear:not(.armed){background:var(--palette-accent-wash);opacity:1}
 .ctr-titlebar .ctr-clear.armed{width:32px;padding:0;border-radius:50%;background:#b42318;color:#fff;box-shadow:none}
 .ctr-titlebar .ctr-text-button.ctr-clear.armed,.ctr-titlebar .ctr-text-button.ctr-clear.armed:hover{background:#b42318;color:#fff;box-shadow:none}
+
+/* Order line: name | − qty + | price */
+.ctr-line-main{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:6px 16px 6px 12px;cursor:default}
+.ctr-line-select{display:flex;align-items:center;gap:10px;min-width:0;min-height:44px;margin:0;padding:0;border:0;background:transparent;color:var(--palette-text);text-align:left;cursor:pointer}
+.ctr-qty{display:flex;align-items:center;gap:2px;padding:2px;border-radius:20px;background:var(--palette-bg);border:1px solid var(--palette-line)}
+.ctr-qty-btn{display:grid;place-items:center;width:32px;height:32px;margin:0;padding:0;border:0;border-radius:50%;background:transparent;color:var(--palette-accent-ink);cursor:pointer}
+.ctr-qty-btn:hover{background:var(--palette-accent-wash)}
+.ctr-qty-btn svg{width:16px;height:16px;stroke-width:2.2}
+.ctr-qty-num{min-width:34px;height:32px;margin:0;padding:0 6px;border:0;border-radius:10px;background:var(--palette-accent-wash);color:var(--palette-text);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;cursor:pointer}
+.ctr-line-price{min-width:60px;margin:0;padding:0;border:0;background:transparent;color:var(--palette-text);text-align:right;font-size:15px;font-variant-numeric:tabular-nums;cursor:pointer}
+.ctr-line-edit{padding:0 16px 10px 36px;justify-content:space-between}
+
+/* Quantity number pad */
+.ctr-pad-sheet{width:min(360px,100%)}
+.ctr-pad-display{display:block;padding:12px 16px;border-radius:14px;background:var(--palette-bg);border:1px solid var(--palette-line);font-size:34px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;color:var(--palette-text)}
+.ctr-pad-display.placeholder{color:var(--palette-muted)}
+.ctr-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ctr-pad-key{min-height:58px;margin:0;border:1px solid var(--palette-edge);border-radius:14px;background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));color:var(--palette-text);font-size:22px;font-weight:600;cursor:pointer}
+.ctr-pad-key:active{transform:scale(.97)}
+.ctr-pad-key.muted{color:var(--palette-accent-ink);font-size:18px}
