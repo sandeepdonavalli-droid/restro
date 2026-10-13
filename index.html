@@ -12,8 +12,8 @@
   <link rel="stylesheet" href="device-controls.css?v=3">
   <link rel="stylesheet" href="system-navigation.css?v=7">
   <link rel="stylesheet" href="themes.css?v=2">
-  <link rel="stylesheet" href="settings.css?v=8">
-  <link rel="stylesheet" href="counter.css?v=56">
+  <link rel="stylesheet" href="settings.css?v=9">
+  <link rel="stylesheet" href="counter.css?v=57">
   <link rel="stylesheet" href="floor.css?v=3">
   <link rel="stylesheet" href="customers.css?v=2">
   <link rel="stylesheet" href="app-widget-controls.css?v=5">
@@ -32,11 +32,11 @@
   <script src="device-controls.js?v=8" defer></script>
   <script src="sound.js?v=4" defer></script>
   <script src="menu-data.js?v=2" defer></script>
-  <script src="counter.js?v=32" defer></script>
+  <script src="counter.js?v=33" defer></script>
   <script src="floor-data.js?v=1" defer></script>
   <script src="floor.js?v=2" defer></script>
   <script src="customers.js?v=1" defer></script>
-  <script src="settings.js?v=8" defer></script>
+  <script src="settings.js?v=9" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=9" defer></script>
@@ -127,6 +127,7 @@
         <label class="settings-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg><span class="visually-hidden">Search settings</span><input id="settings-search" type="search" placeholder="Search settings" autocomplete="off" enterkeyhint="search"></label>
         <ul class="settings-list">
           <li><button class="settings-row" type="button" data-page="restaurant" data-keywords="my profile restaurant name banner title shop business email mail mobile phone number contact"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg></span><span class="settings-row-copy"><strong>My Profile</strong></span></button></li>
+          <li><button class="settings-row" type="button" data-page="orders" data-keywords="orders counter kitchen preparation prep time schedule scheduled pre-order preorder ready minutes"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9.5 8h5M9.5 12h5"/></svg></span><span class="settings-row-copy"><strong>Orders</strong><span id="settings-orders-summary">Preparation time 30 min</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a16 16 0 0 1 20 0M5.5 12a11 11 0 0 1 13 0M9 15.5a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary">Managed by this device</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary">Checking connection…</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="bluetooth" data-keywords="bluetooth connected devices pair scan printer scanner headset"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10-5 4.5V2.5L17 7 7 17"/></svg></span><span class="settings-row-copy"><strong>Bluetooth</strong><span id="settings-bluetooth-summary">Not connected</span></span></button></li>
@@ -145,6 +146,12 @@
               <div class="settings-item settings-field"><label for="profile-mobile">Mobile number</label><div class="phone-field"><label class="visually-hidden" for="profile-country">Country code</label><select id="profile-country" name="country" class="phone-country" autocomplete="tel-country-code"></select><input id="profile-mobile" name="mobile" type="tel" maxlength="16" autocomplete="tel-national" inputmode="numeric" placeholder="98765 43210" aria-describedby="profile-mobile-hint"></div><p id="profile-mobile-hint" class="field-note">10-digit mobile number</p><p id="profile-mobile-error" class="field-error" role="alert" hidden></p></div>
               <div class="settings-item settings-actions"><button class="primary-button" type="submit">Save changes</button></div>
             </form>
+          </section>
+          <section class="settings-page" data-page="orders" data-title="Orders" hidden>
+            <div class="settings-group">
+              <div class="settings-item settings-status"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></svg></span><span class="settings-row-copy"><strong id="settings-prep-label">Preparation time</strong><span>A scheduled order goes to the kitchen this long before it is due</span></span>
+                <div class="settings-stepper" role="group" aria-labelledby="settings-prep-label"><button id="settings-prep-down" class="settings-step" type="button" aria-label="5 minutes less"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><output id="settings-prep-value" aria-live="polite">30 min</output><button id="settings-prep-up" class="settings-step" type="button" aria-label="5 minutes more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+            </div>
           </section>
           <section class="settings-page" data-page="wifi" data-title="Wi-Fi" hidden>
             <div id="settings-wifi-slot" class="settings-group settings-device-slot"></div>

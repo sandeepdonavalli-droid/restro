@@ -328,3 +328,53 @@ button.ctr-history-main{cursor:pointer}
 .ctr-history-detail{padding:0 14px 12px}
 .ctr-history-detail .ctr-sums{row-gap:6px;padding-top:10px;border-top:1px solid var(--palette-line);font-size:13px}
 .ctr-history-detail .ctr-sums .ctr-total{margin-top:2px;font-size:15px}
+/* Title row middle: two equal slots, Choose table (Dine in) or Add Customer (every other order), and Assign Pager.
+   Dashed until chosen, then solid with what was chosen. */
+.ctr-targets{display:flex;align-items:center;justify-content:center;gap:8px}
+.ctr-target{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:132px;min-height:28px;margin:0;padding:0 8px;border:1.5px dashed color-mix(in srgb,var(--palette-accent) 55%,transparent);border-radius:9px;background:var(--palette-accent-wash);color:var(--palette-accent-ink);font-size:13px;font-weight:600;cursor:pointer}
+.ctr-target svg{width:15px;height:15px}
+.ctr-target span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctr-target.set{border-style:solid;border-color:color-mix(in srgb,var(--palette-accent) 45%,transparent);background:var(--palette-tile-top);color:var(--palette-text)}
+.ctr-target:active{transform:scale(.96)}
+/* Order types (two rows of two), then Schedule above Hold, then Label above Trash. The middle column sits halfway
+   between; on narrower screens all three shrink together. */
+.ctr-type-row{gap:6px}
+.ctr-types{flex:0 1 186px;min-width:0;grid-template-columns:repeat(2,minmax(0,1fr))}
+.ctr-type-row .ctr-side{flex:0 1 90px;min-width:0;grid-template-columns:minmax(0,1fr)}
+.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled{width:100%}
+.ctr-mid .ctr-type-btn:disabled{opacity:.45;cursor:default;border-color:var(--palette-edge)}
+.ctr-schedule.on{background:var(--palette-accent-wash);border-color:var(--palette-accent);color:var(--palette-accent-ink)}
+.ctr-move{grid-template-columns:repeat(4,minmax(0,90px))}
+/* Held sheet: Scheduled, On hold and Saved groups */
+.ctr-held .ctr-held-group{display:block;padding:8px 4px 0;border-radius:0;background:none;font-size:13px;font-weight:700;color:var(--palette-accent-ink)}
+.ctr-held .ctr-held-group:first-child{padding-top:0}
+/* Assign pager: the pagers by number */
+.ctr-pager-sheet{width:min(400px,100%)}
+.ctr-pagers{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ctr-pager-key{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:56px;margin:0;padding:4px;border:1px solid var(--palette-edge);border-radius:14px;background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));color:var(--palette-text);cursor:pointer}
+.ctr-pager-key strong{font-size:20px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.ctr-pager-key span{font-size:10px;font-weight:600;color:var(--palette-muted)}
+.ctr-pager-key.busy{background:var(--palette-accent-wash)}
+.ctr-pager-key.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
+.ctr-pager-key:active{transform:scale(.97)}
+.ctr-sheet-wide{width:100%;min-height:46px}
+/* Schedule order: day, hour, minutes; the summary says when it will be ready and when it goes to the kitchen */
+.ctr-sched-sheet{width:min(560px,100%);gap:12px}
+.ctr-sched-days{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:6px}
+.ctr-sched-hours{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.ctr-sched-mins{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.ctr-pick{min-height:38px;margin:0;padding:0 4px;border:1px solid var(--palette-edge);border-radius:10px;background:var(--palette-bg);color:var(--palette-text);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
+.ctr-pick:hover:not(:disabled){border-color:var(--palette-accent)}
+.ctr-pick.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
+.ctr-pick:disabled{opacity:.35;cursor:default}
+.ctr-sched-summary{display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:58px;padding:10px 14px;border-radius:14px;background:var(--palette-accent-wash);font-size:13px;color:var(--palette-muted)}
+.ctr-sched-summary strong{font-size:16px;font-weight:600;color:var(--palette-text)}
+.ctr-sched-actions{display:flex;gap:10px}
+.ctr-sched-actions>*{flex:1}
+.ctr-sched-actions .primary-button{flex:1.6}
+.ctr-sched-actions .ctr-secondary{min-height:54px}
+.ctr-held .ctr-resume{min-width:98px} /* Open and Resume the same width, so the delete buttons line up */
+/* Narrower tablets: Home never shrinks (the two slots move right instead), and type names stay on one line */
+.ctr-titlebar{grid-template-columns:minmax(33px,1fr) auto minmax(0,1fr)}
+.ctr-titlebar .ctr-back{flex:none}
+.ctr-type-btn{padding-left:4px;padding-right:4px}

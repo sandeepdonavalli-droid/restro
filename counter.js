@@ -9,6 +9,7 @@
   // Rendered into its own root so the system bar and toasts placed in the dialog survive re-renders.
   const root = document.createElement('div'); root.className = 'ctr-root'; dialog.prepend(root);
   const HELD_KEY = 'restro.counter.held.v1', DONE_KEY = 'restro.counter.orders.v1', NUM_KEY = 'restro.counter.nextNumber.v1', DRAFT_KEY = 'restro.counter.current.v1';
+  const SCHED_KEY = 'restro.counter.scheduled.v1', PREP_KEY = 'restro.counter.prepMinutes.v1', PAGERS = 20;
   const items = new Map(), categoryOf = new Map();
   for (const category of menu.categories) for (const item of category.items) { items.set(item.id, item); categoryOf.set(item.id, category); }
   const categoryById = new Map(menu.categories.map(c => [c.id, c]));
@@ -17,6 +18,11 @@
   const load = (key, fallback) => { try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return v ?? fallback; } catch { return fallback; } };
   const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
   let held = load(HELD_KEY, []); if (!Array.isArray(held)) held = [];
+  let scheduled = load(SCHED_KEY, []); if (!Array.isArray(scheduled)) scheduled = [];   // pre-orders with a ready-by time
+  // How long before a scheduled order is due it goes to the kitchen (Settings → Orders; 30 minutes unless changed).
+  const prepMinutes = () => { const n = Number(load(PREP_KEY, 30)); return Number.isFinite(n) ? Math.min(240, Math.max(5, Math.round(n / 5) * 5)) : 30; };
+  const kitchenTime = o => o.readyAt - prepMinutes() * 60000;
+  const endOfDay = () => { const d = new Date(); d.setHours(24, 0, 0, 0); return d.getTime(); };
   // The order of categories and items, as rearranged by holding a tile (kept on this device until the backend exists).
   const ORDER_KEY = 'restro.counter.menuOrder.v1';
   let menuOrder = load(ORDER_KEY, {}); if (!menuOrder || typeof menuOrder !== 'object' || Array.isArray(menuOrder)) menuOrder = {};
@@ -37,17 +43,29 @@
   const nextNumber = () => { const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
 
   // ---------- state ----------
-  // A new order starts with no order type. Dine in can have a table (picked on the Floor); Takeaway / Delivery a customer.
-  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, lines: [], heldId: null });
+  // A new order starts with no order type. Dine in can have a table (picked on the Floor); every other order a customer.
+  // Any order can have a pager, and a ready-by time (Schedule). holdUntil: a ticket on Hold is kept until the end of the day.
+  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, readyAt: null, sentAt: null, holdUntil: null, heldId: null, schedId: null, lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
-  const TYPES = ['dine-in', 'takeaway', 'delivery'];
+  const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
+  const cleanPager = n => Number.isInteger(n) && n >= 1 && n <= 99 ? n : 0;
+  const cleanTime = t => Number.isFinite(t) && t > 0 ? t : null;
+  // An order read back from storage (the draft, Held or Scheduled), keeping only what is valid.
+  const restoreOrder = o => {
+    const type = TYPES.includes(o.type) ? o.type : null;
+    return { type, split: Boolean(type) && o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
+      pager: cleanPager(o.pager), readyAt: cleanTime(o.readyAt), sentAt: cleanTime(o.sentAt), holdUntil: cleanTime(o.holdUntil),
+      heldId: typeof o.heldId === 'string' ? o.heldId : null, schedId: typeof o.schedId === 'string' ? o.schedId : null,
+      lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000).map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type })) };
+  };
   // With Label on (called "split" in the code), each line keeps its own type; otherwise every line follows the order type.
   const lineType = line => order.split ? (line.type || order.type) : order.type;
   const keyOf = line => `${line.id}@${lineType(line)}`;
   let qtyKey = null, qtyValue = '';
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, clearArmed = false;
   let cashInput = '';                                   // cash typed on the payment sheet
+  let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
   const scrollMemo = { lines: 0 };                      // where the order list was scrolled
 
@@ -58,12 +76,7 @@
     const saved = load(DRAFT_KEY, null);
     if (!saved || typeof saved !== 'object') return;
     const o = saved.order;
-    if (o && Array.isArray(o.lines)) {
-      const type = TYPES.includes(o.type) ? o.type : null;
-      order = { type, split: Boolean(type) && o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer), heldId: typeof o.heldId === 'string' ? o.heldId : null,
-        lines: o.lines.filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000).map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type })) };
-      tidy();
-    }
+    if (o && Array.isArray(o.lines)) { order = restoreOrder(o); tidy(); }
     if (menu.categories.some(c => c.id === saved.category)) category = saved.category;
     if (typeof saved.query === 'string') query = saved.query.slice(0, 80);
   })();
@@ -105,7 +118,9 @@
     orders: '<path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9.5 8h5M9.5 12h5"/>',
     history: '<path d="M3.6 12a8.4 8.4 0 1 0 2.5-6L3.6 8.5"/><path d="M3.6 4v4.5h4.5"/><path d="M12 7.6V12l3 1.8"/>',
     person: '<circle cx="12" cy="8" r="3.6"/><path d="M5 19.5c.9-3.6 3.6-5.6 7-5.6s6.1 2 7 5.6"/>',
-    personAdd: '<circle cx="10" cy="8" r="3.6"/><path d="M3.5 19.5c.8-3.4 3.3-5.6 6.5-5.6 1.6 0 3 .5 4.1 1.4M18.5 13v6M15.5 16h6"/>'
+    personAdd: '<circle cx="10" cy="8" r="3.6"/><path d="M3.5 19.5c.8-3.4 3.3-5.6 6.5-5.6 1.6 0 3 .5 4.1 1.4M18.5 13v6M15.5 16h6"/>',
+    table: '<path d="M3.5 9h17M6 9v10M18 9v10M6 13.5h12"/>',
+    pager: '<rect x="7" y="4" width="10" height="16" rx="2.6"/><path d="M10.5 16.5h3M4 9v6M20 9v6"/>'
   };
 
   // ---------- actions ----------
@@ -143,25 +158,82 @@
     if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); if (typeLabel[order.type]) toast(`Label off · all items ${typeLabel[order.type].toLowerCase()}`); }
     selected = null; render();
   }
-  function hold() {
+  // Keeps the order in Held. until: the end of the day for Hold, none for Save; left out, the order keeps what it had.
+  function hold({ until } = {}) {
     if (!order.lines.length) return false;
-    const entry = { ...order, heldId: order.heldId || `h${Date.now()}`, savedAt: Date.now(), total: totals().total };
-    held = [entry, ...held.filter(h => h.heldId !== entry.heldId)].slice(0, 30); store(HELD_KEY, held);
+    const entry = { ...order, heldId: order.heldId || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: until === undefined ? (order.holdUntil || null) : until };
+    held = [entry, ...held.filter(h => h.heldId !== entry.heldId)].slice(0, 100); store(HELD_KEY, held);
     return true;
   }
-  function newOrder({ keep = true } = {}) {
-    if (keep && hold()) toast(`Order saved · ${held.length} held`);
-    order = blankOrder(); selected = null; sheet = null; clearArmed = false; render();
+  // Keeps a scheduled order in Scheduled (it goes to the kitchen at its ready time minus the preparation time).
+  function putScheduled(readyAt, keepSent) {
+    const entry = { ...order, heldId: null, holdUntil: null, schedId: order.schedId || `s${Date.now()}`, readyAt, sentAt: keepSent ? order.sentAt || null : null, savedAt: Date.now(), total: totals().total };
+    if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
+    scheduled = [...scheduled.filter(s => s.schedId !== entry.schedId), entry].sort((a, b) => a.readyAt - b.readyAt).slice(0, 100); store(SCHED_KEY, scheduled);
+  }
+  // Before another order takes the screen, the one on it (if it has items) is kept: back in Scheduled, or in Held.
+  function park() {
+    if (!order.lines.length) return false;
+    if (order.readyAt) putScheduled(order.readyAt, true); else hold();
+    return true;
+  }
+  const fresh = () => { order = blankOrder(); selected = null; sheet = null; clearArmed = false; scheduleDraft = null; render(); };
+  // Save: the order is kept (a scheduled one stays scheduled) and a new one starts.
+  function newOrder() {
+    if (order.lines.length && order.readyAt) { putScheduled(order.readyAt, true); toast('Scheduled order saved'); }
+    else if (hold({ until: null })) toast(`Order saved · ${held.length + scheduled.length} held`);
+    fresh();
+  }
+  // Hold: the ticket waits in Held until the end of the day, as the customer may call or come back. Then it is cleared.
+  function holdTicket() {
+    if (!order.lines.length) return;
+    order.readyAt = null; order.sentAt = null; order.schedId = null;
+    hold({ until: endOfDay() }); toast('On hold until the end of the day'); fresh();
+  }
+  // Schedule: the order is kept with the time the customer wants it ready, and a new one starts.
+  function scheduleOrder(readyAt) {
+    if (!order.lines.length || !Number.isFinite(readyAt)) return;
+    putScheduled(readyAt, readyAt === order.readyAt); fresh();
+    toast(`Scheduled · ready by ${whenShort(readyAt)}`);
+    sweep();
   }
   function resume(id) {
     const entry = held.find(h => h.heldId === id); if (!entry) return;
-    if (order.lines.length && order.heldId !== id) hold();
+    if (order.heldId !== id) park();
     held = held.filter(h => h.heldId !== id); store(HELD_KEY, held);
-    const type = TYPES.includes(entry.type) ? entry.type : null;
-    order = { type, split: Boolean(type) && Boolean(entry.split), table: entry.table || '', customer: cleanCustomer(entry.customer), lines: entry.lines.filter(l => items.has(l.id)).map(l => ({ ...l, type: l.type || type })), heldId: entry.heldId };
-    sheet = null; selected = null; render(); toast('Order resumed');
+    order = restoreOrder(entry); sheet = null; selected = null; render(); toast('Order resumed');
+  }
+  function openScheduled(id) {
+    const entry = scheduled.find(s => s.schedId === id); if (!entry) return;
+    if (order.schedId !== id) park();
+    scheduled = scheduled.filter(s => s.schedId !== id); store(SCHED_KEY, scheduled);
+    order = restoreOrder(entry); sheet = null; selected = null; render(); toast('Scheduled order opened');
   }
   function removeHeld(id) { held = held.filter(h => h.heldId !== id); store(HELD_KEY, held); render(); }
+  function removeScheduled(id) { scheduled = scheduled.filter(s => s.schedId !== id); store(SCHED_KEY, scheduled); render(); }
+  // Checked every 20 seconds: tickets on Hold end with the day, and each scheduled order goes to the kitchen at its
+  // ready time minus the preparation time. There is no kitchen screen or printer yet, so sending is recorded and announced.
+  function sweep() {
+    const now = Date.now();
+    const keep = held.filter(h => !(cleanTime(h.holdUntil) && h.holdUntil <= now)), heldChanged = keep.length !== held.length;
+    if (heldChanged) { held = keep; store(HELD_KEY, held); }
+    const due = scheduled.filter(s => !s.sentAt && cleanTime(s.readyAt) && kitchenTime(s) <= now);
+    for (const s of due) { s.sentAt = now; announceKitchen(s); }
+    if (due.length) store(SCHED_KEY, scheduled);
+    if (order.lines.length && order.readyAt && !order.sentAt && kitchenTime(order) <= now) { order.sentAt = now; saveDraft(); announceKitchen(order); }
+    if (dialog.open && (heldChanged || (due.length && sheet === 'held'))) render();
+  }
+  function announceKitchen(o) {
+    const count = o.lines.reduce((n, l) => n + l.qty, 0);
+    const message = [`Ready by ${whenShort(o.readyAt)}`, describe(o), `${count} item${count === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
+    window.RestroNotifications?.push({ id: `kitchen-${o.schedId || Date.now()}`, title: 'Scheduled order sent to kitchen', message, source: 'Counter', appId: 'register' });
+    window.RestroSound?.play('alert');
+    toast(`Sent to kitchen · ready by ${whenShort(o.readyAt)}`);
+  }
+  setInterval(sweep, 20000);
+  document.addEventListener('DOMContentLoaded', sweep);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sweep(); });
+  window.addEventListener('restro:prep-time-changed', () => { sweep(); if (dialog.open && (sheet === 'held' || sheet === 'schedule')) render(); });
   // A table tapped on the Floor: its open order (on screen or held) if it has one, otherwise a new Dine in order
   // with the table already chosen, ready for items. An order that was on screen with items waits in Held.
   function openTable(id) {
@@ -170,14 +242,15 @@
     if (forTable(order) && order.lines.length) { selected = null; sheet = null; render(); return; }
     const waiting = held.find(forTable);
     if (waiting) { resume(waiting.heldId); return; }
-    const saved = hold();
+    const kept = order.readyAt ? '' : order.lines.length ? 'held' : '';
+    park();
     order = { ...blankOrder(), type: 'dine-in', table: id }; selected = null; sheet = null; clearArmed = false; render();
-    if (saved) toast(`Order saved · ${held.length} held`);
+    if (kept) toast(`Order saved · ${held.length + scheduled.length} held`);
   }
   function complete(received) {
     const t = totals(); if (!t.count || received < t.total) return;
     const number = nextNumber();
-    const done = { number, type: order.type, split: order.split, table: order.table, customer: order.customer, lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...t, method: 'cash', received, change: received - t.total, paidAt: new Date().toISOString() };
+    const done = { number, type: order.type, split: order.split, table: order.table, customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null, lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...t, method: 'cash', received, change: received - t.total, paidAt: new Date().toISOString() };
     const list = load(DONE_KEY, []); store(DONE_KEY, [done, ...(Array.isArray(list) ? list : [])].slice(0, 500));
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     receipt = done; sheet = 'receipt'; order = blankOrder(); selected = null; category = null; query = ''; cashInput = ''; render();
@@ -186,22 +259,21 @@
   }
 
   // ---------- rendering ----------
-  const typeLabel = { 'dine-in': 'Dine in', takeaway: 'Takeaway', delivery: 'Delivery' };
+  const typeLabel = { 'dine-in': 'Dine in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call' };
   const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
-  // Middle of the title row: empty until an order type is chosen. Dine in → a Table box (opens the Floor);
-  // Takeaway / Delivery → Add Customer (opens Customers). Once chosen, they show the table / the customer.
-  function orderTarget() {
-    if (order.type === 'dine-in') {
-      const name = tableName(order.table);
-      return el('button', { type: 'button', class: `ctr-table-box${name ? ' set' : ''}`, 'aria-label': name ? `Table ${name}. Tap to change the table` : 'Select a table', onclick: pickTable },
-        el('span', { class: 'ctr-table-label' }, 'Table'), el('strong', {}, name || 'Select'));
-    }
-    if (order.type === 'takeaway' || order.type === 'delivery') {
-      const c = order.customer;
-      return el('button', { type: 'button', class: `ctr-customer${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer },
-        svg(c ? ICON.person : ICON.personAdd), el('span', {}, c ? c.name : 'Add Customer'));
-    }
-    return el('span', { class: 'ctr-title-gap', 'aria-hidden': 'true' });
+  // Middle of the title row: two slots, the same for every order type except one thing. The first is Choose table for
+  // Dine in (opens the Floor) and Add Customer for every other order (opens Customers); the second is Assign Pager.
+  // Once chosen, each shows what was chosen (dashed until then).
+  function orderTargets() {
+    const c = order.customer, name = tableName(order.table);
+    const first = order.type === 'dine-in'
+      ? el('button', { type: 'button', class: `ctr-target${name ? ' set' : ''}`, 'aria-label': name ? `Table ${name}. Tap to change the table` : 'Choose table', onclick: pickTable },
+          svg(ICON.table), el('span', {}, name ? `Table ${name}` : 'Choose table'))
+      : el('button', { type: 'button', class: `ctr-target${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer },
+          svg(c ? ICON.person : ICON.personAdd), el('span', {}, c ? c.name : 'Add Customer'));
+    const pager = el('button', { type: 'button', class: `ctr-target${order.pager ? ' set' : ''}`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign pager', onclick: () => { sheet = 'pager'; render(); } },
+      svg(ICON.pager), el('span', {}, order.pager ? `Pager ${order.pager}` : 'Assign Pager'));
+    return el('div', { class: 'ctr-targets' }, first, pager);
   }
   function pickTable() {
     window.RestroFloor?.open({ pick: true, current: order.table, onPick: table => { order.table = table.id; render(); } });
@@ -213,7 +285,7 @@
   const describe = o => {
     const type = o.split ? `Label · ${[...new Set(o.lines.map(l => typeLabel[l.type || o.type]).filter(Boolean))].join(' + ')}` : typeLabel[o.type] || '';
     const who = o.type === 'dine-in' && o.table ? `Table ${tableName(o.table)}` : o.type && o.type !== 'dine-in' && o.customer ? o.customer.name : '';
-    return [type, who].filter(Boolean).join(' · ');
+    return [type, who, cleanPager(o.pager) ? `Pager ${o.pager}` : ''].filter(Boolean).join(' · ');
   };
   // Paid orders (newest first), as kept on this device: shown in Orders (what was ordered) and Payment history (the money).
   const paidOrders = () => {
@@ -229,6 +301,8 @@
     return d.toLocaleDateString('en-IN', d.getFullYear() === now.getFullYear() ? { weekday: 'short', day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
   };
   const timeOf = when => new Date(when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  // "7:30 pm" today, "Fri 7:30 pm" on another day.
+  const whenShort = when => dayKey(when) === dayKey(Date.now()) ? timeOf(when) : `${new Date(when).toLocaleDateString('en-IN', { weekday: 'short' })} ${timeOf(when)}`;
   const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card' };
   function orderPanel() {
     const t = totals();
@@ -237,16 +311,21 @@
         el('div', { class: 'ctr-title-left' },
           el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Home', title: 'Home', onclick: () => { const home = document.querySelector('#system-home'); if (home) home.click(); else dialog.close(); } }, svg(ICON.home)),
           el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter')),
-        orderTarget()),
-      // Order type: names only on the left (Dine in · Takeaway / Delivery); Label above Trash on the right.
+        orderTargets()),
+      // Order types on the left (Dine in · Takeaway / Delivery · Phone call); Schedule above Hold in the middle;
+      // Label above Trash on the right.
       el('div', { class: 'ctr-type-row' },
         el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
           ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key]))),
+        el('div', { class: 'ctr-side ctr-mid' },
+          el('button', { type: 'button', class: `ctr-type-btn ctr-schedule ${order.readyAt ? 'on' : ''}`, disabled: !order.lines.length, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule',
+            onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
+          el('button', { type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length, onclick: holdTicket }, 'Hold')),
         el('div', { class: 'ctr-side' },
           el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Label'),
           el('button', { class: `ctr-text-button ctr-clear ${clearArmed ? 'armed' : ''}`, type: 'button', 'aria-label': clearArmed ? 'Tap again to clear the order' : 'Clear order', title: 'Clear order', disabled: !order.lines.length, onclick: () => {
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
-          order.lines = []; order.heldId = null; clearArmed = false; selected = null; render(); toast('Order cleared');
+          order.lines = []; order.heldId = null; order.schedId = null; order.readyAt = null; order.sentAt = null; order.holdUntil = null; clearArmed = false; selected = null; render(); toast('Order cleared');
         } }, svg(ICON.trash)))));
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
@@ -303,7 +382,7 @@
           if (pick) { e.preventDefault(); add(pick.id); query = ''; render(); dialog.querySelector('#counter-search')?.focus(); }
         } }));
     const top = el('div', { class: 'ctr-menu-top' }, search,
-      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), 'Held', held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
+      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), 'Held', held.length + scheduled.length ? el('span', { class: 'ctr-badge' }, String(held.length + scheduled.length)) : null),
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'orders'; render(); } }, svg(ICON.orders), 'Orders'),
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'payments'; render(); } }, svg(ICON.history), 'Payment history'));
     return el('section', { class: 'ctr-menu', 'aria-label': 'Menu' }, top, el('div', { class: 'ctr-menu-body' }));
@@ -621,18 +700,71 @@
           el('div', { class: 'ctr-sheet-head' }, el('h3', {}, item.name), close),
           display, pad, setBtn));
     }
+    // Held: Scheduled orders first (by ready time), then tickets On hold (cleared at the end of the day), then Saved orders.
     if (sheet === 'held') {
       const list = el('ul', { class: 'ctr-held' });
-      if (!held.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No held orders'), el('span', {}, 'Tap Save on an order to keep it here.')));
-      for (const h of held) {
-        const count = h.lines.reduce((n, l) => n + l.qty, 0), time = new Date(h.savedAt).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
-        list.append(el('li', {},
-          el('div', { class: 'ctr-held-copy' }, el('strong', {}, describe(h) || 'Order'), el('span', {}, `${count} item${count === 1 ? '' : 's'} · ${money(h.total)} · saved ${time}`)),
-          el('button', { type: 'button', class: 'ctr-text-button danger', 'aria-label': 'Delete held order', onclick: () => removeHeld(h.heldId) }, svg(ICON.trash)),
-          el('button', { type: 'button', class: 'primary-button ctr-resume', onclick: () => resume(h.heldId) }, 'Resume')));
-      }
+      if (!held.length && !scheduled.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No held orders'), el('span', {}, 'Orders you save, hold or schedule show here.')));
+      const row = (o, note, open, remove, label) => {
+        const count = o.lines.reduce((n, l) => n + l.qty, 0);
+        return el('li', {},
+          el('div', { class: 'ctr-held-copy' }, el('strong', {}, describe(o) || 'Order'), el('span', {}, `${count} item${count === 1 ? '' : 's'} · ${money(o.total)} · ${note}`)),
+          el('button', { type: 'button', class: 'ctr-text-button danger', 'aria-label': 'Delete', onclick: remove }, svg(ICON.trash)),
+          el('button', { type: 'button', class: 'primary-button ctr-resume', onclick: open }, label));
+      };
+      const group = (title, rows) => { if (rows.length) list.append(el('li', { class: 'ctr-held-group' }, title), ...rows); };
+      group('Scheduled', scheduled.filter(o => cleanTime(o.readyAt) && Array.isArray(o.lines)).map(o =>
+        row(o, `ready ${whenShort(o.readyAt)} · ${o.sentAt ? 'in kitchen' : `kitchen ${whenShort(kitchenTime(o))}`}`, () => openScheduled(o.schedId), () => removeScheduled(o.schedId), 'Open')));
+      group('On hold', held.filter(h => h.holdUntil && Array.isArray(h.lines)).map(h => row(h, `held ${timeOf(h.savedAt)}`, () => resume(h.heldId), () => removeHeld(h.heldId), 'Resume')));
+      group('Saved', held.filter(h => !h.holdUntil && Array.isArray(h.lines)).map(h => row(h, `saved ${timeOf(h.savedAt)}`, () => resume(h.heldId), () => removeHeld(h.heldId), 'Resume')));
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet', role: 'dialog', 'aria-label': 'Held orders' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Held orders'), close), list));
+    }
+    // Assign Pager: the pagers by number; a pager on another open order shows "In use" (it can still be chosen).
+    if (sheet === 'pager') {
+      const inUse = new Set([...held, ...scheduled].map(o => cleanPager(o.pager)).filter(Boolean));
+      const choose = n => { order.pager = n; sheet = null; render(); };
+      const grid = el('div', { class: 'ctr-pagers', role: 'radiogroup', 'aria-label': 'Pagers' },
+        ...Array.from({ length: PAGERS }, (_, i) => i + 1).map(n => {
+          const on = order.pager === n, busy = !on && inUse.has(n);
+          return el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), class: `ctr-pager-key${on ? ' on' : ''}${busy ? ' busy' : ''}`, 'aria-label': `Pager ${n}${busy ? ', in use' : ''}`, onclick: () => choose(n) },
+            el('strong', {}, String(n)), busy ? el('span', {}, 'In use') : null);
+        }));
+      return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
+        el('div', { class: 'ctr-sheet ctr-pager-sheet', role: 'dialog', 'aria-label': 'Assign pager' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Assign pager'), close), grid,
+          order.pager ? el('button', { type: 'button', class: 'ctr-secondary ctr-sheet-wide', onclick: () => choose(0) }, 'Remove pager') : null));
+    }
+    // Schedule: the day and time the customer wants the order ready. It goes to the kitchen the preparation time before.
+    if (sheet === 'schedule') {
+      if (!order.lines.length) { sheet = null; return null; }
+      const nowMs = Date.now(), today = new Date(), prep = prepMinutes();
+      const days = Array.from({ length: 7 }, (_, i) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + i));
+      if (!scheduleDraft) {
+        const r = order.readyAt ? new Date(order.readyAt) : null, day = r ? days.findIndex(d => dayKey(d) === dayKey(r)) : -1;
+        scheduleDraft = day >= 0 ? { day, hour: r.getHours(), minute: r.getMinutes() - r.getMinutes() % 15 } : { day: 0, hour: null, minute: 0 };
+      }
+      const d = scheduleDraft;
+      const at = (day, hour, minute) => new Date(days[day].getFullYear(), days[day].getMonth(), days[day].getDate(), hour, minute).getTime();
+      const hourOk = h => at(d.day, h, 45) > nowMs, minuteOk = m => d.hour != null && at(d.day, d.hour, m) > nowMs;
+      const settle = () => { if (d.hour != null && !hourOk(d.hour)) d.hour = null; if (d.hour != null && !minuteOk(d.minute)) d.minute = [0, 15, 30, 45].find(minuteOk) ?? 0; render(); };
+      const readyAt = d.hour != null && minuteOk(d.minute) ? at(d.day, d.hour, d.minute) : null;
+      const hourName = h => h === 0 ? '12 am' : h < 12 ? `${h} am` : h === 12 ? '12 pm' : `${h - 12} pm`;
+      const dayName = i => i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : days[i].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' });
+      const pickBtn = (label, on, disabled, onclick, aria) => el('button', { type: 'button', class: `ctr-pick${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled, 'aria-label': aria || null, onclick }, label);
+      const kitchenAt = readyAt ? readyAt - prep * 60000 : null;
+      const summary = el('div', { class: 'ctr-sched-summary', 'aria-live': 'polite' }, readyAt
+        ? [el('strong', {}, `Ready by ${d.day < 2 ? dayName(d.day).toLowerCase() : days[d.day].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, ${timeOf(readyAt)}`),
+           el('span', {}, kitchenAt <= nowMs ? 'Goes to the kitchen now' : `Goes to the kitchen at ${whenShort(kitchenAt)} (${prep} min before)`)]
+        : el('span', {}, 'Choose the time the customer wants it ready'));
+      return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
+        el('div', { class: 'ctr-sheet ctr-sched-sheet', role: 'dialog', 'aria-label': 'Schedule order' },
+          el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Schedule order'), close),
+          el('div', { class: 'ctr-sched-days', role: 'group', 'aria-label': 'Day' }, ...days.map((_, i) => pickBtn(dayName(i), d.day === i, false, () => { d.day = i; settle(); }))),
+          el('div', { class: 'ctr-sched-hours', role: 'group', 'aria-label': 'Hour' }, ...Array.from({ length: 24 }, (_, h) => pickBtn(hourName(h), d.hour === h, !hourOk(h), () => { d.hour = h; settle(); }))),
+          el('div', { class: 'ctr-sched-mins', role: 'group', 'aria-label': 'Minutes' }, ...[0, 15, 30, 45].map(m => pickBtn(`:${String(m).padStart(2, '0')}`, d.hour != null && d.minute === m, d.hour != null && !minuteOk(m), () => { d.minute = m; settle(); }, `${m} minutes past`))),
+          summary,
+          el('div', { class: 'ctr-sched-actions' },
+            order.readyAt ? el('button', { type: 'button', class: 'ctr-secondary', onclick: () => { order.readyAt = null; order.sentAt = null; scheduleDraft = null; sheet = null; render(); toast('Schedule removed'); } }, 'Remove schedule') : null,
+            el('button', { type: 'button', class: 'primary-button ctr-complete', disabled: !readyAt, onclick: () => scheduleOrder(readyAt) }, 'Schedule'))));
     }
     // Orders: each paid order with what was ordered (tap one to see its items and totals).
     // Payment history: each payment with how it was paid, and each day's total.

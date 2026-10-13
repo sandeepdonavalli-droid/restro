@@ -105,6 +105,25 @@
     document.querySelector('#settings-brightness-range').value = String(brightness);
   }
 
+  // Orders: how long before a scheduled order is due it goes to the kitchen (5 to 240 minutes, in 5-minute steps).
+  const PREP_KEY = 'restro.counter.prepMinutes.v1';
+  const readPrep = () => { try { const n = Number(JSON.parse(localStorage.getItem(PREP_KEY) || '30')); return Number.isFinite(n) ? Math.min(240, Math.max(5, Math.round(n / 5) * 5)) : 30; } catch { return 30; } };
+  function showPrep() {
+    const n = readPrep();
+    document.querySelector('#settings-prep-value').textContent = `${n} min`;
+    document.querySelector('#settings-orders-summary').textContent = `Preparation time ${n} min`;
+    document.querySelector('#settings-prep-down').disabled = n <= 5;
+    document.querySelector('#settings-prep-up').disabled = n >= 240;
+  }
+  function stepPrep(delta) {
+    const n = Math.min(240, Math.max(5, readPrep() + delta));
+    try { localStorage.setItem(PREP_KEY, JSON.stringify(n)); } catch {}
+    showPrep(); window.dispatchEvent(new CustomEvent('restro:prep-time-changed', { detail: n }));
+  }
+  document.querySelector('#settings-prep-down').addEventListener('click', () => stepPrep(-5));
+  document.querySelector('#settings-prep-up').addEventListener('click', () => stepPrep(5));
+  showPrep();
+
   for (const entry of entries) entry.addEventListener('click', () => show(entry.dataset.page, { focus: !twoPane.matches }));
   back.addEventListener('click', showList);
   search.addEventListener('input', filter);
