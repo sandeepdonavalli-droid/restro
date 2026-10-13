@@ -160,14 +160,12 @@
 #counter-title:focus{outline:none}
 .ctr-titlebar h2{font-size:17.94px;font-weight:500;color:var(--palette-accent-ink)}
 
-/* Order type: separate buttons + Split */
-.ctr-types{display:flex;align-items:stretch;gap:8px;margin-left:8px}
-.ctr-type-buttons{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.ctr-type-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:58px;margin:0;padding:6px 4px;border:1px solid var(--palette-edge);border-radius:14px;background:var(--palette-bg);color:var(--palette-text);font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 1px 3px var(--palette-soft-shadow)}
-.ctr-type-btn svg{width:20px;height:20px}
+/* Order type: names only, in two rows on the left (Dine in · Takeaway / Delivery · Split) */
+.ctr-types{display:grid;grid-template-columns:repeat(2,112px);gap:8px;justify-content:start;margin-left:8px}
+.ctr-type-btn{display:flex;align-items:center;justify-content:center;min-height:38px;margin:0;padding:6px 10px;border:1px solid var(--palette-edge);border-radius:12px;background:var(--palette-bg);color:var(--palette-text);font-weight:600;font-size:14px;cursor:pointer;box-shadow:0 1px 3px var(--palette-soft-shadow)}
 .ctr-type-btn:hover{border-color:var(--palette-accent)}
 .ctr-type-btn.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
-.ctr-split{flex:none;width:76px;border-style:dashed}
+.ctr-split{border-style:dashed}
 .ctr-split.on{border-style:solid;background:var(--palette-accent-wash);border-color:var(--palette-accent);color:var(--palette-accent-ink)}
 .ctr-split-note{margin:0 0 0 10px;font-size:12.5px;line-height:1.4;color:var(--palette-accent-ink)}
 

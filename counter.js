@@ -170,10 +170,10 @@
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
           order.lines = []; order.heldId = null; clearArmed = false; selected = null; render(); toast('Order cleared');
         } }, svg(ICON.trash))),
-      el('div', { class: 'ctr-types' },
-        el('div', { class: 'ctr-type-buttons', role: 'radiogroup', 'aria-label': order.split ? 'Add new items as' : 'Order type' },
-          ...TYPES.map(key => el('button', { type: 'button', role: 'radio', 'aria-checked': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, svg(ICON[key]), typeLabel[key]))),
-        el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, onclick: () => setSplit(!order.split) }, svg(ICON.split), 'Split')),
+      // Order type: names only, two rows on the left — Dine in · Takeaway / Delivery · Split.
+      el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
+        ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key])),
+        el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, onclick: () => setSplit(!order.split) }, 'Split')),
       order.split ? el('p', { class: 'ctr-split-note' }, `Split order · new items go to ${typeLabel[order.type]}. Tap an item to move it.`) : null);
 
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
