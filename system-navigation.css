@@ -1,22 +1,23 @@
 /* Both system bars share one height. Navigation stays at the viewport center. */
 .top-banner .restaurant-name{max-width:100%;flex:0 1 auto}
-.bottom-banner{position:fixed;inset:auto 0 0;height:var(--header-height);min-height:var(--header-height);margin:0;padding:0 clamp(15px,1.4vw,28px);border:0;border-top:1px solid var(--line);background:linear-gradient(110deg,#22282a,#171c1e);color:var(--ivory);z-index:40;box-sizing:border-box;line-height:1;isolation:isolate}
+.bottom-banner{position:fixed;inset:auto 0 0;height:var(--header-height);min-height:var(--header-height);margin:0;padding:0 clamp(15px,1.4vw,28px);border:0;border-top:1px solid var(--line);background:linear-gradient(110deg,#22282a,#171c1e);color:var(--ivory);z-index:40;box-sizing:border-box;font-size:1rem;line-height:1;isolation:isolate}
 .android-controls{position:absolute;left:50%;top:0;height:100%;transform:translateX(-50%);display:flex;align-items:center;gap:26px}
 .system-control{height:100%;width:48px;min-height:0;min-width:0;display:grid;place-items:center;padding:0;border:0;border-radius:0;background:transparent;color:var(--ivory);touch-action:manipulation;cursor:pointer}
 .system-control:hover{background:#ffffff09}
 .system-control:active{background:#f4ac7218}
 .system-control:focus-visible{outline:1px solid var(--copper);outline-offset:-3px;border-radius:5px}
 .system-control:disabled{opacity:.35;cursor:default;background:transparent}
-.system-glyph{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+/* Icons and logo are keyed to the bar itself (#system-navigation), so an open app's styles can't resize or restyle them */
+#system-navigation .system-glyph{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .bottom-brand-lock{position:absolute;right:0;top:0;bottom:0;display:flex;align-items:center;--brand-lock-gap:12px;gap:var(--brand-lock-gap)}
 .footer-identity{display:flex;align-items:center;gap:7px;color:inherit}
-.footer-logo{display:block;height:calc(var(--footer-logo-height,12px) * 1.2);width:auto;aspect-ratio:394 / 312;flex:none;fill:currentColor}
+#system-navigation .footer-logo{display:block;height:calc(var(--footer-logo-height,12px) * 1.2);width:auto;aspect-ratio:394 / 312;flex:none;fill:currentColor;stroke:none}
 .footer-brand{font-size:clamp(16px,1.3vw,20px);font-weight:650;letter-spacing:2.8px;line-height:1.2;white-space:nowrap}
 .lock-control{position:relative;width:calc((var(--header-height) + var(--brand-lock-gap)) * 1.25);height:100%;flex:none}
 .lock-control:before{content:"";position:absolute;left:0;top:15%;height:70%;width:1px;background:currentColor;opacity:.65;pointer-events:none}
-.lock-control .system-glyph{width:18px;height:18px}
-.lock-control .lock-shackle{stroke-width:2.5}
-.lock-control .lock-body{fill:currentColor;stroke:none}
+#system-navigation .lock-control .system-glyph{width:18px;height:18px}
+#system-navigation .lock-control .lock-shackle{stroke-width:2.5}
+#system-navigation .lock-control .lock-body{fill:currentColor;stroke:none}
 .workspace{padding-bottom:max(10dvh,calc(var(--header-height) + 12px))}
 .toast{bottom:calc(var(--header-height) + 16px)}
 .screen-lock-dialog{position:fixed;inset:0;margin:0;width:100%;height:100dvh;max-width:none;max-height:none;padding:24px 24px calc(var(--header-height) + 24px);border:0;border-radius:0;color:var(--ivory);background:radial-gradient(ellipse at 38% 45%,#253840,#142128);box-sizing:border-box}
@@ -29,8 +30,8 @@
 .lock-screen-content h2{font-size:16px;font-weight:400;color:#b7c8cc;line-height:1.4}
 .lock-screen-content .primary-button{margin-top:8px;min-width:130px}
 @media(min-width:741px) and (max-height:680px){.workspace{padding-bottom:max(6dvh,calc(var(--header-height) + 12px))}}
-@media(max-width:740px){.workspace{padding-bottom:calc(var(--header-height) + 24px)}.android-controls{gap:8px}.system-control{width:36px}.system-glyph{width:14px;height:14px}.bottom-brand-lock{right:0;--brand-lock-gap:6px}.footer-brand{font-size:12px;letter-spacing:1.5px}.lock-control{width:calc((var(--header-height) + var(--brand-lock-gap)) * 1.25)}}
-@media(max-width:740px){.footer-identity{gap:5px}.lock-control .system-glyph{width:16px;height:16px}}
+@media(max-width:740px){.workspace{padding-bottom:calc(var(--header-height) + 24px)}.android-controls{gap:8px}.system-control{width:36px}#system-navigation .system-glyph{width:14px;height:14px}.bottom-brand-lock{right:0;--brand-lock-gap:6px}.footer-brand{font-size:12px;letter-spacing:1.5px}.lock-control{width:calc((var(--header-height) + var(--brand-lock-gap)) * 1.25)}}
+@media(max-width:740px){.footer-identity{gap:5px}#system-navigation .lock-control .system-glyph{width:16px;height:16px}}
 
 /* App switcher (Apple-style recents) */
 .app-switcher{position:fixed;inset:0;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:var(--header-height) 0 calc(var(--header-height) + 8px);border:0;background:transparent;color:var(--palette-text,#fff);overflow:hidden;box-sizing:border-box}

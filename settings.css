@@ -6,7 +6,8 @@
 .settings-app[open]{display:block}
 .settings-app::backdrop{background:transparent;backdrop-filter:none}
 .settings-app [hidden]{display:none!important}
-.settings-app svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+/* Settings styles stay inside .settings-shell, so the system bar keeps its own look */
+.settings-shell svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
 .settings-shell{height:100%;display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr)}
 
