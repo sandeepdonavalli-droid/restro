@@ -188,3 +188,8 @@
 .ctr-titlebar .ctr-back{background:var(--palette-tile-top)}
 .ctr-titlebar .ctr-text-button:not(.armed){background:var(--palette-tile-top)}
 .ctr-titlebar .ctr-text-button:disabled{background:transparent}
+
+/* Clear order: trash icon; asks once more before clearing */
+.ctr-titlebar .ctr-clear{width:24px;height:24px;min-height:24px;padding:0;justify-content:center;border-radius:50%;color:var(--palette-accent-ink)}
+.ctr-titlebar .ctr-clear svg{width:14px;height:14px}
+.ctr-titlebar .ctr-clear.armed{width:auto;padding:0 10px 0 8px;border-radius:12px;background:#b42318;color:#fff;gap:5px}
