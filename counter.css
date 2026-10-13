@@ -345,7 +345,7 @@ button.ctr-history-main{cursor:pointer}
 .ctr-mid .ctr-type-btn:disabled{opacity:.45;cursor:default;border-color:var(--palette-edge)}
 .ctr-schedule.on{background:var(--palette-accent-wash);border-color:var(--palette-accent);color:var(--palette-accent-ink)}
 .ctr-move{grid-template-columns:repeat(4,minmax(0,90px))}
-/* Held sheet: Scheduled, On hold and Saved groups */
+/* (Held groups: no longer used; Held lists only tickets on Hold) */
 .ctr-held .ctr-held-group{display:block;padding:8px 4px 0;border-radius:0;background:none;font-size:13px;font-weight:700;color:var(--palette-accent-ink)}
 .ctr-held .ctr-held-group:first-child{padding-top:0}
 /* Assign pager: the pagers by number */
@@ -382,3 +382,15 @@ button.ctr-history-main{cursor:pointer}
 .ctr-foot .ctr-sums{font-size:15px;color:var(--palette-text)}
 .ctr-foot .ctr-sums dd{color:var(--palette-text)}
 .ctr-foot .ctr-sums .ctr-total{font-size:15px;font-weight:700}
+/* Orders: each order's payment status (Not paid stands out) and, when not paid, Open */
+.ctr-history-line{display:flex;align-items:center}
+.ctr-history-line .ctr-history-main{flex:1;min-width:0}
+.ctr-open{flex:none;min-height:38px;margin:0 12px 0 0;padding:0 16px;border-radius:12px;font-size:14px}
+.ctr-history-side .ctr-unpaid{font-weight:700;color:var(--palette-accent-ink)}
+.ctr-history-pay{margin:8px 0 0;font-size:13px;color:var(--palette-muted)}
+.ctr-open,.ctr-open-gap{width:76px;padding:0}
+.ctr-open-gap{flex:none;margin-right:12px} /* paid orders keep the same space, so amounts line up */
+.ctr-history-line .ctr-open,.ctr-history-line .ctr-open-gap{margin:0 12px 0 0}
+/* An order's items and totals in Orders: one size and colour; only Total is bold (as on the ticket) */
+.ctr-history-detail .ctr-sums{color:var(--palette-text)}
+.ctr-history-detail .ctr-sums .ctr-total{margin-top:0;font-size:13px}
