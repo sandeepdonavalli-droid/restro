@@ -52,7 +52,7 @@
   }
   const svg = path => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = path; return s; };
   const ICON = {
-    back: '<path d="M19 12H5m6-6-6 6 6 6"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/>',
+    back: '<path d="M19 12H5m6-6-6 6 6 6"/>', home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/>',
     plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     held: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', chevron: '<path d="m15 6-6 6 6 6"/>', close: '<path d="m6 6 12 12M18 6 6 18"/>',
     check: '<path d="m5 12.5 4.5 4.5L19 7"/>'
@@ -111,7 +111,7 @@
     const header = el('div', { class: 'ctr-order-head' },
       el('div', { class: 'ctr-titlebar' },
         el('div', { class: 'ctr-title-left' },
-          el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Close Counter', onclick: () => dialog.close() }, svg(ICON.back)),
+          el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Home', title: 'Home', onclick: () => { const home = document.querySelector('#system-home'); if (home) home.click(); else dialog.close(); } }, svg(ICON.home)),
           el('h2', { id: 'counter-title' }, 'Counter')),
         counterIcon(),
         el('button', { class: `ctr-text-button ${clearArmed ? 'armed' : ''}`, type: 'button', disabled: !order.lines.length, onclick: () => {
@@ -297,7 +297,7 @@
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
   window.RestroCounter = Object.freeze({
-    open() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); render(); dialog.showModal(); },
+    open() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); render(); dialog.showModal(); dialog.querySelector('#counter-search')?.focus({ preventScroll: true }); },
     goBack,
     get order() { return JSON.parse(JSON.stringify(order)); }
   });
