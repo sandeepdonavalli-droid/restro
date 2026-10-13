@@ -193,3 +193,9 @@
 .ctr-titlebar .ctr-clear{width:24px;height:24px;min-height:24px;padding:0;justify-content:center;border-radius:50%;color:var(--palette-accent-ink)}
 .ctr-titlebar .ctr-clear svg{width:14px;height:14px}
 .ctr-titlebar .ctr-clear.armed{width:auto;padding:0 10px 0 8px;border-radius:12px;background:#b42318;color:#fff;gap:5px}
+/* Trash: larger and always highlighted in the theme tint, even when the order is empty */
+.ctr-titlebar .ctr-clear,.ctr-titlebar .ctr-clear:disabled{width:32px;height:32px;min-height:32px;opacity:1;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
+.ctr-titlebar .ctr-clear svg{width:19px;height:19px}
+.ctr-titlebar .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
+.ctr-titlebar .ctr-clear.armed{width:auto;height:32px;padding:0 12px 0 9px;background:#b42318;color:#fff;box-shadow:none}
+.ctr-titlebar .ctr-text-button.ctr-clear:not(.armed){background:var(--palette-accent-wash);opacity:1}
