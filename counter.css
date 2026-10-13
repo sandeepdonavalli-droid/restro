@@ -167,7 +167,6 @@
 .ctr-type-btn.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
 .ctr-split{border-style:dashed}
 .ctr-split.on{border-style:solid;background:var(--palette-accent-wash);border-color:var(--palette-accent);color:var(--palette-accent-ink)}
-.ctr-split-note{margin:0 0 0 10px;font-size:12.5px;line-height:1.4;color:var(--palette-accent-ink)}
 
 /* Split groups in the order list */
 .ctr-group{display:flex;align-items:center;gap:8px;padding:10px 16px 4px;color:var(--palette-accent-ink);font-size:13px;font-weight:700;letter-spacing:.02em}

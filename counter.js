@@ -172,8 +172,7 @@
       // Order type: names only, two rows on the left — Dine in · Takeaway / Delivery · Split.
       el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
         ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key])),
-        el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, onclick: () => setSplit(!order.split) }, 'Split')),
-      order.split ? el('p', { class: 'ctr-split-note' }, `Split order · new items go to ${typeLabel[order.type]}. Tap an item to move it.`) : null);
+        el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, onclick: () => setSplit(!order.split) }, 'Split')));
 
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
