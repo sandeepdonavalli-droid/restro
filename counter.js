@@ -208,15 +208,16 @@
           el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Home', title: 'Home', onclick: () => { const home = document.querySelector('#system-home'); if (home) home.click(); else dialog.close(); } }, svg(ICON.home)),
           el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter')),
         orderTarget()),
-      // Order type: names only, two rows on the left — Dine in · Takeaway / Delivery · Split — and Trash at the right of the Split row.
+      // Order type: names only on the left (Dine in · Takeaway / Delivery); Split above Trash on the right.
       el('div', { class: 'ctr-type-row' },
         el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
-          ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key])),
-          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Split')),
-        el('button', { class: `ctr-text-button ctr-clear ${clearArmed ? 'armed' : ''}`, type: 'button', 'aria-label': clearArmed ? 'Tap again to clear the order' : 'Clear order', title: 'Clear order', disabled: !order.lines.length, onclick: () => {
+          ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key]))),
+        el('div', { class: 'ctr-side' },
+          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Split'),
+          el('button', { class: `ctr-text-button ctr-clear ${clearArmed ? 'armed' : ''}`, type: 'button', 'aria-label': clearArmed ? 'Tap again to clear the order' : 'Clear order', title: 'Clear order', disabled: !order.lines.length, onclick: () => {
           if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
           order.lines = []; order.heldId = null; clearArmed = false; selected = null; render(); toast('Order cleared');
-        } }, svg(ICON.trash))));
+        } }, svg(ICON.trash)))));
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
     const lineRow = line => {

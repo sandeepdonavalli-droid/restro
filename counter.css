@@ -268,9 +268,11 @@
 .ctr-table-box:active,.ctr-customer:active{transform:scale(.96)}
 /* Split needs an order type first */
 .ctr-type-btn.ctr-split:disabled{opacity:.45;cursor:default;border-color:var(--palette-edge)}
-/* Clear order (Trash): at the right end of the Split row, always tinted; turns red and asks once more before clearing */
-.ctr-type-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
-.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled{flex:none;width:32px;height:32px;min-height:32px;margin:0 0 -1px;padding:0;justify-content:center;border-radius:50%;opacity:1;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent)}
-.ctr-type-row .ctr-clear svg{width:19px;height:19px}
+/* Right of the order types: Split, with Trash (Clear order) under it, both the same size and shape as the order type buttons */
+.ctr-type-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.ctr-side{display:grid;grid-template-columns:90px;gap:6px}
+/* Trash: always tinted; turns red and asks once more before clearing */
+.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled{width:90px;height:30px;min-height:30px;margin:0;padding:0;justify-content:center;border:1px solid color-mix(in srgb,var(--palette-accent) 30%,transparent);border-radius:10px;opacity:1;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:0 1px 3px var(--palette-soft-shadow)}
+.ctr-type-row .ctr-clear svg{width:17px;height:17px}
 .ctr-type-row .ctr-clear:not(:disabled):hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
-.ctr-type-row .ctr-text-button.ctr-clear.armed,.ctr-type-row .ctr-text-button.ctr-clear.armed:hover{background:#b42318;color:#fff;box-shadow:none}
+.ctr-type-row .ctr-text-button.ctr-clear.armed,.ctr-type-row .ctr-text-button.ctr-clear.armed:hover{border-color:#b42318;background:#b42318;color:#fff;box-shadow:none}
