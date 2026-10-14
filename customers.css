@@ -61,3 +61,8 @@
 .cust-nav{position:relative;top:2px;width:47px;height:33px;border-radius:8px;background:linear-gradient(var(--palette-accent-wash),var(--palette-accent-wash)) var(--palette-tile-top)}
 .cust-nav:hover{background:linear-gradient(color-mix(in srgb,var(--palette-accent) 22%,transparent),color-mix(in srgb,var(--palette-accent) 22%,transparent)) var(--palette-tile-top)}
 .cust-nav svg{width:20px;height:20px}
+/* Home: 51x41 at the top-left corner, as in Counter; the header line starts just right of it */
+.cust-head{padding-left:63px}
+.cust-nav{position:absolute;left:4px;top:2px;width:51px;height:41px}
+.cust-nav svg{width:24px;height:24px}
+.cust-head::after{left:61px}

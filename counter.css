@@ -394,3 +394,10 @@ button.ctr-history-main{cursor:pointer}
 /* An order's items and totals in Orders: one size and colour; only Total is bold (as on the ticket) */
 .ctr-history-detail .ctr-sums{color:var(--palette-text)}
 .ctr-history-detail .ctr-sums .ctr-total{margin-top:0;font-size:13px}
+/* Home: 51x41, at the top-left corner (4px in, 2px down), reaching a little below the header line, which starts just
+   right of it. Out of the row's flow, so nothing else in the header moves. Same size in Floor and Customers. */
+.ctr-titlebar{grid-template-columns:minmax(44px,1fr) auto minmax(0,1fr)}
+.ctr-titlebar .ctr-back{position:absolute;left:-12px;top:2px;width:51px;height:41px;min-height:41px;margin:0;border-radius:8px}
+.ctr-titlebar .ctr-back svg{width:24px;height:24px}
+.ctr-shell::after{left:61px}
+@media (max-width:700px){.ctr-titlebar::after{left:45px}}
