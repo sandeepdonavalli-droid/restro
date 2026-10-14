@@ -418,3 +418,9 @@ button.ctr-history-main{cursor:pointer}
 @media (max-width:700px){.ctr-order::before,.ctr-menu::before{content:none}}
 /* The line under the order type buttons keeps the same 6px gap at its left end too (it doesn't run into the edge) */
 .ctr-order-head::after{left:6px}
+/* Gaps are 9px wherever a line stops short of something: Home and the header line, the divider (both sides of the
+   header line, and the line under the order type buttons), and the left end of that line. */
+.ctr-order::before{left:64px;right:10px}
+.ctr-menu::before{left:9px}
+.ctr-order-head::after{left:9px;right:10px}
+@media (max-width:700px){.ctr-titlebar::after{left:48px}}

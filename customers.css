@@ -66,3 +66,4 @@
 .cust-nav{position:absolute;left:4px;top:2px;width:51px;height:41px}
 .cust-nav svg{width:24px;height:24px}
 .cust-head::after{left:61px}
+.cust-head::after{left:64px} /* 9px gap after Home, as in Counter */
