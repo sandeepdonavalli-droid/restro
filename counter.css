@@ -476,3 +476,15 @@ button.ctr-history-main{cursor:pointer}
 .ctr-target.set{color:var(--palette-text)}
 .ctr-titlebar .ctr-back,.ctr-type-row .ctr-clear{color:var(--palette-accent-ink)}
 @media (prefers-reduced-motion:reduce){.ctr-type-btn,.ctr-move button,.ctr-type-row .ctr-clear,.ctr-target,.ctr-titlebar .ctr-back{transition:none}}
+/* Like the menu tiles: a stripe down the left edge (the theme colour, so it follows the theme) and the name left-aligned
+   in the tiles' bold type. Home and Trash keep their icon centred; selected buttons are filled with the theme colour. */
+.ctr-type-btn,.ctr-move button,.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled,.ctr-target,.ctr-target.set,.ctr-titlebar .ctr-back{border-left:6px solid var(--palette-accent)}
+.ctr-type-btn,.ctr-move button,.ctr-target,.ctr-target.set{justify-content:flex-start;text-align:left;padding:0 10px 0 12px;font-size:14px;font-weight:600;color:var(--palette-text);white-space:nowrap;overflow:hidden}
+.ctr-type-btn.on,.ctr-move button.on,.ctr-split.on{color:var(--palette-on-accent)}
+.ctr-schedule.on{color:var(--palette-accent-ink)}
+@media (max-width:1100px){.ctr-type-btn,.ctr-move button,.ctr-target,.ctr-target.set{padding:0 4px 0 7px;font-size:12px}}
+/* Names centred in the buttons; button borders in the theme colour (the tile stripe on the left as well). Disabled buttons
+   look the same, only faded. Narrow tablets drop the header icons so the names stay whole. */
+.ctr-type-btn,.ctr-move button,.ctr-target,.ctr-target.set{justify-content:center;text-align:center;padding:0 8px}
+.ctr-type-btn,.ctr-move button,.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled,.ctr-target,.ctr-target.set,.ctr-titlebar .ctr-back,.ctr-mid .ctr-type-btn:disabled,.ctr-type-btn.ctr-split:disabled{border-color:var(--palette-accent)}
+@media (max-width:1100px){.ctr-type-btn,.ctr-move button,.ctr-target,.ctr-target.set{padding:0 4px}.ctr-target svg{display:none}}
