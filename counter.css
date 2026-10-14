@@ -425,3 +425,5 @@ button.ctr-history-main{cursor:pointer}
 .ctr-order-head::after{left:9px;right:10px}
 @media (max-width:700px){.ctr-titlebar::after{left:48px}}
 .ctr-menu::before{right:9px} /* the header line stops 9px before the right edge too */
+/* Label, when on, is highlighted exactly like a selected order type button */
+.ctr-split.on{border-style:solid;background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
