@@ -59,3 +59,4 @@ button.floor-tile:active{transform:scale(.97)}
 .floor-nav{width:140px}
 .floor-head{padding-left:153px}
 .floor-head::after{left:153px}
+.floor-nav{border-radius:10px} /* same corners as Home in Counter */

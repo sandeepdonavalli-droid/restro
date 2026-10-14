@@ -450,3 +450,16 @@ button.ctr-history-main{cursor:pointer}
 /* No header line under Add Customer and Assign Pager (the order side); the menu side keeps its line */
 .ctr-order::before{content:none}
 @media (max-width:700px){.ctr-titlebar::after{content:none}}
+/* Even spacing, 9px everywhere: the controls sit 9px from the top, the left edge and the divider, 9px apart, and the line
+   below them is 9px under the last row and spans exactly their width. The header buttons (Home, Add Customer or Choose
+   table, Assign Pager) are all 41px tall in three equal parts; the order type buttons are 34px tall in four equal columns. */
+.ctr-order-head{gap:9px;padding:9px 10px 10px 9px}
+.ctr-titlebar{min-height:41px;margin:0;padding:0;column-gap:9px}
+.ctr-titlebar .ctr-back{left:0;top:0;width:calc((100% - 18px) / 3);height:41px;min-height:41px}
+.ctr-target{min-height:41px}
+.ctr-type-row{margin-left:0;column-gap:9px}
+.ctr-types{gap:9px}
+.ctr-type-row .ctr-side{gap:9px}
+.ctr-move{gap:9px}
+/* One corner rounding for every control in the block (Home, the header buttons and the order type buttons) */
+.ctr-titlebar .ctr-back,.ctr-target{border-radius:10px}

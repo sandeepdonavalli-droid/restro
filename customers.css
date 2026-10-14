@@ -72,3 +72,4 @@
 .cust-nav{width:140px}
 .cust-head{padding-left:153px}
 .cust-head::after{left:153px}
+.cust-nav{border-radius:10px} /* same corners as Home in Counter */
