@@ -67,7 +67,7 @@
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null,
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000).map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type })) };
   };
-  // With Label on (called "split" in the code), each line keeps its own type; otherwise every line follows the order type.
+  // With Modify on (called "split" in the code), each line keeps its own type; otherwise every line follows the order type.
   const typeOf = (o, line) => o.split ? (line.type || o.type) : o.type;
   const lineType = line => typeOf(order, line);
   // What a saved order looks like, to tell whether the copy on screen has changes not saved yet.
@@ -176,7 +176,7 @@
     const line = order.lines.find(l => keyOf(l) === key); if (!line) return;
     line.type = type; tidy(); selected = `${line.id}@${type}`; render();
   }
-  // Changing the order type puts every item on the new type, with Label on or off (with Label on, items can then be
+  // Changing the order type puts every item on the new type, with Modify on or off (with Modify on, items can then be
   // moved to other types again). The same item on two types becomes one line.
   function setType(type) {
     if (order.type === type) return;
@@ -187,7 +187,7 @@
   function setSplit(on) {
     if (on) order.lines.forEach(l => { l.type = l.type || order.type; });
     order.split = on;
-    if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); if (typeLabel[order.type]) toast(`Label off · all items ${typeLabel[order.type].toLowerCase()}`); }
+    if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); if (typeLabel[order.type]) toast(`Modify off · all items ${typeLabel[order.type].toLowerCase()}`); }
     selected = null; render();
   }
   // Puts the order on screen in Held, until the end of the day.
@@ -337,7 +337,7 @@
   }
   // How an order is described in Held orders and on the receipt: type, then the table or the customer.
   const describe = o => {
-    const type = o.split ? `Label · ${[...new Set(o.lines.map(l => typeLabel[l.type || o.type]).filter(Boolean))].join(' + ')}` : typeLabel[o.type] || '';
+    const type = o.split ? `Modify · ${[...new Set(o.lines.map(l => typeLabel[l.type || o.type]).filter(Boolean))].join(' + ')}` : typeLabel[o.type] || '';
     const who = o.type === 'dine-in' && o.table ? `Table ${tableName(o.table)}` : o.type && o.type !== 'dine-in' && o.customer ? o.customer.name : '';
     return [type, who, cleanPager(o.pager) ? `Pager ${o.pager}` : ''].filter(Boolean).join(' · ');
   };
@@ -359,7 +359,7 @@
   function orderPanel() {
     const t = totals();
     // Nine buttons in three rows of three (placed by counter.css): Dine in · Takeaway · Schedule / Delivery · Phone call ·
-    // Label / Add Customer or Choose table · Assign Pager · Hold. Home is the system bar's.
+    // Modify / Add Customer or Choose table · Assign Pager · Hold. Home is the system bar's.
     const header = el('div', { class: 'ctr-order-head' },
       el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter'),
       el('div', { class: 'ctr-type-row' },
@@ -370,7 +370,7 @@
             onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
           el('button', { type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold')),
         el('div', { class: 'ctr-side' },
-          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Label'))),
+          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Modify'))),
       el('div', { class: 'ctr-titlebar' }, orderTargets()));
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
@@ -389,7 +389,7 @@
         li.append(el('div', { class: 'ctr-line-edit' },
           el('span', { class: 'ctr-unit' }, `${rupees(item.price)} each`),
           el('button', { type: 'button', class: 'ctr-text-button danger', onclick: () => setQty(key, 0) }, svg(ICON.trash), 'Remove')));
-        // Label on: move this item to another order type (the buttons match the order type buttons above).
+        // Modify on: move this item to another order type (the buttons match the order type buttons above).
         if (order.split) li.append(el('div', { class: 'ctr-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
           ...TYPES.map(type => el('button', { type: 'button', role: 'radio', 'aria-checked': String(lineType(line) === type), class: lineType(line) === type ? 'on' : '', onclick: () => moveLine(key, type) }, typeLabel[type]))));
       }
