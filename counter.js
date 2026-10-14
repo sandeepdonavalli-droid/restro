@@ -406,7 +406,7 @@
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
     const lineRow = line => {
       const item = items.get(line.id), key = keyOf(line), open = selected === key;
-      const li = el('li', { class: `ctr-line ${open ? 'open' : ''}`, 'data-line': key, style: `--stripe:${categoryOf.get(line.id).color}` },
+      const li = el('li', { class: `ctr-line ${open ? 'open' : ''}`, 'data-line': key },
         el('div', { class: 'ctr-line-main' },
           el('button', { type: 'button', class: 'ctr-line-select', 'aria-expanded': String(open), onclick: () => { selected = open ? null : key; render(); } },
             el('span', { class: 'ctr-line-name' }, item.name)),

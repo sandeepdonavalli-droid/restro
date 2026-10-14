@@ -574,3 +574,8 @@ button.ctr-history-main{cursor:pointer}
 .ctr-wheel-item{height:40px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--palette-muted);cursor:pointer;user-select:none;-webkit-user-select:none}
 .ctr-wheel-item[aria-selected="true"]{color:var(--palette-text);font-weight:700}
 @media (max-height:640px){.ctr-wheel{height:120px}.ctr-wheel-band{top:40px}.ctr-wheel-list{padding:40px 0}}
+/* Order lines carry no colour: no category stripe down the left edge. The names, the row under an opened item and
+   Modify's type buttons start 16px in, level with the group names and Subtotal. */
+.ctr-line{border-left:0}
+.ctr-line-main{padding-left:16px}
+.ctr-line-edit,.ctr-move{padding-left:16px}
