@@ -458,8 +458,8 @@
           const pick = byCode || (found.length === 1 ? found[0] : null);
           if (pick) { e.preventDefault(); add(pick.id); query = ''; render(); dialog.querySelector('#counter-search')?.focus(); }
         } }));
-    // Options: a round button at the left end of the header. The header line runs into it and wraps around it, so it
-    // sits in a bubble at the end of the line.
+    // Options: a round button at the left end of the header, against the divider. The divider, going up, loops round it
+    // and carries on to the top, so the button sits in a bubble on the divider.
     const top = el('div', { class: 'ctr-menu-top' },
       el('span', { class: 'ctr-options-ring', 'aria-hidden': 'true' }),
       el('button', { type: 'button', class: 'ctr-options', 'aria-label': 'Options', title: 'Options' }, svg(ICON.menu)),
