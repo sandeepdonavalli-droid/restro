@@ -788,37 +788,68 @@
           order.pager ? el('button', { type: 'button', class: 'ctr-secondary ctr-sheet-wide', onclick: () => choose(0) }, 'Remove pager') : null));
     }
     // Schedule: the day and time the customer wants the order ready. It goes to the kitchen the preparation time before.
-    // Schedule works from the start: the time can be picked before any item is added.
+    // Schedule works from the start: the time can be picked before any item is added. The day is picked on top; the time
+    // with three wheels, Hour · Minutes (in 5s) · AM or PM, each scrolled (or tapped) until the value sits in the band.
     if (sheet === 'schedule') {
       const nowMs = Date.now(), today = new Date(), prep = prepMinutes();
       const days = Array.from({ length: 7 }, (_, i) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + i));
       if (!scheduleDraft) {
-        const r = order.readyAt ? new Date(order.readyAt) : null, day = r ? days.findIndex(d => dayKey(d) === dayKey(r)) : -1;
-        scheduleDraft = day >= 0 ? { day, hour: r.getHours(), minute: r.getMinutes() - r.getMinutes() % 15 } : { day: 0, hour: null, minute: 0 };
+        // The time already on the order, or else the soonest the kitchen can have it ready (now plus the preparation
+        // time, on to the next 5 minutes).
+        const r = new Date(order.readyAt || Math.ceil((nowMs + prep * 60000) / 300000) * 300000), day = days.findIndex(x => dayKey(x) === dayKey(r));
+        scheduleDraft = { day: Math.max(day, 0), hour: r.getHours(), minute: r.getMinutes() - r.getMinutes() % 5 };
       }
       const d = scheduleDraft;
-      const at = (day, hour, minute) => new Date(days[day].getFullYear(), days[day].getMonth(), days[day].getDate(), hour, minute).getTime();
-      const hourOk = h => at(d.day, h, 45) > nowMs, minuteOk = m => d.hour != null && at(d.day, d.hour, m) > nowMs;
-      const settle = () => { if (d.hour != null && !hourOk(d.hour)) d.hour = null; if (d.hour != null && !minuteOk(d.minute)) d.minute = [0, 15, 30, 45].find(minuteOk) ?? 0; render(); };
-      const readyAt = d.hour != null && minuteOk(d.minute) ? at(d.day, d.hour, d.minute) : null;
-      const hourName = h => h === 0 ? '12 am' : h < 12 ? `${h} am` : h === 12 ? '12 pm' : `${h - 12} pm`;
+      const at = () => new Date(days[d.day].getFullYear(), days[d.day].getMonth(), days[d.day].getDate(), d.hour, d.minute).getTime();
       const dayName = i => i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : days[i].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' });
-      const pickBtn = (label, on, disabled, onclick, aria) => el('button', { type: 'button', class: `ctr-pick${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled, 'aria-label': aria || null, onclick }, label);
-      const kitchenAt = readyAt ? readyAt - prep * 60000 : null;
-      const summary = el('div', { class: 'ctr-sched-summary', 'aria-live': 'polite' }, readyAt
-        ? [el('strong', {}, `Ready by ${d.day < 2 ? dayName(d.day).toLowerCase() : days[d.day].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, ${timeOf(readyAt)}`),
-           el('span', {}, kitchenAt <= nowMs ? 'Goes to the kitchen now' : `Goes to the kitchen at ${whenShort(kitchenAt)} (${prep} min before)`)]
-        : el('span', {}, 'Choose the time the customer wants it ready'));
+      const pickBtn = (label, on, onclick) => el('button', { type: 'button', class: `ctr-pick${on ? ' on' : ''}`, 'aria-pressed': String(on), onclick }, label);
+      const summary = el('div', { class: 'ctr-sched-summary', 'aria-live': 'polite' });
+      const confirm = el('button', { type: 'button', class: 'primary-button ctr-complete' }, 'Schedule');
+      // The summary and the Schedule button follow the wheels as they turn (the sheet itself is not redrawn).
+      const update = () => {
+        const readyAt = at(), now = Date.now(), ok = readyAt > now, kitchenAt = readyAt - prep * 60000;
+        summary.replaceChildren(...(ok
+          ? [el('strong', {}, `Ready by ${d.day < 2 ? dayName(d.day).toLowerCase() : days[d.day].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, ${timeOf(readyAt)}`),
+             el('span', {}, kitchenAt <= now ? 'Goes to the kitchen now' : `Goes to the kitchen at ${whenShort(kitchenAt)} (${prep} min before)`)]
+          : [el('strong', {}, `${timeOf(readyAt)} has passed`), el('span', {}, 'Choose a later time')]));
+        confirm.disabled = !ok; confirm.onclick = () => setSchedule(at());
+      };
+      // A wheel: the value in the middle band is the one picked. Scroll it, tap a value, or use the arrow keys.
+      const ROW = 40;
+      const wheel = (label, values, index, pick) => {
+        let current = index;
+        const list = el('div', { class: 'ctr-wheel-list', role: 'listbox', tabindex: '0', 'aria-label': label });
+        const items = values.map((v, i) => el('div', { class: 'ctr-wheel-item', role: 'option', 'aria-selected': String(i === index), onclick: () => list.scrollTo({ top: i * ROW, behavior: 'smooth' }) }, v));
+        list.append(...items);
+        list.addEventListener('scroll', () => {
+          const i = Math.max(0, Math.min(values.length - 1, Math.round(list.scrollTop / ROW)));
+          if (i === current) return;
+          items[current].setAttribute('aria-selected', 'false'); items[i].setAttribute('aria-selected', 'true'); current = i;
+          pick(i); update();
+        });
+        list.addEventListener('keydown', e => {
+          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+          e.preventDefault();
+          list.scrollTo({ top: Math.max(0, Math.min(values.length - 1, current + (e.key === 'ArrowDown' ? 1 : -1))) * ROW, behavior: 'smooth' });
+        });
+        queueMicrotask(() => { list.scrollTop = index * ROW; }); // once the sheet is on screen
+        return el('div', { class: 'ctr-wheel' }, el('div', { class: 'ctr-wheel-band', 'aria-hidden': 'true' }), list);
+      };
+      const hours = Array.from({ length: 12 }, (_, i) => String(i + 1)), minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+      const wheels = el('div', { class: 'ctr-wheels' },
+        wheel('Hour', hours, (d.hour + 11) % 12, i => { d.hour = (i + 1) % 12 + (d.hour >= 12 ? 12 : 0); }),
+        wheel('Minutes', minutes, d.minute / 5, i => { d.minute = i * 5; }),
+        wheel('AM or PM', ['AM', 'PM'], d.hour >= 12 ? 1 : 0, i => { d.hour = d.hour % 12 + (i ? 12 : 0); }));
+      update();
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet ctr-sched-sheet', role: 'dialog', 'aria-label': 'Schedule order' },
           el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Schedule order'), close),
-          el('div', { class: 'ctr-sched-days', role: 'group', 'aria-label': 'Day' }, ...days.map((_, i) => pickBtn(dayName(i), d.day === i, false, () => { d.day = i; settle(); }))),
-          el('div', { class: 'ctr-sched-hours', role: 'group', 'aria-label': 'Hour' }, ...Array.from({ length: 24 }, (_, h) => pickBtn(hourName(h), d.hour === h, !hourOk(h), () => { d.hour = h; settle(); }))),
-          el('div', { class: 'ctr-sched-mins', role: 'group', 'aria-label': 'Minutes' }, ...[0, 15, 30, 45].map(m => pickBtn(`:${String(m).padStart(2, '0')}`, d.hour != null && d.minute === m, d.hour != null && !minuteOk(m), () => { d.minute = m; settle(); }, `${m} minutes past`))),
+          el('div', { class: 'ctr-sched-days', role: 'group', 'aria-label': 'Day' }, ...days.map((_, i) => pickBtn(dayName(i), d.day === i, () => { d.day = i; render(); }))),
+          wheels,
           summary,
           el('div', { class: 'ctr-sched-actions' },
             order.readyAt ? el('button', { type: 'button', class: 'ctr-secondary', onclick: () => { order.readyAt = null; scheduleDraft = null; sheet = null; render(); toast('Schedule removed'); } }, 'Remove schedule') : null,
-            el('button', { type: 'button', class: 'primary-button ctr-complete', disabled: !readyAt, onclick: () => setSchedule(readyAt) }, 'Schedule'))));
+            confirm)));
     }
     // Orders: every saved order, newest first, with its payment status (Paid or Not paid) and where it is with the kitchen.
     // Tap an order to see its items; an order not paid yet has Open, to add items or take the payment.
