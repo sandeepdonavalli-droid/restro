@@ -524,3 +524,24 @@ button.ctr-history-main{cursor:pointer}
 .ctr-target svg{display:none}
 .ctr-menu-top{padding-top:16px}
 @media (max-width:1100px){.ctr-target,.ctr-target.set{font-size:11.5px;line-height:1.1}.ctr-target span{white-space:normal;text-overflow:clip}} /* narrow tablets: a long name may take two lines */
+/* The panel is nine buttons in three rows of three, spread over the order side: 9px from the top, the left edge and the
+   divider, 9px apart, each 48px tall. Row 1: Add Customer (or Choose table) · Assign Pager · Label; row 2: Dine in ·
+   Takeaway · Schedule; row 3: Delivery · Phone call · Hold. Home and Trash are no longer in it (Home is on the system
+   bar). The groups stay in the page for their meaning and colours but take no space of their own. All nine names are
+   one size. The menu's header line meets the bottom of the first row, and the menu bar stays centred on that row. */
+.ctr-order-head{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,48px);gap:9px}
+.ctr-titlebar,.ctr-targets,.ctr-type-row,.ctr-types,.ctr-type-row .ctr-side{display:contents}
+.ctr-targets>.ctr-target:nth-child(1){grid-area:1 / 1}
+.ctr-targets>.ctr-target:nth-child(2){grid-area:1 / 2}
+.ctr-order-head .ctr-split{grid-area:1 / 3}
+.ctr-types>.ctr-type-btn:nth-child(1){grid-area:2 / 1}
+.ctr-types>.ctr-type-btn:nth-child(2){grid-area:2 / 2}
+.ctr-order-head .ctr-schedule{grid-area:2 / 3}
+.ctr-types>.ctr-type-btn:nth-child(3){grid-area:3 / 1}
+.ctr-types>.ctr-type-btn:nth-child(4){grid-area:3 / 2}
+.ctr-order-head .ctr-hold{grid-area:3 / 3}
+.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{width:auto;height:48px;min-height:48px;padding:0 8px;font-size:14px}
+.ctr-menu-top{min-height:57px;padding-top:9px}
+.ctr-menu::before{top:56px}
+.ctr-shell{background:linear-gradient(var(--palette-tile-top) 0 57px,transparent 57px)}
+@media (max-width:1100px){.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{padding:0 4px;font-size:13px}.ctr-order-head .ctr-type-btn{white-space:normal;line-height:1.1}} /* narrower tablets: all nine at 13px so the names stay on one line; on a portrait screen a long one (a customer, a ready time) may take two */

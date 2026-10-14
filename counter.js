@@ -74,7 +74,7 @@
   const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.readyAt || 0, o.lines.map(l => [l.id, l.qty, typeOf(o, l)])]);
   const keyOf = line => `${line.id}@${lineType(line)}`;
   let qtyKey = null, qtyValue = '';
-  let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, clearArmed = false;
+  let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null;
   let cashInput = '';                                   // cash typed on the payment sheet
   let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
@@ -156,7 +156,7 @@
   function add(id) {
     const type = order.type, line = order.lines.find(l => l.id === id && lineType(l) === type);
     if (line) line.qty += 1; else order.lines.push({ id, qty: 1, type });
-    selected = null; clearArmed = false; render();
+    selected = null; render();
     const row = dialog.querySelector(`[data-line="${id}@${type}"]`); row?.scrollIntoView({ block: 'nearest' }); row?.classList.add('just-added');
   }
   function setQty(key, qty) {
@@ -203,7 +203,7 @@
     if (!order.lines.length || (order.number && signature(order) === baseline)) return false;
     return hold();
   }
-  const fresh = () => { order = blankOrder(); baseline = null; selected = null; sheet = null; clearArmed = false; scheduleDraft = null; render(); };
+  const fresh = () => { order = blankOrder(); baseline = null; selected = null; sheet = null; scheduleDraft = null; render(); };
   // Sends the items not sent yet to the kitchen, as one kitchen ticket. There is no kitchen screen or printer yet,
   // so the ticket is recorded on the order. Returns how many items went.
   function sendToKitchen(entry, now = Date.now()) {
@@ -300,7 +300,7 @@
     const waiting = held.find(forTable);
     if (waiting) { resume(waiting.heldId); return; }
     const parked = park();
-    order = { ...blankOrder(), type: 'dine-in', table: id }; baseline = null; selected = null; sheet = null; clearArmed = false; render();
+    order = { ...blankOrder(), type: 'dine-in', table: id }; baseline = null; selected = null; sheet = null; render();
     if (parked) toast(`Previous order on hold · ${held.length} held`);
   }
   // Pay: the order is saved as paid (and goes to the kitchen if it has not yet), then the receipt shows.
@@ -358,14 +358,12 @@
   const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card' };
   function orderPanel() {
     const t = totals();
+    // Nine buttons in three rows of three (placed by counter.css): Add Customer or Choose table · Assign Pager · Label /
+    // Dine in · Takeaway · Schedule / Delivery · Phone call · Hold. Home is the system bar's.
     const header = el('div', { class: 'ctr-order-head' },
       el('div', { class: 'ctr-titlebar' },
-        el('div', { class: 'ctr-title-left' },
-          el('button', { class: 'ctr-icon-button ctr-back', type: 'button', 'aria-label': 'Home', title: 'Home', onclick: () => { const home = document.querySelector('#system-home'); if (home) home.click(); else dialog.close(); } }, svg(ICON.home)),
-          el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter')),
+        el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter'),
         orderTargets()),
-      // Order types on the left (Dine in · Takeaway / Delivery · Phone call); Schedule above Hold in the middle;
-      // Label above Trash on the right.
       el('div', { class: 'ctr-type-row' },
         el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
           ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key]))),
@@ -374,12 +372,7 @@
             onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
           el('button', { type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold')),
         el('div', { class: 'ctr-side' },
-          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Label'),
-          el('button', { class: `ctr-text-button ctr-clear ${clearArmed ? 'armed' : ''}`, type: 'button', 'aria-label': clearArmed ? 'Tap again to clear the order' : 'Clear order', title: 'Clear order', disabled: !order.lines.length, onclick: () => {
-          if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { if (clearArmed) { clearArmed = false; render(); } }, 3000); return; }
-          if (order.number) { const n = order.number; fresh(); toast(`Order #${n} closed · kept as saved in Orders`); return; }
-          order.lines = []; order.heldId = null; order.readyAt = null; order.holdUntil = null; clearArmed = false; selected = null; render(); toast('Order cleared');
-        } }, svg(ICON.trash)))));
+          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Label'))));
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
     const lineRow = line => {
