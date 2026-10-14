@@ -67,8 +67,10 @@
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null,
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000).map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type })) };
   };
-  // An order with no type chosen goes as Dine in (with no table unless one is chosen).
+  // An order with no type chosen goes as Dine in, with no table: a table chosen earlier is set aside (as when the type
+  // changes to Takeaway) and comes back if Dine in is chosen again.
   const DEFAULT_TYPE = 'dine-in';
+  const usesTable = o => Boolean(o.table) && (o.type === 'dine-in' || (Boolean(o.type) && o.split));
   // With Modify on (called "split" in the code), each line keeps its own type; otherwise every line follows the order type.
   const typeOf = (o, line) => (o.split ? line.type || o.type : o.type) || DEFAULT_TYPE;
   const lineType = line => typeOf(order, line);
@@ -231,7 +233,7 @@
   // scheduled for later: then it goes at its ready time minus the preparation time. Saving again sends only what was added.
   function upsertOrder(pay) {
     const now = Date.now(), list = loadOrders(), prev = order.number ? list.find(o => o.number === order.number && !o.paidAt) : null;
-    const entry = { number: prev ? prev.number : nextNumber(), type: order.type || DEFAULT_TYPE, split: order.split, table: order.table, customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null,
+    const entry = { number: prev ? prev.number : nextNumber(), type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null,
       lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...totals(),
       createdAt: prev ? createdOf(prev) : now, savedAt: now, sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null };
@@ -305,7 +307,7 @@
   // A table tapped on the Floor: the order on that table (on screen, saved and not paid, or held) if it has one,
   // otherwise a new Dine in order with the table already chosen. An order on screen with anything not saved goes to Held.
   function openTable(id) {
-    const forTable = o => o.table === id && ((o.type || DEFAULT_TYPE) === 'dine-in' || o.split);
+    const forTable = o => o.table === id && usesTable(o);
     query = ''; category = null;
     if (forTable(order) && (order.lines.length || order.number)) { selected = null; sheet = null; render(); return; }
     const open = loadOrders().find(o => !o.paidAt && forTable(o));
@@ -333,7 +335,7 @@
   // Once chosen, each shows what was chosen (dashed until then).
   function orderTargets() {
     const c = order.customer, name = tableName(order.table);
-    const first = (order.type || DEFAULT_TYPE) === 'dine-in'
+    const first = order.type === 'dine-in'
       ? el('button', { type: 'button', class: `ctr-target${name ? ' set' : ''}`, 'aria-label': name ? `Table ${name}. Tap to change the table` : 'Choose table', onclick: pickTable },
           svg(ICON.table), el('span', {}, name ? `Table ${name}` : 'Choose table'))
       : el('button', { type: 'button', class: `ctr-target${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer },
@@ -355,7 +357,7 @@
   // How an order is described in Held orders and on the receipt: type, then the table or the customer.
   const describe = o => {
     const type = o.split ? `Modify · ${[...new Set(o.lines.map(l => typeLabel[l.type || o.type || DEFAULT_TYPE]).filter(Boolean))].join(' + ')}` : typeLabel[o.type] || '';
-    const goesAs = o.type || DEFAULT_TYPE, who = goesAs === 'dine-in' && o.table ? `Table ${tableName(o.table)}` : goesAs !== 'dine-in' && o.customer ? o.customer.name : '';
+    const who = o.type === 'dine-in' ? (o.table ? `Table ${tableName(o.table)}` : '') : o.customer ? o.customer.name : '';
     return [type, who, cleanPager(o.pager) ? `Pager ${o.pager}` : ''].filter(Boolean).join(' · ');
   };
   // Orders as kept on this device, items checked: all of them, newest first (Orders), or the paid ones by payment time (Payment history).
@@ -978,8 +980,8 @@
     openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; openTable(id); },
     goBack,
     tablesInUse() {
-      const used = [...loadOrders().filter(o => !o.paidAt), ...held].filter(o => o.table && ((o.type || DEFAULT_TYPE) === 'dine-in' || o.split)).map(o => o.table);
-      if (order.table && order.lines.length && ((order.type || DEFAULT_TYPE) === 'dine-in' || order.split)) used.push(order.table);
+      const used = [...loadOrders().filter(o => !o.paidAt), ...held].filter(usesTable).map(o => o.table);
+      if (order.lines.length && usesTable(order)) used.push(order.table);
       return used;
     },
     get order() { return JSON.parse(JSON.stringify(order)); }
