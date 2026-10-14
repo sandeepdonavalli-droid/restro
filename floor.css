@@ -60,3 +60,7 @@ button.floor-tile:active{transform:scale(.97)}
 .floor-head{padding-left:153px}
 .floor-head::after{left:153px}
 .floor-nav{border-radius:10px} /* same corners as Home in Counter */
+/* Home in the same tile style as in Counter */
+.floor-nav,.floor-nav:hover{border:1px solid var(--palette-edge);background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));box-shadow:0 2px 5px var(--palette-soft-shadow)}
+.floor-nav:hover{border-color:var(--palette-accent)}
+.floor-nav:active{transform:scale(.97)}

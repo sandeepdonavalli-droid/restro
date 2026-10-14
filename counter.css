@@ -463,3 +463,16 @@ button.ctr-history-main{cursor:pointer}
 .ctr-move{gap:9px}
 /* One corner rounding for every control in the block (Home, the header buttons and the order type buttons) */
 .ctr-titlebar .ctr-back,.ctr-target{border-radius:10px}
+/* Tile style for every control in the block (Home, Add Customer / Choose table, Assign Pager, order types, Schedule, Hold,
+   Label, Trash, and Label's per-item type buttons): the same raised look as the menu tiles, a soft gradient, the edge
+   line and a soft shadow, pressing in slightly when tapped. Selected buttons are filled with the theme colour; Home,
+   Trash and the slots not chosen yet keep their icon and text in the theme's ink. */
+.ctr-type-btn,.ctr-move button,.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled,.ctr-target,.ctr-target.set,.ctr-titlebar .ctr-back{border:1px solid var(--palette-edge);background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));box-shadow:0 2px 5px var(--palette-soft-shadow);transition:transform .12s ease,border-color .12s ease}
+.ctr-type-btn:active,.ctr-move button:active,.ctr-type-row .ctr-clear:active,.ctr-target:active,.ctr-titlebar .ctr-back:active{transform:scale(.97)}
+.ctr-type-btn:hover,.ctr-move button:hover,.ctr-target:hover,.ctr-titlebar .ctr-back:hover,.ctr-type-row .ctr-clear:not(:disabled):hover{border-color:var(--palette-accent);background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom))}
+.ctr-type-btn.on,.ctr-type-btn.on:hover,.ctr-move button.on,.ctr-split.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
+.ctr-split{border-style:solid}
+.ctr-target{color:var(--palette-accent-ink)}
+.ctr-target.set{color:var(--palette-text)}
+.ctr-titlebar .ctr-back,.ctr-type-row .ctr-clear{color:var(--palette-accent-ink)}
+@media (prefers-reduced-motion:reduce){.ctr-type-btn,.ctr-move button,.ctr-type-row .ctr-clear,.ctr-target,.ctr-titlebar .ctr-back{transition:none}}
