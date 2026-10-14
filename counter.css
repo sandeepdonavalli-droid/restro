@@ -427,3 +427,23 @@ button.ctr-history-main{cursor:pointer}
 .ctr-menu::before{right:9px} /* the header line stops 9px before the right edge too */
 /* Label, when on, is highlighted exactly like a selected order type button */
 .ctr-split.on{border-style:solid;background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
+/* Bigger controls (as marked). The header is three equal parts, Home, Add Customer (or Choose table) and Assign Pager,
+   from Home's left edge to the right; below, the order types, Schedule / Hold and Label / Trash sit in four equal columns
+   over the same width. Buttons are 34px tall with 13px text; Home stays 41px tall and reaches just below the header line,
+   which starts 9px after it. */
+.ctr-titlebar{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:10px;margin-left:-4px;padding-left:0}
+.ctr-targets{display:contents}
+.ctr-titlebar .ctr-back{left:0;width:calc((100% - 20px) / 3)}
+.ctr-target{width:auto;min-height:30px}
+.ctr-order::before{left:calc(13px + (100% - 40px) / 3)}
+.ctr-type-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));column-gap:10px;align-items:start;margin-left:-4px}
+.ctr-types{grid-column:span 2;flex:none;margin-left:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}
+.ctr-type-row .ctr-side{flex:none;gap:8px}
+.ctr-type-btn{min-height:34px;font-size:13px}
+.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled{height:34px;min-height:34px}
+.ctr-type-row .ctr-clear svg{width:19px;height:19px}
+.ctr-move{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.ctr-move button{min-height:34px;font-size:13px}
+@media (max-width:700px){.ctr-titlebar::after{left:calc((100% - 20px) / 3 + 9px)}}
+@media (max-width:1100px){.ctr-target{gap:4px;padding:0 4px;font-size:12px}.ctr-target svg{width:13px;height:13px}} /* narrower tablets: header labels still fit */
+@media (max-width:1100px){.ctr-target{padding:0 3px;font-size:11.5px}}

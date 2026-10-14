@@ -55,3 +55,7 @@ button.floor-tile:active{transform:scale(.97)}
 .floor-head::after{left:61px}
 .floor-head::after{left:64px} /* 9px gap after Home, as in Counter */
 .floor-head::after{right:9px} /* 9px gap at the right edge, as in Counter */
+/* Home is as wide as in Counter (a third of its header on a tablet); the title and the header line start 9px after it */
+.floor-nav{width:140px}
+.floor-head{padding-left:153px}
+.floor-head::after{left:153px}

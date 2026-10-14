@@ -68,3 +68,7 @@
 .cust-head::after{left:61px}
 .cust-head::after{left:64px} /* 9px gap after Home, as in Counter */
 .cust-head::after{right:9px} /* 9px gap at the right edge, as in Counter */
+/* Home is as wide as in Counter (a third of its header on a tablet); the title and the header line start 9px after it */
+.cust-nav{width:140px}
+.cust-head{padding-left:153px}
+.cust-head::after{left:153px}
