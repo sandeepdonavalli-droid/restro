@@ -358,12 +358,10 @@
   const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card' };
   function orderPanel() {
     const t = totals();
-    // Nine buttons in three rows of three (placed by counter.css): Add Customer or Choose table · Assign Pager · Label /
-    // Dine in · Takeaway · Schedule / Delivery · Phone call · Hold. Home is the system bar's.
+    // Nine buttons in three rows of three (placed by counter.css): Dine in · Takeaway · Schedule / Delivery · Phone call ·
+    // Label / Add Customer or Choose table · Assign Pager · Hold. Home is the system bar's.
     const header = el('div', { class: 'ctr-order-head' },
-      el('div', { class: 'ctr-titlebar' },
-        el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter'),
-        orderTargets()),
+      el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter'),
       el('div', { class: 'ctr-type-row' },
         el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
           ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key]))),
@@ -372,7 +370,8 @@
             onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
           el('button', { type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold')),
         el('div', { class: 'ctr-side' },
-          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Label'))));
+          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Label'))),
+      el('div', { class: 'ctr-titlebar' }, orderTargets()));
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
     const lineRow = line => {
