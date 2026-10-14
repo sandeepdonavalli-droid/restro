@@ -66,3 +66,4 @@ button.floor-tile:active{transform:scale(.97)}
 .floor-nav:active{transform:scale(.97)}
 .floor-nav,.floor-nav:hover{border-left:6px solid var(--palette-accent)} /* Home with the tile stripe, as in Counter */
 .floor-nav,.floor-nav:hover{border-color:var(--palette-accent)} /* border in the theme colour, as in Counter */
+.floor-nav,.floor-nav:hover{--btn:#4d7cb8;border-color:var(--palette-edge);border-left-color:var(--btn);color:color-mix(in srgb,var(--btn) 80%,#000)} /* Home blue, as in Counter */

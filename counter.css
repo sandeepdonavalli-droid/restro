@@ -488,3 +488,23 @@ button.ctr-history-main{cursor:pointer}
 .ctr-type-btn,.ctr-move button,.ctr-target,.ctr-target.set{justify-content:center;text-align:center;padding:0 8px}
 .ctr-type-btn,.ctr-move button,.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled,.ctr-target,.ctr-target.set,.ctr-titlebar .ctr-back,.ctr-mid .ctr-type-btn:disabled,.ctr-type-btn.ctr-split:disabled{border-color:var(--palette-accent)}
 @media (max-width:1100px){.ctr-type-btn,.ctr-move button,.ctr-target,.ctr-target.set{padding:0 4px}.ctr-target svg{display:none}}
+/* Each button has its own colour, from the menu tiles' colours: a stripe down the left edge, and the tiles' edge line
+   elsewhere. A selected button fills with its own colour (a little deeper, so the white name reads well); icons take
+   their button's colour. Home blue, Add Customer / Choose table teal, Assign Pager purple, Dine in orange, Takeaway
+   mustard, Delivery red, Phone call green, Schedule rose, Hold brown, Label olive, Trash slate. */
+.ctr-titlebar .ctr-back{--btn:#4d7cb8}
+.ctr-targets>.ctr-target:nth-child(1){--btn:#3f8f8a}
+.ctr-targets>.ctr-target:nth-child(2){--btn:#8a6bb8}
+.ctr-types>.ctr-type-btn:nth-child(1),.ctr-move>button:nth-child(1){--btn:#d4743a}
+.ctr-types>.ctr-type-btn:nth-child(2),.ctr-move>button:nth-child(2){--btn:#c9a227}
+.ctr-types>.ctr-type-btn:nth-child(3),.ctr-move>button:nth-child(3){--btn:#c4534a}
+.ctr-types>.ctr-type-btn:nth-child(4),.ctr-move>button:nth-child(4){--btn:#5f9a4c}
+.ctr-schedule{--btn:#b8577e}
+.ctr-hold{--btn:#a7794c}
+.ctr-split{--btn:#7d8f3e}
+.ctr-type-row .ctr-clear{--btn:#687882}
+.ctr-type-btn,.ctr-move button,.ctr-type-row .ctr-clear,.ctr-type-row .ctr-clear:disabled,.ctr-target,.ctr-target.set,.ctr-titlebar .ctr-back,.ctr-mid .ctr-type-btn:disabled,.ctr-type-btn.ctr-split:disabled,.ctr-type-btn:hover,.ctr-move button:hover,.ctr-target:hover,.ctr-titlebar .ctr-back:hover,.ctr-type-row .ctr-clear:not(:disabled):hover{border-color:var(--palette-edge);border-left-color:var(--btn)}
+.ctr-type-btn.on,.ctr-type-btn.on:hover,.ctr-move button.on,.ctr-split.on{--btn-deep:color-mix(in srgb,var(--btn) 78%,#000);background:var(--btn-deep);border-color:var(--btn-deep);color:#fff}
+.ctr-schedule.on{background:color-mix(in srgb,var(--btn) 14%,var(--palette-tile-top));border-color:var(--palette-edge);border-left-color:var(--btn);color:color-mix(in srgb,var(--btn) 75%,#000)}
+.ctr-titlebar .ctr-back,.ctr-type-row .ctr-clear,.ctr-target svg{color:color-mix(in srgb,var(--btn) 80%,#000)}
+.ctr-type-row .ctr-clear:disabled{color:color-mix(in srgb,var(--btn) 80%,#000)} /* Trash keeps its slate icon when the order is empty */
