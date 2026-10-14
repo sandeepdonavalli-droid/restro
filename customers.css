@@ -80,3 +80,8 @@
 .cust-nav,.cust-nav:hover{border-left:6px solid var(--palette-accent)} /* Home with the tile stripe, as in Counter */
 .cust-nav,.cust-nav:hover{border-color:var(--palette-accent)} /* border in the theme colour, as in Counter */
 .cust-nav,.cust-nav:hover{--btn:#4d7cb8;border-color:var(--palette-edge);border-left-color:var(--btn);color:color-mix(in srgb,var(--btn) 80%,#000)} /* Home blue, as in Counter */
+/* Home in the same place as in Counter (9px in, 9px down); the header line lines up with its bottom edge and the title
+   is centred beside it */
+.cust-head{min-height:50px;padding:9px 16px 0 158px;align-items:center}
+.cust-nav{left:9px;top:9px}
+.cust-head::after{left:158px}

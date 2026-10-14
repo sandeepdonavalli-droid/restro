@@ -508,3 +508,8 @@ button.ctr-history-main{cursor:pointer}
 .ctr-schedule.on{background:color-mix(in srgb,var(--btn) 14%,var(--palette-tile-top));border-color:var(--palette-edge);border-left-color:var(--btn);color:color-mix(in srgb,var(--btn) 75%,#000)}
 .ctr-titlebar .ctr-back,.ctr-type-row .ctr-clear,.ctr-target svg{color:color-mix(in srgb,var(--btn) 80%,#000)}
 .ctr-type-row .ctr-clear:disabled{color:color-mix(in srgb,var(--btn) 80%,#000)} /* Trash keeps its slate icon when the order is empty */
+/* The menu's header line lines up with the bottom edge of the header buttons beside it (Home, Add Customer, Assign Pager:
+   9px down, 41px tall), and the menu bar (Search · Held · Orders · Payment history) is centred on them. */
+.ctr-menu-top{min-height:50px;padding:9px 18px 0;align-items:center}
+.ctr-menu::before{top:49px}
+.ctr-shell{background:linear-gradient(var(--palette-tile-top) 0 50px,transparent 50px)}
