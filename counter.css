@@ -416,3 +416,5 @@ button.ctr-history-main{cursor:pointer}
 .ctr-order-head{position:relative;padding-bottom:11px;border-bottom:0}
 .ctr-order-head::after{content:"";position:absolute;left:0;right:7px;bottom:0;height:0;border-top:1px solid var(--palette-line);pointer-events:none}
 @media (max-width:700px){.ctr-order::before,.ctr-menu::before{content:none}}
+/* The line under the order type buttons keeps the same 6px gap at its left end too (it doesn't run into the edge) */
+.ctr-order-head::after{left:6px}
