@@ -401,3 +401,8 @@ button.ctr-history-main{cursor:pointer}
 .ctr-titlebar .ctr-back svg{width:24px;height:24px}
 .ctr-shell::after{left:61px}
 @media (max-width:700px){.ctr-titlebar::after{left:45px}}
+/* Lines framing the order controls, in the theme's line colour: one under the order type buttons across the order panel
+   (the buttons sit 10px from the header line above and 10px from this one), and the divider between the order and the
+   menu from top to bottom. */
+.ctr-order-head{padding-bottom:10px;border-bottom:1px solid var(--palette-line)}
+.ctr-order::after{top:0}
