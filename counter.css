@@ -530,8 +530,7 @@ button.ctr-history-main{cursor:pointer}
    shows the type chosen, filled with that type's colour (blue until one is chosen). Tapping it opens the four types
    right over it, two by two on the same grid as the tiles, with the rest of the screen dimmed; tapping a type picks it,
    tapping outside or Back closes them. The groups stay in the page for their meaning and colours but take no space of
-   their own. Names are the menu tiles' size (16px, 14px on narrower tablets); a long one takes two lines. The menu's
-   header line meets the bottom of the first row, and the menu bar stays centred on that row. */
+   their own. Names are the menu tiles' size (16px, 14px on narrower tablets); a long one takes two lines. */
 .ctr-order-head{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,76px);gap:9px}
 .ctr-titlebar,.ctr-targets,.ctr-type-row,.ctr-types,.ctr-type-row .ctr-side{display:contents}
 .ctr-order-head .ctr-type-pick{grid-area:1 / 1}
@@ -557,9 +556,11 @@ button.ctr-history-main{cursor:pointer}
 @keyframes ctr-type-grow{from{opacity:0;transform:scale(.5)}}
 @keyframes ctr-type-fade{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){.ctr-type-pop,.ctr-type-scrim{animation:none}}
-.ctr-menu-top{min-height:85px;padding-top:9px}
-.ctr-menu::before{top:84px}
-.ctr-shell{background:linear-gradient(var(--palette-tile-top) 0 85px,transparent 85px)}
+/* The menu's header sits high (as marked): the menu bar (Search · Held · Orders · Payment history) in a slim band at
+   the top, 4px clear above and below, with the header line right under it. */
+.ctr-menu-top{min-height:33px;padding-top:0;padding-bottom:1px}
+.ctr-menu::before{top:32px}
+.ctr-shell{background:linear-gradient(var(--palette-tile-top) 0 33px,transparent 33px)}
 @media (max-width:1100px){.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{padding:0 4px;font-size:14px}}
 /* Schedule: the day on top as before; the time with three wheels side by side, Hour · Minutes · AM or PM. Each shows
    five values; the one in the middle band (the theme's wash) is the one picked, in bold, and the values fade out above
