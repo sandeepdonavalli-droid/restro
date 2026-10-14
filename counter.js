@@ -48,6 +48,12 @@
     else { if (!menuOrder.items || typeof menuOrder.items !== 'object' || Array.isArray(menuOrder.items)) menuOrder.items = {}; menuOrder.items[view.catId] = ids; }
     store(ORDER_KEY, menuOrder);
   }
+  // The six tiles of the order panel, in the order they were rearranged (hold a tile, as with the menu; kept on this device).
+  const PANEL_KEY = 'restro.counter.panelOrder.v1';
+  const PANEL_TILES = ['type', 'customer', 'pager', 'modify', 'schedule', 'hold'];
+  let panelOrder = ordered(PANEL_TILES, load(PANEL_KEY, null));
+  const tileAt = key => ({ 'data-tile': key, style: `order:${panelOrder.indexOf(key)}` });
+  let panelArranging = false, panelDrag = null, panelGesture = null, panelHold = null, panelSuppress = false;
   const nextNumber = () => { const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
 
   // ---------- state ----------
@@ -336,11 +342,11 @@
   function orderTargets() {
     const c = order.customer, name = tableName(order.table);
     const first = order.type === 'dine-in'
-      ? el('button', { type: 'button', class: `ctr-target${name ? ' set' : ''}`, 'aria-label': name ? `Table ${name}. Tap to change the table` : 'Choose table', onclick: pickTable },
+      ? el('button', { ...tileAt('customer'), type: 'button', class: `ctr-target${name ? ' set' : ''}`, 'aria-label': name ? `Table ${name}. Tap to change the table` : 'Choose table', onclick: pickTable },
           svg(ICON.table), el('span', {}, name ? `Table ${name}` : 'Choose table'))
-      : el('button', { type: 'button', class: `ctr-target${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer },
+      : el('button', { ...tileAt('customer'), type: 'button', class: `ctr-target${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer },
           svg(c ? ICON.person : ICON.personAdd), el('span', {}, c ? c.name : 'Add Customer'));
-    const pager = el('button', { type: 'button', class: `ctr-target${order.pager ? ' set' : ''}`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign pager', onclick: () => { sheet = 'pager'; render(); } },
+    const pager = el('button', { ...tileAt('pager'), type: 'button', class: `ctr-target${order.pager ? ' set' : ''}`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign pager', onclick: () => { sheet = 'pager'; render(); } },
       svg(ICON.pager), el('span', {}, order.pager ? `Pager ${order.pager}` : 'Assign Pager'));
     return el('div', { class: 'ctr-targets' }, first, pager);
   }
@@ -379,22 +385,23 @@
     const t = totals();
     // Six tiles, three per row (placed by counter.css): Order type · Add Customer or Choose table · Assign Pager /
     // Modify · Schedule · Hold. Order type opens the four types right over itself. Home is the system bar's.
-    const header = el('div', { class: 'ctr-order-head' },
+    const header = el('div', { class: `ctr-order-head${panelArranging ? ' arranging' : ''}` },
       el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter'),
-      el('button', { type: 'button', class: `ctr-type-btn ctr-type-pick${order.type ? ' on' : ''}`, 'data-type': order.type || null, 'aria-haspopup': 'true', 'aria-expanded': String(typeMenu),
+      el('button', { ...tileAt('type'), type: 'button', class: `ctr-type-btn ctr-type-pick${order.type ? ' on' : ''}`, 'data-type': order.type || null, 'aria-haspopup': 'true', 'aria-expanded': String(typeMenu),
         'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, typeLabel[order.type] || 'Order type'),
       el('div', { class: 'ctr-titlebar' }, orderTargets()),
       el('div', { class: 'ctr-type-row' },
         el('div', { class: 'ctr-side' },
-          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, onclick: () => setSplit(!order.split) }, 'Modify')),
+          el('button', { ...tileAt('modify'), type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, onclick: () => setSplit(!order.split) }, 'Modify')),
         el('div', { class: 'ctr-side ctr-mid' },
-          el('button', { type: 'button', class: `ctr-type-btn ctr-schedule ${order.readyAt ? 'on' : ''}`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule',
+          el('button', { ...tileAt('schedule'), type: 'button', class: `ctr-type-btn ctr-schedule ${order.readyAt ? 'on' : ''}`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule',
             onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
-          el('button', { type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold'))),
-      // The four order types, opened from Order type: two by two over the tiles, the first where Order type is.
+          el('button', { ...tileAt('hold'), type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold'))),
+      // The four order types, opened from Order type: two by two over the tiles, on the two columns where Order type is
+      // (wherever it has been moved to).
       typeMenu && el('div', { class: 'ctr-type-pop' },
         el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
-          ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => pickType(key) }, typeLabel[key])))));
+          ...TYPES.map((key, i) => el('button', { style: `grid-area:${1 + Math.floor(i / 2)} / ${Math.min(panelOrder.indexOf('type') % 3, 1) + 1 + i % 2}`, type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => pickType(key) }, typeLabel[key])))));
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
     const lineRow = line => {
@@ -704,6 +711,90 @@
   let relayout = 0;
   window.addEventListener('resize', () => { cancelAnimationFrame(relayout); relayout = requestAnimationFrame(() => { if (dialog.open && !drag) renderMenuBody(); }); });
 
+  // ---------- rearranging the order panel ----------
+  // Hold a tile, as with the menu: the tiles jiggle and the one held follows the finger, the others making room for it
+  // live. Let go over the panel to keep the new order (saved); let go outside it to put the tiles back. A tap anywhere
+  // else, or Back, finishes. While the tiles jiggle, tapping one does nothing.
+  const panelTiles = () => [...dialog.querySelectorAll('.ctr-order-head [data-tile]')];
+  function setPanelArranging(on) {
+    if (panelArranging === on) return;
+    if (!on && panelDrag) endPanelDrag(true);
+    panelArranging = on; dialog.querySelector('.ctr-order-head')?.classList.toggle('arranging', on);
+  }
+  function startPanelDrag(key, pointerId, x, y) {
+    const head = dialog.querySelector('.ctr-order-head'), tile = head?.querySelector(`[data-tile="${key}"]`); if (!tile) return;
+    setPanelArranging(true);
+    const r = tile.getBoundingClientRect(), ghost = tile.cloneNode(true);
+    ghost.classList.add('ctr-drag-ghost'); ghost.removeAttribute('data-tile'); ghost.setAttribute('aria-hidden', 'true'); ghost.tabIndex = -1;
+    ghost.style.cssText = `width:${r.width}px;height:${r.height}px;left:${x}px;top:${y}px;--btn:${getComputedStyle(tile).getPropertyValue('--btn')}`;
+    head.append(ghost); tile.classList.add('ctr-drag-origin');
+    panelDrag = { key, pointerId, ghost, order: [...panelOrder] };
+    panelGesture = null;
+    try { head.setPointerCapture(pointerId); } catch {}
+  }
+  // The place under the finger, from the panel's grid (three columns, two rows), so tiles sliding past never change it.
+  function panelCellAt(x, y) {
+    const head = dialog.querySelector('.ctr-order-head'); if (!head) return -1;
+    const cs = getComputedStyle(head), r = head.getBoundingClientRect(), gap = parseFloat(cs.columnGap) || 9;
+    const left = r.left + parseFloat(cs.paddingLeft), top = r.top + parseFloat(cs.paddingTop);
+    const width = r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), colW = (width - 2 * gap) / 3, rowH = parseFloat(cs.gridTemplateRows) || 76;
+    const px = x - left, py = y - top; if (px < 0 || py < 0 || px > width || py > 2 * rowH + gap) return -1;
+    return Math.min(1, Math.floor(py / (rowH + gap))) * 3 + Math.min(2, Math.floor(px / (colW + gap)));
+  }
+  function movePanelDrag(x, y) {
+    const d = panelDrag; d.ghost.style.left = `${x}px`; d.ghost.style.top = `${y}px`;
+    const cell = panelCellAt(x, y); if (cell < 0) return;
+    const next = d.order.filter(k => k !== d.key); next.splice(cell, 0, d.key);
+    if (next.join() === d.order.join()) return;
+    // The tiles that change place slide from where they are shown to their new place.
+    const before = new Map(panelTiles().map(t => [t.dataset.tile, centreOf(t)]));
+    d.order = next;
+    for (const t of panelTiles()) { t.getAnimations().forEach(a => { if (a.id === 'ctr-slide') a.cancel(); }); t.style.order = next.indexOf(t.dataset.tile); }
+    for (const t of panelTiles()) {
+      if (t.dataset.tile === d.key) continue;
+      const was = before.get(t.dataset.tile), now = centreOf(t), dx = was.x - now.x, dy = was.y - now.y; if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      try { const a = t.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', composite: 'add' }); a.id = 'ctr-slide'; } catch {}
+    }
+  }
+  function endPanelDrag(cancel) {
+    const d = panelDrag; if (!d) return; panelDrag = null;
+    d.ghost.remove();
+    if (!cancel && d.order.join() !== panelOrder.join()) { panelOrder = d.order; store(PANEL_KEY, panelOrder); }
+    for (const t of panelTiles()) { t.classList.remove('ctr-drag-origin'); t.style.order = panelOrder.indexOf(t.dataset.tile); }
+  }
+  root.addEventListener('pointerdown', event => {
+    const tile = event.target.closest?.('.ctr-order-head [data-tile]');
+    if (panelArranging && !panelDrag && !tile) setPanelArranging(false); // a tap anywhere else finishes rearranging
+    if (!tile || event.button !== 0 || panelDrag || typeMenu) return;
+    panelSuppress = false;
+    const key = tile.dataset.tile, x = event.clientX, y = event.clientY, pointerId = event.pointerId;
+    panelGesture = { id: pointerId, x, y, moved: false };
+    clearTimeout(panelHold);
+    panelHold = setTimeout(() => { panelHold = null; if (panelGesture && !panelGesture.moved && panelGesture.id === pointerId) startPanelDrag(key, pointerId, x, y); }, panelArranging ? 120 : 420);
+  });
+  root.addEventListener('pointermove', event => {
+    if (panelDrag) { if (event.pointerId === panelDrag.pointerId) { event.preventDefault(); movePanelDrag(event.clientX, event.clientY); } return; }
+    if (panelGesture && event.pointerId === panelGesture.id && Math.hypot(event.clientX - panelGesture.x, event.clientY - panelGesture.y) > 8) { panelGesture.moved = true; clearTimeout(panelHold); panelHold = null; }
+  });
+  root.addEventListener('pointerup', event => {
+    clearTimeout(panelHold); panelHold = null; panelGesture = null;
+    if (!panelDrag || event.pointerId !== panelDrag.pointerId) return;
+    panelSuppress = true;
+    const r = dialog.querySelector('.ctr-order-head').getBoundingClientRect();
+    endPanelDrag(event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom); // outside the panel: put back
+  });
+  root.addEventListener('pointercancel', event => {
+    clearTimeout(panelHold); panelHold = null; panelGesture = null;
+    if (panelDrag && event.pointerId === panelDrag.pointerId) endPanelDrag(true);
+  });
+  // No tile action after a drag, or while the tiles jiggle.
+  root.addEventListener('click', event => {
+    if (!event.target.closest?.('.ctr-order-head [data-tile]')) return;
+    if (panelSuppress || panelArranging) { event.preventDefault(); event.stopPropagation(); }
+    panelSuppress = false;
+  }, true);
+  root.addEventListener('contextmenu', event => { if (event.target.closest?.('.ctr-order-head [data-tile]')) event.preventDefault(); });
+
   function sheetView() {
     if (!sheet) return null;
     const t = totals();
@@ -931,6 +1022,7 @@
 
   function render() {
     if (drag) endDrag(true, false);
+    if (panelDrag) endPanelDrag(true);
     const searchHadFocus = document.activeElement?.id === 'counter-search', tableHadFocus = document.activeElement?.id === 'counter-table';
     root.replaceChildren(el('div', { class: 'ctr-shell' }, orderPanel(), menuPanel()), typeMenu ? el('div', { class: 'ctr-type-scrim', onclick: () => openTypeMenu(false) }) : '', sheetView() || '');
     renderMenuBody();
@@ -944,6 +1036,7 @@
   function goBack() {
     if (!dialog.open) return false;
     if (typeMenu) { openTypeMenu(false); return true; }
+    if (panelArranging) { setPanelArranging(false); return true; }
     if (sheet && sheet !== 'receipt') { sheet = null; render(); return true; }
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
     if (arranging) { setArranging(false); return true; }
@@ -964,7 +1057,7 @@
     if (dialog.open && event.target.classList?.contains('ctr-lines')) scrollMemo.lines = event.target.scrollTop;
   }, true);
   // Leaving Counter ends rearranging; the order, the page and everything else stay as they were.
-  dialog.addEventListener('close', () => { clearTimeout(holdTimer); holdTimer = null; gesture = null; if (drag) endDrag(true, false); arranging = false; });
+  dialog.addEventListener('close', () => { clearTimeout(holdTimer); holdTimer = null; gesture = null; if (drag) endDrag(true, false); arranging = false; clearTimeout(panelHold); panelGesture = null; if (panelDrag) endPanelDrag(true); panelArranging = false; });
   // Toasts must show above this full-screen app.
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;
   new MutationObserver(() => {

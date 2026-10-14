@@ -533,16 +533,16 @@ button.ctr-history-main{cursor:pointer}
    their own. Names are the menu tiles' size (16px, 14px on narrower tablets); a long one takes two lines. */
 .ctr-order-head{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,76px);gap:9px}
 .ctr-titlebar,.ctr-targets,.ctr-type-row,.ctr-types,.ctr-type-row .ctr-side{display:contents}
-.ctr-order-head .ctr-type-pick{grid-area:1 / 1}
-.ctr-targets>.ctr-target:nth-child(1){grid-area:1 / 2}
-.ctr-targets>.ctr-target:nth-child(2){grid-area:1 / 3}
-.ctr-order-head .ctr-split{grid-area:2 / 1}
-.ctr-order-head .ctr-schedule{grid-area:2 / 2}
-.ctr-order-head .ctr-hold{grid-area:2 / 3}
-.ctr-types>.ctr-type-btn:nth-child(1){grid-area:1 / 1}
-.ctr-types>.ctr-type-btn:nth-child(2){grid-area:1 / 2}
-.ctr-types>.ctr-type-btn:nth-child(3){grid-area:2 / 1}
-.ctr-types>.ctr-type-btn:nth-child(4){grid-area:2 / 2}
+/* The six tiles take their places in the order they were arranged (each carries its place as its order; the four types
+   carry theirs too). Rearranging (hold a tile, as with the menu): the tiles jiggle, the one held follows the finger and
+   its place shows as a dashed outline while the others make room. */
+.ctr-order-head [data-tile]{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.ctr-order-head.arranging [data-tile]:not(.ctr-drag-origin){cursor:move;animation:ctr-jiggle .26s ease-in-out infinite alternate}
+.ctr-order-head.arranging [data-tile]:nth-child(2n):not(.ctr-drag-origin){animation-duration:.3s;animation-delay:-.15s}
+.ctr-order-head.arranging .ctr-side [data-tile]:not(.ctr-drag-origin){animation-duration:.28s;animation-delay:-.08s}
+.ctr-order-head .ctr-drag-origin,.ctr-order-head .ctr-drag-origin:disabled{background:var(--palette-accent-wash);outline:2px dashed var(--palette-accent);outline-offset:-2px;box-shadow:none;color:transparent;opacity:1}
+.ctr-order-head .ctr-drag-origin>*{opacity:0}
+@media (prefers-reduced-motion:reduce){.ctr-order-head.arranging [data-tile]{animation:none}}
 .ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{width:auto;height:76px;min-height:76px;padding:0 8px;font-size:16px;line-height:1.2;white-space:normal}
 .ctr-order-head .ctr-target span{white-space:normal;text-overflow:ellipsis;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .ctr-type-pick{--btn:#4d7cb8}
