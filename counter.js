@@ -458,10 +458,14 @@
           const pick = byCode || (found.length === 1 ? found[0] : null);
           if (pick) { e.preventDefault(); add(pick.id); query = ''; render(); dialog.querySelector('#counter-search')?.focus(); }
         } }));
-    // Options: a round button at the left end of the header, against the divider. The divider, going up, loops round it
-    // and carries on to the top, so the button sits in a bubble on the divider.
+    // Options: a round button at the top of the divider. The divider goes round it (it curves out under the button,
+    // wraps its right side and runs up to the top edge), so the button sits in a bubble of the order panel.
+    const bubble = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    bubble.setAttribute('class', 'ctr-bubble'); bubble.setAttribute('aria-hidden', 'true'); bubble.setAttribute('viewBox', '0 0 32 46');
+    bubble.innerHTML = '<path class="ctr-bubble-fill" d="M1 43H1.5A11.5 11.5 0 0 1 13 31.5A15.5 15.5 0 0 0 13 .5V0H1Z"/>'
+      + '<path class="ctr-bubble-line" d="M1.5 43A11.5 11.5 0 0 1 13 31.5A15.5 15.5 0 0 0 13 .5"/>';
     const top = el('div', { class: 'ctr-menu-top' },
-      el('span', { class: 'ctr-options-ring', 'aria-hidden': 'true' }),
+      bubble,
       el('button', { type: 'button', class: 'ctr-options', 'aria-label': 'Options', title: 'Options' }, svg(ICON.menu)),
       search,
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), 'Held', held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
