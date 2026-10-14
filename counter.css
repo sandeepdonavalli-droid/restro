@@ -593,3 +593,9 @@ button.ctr-history-main{cursor:pointer}
 .ctr-swipe-label{position:absolute;top:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;padding:0 22px;color:#fff;font-size:15px;font-weight:700}
 .ctr-swipe-label svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media (prefers-reduced-motion:reduce){.ctr-line.settling>*{transition:none}}
+/* The search is 60% of the width it had and sits on the right, next to Held: an empty space before it takes the rest.
+   (The space's margin evens out the search's own padding and border and the extra gap, so the search comes to exactly
+   60% at any width.) On a narrow portrait screen the search keeps the full width, or it would be too small to use. */
+.ctr-menu-top::before{content:"";flex:2 1 0;min-width:0;margin-right:calc(26px / 3)}
+.ctr-search{flex:3 1 0}
+@media (max-width:820px){.ctr-menu-top::before{content:none}.ctr-search{flex:1}}
