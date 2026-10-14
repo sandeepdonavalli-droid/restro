@@ -54,3 +54,4 @@ button.floor-tile:active{transform:scale(.97)}
 .floor-nav svg{width:24px;height:24px}
 .floor-head::after{left:61px}
 .floor-head::after{left:64px} /* 9px gap after Home, as in Counter */
+.floor-head::after{right:9px} /* 9px gap at the right edge, as in Counter */
