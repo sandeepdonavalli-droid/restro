@@ -599,3 +599,14 @@ button.ctr-history-main{cursor:pointer}
 .ctr-menu-top::before{content:"";flex:2 1 0;min-width:0;margin-right:calc(26px / 3)}
 .ctr-search{flex:3 1 0}
 @media (max-width:820px){.ctr-menu-top::before{content:none}.ctr-search{flex:1}}
+/* Options: a round button (three white lines on light blue) at the left end of the menu header. The header line runs
+   into it and wraps all the way round it, 3px clear of the button, the ring's bottom on the line, so the button sits in
+   a bubble at the end of the line. Where the search fills the bar (narrow screens), the bar starts after the bubble. */
+.ctr-options-ring{position:absolute;left:9px;top:1px;width:32px;height:32px;box-sizing:border-box;border:1px solid var(--palette-line);border-radius:50%;pointer-events:none}
+.ctr-options{position:absolute;left:13px;top:5px;width:24px;height:24px;margin:0;padding:0;display:grid;place-items:center;border:0;border-radius:50%;background:#4ecdf7;color:#fff;cursor:pointer;transition:transform .12s ease}
+.ctr-options:active{transform:scale(.92)}
+.ctr-options svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.ctr-menu::before{left:25px}
+@media (max-width:820px){.ctr-menu-top{padding-left:50px}}
+@media (max-width:700px){.ctr-options-ring{display:none}}
+@media (prefers-reduced-motion:reduce){.ctr-options{transition:none}}
