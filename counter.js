@@ -173,6 +173,10 @@
     order.lines = qty > 0 ? order.lines.map(l => keyOf(l) === key ? { ...l, qty } : l) : order.lines.filter(l => keyOf(l) !== key);
     if (qty <= 0) selected = null; render();
   }
+  function removeLine(key) {
+    const name = items.get(key.split('@')[0])?.name;
+    setQty(key, 0); if (name) toast(`${name} removed`);
+  }
   // Merge lines that ended up with the same item and type.
   function tidy() {
     const merged = [];
@@ -408,17 +412,15 @@
       const item = items.get(line.id), key = keyOf(line), open = selected === key;
       const li = el('li', { class: `ctr-line ${open ? 'open' : ''}`, 'data-line': key },
         el('div', { class: 'ctr-line-main' },
-          el('button', { type: 'button', class: 'ctr-line-select', 'aria-expanded': String(open), onclick: () => { selected = open ? null : key; render(); } },
-            el('span', { class: 'ctr-line-name' }, item.name)),
+          el('button', { type: 'button', class: 'ctr-line-select', 'aria-expanded': String(open), onclick: () => { selected = open ? null : key; render(); },
+            onkeydown: e => { if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeLine(key); } } },
+            el('span', { class: 'ctr-line-text' }, el('span', { class: 'ctr-line-name' }, item.name), open ? el('span', { class: 'ctr-unit' }, `@ ${rupees(item.price)}`) : null)),
           el('div', { class: 'ctr-qty' },
             el('button', { type: 'button', class: 'ctr-qty-btn', 'aria-label': `One less ${item.name}`, onclick: () => setQty(key, line.qty - 1) }, svg(ICON.minus)),
             el('button', { type: 'button', class: 'ctr-qty-num', 'aria-label': `Quantity ${line.qty}. Tap to type a quantity`, onclick: () => { qtyKey = key; qtyValue = ''; sheet = 'qty'; render(); } }, String(line.qty)),
             el('button', { type: 'button', class: 'ctr-qty-btn', 'aria-label': `One more ${item.name}`, onclick: () => setQty(key, line.qty + 1) }, svg(ICON.plus))),
           el('button', { type: 'button', class: 'ctr-line-price', tabindex: '-1', 'aria-hidden': 'true', onclick: () => { selected = open ? null : key; render(); } }, rupees(item.price * line.qty))));
       if (open) {
-        li.append(el('div', { class: 'ctr-line-edit' },
-          el('span', { class: 'ctr-unit' }, `${rupees(item.price)} each`),
-          el('button', { type: 'button', class: 'ctr-text-button danger', onclick: () => setQty(key, 0) }, svg(ICON.trash), 'Remove')));
         // Modify on: move this item to another order type (the buttons match the order type buttons above).
         if (order.split) li.append(el('div', { class: 'ctr-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
           ...TYPES.map(type => el('button', { type: 'button', role: 'radio', 'aria-checked': String(lineType(line) === type), class: lineType(line) === type ? 'on' : '', onclick: () => moveLine(key, type) }, typeLabel[type]))));
@@ -710,6 +712,54 @@
   // Turning the tablet (or resizing the window) re-flows the pages.
   let relayout = 0;
   window.addEventListener('resize', () => { cancelAnimationFrame(relayout); relayout = requestAnimationFrame(() => { if (dialog.open && !drag) renderMenuBody(); }); });
+
+  // ---------- swipe an order line left to remove it ----------
+  // Drag a line to the left: it slides over a red strip saying Remove. Let go past a third of its width (or flick it)
+  // and the item is removed; otherwise it slides back. Up and down still scroll the list.
+  let swipe = null, swipeSuppress = false;
+  root.addEventListener('pointerdown', event => {
+    const li = event.target.closest?.('.ctr-line'); if (!li || event.button !== 0 || swipe?.active) return;
+    swipeSuppress = false;
+    swipe = { li, key: li.dataset.line, id: event.pointerId, x: event.clientX, y: event.clientY, t: performance.now(), dx: 0, active: false };
+  });
+  root.addEventListener('pointermove', event => {
+    const s = swipe; if (!s || event.pointerId !== s.id) return;
+    const dx = event.clientX - s.x, dy = event.clientY - s.y;
+    if (!s.active) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { swipe = null; return; } // up or down: the list scrolls
+      if (dx > -10 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      s.active = true; s.li.classList.add('swiping');
+      s.li.append(el('span', { class: 'ctr-swipe-label', 'aria-hidden': 'true' }, svg(ICON.trash), 'Remove'));
+      try { s.li.setPointerCapture(s.id); } catch {}
+    }
+    event.preventDefault();
+    s.dx = Math.min(0, dx); s.li.style.setProperty('--swipe', `${s.dx}px`);
+  });
+  function endSwipe(event, cancel) {
+    const s = swipe; if (!s || event.pointerId !== s.id) return; swipe = null;
+    if (!s.active) return;
+    swipeSuppress = true;
+    const width = s.li.clientWidth, flick = s.dx < -60 && -s.dx / (performance.now() - s.t) > .5;
+    s.li.classList.add('settling');
+    if (!cancel && (s.dx < -width / 3 || flick)) {
+      // Gone: it slides the rest of the way out, the line closes up, then the item comes off the order.
+      s.li.style.setProperty('--swipe', `${-width}px`);
+      setTimeout(() => {
+        const h = s.li.offsetHeight, done = () => removeLine(s.key);
+        try { s.li.animate([{ height: `${h}px` }, { height: '0px' }], { duration: 140, easing: 'ease-in', fill: 'forwards' }).onfinish = done; } catch { done(); }
+      }, 160);
+    } else {
+      s.li.style.setProperty('--swipe', '0px');
+      setTimeout(() => { s.li.classList.remove('swiping', 'settling'); s.li.querySelector('.ctr-swipe-label')?.remove(); }, 180);
+    }
+  }
+  root.addEventListener('pointerup', event => endSwipe(event, false));
+  root.addEventListener('pointercancel', event => endSwipe(event, true));
+  // A swipe is not a tap: it doesn't open the item, change its quantity, or close the item that is open.
+  dialog.addEventListener('click', event => {
+    if (swipeSuppress && event.target.closest?.('.ctr-line')) { event.preventDefault(); event.stopImmediatePropagation(); }
+    swipeSuppress = false;
+  }, true);
 
   // ---------- rearranging the order panel ----------
   // Hold a tile, as with the menu: the tiles jiggle and the one held follows the finger, the others making room for it

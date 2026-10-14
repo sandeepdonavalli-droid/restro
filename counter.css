@@ -579,3 +579,17 @@ button.ctr-history-main{cursor:pointer}
 .ctr-line{border-left:0}
 .ctr-line-main{padding-left:16px}
 .ctr-line-edit,.ctr-move{padding-left:16px}
+/* An opened item shows its price for one (@ ₹250) right after its name, on the same line; there is no row under it
+   (Modify's type buttons still show when Modify is on). To remove an item, swipe it left: it slides over a red strip
+   saying Remove; let go past a third of the way (or flick) and it goes, otherwise it slides back. Up and down still
+   scroll the list. */
+.ctr-line-text{display:flex;align-items:baseline;gap:10px;min-width:0}
+.ctr-line-select .ctr-unit{flex:none;font-size:13px;white-space:nowrap}
+.ctr-line{touch-action:pan-y}
+.ctr-line.swiping{overflow:hidden;background:#b42318}
+.ctr-line.swiping>:not(.ctr-swipe-label){position:relative;z-index:1;background:var(--palette-tile-top);transform:translateX(var(--swipe,0px))}
+.ctr-line.swiping.open>:not(.ctr-swipe-label){background:linear-gradient(var(--palette-accent-wash),var(--palette-accent-wash)),var(--palette-tile-top)}
+.ctr-line.settling>:not(.ctr-swipe-label){transition:transform .16s ease}
+.ctr-swipe-label{position:absolute;top:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;padding:0 22px;color:#fff;font-size:15px;font-weight:700}
+.ctr-swipe-label svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){.ctr-line.settling>*{transition:none}}
