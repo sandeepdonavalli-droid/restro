@@ -176,10 +176,13 @@
     const line = order.lines.find(l => keyOf(l) === key); if (!line) return;
     line.type = type; tidy(); selected = `${line.id}@${type}`; render();
   }
+  // Changing the order type puts every item on the new type, with Label on or off (with Label on, items can then be
+  // moved to other types again). The same item on two types becomes one line.
   function setType(type) {
+    if (order.type === type) return;
     order.type = type;
-    if (!order.split) order.lines.forEach(l => { l.type = type; });
-    render();
+    order.lines.forEach(l => { l.type = type; }); tidy();
+    selected = null; render();
   }
   function setSplit(on) {
     if (on) order.lines.forEach(l => { l.type = l.type || order.type; });
