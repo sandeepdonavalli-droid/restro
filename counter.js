@@ -370,7 +370,7 @@
         el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
           ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key]))),
         el('div', { class: 'ctr-side ctr-mid' },
-          el('button', { type: 'button', class: `ctr-type-btn ctr-schedule ${order.readyAt ? 'on' : ''}`, disabled: !order.lines.length, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule',
+          el('button', { type: 'button', class: `ctr-type-btn ctr-schedule ${order.readyAt ? 'on' : ''}`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule',
             onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
           el('button', { type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold')),
         el('div', { class: 'ctr-side' },
@@ -782,8 +782,8 @@
           order.pager ? el('button', { type: 'button', class: 'ctr-secondary ctr-sheet-wide', onclick: () => choose(0) }, 'Remove pager') : null));
     }
     // Schedule: the day and time the customer wants the order ready. It goes to the kitchen the preparation time before.
+    // Schedule works from the start: the time can be picked before any item is added.
     if (sheet === 'schedule') {
-      if (!order.lines.length) { sheet = null; return null; }
       const nowMs = Date.now(), today = new Date(), prep = prepMinutes();
       const days = Array.from({ length: 7 }, (_, i) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + i));
       if (!scheduleDraft) {
