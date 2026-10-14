@@ -74,7 +74,7 @@
   const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.readyAt || 0, o.lines.map(l => [l.id, l.qty, typeOf(o, l)])]);
   const keyOf = line => `${line.id}@${lineType(line)}`;
   let qtyKey = null, qtyValue = '';
-  let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null;
+  let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, typeMenu = false;
   let cashInput = '';                                   // cash typed on the payment sheet
   let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
@@ -184,6 +184,16 @@
     order.lines.forEach(l => { l.type = type; }); tidy();
     selected = null; render();
   }
+  // Order type: the four types open right over the tile; picking one sets it (every item moves to it) and closes them.
+  function openTypeMenu(open) {
+    typeMenu = open; render();
+    (open ? dialog.querySelector('.ctr-type-pop [aria-pressed="true"]') || dialog.querySelector('.ctr-type-pop .ctr-type-btn') : dialog.querySelector('.ctr-type-pick'))?.focus({ preventScroll: true });
+  }
+  function pickType(key) {
+    typeMenu = false;
+    if (order.type === key) render(); else setType(key);
+    dialog.querySelector('.ctr-type-pick')?.focus({ preventScroll: true });
+  }
   function setSplit(on) {
     if (on) order.lines.forEach(l => { l.type = l.type || order.type; });
     order.split = on;
@@ -203,7 +213,7 @@
     if (!order.lines.length || (order.number && signature(order) === baseline)) return false;
     return hold();
   }
-  const fresh = () => { order = blankOrder(); baseline = null; selected = null; sheet = null; scheduleDraft = null; render(); };
+  const fresh = () => { order = blankOrder(); baseline = null; selected = null; sheet = null; typeMenu = false; scheduleDraft = null; render(); };
   // Sends the items not sent yet to the kitchen, as one kitchen ticket. There is no kitchen screen or printer yet,
   // so the ticket is recorded on the order. Returns how many items went.
   function sendToKitchen(entry, now = Date.now()) {
@@ -358,20 +368,24 @@
   const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card' };
   function orderPanel() {
     const t = totals();
-    // Nine buttons in three rows of three (placed by counter.css): Dine in · Takeaway · Schedule / Delivery · Phone call ·
-    // Modify / Add Customer or Choose table · Assign Pager · Hold. Home is the system bar's.
+    // Six tiles, three per row (placed by counter.css): Order type · Add Customer or Choose table · Assign Pager /
+    // Modify · Schedule · Hold. Order type opens the four types right over itself. Home is the system bar's.
     const header = el('div', { class: 'ctr-order-head' },
       el('h2', { id: 'counter-title', class: 'visually-hidden', tabindex: '-1' }, 'Counter'),
+      el('button', { type: 'button', class: `ctr-type-btn ctr-type-pick${order.type ? ' on' : ''}`, 'data-type': order.type || null, 'aria-haspopup': 'true', 'aria-expanded': String(typeMenu),
+        'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, typeLabel[order.type] || 'Order type'),
+      el('div', { class: 'ctr-titlebar' }, orderTargets()),
       el('div', { class: 'ctr-type-row' },
-        el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
-          ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => setType(key) }, typeLabel[key]))),
+        el('div', { class: 'ctr-side' },
+          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Modify')),
         el('div', { class: 'ctr-side ctr-mid' },
           el('button', { type: 'button', class: `ctr-type-btn ctr-schedule ${order.readyAt ? 'on' : ''}`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule',
             onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
-          el('button', { type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold')),
-        el('div', { class: 'ctr-side' },
-          el('button', { type: 'button', role: 'switch', 'aria-checked': String(order.split), class: `ctr-type-btn ctr-split ${order.split ? 'on' : ''}`, disabled: !order.type, title: order.type ? null : 'Choose an order type first', onclick: () => setSplit(!order.split) }, 'Modify'))),
-      el('div', { class: 'ctr-titlebar' }, orderTargets()));
+          el('button', { type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold'))),
+      // The four order types, opened from Order type: two by two over the tiles, the first where Order type is.
+      typeMenu && el('div', { class: 'ctr-type-pop' },
+        el('div', { class: 'ctr-types', role: 'group', 'aria-label': 'Order type' },
+          ...TYPES.map(key => el('button', { type: 'button', 'aria-pressed': String(order.type === key), class: `ctr-type-btn ${order.type === key ? 'on' : ''}`, onclick: () => pickType(key) }, typeLabel[key])))));
     const list = el('ul', { class: 'ctr-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap a category, then an item to add it.')));
     const lineRow = line => {
@@ -878,7 +892,7 @@
   function render() {
     if (drag) endDrag(true, false);
     const searchHadFocus = document.activeElement?.id === 'counter-search', tableHadFocus = document.activeElement?.id === 'counter-table';
-    root.replaceChildren(el('div', { class: 'ctr-shell' }, orderPanel(), menuPanel()), sheetView() || '');
+    root.replaceChildren(el('div', { class: 'ctr-shell' }, orderPanel(), menuPanel()), typeMenu ? el('div', { class: 'ctr-type-scrim', onclick: () => openTypeMenu(false) }) : '', sheetView() || '');
     renderMenuBody();
     const lines = dialog.querySelector('.ctr-lines');
     if (lines && dialog.open) { lines.scrollTop = scrollMemo.lines; scrollMemo.lines = lines.scrollTop; }
@@ -889,6 +903,7 @@
 
   function goBack() {
     if (!dialog.open) return false;
+    if (typeMenu) { openTypeMenu(false); return true; }
     if (sheet && sheet !== 'receipt') { sheet = null; render(); return true; }
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
     if (arranging) { setArranging(false); return true; }
@@ -918,7 +933,7 @@
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
   // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
-  function openCounter() { if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
+  function openCounter() { typeMenu = false; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
   window.RestroCounter = Object.freeze({
     open() { fromFloor = false; openCounter(); },
     // From the Floor: Counter opens on that table's order (Dine in, table chosen).

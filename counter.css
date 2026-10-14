@@ -524,24 +524,40 @@ button.ctr-history-main{cursor:pointer}
 .ctr-target svg{display:none}
 .ctr-menu-top{padding-top:16px}
 @media (max-width:1100px){.ctr-target,.ctr-target.set{font-size:11.5px;line-height:1.1}.ctr-target span{white-space:normal;text-overflow:clip}} /* narrow tablets: a long name may take two lines */
-/* The panel is nine buttons in three rows of three, spread over the order side: 9px from the top, the left edge and the
-   divider, 9px apart, each 48px tall. Row 1: Dine in · Takeaway · Schedule; row 2: Delivery · Phone call · Modify (was Label);
-   row 3: Add Customer (or Choose table) · Assign Pager · Hold. Home and Trash are no longer in it (Home is on the system
-   bar). The groups stay in the page for their meaning and colours but take no space of their own. All nine names are
-   one size. The menu's header line meets the bottom of the first row, and the menu bar stays centred on that row. */
-.ctr-order-head{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,48px);gap:9px}
+/* The panel is six tiles, three per row in two rows, filling the space the controls take on the order side: 9px from the
+   top, the left edge and the divider, 9px apart, each 76px tall. Row 1: Order type · Add Customer (or Choose table) ·
+   Assign Pager; row 2: Modify · Schedule · Hold. Home and Trash are not in it (Home is on the system bar). Order type
+   shows the type chosen, filled with that type's colour (blue until one is chosen). Tapping it opens the four types
+   right over it, two by two on the same grid as the tiles, with the rest of the screen dimmed; tapping a type picks it,
+   tapping outside or Back closes them. The groups stay in the page for their meaning and colours but take no space of
+   their own. Names are the menu tiles' size (16px, 14px on narrower tablets); a long one takes two lines. The menu's
+   header line meets the bottom of the first row, and the menu bar stays centred on that row. */
+.ctr-order-head{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,76px);gap:9px}
 .ctr-titlebar,.ctr-targets,.ctr-type-row,.ctr-types,.ctr-type-row .ctr-side{display:contents}
+.ctr-order-head .ctr-type-pick{grid-area:1 / 1}
+.ctr-targets>.ctr-target:nth-child(1){grid-area:1 / 2}
+.ctr-targets>.ctr-target:nth-child(2){grid-area:1 / 3}
+.ctr-order-head .ctr-split{grid-area:2 / 1}
+.ctr-order-head .ctr-schedule{grid-area:2 / 2}
+.ctr-order-head .ctr-hold{grid-area:2 / 3}
 .ctr-types>.ctr-type-btn:nth-child(1){grid-area:1 / 1}
 .ctr-types>.ctr-type-btn:nth-child(2){grid-area:1 / 2}
-.ctr-order-head .ctr-schedule{grid-area:1 / 3}
 .ctr-types>.ctr-type-btn:nth-child(3){grid-area:2 / 1}
 .ctr-types>.ctr-type-btn:nth-child(4){grid-area:2 / 2}
-.ctr-order-head .ctr-split{grid-area:2 / 3}
-.ctr-targets>.ctr-target:nth-child(1){grid-area:3 / 1}
-.ctr-targets>.ctr-target:nth-child(2){grid-area:3 / 2}
-.ctr-order-head .ctr-hold{grid-area:3 / 3}
-.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{width:auto;height:48px;min-height:48px;padding:0 8px;font-size:14px}
-.ctr-menu-top{min-height:57px;padding-top:9px}
-.ctr-menu::before{top:56px}
-.ctr-shell{background:linear-gradient(var(--palette-tile-top) 0 57px,transparent 57px)}
-@media (max-width:1100px){.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{padding:0 4px;font-size:13px}.ctr-order-head .ctr-type-btn{white-space:normal;line-height:1.1}} /* narrower tablets: all nine at 13px so the names stay on one line; on a portrait screen a long one (a customer, a ready time) may take two */
+.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{width:auto;height:76px;min-height:76px;padding:0 8px;font-size:16px;line-height:1.2;white-space:normal}
+.ctr-order-head .ctr-target span{white-space:normal;text-overflow:ellipsis;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.ctr-type-pick{--btn:#4d7cb8}
+.ctr-type-pick[data-type="dine-in"]{--btn:#d4743a}
+.ctr-type-pick[data-type="takeaway"]{--btn:#c9a227}
+.ctr-type-pick[data-type="delivery"]{--btn:#c4534a}
+.ctr-type-pick[data-type="phone"]{--btn:#5f9a4c}
+.ctr-type-scrim{position:absolute;inset:0;z-index:5;background:color-mix(in srgb,var(--palette-text) 28%,transparent);animation:ctr-type-fade .16s ease-out}
+.ctr-type-pop{position:absolute;inset:0;z-index:6;display:grid;grid-template-columns:inherit;grid-template-rows:inherit;gap:inherit;padding:inherit;pointer-events:none;transform-origin:9px 9px;animation:ctr-type-grow .18s ease-out}
+.ctr-type-pop .ctr-type-btn{pointer-events:auto;box-shadow:0 10px 26px rgba(0,0,0,.24)}
+@keyframes ctr-type-grow{from{opacity:0;transform:scale(.5)}}
+@keyframes ctr-type-fade{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.ctr-type-pop,.ctr-type-scrim{animation:none}}
+.ctr-menu-top{min-height:85px;padding-top:9px}
+.ctr-menu::before{top:84px}
+.ctr-shell{background:linear-gradient(var(--palette-tile-top) 0 85px,transparent 85px)}
+@media (max-width:1100px){.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{padding:0 4px;font-size:14px}}
