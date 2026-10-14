@@ -406,3 +406,13 @@ button.ctr-history-main{cursor:pointer}
    menu from top to bottom. */
 .ctr-order-head{padding-bottom:10px;border-bottom:1px solid var(--palette-line)}
 .ctr-order::after{top:0}
+/* A small gap (6px, as between Home and the header line) wherever a line meets the divider: the header line stops short
+   of it on both sides, and so does the line under the order type buttons. Each half of the header line is drawn from the
+   top of its own panel; both panels start at the same height, so the halves stay level. */
+.ctr-shell::after{content:none}
+.ctr-order::before{content:"";position:absolute;top:35px;left:61px;right:7px;height:0;border-top:1px solid var(--palette-line);pointer-events:none}
+.ctr-menu{position:relative}
+.ctr-menu::before{content:"";position:absolute;top:35px;left:6px;right:0;height:0;border-top:1px solid var(--palette-line);pointer-events:none}
+.ctr-order-head{position:relative;padding-bottom:11px;border-bottom:0}
+.ctr-order-head::after{content:"";position:absolute;left:0;right:7px;bottom:0;height:0;border-top:1px solid var(--palette-line);pointer-events:none}
+@media (max-width:700px){.ctr-order::before,.ctr-menu::before{content:none}}
