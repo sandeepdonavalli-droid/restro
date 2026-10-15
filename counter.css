@@ -645,3 +645,6 @@ button.ctr-history-main{cursor:pointer}
 .ctr-options-item:disabled{opacity:.45;cursor:default}
 .ctr-options-item svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media (prefers-reduced-motion:reduce){.ctr-options-menu{animation:none}}
+/* Quantity − and +: just the signs, no circle, border, fill or shadow (the tap area stays 36px, and a press still
+   shrinks the sign a little). */
+.ctr-qty-btn,.ctr-qty-btn:hover{border:0;background:transparent;box-shadow:none}
