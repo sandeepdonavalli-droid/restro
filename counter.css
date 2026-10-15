@@ -648,3 +648,7 @@ button.ctr-history-main{cursor:pointer}
 /* Quantity − and +: just the signs, no circle, border, fill or shadow (the tap area stays 36px, and a press still
    shrinks the sign a little). */
 .ctr-qty-btn,.ctr-qty-btn:hover{border:0;background:transparent;box-shadow:none}
+/* The options menu dims the rest of the screen exactly as the Order type choices do (same shade and fade); a tap on the
+   dimmed area or Back closes it. */
+.ctr-options-scrim{background:color-mix(in srgb,var(--palette-text) 28%,transparent);animation:ctr-type-fade .16s ease-out}
+@media (prefers-reduced-motion:reduce){.ctr-options-scrim{animation:none}}
