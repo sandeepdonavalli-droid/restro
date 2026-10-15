@@ -173,10 +173,8 @@
     order.lines = qty > 0 ? order.lines.map(l => keyOf(l) === key ? { ...l, qty } : l) : order.lines.filter(l => keyOf(l) !== key);
     if (qty <= 0) selected = null; render();
   }
-  function removeLine(key) {
-    const name = items.get(key.split('@')[0])?.name;
-    setQty(key, 0); if (name) toast(`${name} removed`);
-  }
+  // Removing an item (swipe it left, or the Delete key on it) shows no message: the line just goes.
+  function removeLine(key) { setQty(key, 0); }
   // Merge lines that ended up with the same item and type.
   function tidy() {
     const merged = [];
