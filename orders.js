@@ -54,14 +54,17 @@
 
   function row(o) {
     const type = typeOf(o), status = statusOf(o), paid = Boolean(o.paidAt), items = o.lines.reduce((n, l) => n + l.qty, 0), name = nameOf(o);
-    const pay = paid ? `Paid · ${METHODS[o.method] || 'Cash'}` : 'Not paid';
+    // Payment status: Paid (with how), Not paid or Partially paid (orange), Refunded (red; once refunds are kept).
+    const refunded = Boolean(o.refundedAt), partial = !paid && Number.isFinite(o.paidAmount) && o.paidAmount > 0 && o.paidAmount < o.total;
+    const pay = refunded ? 'Refunded' : paid ? `Paid · ${METHODS[o.method] || 'Cash'}` : partial ? 'Partially paid' : 'Not paid';
+    const payClass = refunded ? 'refunded' : paid ? 'paid' : 'unpaid';
     const cells = [
       cell('ord-ticket', `#${o.number}`),
       cell('ord-when', `${dateOf(o.createdAt)} · ${timeOf(o.createdAt)}`),
       cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
       cell('ord-name', name),
       cell(`ord-status ${status.cls}`, status.text),
-      cell(`ord-pay ${paid ? 'paid' : 'unpaid'}`, pay),
+      cell(`ord-pay ${payClass}`, pay),
       cell('ord-server', o.server || '—'),
       cell('ord-buzzer', o.pager ? String(o.pager) : '—'),
       cell('ord-items', String(items)),
