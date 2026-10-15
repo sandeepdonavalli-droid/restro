@@ -501,7 +501,8 @@
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'orders'; render(); } }, svg(ICON.orders), 'Orders'),
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'payments'; render(); } }, svg(ICON.history), 'Payment history'));
     return el('section', { class: 'ctr-menu', 'aria-label': 'Menu' }, top, el('div', { class: 'ctr-menu-body' }),
-      highlight && el('div', { class: 'ctr-highlight-scrim', onclick: () => setHighlight(false) }));
+      // (Not while a sheet such as the quantity pad or Pay is open: the sheet dims the whole screen itself.)
+      highlight && !sheet && el('div', { class: 'ctr-highlight-scrim', onclick: () => setHighlight(false) }));
   }
 
   const matches = () => {
@@ -1127,10 +1128,11 @@
     if (!dialog.open) return false;
     if (typeMenu) { openTypeMenu(false); return true; }
     if (optionsMenu) { openOptions(false); return true; }
-    if (highlight) { setHighlight(false); return true; }
     if (panelArranging) { setPanelArranging(false); return true; }
     if (sheet && sheet !== 'receipt') { sheet = null; render(); return true; }
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
+    if (highlight) { setHighlight(false); return true; } // a sheet opened from it closes first
+
     if (arranging) { setArranging(false); return true; }
     if (query) { query = ''; render(); return true; }
     if (category) { category = null; renderMenuBody(); return true; }
