@@ -121,6 +121,12 @@ for(const item of shortcuts){
     node.addEventListener('click',()=>window.RestroFloor?.open());
     node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroFloor?.open();}});
   }
+  if(item.id==='orders'){
+    // Orders: every saved order as a tile, full screen; a tile not paid yet opens in Counter.
+    node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Orders');
+    node.addEventListener('click',()=>window.RestroOrders?.open());
+    node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroOrders?.open();}});
+  }
   if(item.id==='pager-hub'){
     // Pager Hub opens from here and from its quick-controls tile.
     node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Pager Hub');

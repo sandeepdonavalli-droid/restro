@@ -27,6 +27,7 @@
     const insightViews={'order-details-dialog':{id:'last-order',name:'Last order',symbol:'receipt'},'most-sold-dialog':{id:'most-sold',name:'Most sold items',symbol:'chef'}};
     if(dialog.id==='counter-dialog'){recentApps.delete('shortcut:register');recentApps.set('shortcut:register',{shortcutId:'register',name:'Counter'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
     if(dialog.id==='floor-dialog'){recentApps.delete('shortcut:floor');recentApps.set('shortcut:floor',{shortcutId:'floor',name:'Floor'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
+    if(dialog.id==='orders-dialog'){recentApps.delete('shortcut:orders');recentApps.set('shortcut:orders',{shortcutId:'orders',name:'Orders'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
     if(insightViews[dialog.id]){
       const view=insightViews[dialog.id],key=`insight:${view.id}`;recentApps.delete(key);recentApps.set(key,{insightId:view.id,name:view.name,symbol:view.symbol});
       if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;
@@ -67,6 +68,7 @@
     recents.close();
     if(recent.shortcutId==='register')window.RestroCounter?.open();
     else if(recent.shortcutId==='floor')window.RestroFloor?.open();
+    else if(recent.shortcutId==='orders')window.RestroOrders?.open();
     else if(recent.insightId)window.RestroInsights.openDetail(recent.insightId);
     else if(recent.appId)openApp(recent.appId);
     else if(recent.control==='pager-hub')window.RestroPagerHub?.open();

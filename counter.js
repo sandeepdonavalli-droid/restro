@@ -88,6 +88,7 @@
   let cashInput = '';                                   // cash typed on the payment sheet
   let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
+  let fromOrders = false;                               // opened from a tile in the Orders app (Back returns there)
   let baseline = null;                                  // signature of the saved order on screen (opened from Orders)
   const scrollMemo = { lines: 0 };                      // where the order list was scrolled
 
@@ -1137,6 +1138,7 @@
     if (query) { query = ''; render(); return true; }
     if (category) { category = null; renderMenuBody(); return true; }
     if (fromFloor && window.RestroFloor) { fromFloor = false; window.RestroFloor.open(); return true; } // opened from a table: Back returns to the Floor
+    if (fromOrders && window.RestroOrders) { fromOrders = false; window.RestroOrders.open(); return true; } // opened from Orders: Back returns there
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
@@ -1162,9 +1164,13 @@
   // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
   function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
   window.RestroCounter = Object.freeze({
-    open() { fromFloor = false; openCounter(); },
+    open() { fromFloor = false; fromOrders = false; openCounter(); },
     // From the Floor: Counter opens on that table's order (Dine in, table chosen).
-    openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; openTable(id); },
+    openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; fromOrders = false; openTable(id); },
+    // From the Orders app: Counter opens on that saved order (not paid yet), to add items or take the payment.
+    openOrder(number) { if (!Number.isInteger(number)) return; openCounter(); fromFloor = false; fromOrders = true; openOrder(number); },
+    // Every saved order (Save or Pay), newest first, as kept on this device.
+    orders() { return JSON.parse(JSON.stringify(allOrders())); },
     goBack,
     tablesInUse() {
       const used = [...loadOrders().filter(o => !o.paidAt), ...held].filter(usesTable).map(o => o.table);
