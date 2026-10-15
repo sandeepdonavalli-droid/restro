@@ -499,7 +499,8 @@
           svg(ICON.trash), deleteArmed ? (order.number ? `Tap again to delete #${order.number}` : 'Tap again to delete') : 'Delete order')),
       search,
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), 'Held', held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
-      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'orders'; render(); } }, svg(ICON.orders), 'Orders'),
+      // Orders opens the Orders app (all orders, one to a row); Back there returns to Counter as it was.
+      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, svg(ICON.orders), 'Orders'),
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'payments'; render(); } }, svg(ICON.history), 'Payment history'));
     return el('section', { class: 'ctr-menu', 'aria-label': 'Menu' }, top, el('div', { class: 'ctr-menu-body' }),
       // (Not while a sheet such as the quantity pad or Pay is open: the sheet dims the whole screen itself.)
@@ -1165,6 +1166,8 @@
   function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
   window.RestroCounter = Object.freeze({
     open() { fromFloor = false; fromOrders = false; openCounter(); },
+    // Back from an app Counter opened (Orders): Counter as it was, where it came from unchanged.
+    resume() { openCounter(); },
     // From the Floor: Counter opens on that table's order (Dine in, table chosen).
     openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; fromOrders = false; openTable(id); },
     // From the Orders app: Counter opens on that saved order (not paid yet), to add items or take the payment.

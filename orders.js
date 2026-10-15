@@ -19,7 +19,7 @@
     return node;
   }
   const svg = path => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = path; return s; };
-  const ICON = { home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>' };
+  const ICON = { home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', back: '<path d="m15 6-6 6 6 6"/>' };
   const appIcon = () => {
     const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode(shortcuts.find(item => item.id === 'orders').art) : document.createElement('span');
     art.classList.add('ord-title-icon'); return art;
@@ -49,7 +49,7 @@
     if (!o.sentAt) return o.readyAt ? { text: `Scheduled · ${whenShort(o.readyAt)}`, cls: 'scheduled' } : { text: 'Saved', cls: '' };
     return o.paidAt ? { text: 'Completed', cls: 'done' } : { text: 'In kitchen', cls: 'kitchen' };
   }
-  const COLUMNS = ['Ticket', 'Date & time', 'Type', 'Name', 'Status', 'Payment', 'Server', 'Buzzer', 'Items', 'Total'];
+  const COLUMNS = ['Ticket', 'Date & time', 'Type', 'Name', 'Order status', 'Payment status', 'Server', 'Buzzer', 'Items', 'Total'];
   const cell = (cls, ...content) => el('span', { class: `ord-c ${cls}` }, ...content);
 
   function row(o) {
@@ -75,11 +75,13 @@
   // Rendered into its own root so the system bar and toasts placed in the dialog survive re-renders.
   const root = el('div', { class: 'ord-root' }); dialog.prepend(root);
   let scrollTop = 0;
+  let fromCounter = false;                 // opened with Counter's Orders button: Back returns to Counter
 
   function render() {
     const orders = window.RestroCounter?.orders?.() || [];
     const head = el('div', { class: 'ord-head' },
-      el('button', { type: 'button', class: 'ord-nav', 'aria-label': 'Home', title: 'Home', onclick: () => document.querySelector('#system-home')?.click() }, svg(ICON.home)),
+      el('button', { type: 'button', class: 'ord-nav', 'aria-label': fromCounter ? 'Back to Counter' : 'Home', title: fromCounter ? 'Back' : 'Home',
+        onclick: () => { if (!goBack()) document.querySelector('#system-home')?.click(); } }, svg(fromCounter ? ICON.back : ICON.home)),
       appIcon(),
       el('h2', { id: 'orders-title', tabindex: '-1' }, 'Orders'));
     // The column names stay at the top while the rows scroll under them.
@@ -94,7 +96,13 @@
 
   // While open, the tiles keep up with the kitchen (a scheduled order goes to the kitchen at its time).
   let timer = null;
-  dialog.addEventListener('close', () => { clearInterval(timer); timer = null; });
+  dialog.addEventListener('close', () => { clearInterval(timer); timer = null; fromCounter = false; });
+  // Back: to Counter when Orders was opened from there; otherwise Orders closes (to the home screen).
+  function goBack() {
+    if (!dialog.open || !fromCounter || !window.RestroCounter) return false;
+    fromCounter = false; window.RestroCounter.resume(); return true;
+  }
+  dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
 
   // Toasts must show above this full-screen app (and go back to Counter, or home, after it closes).
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;
@@ -105,12 +113,15 @@
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
   window.RestroOrders = Object.freeze({
-    open() {
+    // open() from the home screen (or Back from an order); open({ from: 'counter' }) from Counter's Orders button.
+    open(options = {}) {
       document.querySelectorAll('dialog[open]').forEach(d => { if (d !== dialog) d.close(); });
+      fromCounter = options.from === 'counter';
       render();
       if (!dialog.open) dialog.showModal();
       clearInterval(timer); timer = setInterval(() => { if (dialog.open) render(); }, 30000);
       dialog.querySelector('#orders-title')?.focus({ preventScroll: true });
-    }
+    },
+    goBack
   });
 })();

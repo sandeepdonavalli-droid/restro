@@ -1,6 +1,7 @@
 /* Orders: full-screen app between the status bar and the navigation bar. Colours come from the active theme. One order
-   to a row, in Counter's tile look (light, raised, a stripe down the left edge in the order type's colour); everything
-   about the order reads from left to right under the column names. */
+   to a row, in Counter's tile look (light, a stripe down the left edge in the order type's colour); the rows run the
+   full width, edge to edge, and meet one another with only a faint line between them. Everything about an order
+   reads from left to right under the column names, which are parted by short lines. */
 .orders-app{position:fixed;inset:var(--header-height) 0 var(--header-height);width:100%;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:var(--palette-bg);color:var(--palette-text)}
 .orders-app[open]{display:block}
 .orders-app::backdrop{background:transparent}
@@ -21,15 +22,16 @@
 
 /* The columns, the same for the names and every row: Ticket · Date & time · Type · Name · Status · Payment · Server ·
    Buzzer · Items · Total. The name takes the room left over. */
-.ord-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 16px 16px}
-.ord-cols,.ord-row{display:grid;grid-template-columns:68px 128px 140px minmax(0,1fr) 168px 116px 96px 62px 50px 104px;align-items:center;column-gap:12px}
-.ord-cols{position:sticky;top:0;z-index:1;padding:12px 15px 8px 20px;background:var(--palette-bg);color:var(--palette-muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-.ord-rows{display:flex;flex-direction:column;gap:8px}
-.ord-row{width:100%;min-height:54px;margin:0;padding:0 14px;border:1px solid var(--palette-edge);border-left:6px solid var(--type);border-radius:10px;background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));box-shadow:0 2px 5px var(--palette-soft-shadow);color:var(--palette-text);text-align:left}
+.ord-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 0 16px}
+.ord-cols,.ord-row{display:grid;grid-template-columns:68px 128px 140px minmax(0,1fr) 168px 124px 96px 62px 50px 104px;align-items:center;column-gap:12px}
+.ord-cols{position:sticky;top:0;z-index:1;padding:12px 16px 8px 20px;border-bottom:1px solid var(--palette-line);background:var(--palette-bg);color:var(--palette-muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.ord-cols .ord-c{position:relative;overflow:visible}
+.ord-cols .ord-c+.ord-c::before{content:"";position:absolute;left:-7px;top:50%;width:1px;height:12px;margin-top:-6px;background:color-mix(in srgb,var(--palette-muted) 45%,transparent)} /* the short line between two names, in the middle of the gap */
+.ord-rows{display:flex;flex-direction:column}
+.ord-row{width:100%;min-height:54px;margin:0;padding:0 16px 0 14px;border:0;border-left:6px solid var(--type);border-bottom:1px solid color-mix(in srgb,var(--palette-line) 70%,transparent);border-radius:0;background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));box-shadow:none;color:var(--palette-text);text-align:left}
 .ord-root .ord-row{line-height:1.25}
-button.ord-row{cursor:pointer;transition:transform .12s ease}
-button.ord-row:hover{border-color:color-mix(in srgb,var(--palette-accent) 45%,var(--palette-edge));border-left-color:var(--type)}
-button.ord-row:active{transform:scale(.99)}
+button.ord-row{cursor:pointer;transition:background-color .12s ease}
+button.ord-row:active{background:var(--palette-accent-wash)}
 .ord-c{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ord-ticket{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
 .ord-when{font-size:14px;color:var(--palette-muted)}
@@ -46,7 +48,7 @@ button.ord-row:active{transform:scale(.99)}
 .ord-cols .ord-c{font-size:11px;font-weight:700;color:var(--palette-muted)} /* the column names all alike */
 /* Narrower tablets: Server and Items step out so the rest keeps its room. */
 @media (max-width:1100px){
-  .ord-cols,.ord-row{grid-template-columns:64px 118px 128px minmax(0,1fr) 158px 108px 56px 96px}
+  .ord-cols,.ord-row{grid-template-columns:64px 112px 124px minmax(0,1fr) 150px 124px 56px 96px}
   .ord-server,.ord-items{display:none}
 }
 
