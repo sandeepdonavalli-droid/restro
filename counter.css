@@ -656,3 +656,19 @@ button.ctr-history-main{cursor:pointer}
    quantity, and a press shrinks it a little). */
 .ctr-qty-num,.ctr-qty-num:hover{background:transparent;box-shadow:none;color:var(--palette-accent);font-weight:700}
 .ctr-qty-num:active{transform:scale(.94)}
+/* The search sits in the middle of the space between the options button and Held, the same distance from each, and
+   keeps its width (60% of that space). The bar is a grid there: a space, the search, an equal space, then Held, Orders
+   and Payment history 6px apart; it starts at the options button's right edge (23px in). Narrow screens keep the
+   full-width search as before. */
+@media (min-width:821px){
+  .ctr-menu-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr) minmax(0,1fr) auto auto auto;column-gap:0;padding-left:23px}
+  .ctr-menu-top::before{margin-right:0}
+  .ctr-search+.ctr-tool{grid-column:4}
+  .ctr-tool+.ctr-tool{margin-left:6px}
+}
+/* Highlight order: the order takes the whole left side, top to bottom (the six tiles step aside for it), and the menu
+   side is dimmed as for the other pop-ups. The items are gone through and edited as usual; a tap on the dimmed side or
+   Back ends it. */
+.ctr-shell.highlight .ctr-order-head{display:none}
+.ctr-highlight-scrim{position:absolute;inset:0;z-index:7;background:color-mix(in srgb,var(--palette-text) 28%,transparent);animation:ctr-type-fade .16s ease-out}
+@media (prefers-reduced-motion:reduce){.ctr-highlight-scrim{animation:none}}
