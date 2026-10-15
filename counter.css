@@ -652,3 +652,7 @@ button.ctr-history-main{cursor:pointer}
    dimmed area or Back closes it. */
 .ctr-options-scrim{background:color-mix(in srgb,var(--palette-text) 28%,transparent);animation:ctr-type-fade .16s ease-out}
 @media (prefers-reduced-motion:reduce){.ctr-options-scrim{animation:none}}
+/* The quantity number has no circle behind it; it stands out in the theme colour, bold (still a button: tap to type a
+   quantity, and a press shrinks it a little). */
+.ctr-qty-num,.ctr-qty-num:hover{background:transparent;box-shadow:none;color:var(--palette-accent);font-weight:700}
+.ctr-qty-num:active{transform:scale(.94)}
