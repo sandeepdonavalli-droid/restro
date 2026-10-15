@@ -674,3 +674,6 @@ button.ctr-history-main{cursor:pointer}
 @media (prefers-reduced-motion:reduce){.ctr-highlight-scrim{animation:none}}
 /* Save and Pay are 20% shorter: 45px tall (56px before); their width, type and look stay as they were. */
 .ctr-root .ctr-actions .ctr-secondary,.ctr-root .ctr-actions .ctr-pay,.ctr-root .ctr-actions .ctr-secondary:hover,.ctr-root .ctr-actions .ctr-pay:hover{height:45px;min-height:45px}
+/* Pure white (every screen): the theme colour is now a neutral dark slate, so Pay keeps a colour of its own, neon
+   green, to stand apart from Save (slate). */
+.ctr-root .ctr-actions .ctr-pay{--btn:#00c853}

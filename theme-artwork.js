@@ -45,7 +45,7 @@
     regions['qr-studio']=qrStudio[id].region;
     variants.set(id,regions);
   }
-  function resolve(art,themeId=document.documentElement.dataset.restroTheme) {
+  function resolve(art,themeId=document.documentElement.dataset.restroArtwork||document.documentElement.dataset.restroTheme) {
     const key=art.key;
     if (overrides.has(key)) return overrides.get(key);
     if (prepared.has(`${themeId}:${key}`)) return prepared.get(`${themeId}:${key}`);

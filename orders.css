@@ -2,8 +2,8 @@
    greys for lines and text). One order to a row, the rows running the full width, edge to edge, alternating pure white
    and a light grey (zebra) for definition, with no colour edge. Everything about an order reads from left to right
    under the column names, which sit on the light grey and are parted by short lines; names and details are all
-   centred in their columns. Colour is kept only where it means something: the order type (sky blue text); In kitchen (light orange), Scheduled,
-   Completed (green); Paid (green), Not paid or Partially paid (light orange), Refunded (red). */
+   centred in their columns. Colour is kept only where it means something: the order type (sky blue text); In kitchen (neon orange), Scheduled,
+   Completed (neon green); Paid (neon green), Not paid or Partially paid (neon orange), Refunded (red). */
 .orders-app{position:fixed;inset:var(--header-height) 0 var(--header-height);width:100%;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:#ffffff;color:#1f2933}
 .orders-app[open]{display:block}
 .orders-app::backdrop{background:transparent}
@@ -42,11 +42,11 @@ button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background
 .ord-type{display:inline;padding:0;border-radius:0;background:none;color:#0284c7;font-size:14px;font-weight:600} /* the order type as text, in sky blue */
 .ord-name{font-weight:600}
 .ord-status,.ord-pay{font-size:14px;font-weight:600}
-.ord-status.kitchen{color:#f97316} /* In kitchen: light orange */
+.ord-status.kitchen{color:#ff6700} /* In kitchen: neon orange */
 .ord-status.scheduled{color:#9c3f68}
-.ord-status.done{color:#2f7a45} /* Completed: green */
-.ord-pay.paid{color:#2f7a45}
-.ord-pay.unpaid{color:#f97316} /* Not paid or Partially paid: light orange */
+.ord-status.done{color:#00c853} /* Completed: neon green */
+.ord-pay.paid{color:#00c853} /* Paid: neon green */
+.ord-pay.unpaid{color:#ff6700} /* Not paid or Partially paid: neon orange */
 .ord-pay.refunded{color:#b42318} /* Refunded: red */
 .ord-server,.ord-buzzer,.ord-items{font-size:14px;font-variant-numeric:tabular-nums}
 .ord-total{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}

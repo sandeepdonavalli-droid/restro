@@ -7,15 +7,28 @@
   const defaultId = window.RestroDefaultTheme;
   let activeId = defaultId;
 
+  // Every screen is pure white with no theme colour: white surfaces, neutral greys for lines and text, a dark slate
+  // where a theme colour used to be (buttons, the selected page dot, focus). These colours are the same whatever theme
+  // is chosen; the chosen theme now only picks the app pictures. Colour that carries meaning (order types, categories,
+  // paid / not paid) is set by each screen itself.
+  const PURE = {
+    scheme: 'light', bg: '#ffffff', 'bg-top': '#ffffff', 'bg-end': '#ffffff', text: '#1f2933', muted: '#6b7280',
+    'tile-top': '#ffffff', 'tile-bottom': '#ffffff', edge: '#e5e7eb', 'card-middle': '#ffffff', panel: '#ffffff',
+    'panel-top': '#ffffff', 'panel-edge': '#e5e7eb', line: '#e5e7eb', bar: '#1f2933', 'bar-top': '#27313b', 'bar-line': '#27313b',
+    accent: '#1f2933', 'accent-top': '#374151', 'accent-ink': '#1f2933', 'on-accent': '#ffffff', dot: '#d1d5db', track: '#e5e7eb',
+    'side-top': '#ffffff', 'side-middle': '#f9fafb', 'side-bottom': '#e5e7eb', 'side-edge': '#e5e7eb', 'edge-glow': '#e5e7eb44',
+    highlight: '#ffffffbb', shadow: '#0000001a', 'soft-shadow': '#00000012', 'accent-wash': '#f3f4f6', backdrop: '#11182770'
+  };
   function apply(id, persist = true) {
     const theme = byId.get(id);
     if (!theme) return false;
-    for (const [name, value] of Object.entries(theme.tokens)) {
+    for (const [name, value] of Object.entries(PURE)) {
       root.style.setProperty(`--palette-${name}`, value);
     }
     activeId = id;
-    root.dataset.restroTheme = id;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.tokens.bar);
+    root.dataset.restroTheme = 'W';      // pure white: the themes' own extra styles (tinted tiles, shadows) stay off
+    root.dataset.restroArtwork = id;     // the chosen theme still picks the pictures
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', PURE.bar);
     if (persist) {
       try { localStorage.setItem(storageKey, id); } catch {}
     }
