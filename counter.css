@@ -629,3 +629,7 @@ button.ctr-history-main{cursor:pointer}
 .ctr-root .ctr-actions .ctr-secondary:active:not(:disabled),.ctr-root .ctr-actions .ctr-pay:active:not(:disabled){transform:scale(.97)}
 .ctr-root .ctr-actions .ctr-secondary:disabled,.ctr-root .ctr-actions .ctr-pay:disabled{opacity:.45;cursor:default}
 @media (prefers-reduced-motion:reduce){.ctr-root .ctr-actions .ctr-secondary,.ctr-root .ctr-actions .ctr-pay{transition:none}}
+/* Pressed: Save and Pay fill with their own colour (a little deeper, white name) the moment they are touched, and fade
+   back when let go, so even a quick tap shows it. Faded (no items) they don't react. */
+.ctr-root .ctr-actions .ctr-secondary,.ctr-root .ctr-actions .ctr-pay{--btn-deep:color-mix(in srgb,var(--btn) 78%,#000);transition:transform .12s ease,box-shadow .25s ease,color .25s ease,border-color .25s ease}
+.ctr-root .ctr-actions .ctr-secondary:active:not(:disabled),.ctr-root .ctr-actions .ctr-pay:active:not(:disabled){background:var(--btn-deep);box-shadow:inset 0 0 0 100px var(--btn-deep),0 2px 5px var(--palette-soft-shadow);border-color:var(--btn-deep);color:#fff;transform:scale(.97);transition:transform .12s ease}
