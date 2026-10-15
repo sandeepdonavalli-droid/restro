@@ -633,3 +633,15 @@ button.ctr-history-main{cursor:pointer}
    back when let go, so even a quick tap shows it. Faded (no items) they don't react. */
 .ctr-root .ctr-actions .ctr-secondary,.ctr-root .ctr-actions .ctr-pay{--btn-deep:color-mix(in srgb,var(--btn) 78%,#000);transition:transform .12s ease,box-shadow .25s ease,color .25s ease,border-color .25s ease}
 .ctr-root .ctr-actions .ctr-secondary:active:not(:disabled),.ctr-root .ctr-actions .ctr-pay:active:not(:disabled){background:var(--btn-deep);box-shadow:inset 0 0 0 100px var(--btn-deep),0 2px 5px var(--palette-soft-shadow);border-color:var(--btn-deep);color:#fff;transform:scale(.97);transition:transform .12s ease}
+/* The options menu: opens under the options button, over the menu side, in the tiles' look (a tap anywhere else or Back
+   closes it). Delete order is red; asking again ("Tap again to delete") it fills red; with nothing on screen to delete
+   it is faded. */
+.ctr-options-scrim{position:absolute;inset:0;z-index:5}
+.ctr-options-menu{position:absolute;left:9px;top:40px;z-index:6;min-width:220px;padding:6px;display:flex;flex-direction:column;gap:4px;border:1px solid var(--palette-edge);border-radius:12px;background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));box-shadow:0 10px 26px rgba(0,0,0,.16);transform-origin:12px 0;animation:ctr-type-grow .16s ease-out}
+.ctr-options-item{display:flex;align-items:center;gap:10px;min-height:44px;margin:0;padding:0 14px;border:0;border-radius:8px;background:transparent;color:var(--palette-text);font-size:15px;font-weight:600;text-align:left;white-space:nowrap;cursor:pointer}
+.ctr-options-item.danger{color:#b42318}
+.ctr-options-item:hover:not(:disabled){background:var(--palette-accent-wash)}
+.ctr-options-item.danger.armed,.ctr-options-item.danger.armed:hover{background:#b42318;color:#fff}
+.ctr-options-item:disabled{opacity:.45;cursor:default}
+.ctr-options-item svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){.ctr-options-menu{animation:none}}

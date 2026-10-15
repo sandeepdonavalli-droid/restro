@@ -84,7 +84,7 @@
   const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.readyAt || 0, o.lines.map(l => [l.id, l.qty, typeOf(o, l)])]);
   const keyOf = line => `${line.id}@${lineType(line)}`;
   let qtyKey = null, qtyValue = '';
-  let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, typeMenu = false;
+  let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, typeMenu = false, optionsMenu = false, deleteArmed = false;
   let cashInput = '';                                   // cash typed on the payment sheet
   let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
@@ -198,6 +198,22 @@
     order.lines.forEach(l => { l.type = type; }); tidy();
     selected = null; render();
   }
+  // The options menu (the round button at the top of the divider). For now it holds Delete order.
+  function openOptions(open) {
+    optionsMenu = open; deleteArmed = false; render();
+    if (open) dialog.querySelector('.ctr-options-item:not(:disabled)')?.focus({ preventScroll: true });
+  }
+  // Anything on screen to delete: items, a type, a table, a customer, a pager, a ready time, Modify, or a saved order.
+  const hasOrder = () => Boolean(order.lines.length || order.number || order.type || order.table || order.customer || order.pager || order.readyAt || order.split);
+  // Delete order: the first tap asks again (Tap again to delete, until the menu closes); the second deletes the order
+  // on screen. A saved order (opened from Orders, not paid) comes off Orders too.
+  function tapDelete() {
+    if (!deleteArmed) { deleteArmed = true; render(); dialog.querySelector('.ctr-options-item')?.focus({ preventScroll: true }); return; }
+    const n = order.number;
+    if (n) storeOrders(loadOrders().filter(o => !(o.number === n && !o.paidAt)));
+    if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
+    fresh(); toast(n ? `Order #${n} deleted` : 'Order deleted');
+  }
   // Order type: the four types open right over the tile; picking one sets it (every item moves to it) and closes them.
   // Picking the type already chosen takes it off again: the tile shows Order type, and the order goes as Dine in.
   function openTypeMenu(open) {
@@ -228,7 +244,7 @@
     if (!order.lines.length || (order.number && signature(order) === baseline)) return false;
     return hold();
   }
-  const fresh = () => { order = blankOrder(); baseline = null; selected = null; sheet = null; typeMenu = false; scheduleDraft = null; render(); };
+  const fresh = () => { order = blankOrder(); baseline = null; selected = null; sheet = null; typeMenu = false; optionsMenu = false; deleteArmed = false; scheduleDraft = null; render(); };
   // Sends the items not sent yet to the kitchen, as one kitchen ticket. There is no kitchen screen or printer yet,
   // so the ticket is recorded on the order. Returns how many items went.
   function sendToKitchen(entry, now = Date.now()) {
@@ -466,7 +482,11 @@
       + '<path class="ctr-bubble-line" d="M1.5 43A11.5 11.5 0 0 1 13 31.5A15.5 15.5 0 0 0 13 .5"/>';
     const top = el('div', { class: 'ctr-menu-top' },
       bubble,
-      el('button', { type: 'button', class: 'ctr-options', 'aria-label': 'Options', title: 'Options' }, svg(ICON.menu)),
+      el('button', { type: 'button', class: 'ctr-options', 'aria-label': 'Options', title: 'Options', 'aria-haspopup': 'menu', 'aria-expanded': String(optionsMenu), onclick: () => openOptions(!optionsMenu) }, svg(ICON.menu)),
+      // The options menu, under the button. Delete order asks again before it deletes the order on screen.
+      optionsMenu && el('div', { class: 'ctr-options-menu', role: 'menu', 'aria-label': 'Options' },
+        el('button', { type: 'button', role: 'menuitem', class: `ctr-options-item danger${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete },
+          svg(ICON.trash), deleteArmed ? (order.number ? `Tap again to delete #${order.number}` : 'Tap again to delete') : 'Delete order')),
       search,
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), 'Held', held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'orders'; render(); } }, svg(ICON.orders), 'Orders'),
@@ -1083,7 +1103,7 @@
     if (drag) endDrag(true, false);
     if (panelDrag) endPanelDrag(true);
     const searchHadFocus = document.activeElement?.id === 'counter-search', tableHadFocus = document.activeElement?.id === 'counter-table';
-    root.replaceChildren(el('div', { class: 'ctr-shell' }, orderPanel(), menuPanel()), typeMenu ? el('div', { class: 'ctr-type-scrim', onclick: () => openTypeMenu(false) }) : '', sheetView() || '');
+    root.replaceChildren(el('div', { class: 'ctr-shell' }, orderPanel(), menuPanel()), typeMenu ? el('div', { class: 'ctr-type-scrim', onclick: () => openTypeMenu(false) }) : '', optionsMenu ? el('div', { class: 'ctr-options-scrim', onclick: () => openOptions(false) }) : '', sheetView() || '');
     renderMenuBody();
     const lines = dialog.querySelector('.ctr-lines');
     if (lines && dialog.open) { lines.scrollTop = scrollMemo.lines; scrollMemo.lines = lines.scrollTop; }
@@ -1095,6 +1115,7 @@
   function goBack() {
     if (!dialog.open) return false;
     if (typeMenu) { openTypeMenu(false); return true; }
+    if (optionsMenu) { openOptions(false); return true; }
     if (panelArranging) { setPanelArranging(false); return true; }
     if (sheet && sheet !== 'receipt') { sheet = null; render(); return true; }
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
@@ -1125,7 +1146,7 @@
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
   // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
-  function openCounter() { typeMenu = false; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
+  function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
   window.RestroCounter = Object.freeze({
     open() { fromFloor = false; openCounter(); },
     // From the Floor: Counter opens on that table's order (Dine in, table chosen).
