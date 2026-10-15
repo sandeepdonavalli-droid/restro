@@ -1,8 +1,8 @@
 /* Orders: full-screen app between the status bar and the navigation bar. Colours come from the active theme. One order
    to a row, in Counter's tile look (light, a stripe down the left edge in the order type's colour); the rows run the
    full width, edge to edge, and meet one another with only a faint line between them. Everything about an order
-   reads from left to right under the column names, which are parted by short lines. The names are centred in their
-   columns; the details start at the left of theirs. */
+   reads from left to right under the column names, which are parted by short lines. Names and details are all
+   centred in their columns. */
 .orders-app{position:fixed;inset:var(--header-height) 0 var(--header-height);width:100%;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:var(--palette-bg);color:var(--palette-text)}
 .orders-app[open]{display:block}
 .orders-app::backdrop{background:transparent}
@@ -33,7 +33,7 @@
 .ord-root .ord-row{line-height:1.25}
 button.ord-row{cursor:pointer;transition:background-color .12s ease}
 button.ord-row:active{background:var(--palette-accent-wash)}
-.ord-c{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ord-c{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
 .ord-ticket{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
 .ord-when{font-size:14px;color:var(--palette-muted)}
 .ord-type{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--type) 15%,var(--palette-tile-top));color:color-mix(in srgb,var(--type) 72%,#000);font-size:13px;font-weight:700}
@@ -45,7 +45,7 @@ button.ord-row:active{background:var(--palette-accent-wash)}
 .ord-pay.paid{color:#2f7a45}
 .ord-pay.unpaid{color:#b42318}
 .ord-server,.ord-buzzer,.ord-items{font-size:14px;font-variant-numeric:tabular-nums}
-.ord-total{text-align:left;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.ord-total{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
 .ord-cols .ord-c{font-size:11px;font-weight:700;color:var(--palette-muted)} /* the column names all alike */
 /* Narrower tablets: Server and Items step out so the rest keeps its room. */
 @media (max-width:1100px){
