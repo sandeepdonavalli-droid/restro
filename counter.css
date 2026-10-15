@@ -672,3 +672,5 @@ button.ctr-history-main{cursor:pointer}
 .ctr-shell.highlight .ctr-order-head{display:none}
 .ctr-highlight-scrim{position:absolute;inset:0;z-index:7;background:color-mix(in srgb,var(--palette-text) 28%,transparent);animation:ctr-type-fade .16s ease-out}
 @media (prefers-reduced-motion:reduce){.ctr-highlight-scrim{animation:none}}
+/* Save and Pay are 20% shorter: 45px tall (56px before); their width, type and look stay as they were. */
+.ctr-root .ctr-actions .ctr-secondary,.ctr-root .ctr-actions .ctr-pay,.ctr-root .ctr-actions .ctr-secondary:hover,.ctr-root .ctr-actions .ctr-pay:hover{height:45px;min-height:45px}
