@@ -2,16 +2,16 @@
    greys for lines). One order to a row, the rows running the full width, edge to edge, alternating pure white and a
    light grey (zebra) for definition, with no colour edge. Everything about an order reads from left to right under the
    column names, which are bold black on the light grey and are parted by short lines; names and details are all
-   centred in their columns. Every detail is regular weight and black, except where colour means something (a little
-   lighter than full neon): the order type (sky blue); In kitchen (orange), Scheduled (plum), Completed (green); Paid
-   (green), Not paid or Partially paid (orange), Refunded (red). */
+   centred in their columns. Every detail is regular weight and black, except where colour means something (full
+   neon, so it stays bright without bold): the order type (sky blue); In kitchen (neon orange), Scheduled (plum),
+   Completed (neon green); Paid (neon green), Not paid or Partially paid (neon orange), Refunded (red). */
 .orders-app{position:fixed;inset:var(--header-height) 0 var(--header-height);width:100%;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:#ffffff;color:#1f2933}
 .orders-app[open]{display:block}
 .orders-app::backdrop{background:transparent}
 
 /* Orders styles stay inside .ord-root, so the system bar (moved into this dialog while it is open) keeps its own look.
    Its own neutral colours, whatever the theme: */
-.ord-root{--ord-text:#1f2933;--ord-muted:#6b7280;--ord-line:#e5e7eb;--ord-grey:#f5f6f7;--ord-press:#eceef1;height:100%;display:flex;flex-direction:column;overflow:hidden;font-size:15px;color:var(--ord-text)}
+.ord-root{--ord-text:#1f2933;--ord-muted:#6b7280;--ord-line:#e5e7eb;--ord-grey:#f5f6f7;--ord-zebra:#eef0f2;--ord-press:#e3e6ea;height:100%;display:flex;flex-direction:column;overflow:hidden;font-size:15px;color:var(--ord-text)}
 .ord-root svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .ord-root button{font:inherit}
 .ord-root button:focus-visible{outline:2px solid var(--ord-text);outline-offset:2px}
@@ -32,8 +32,8 @@
 .ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text)} /* the column names: bold black, centred */
 .ord-cols .ord-c+.ord-c::before{content:"";position:absolute;left:-7px;top:50%;width:1px;height:12px;margin-top:-6px;background:color-mix(in srgb,var(--ord-muted) 45%,transparent)} /* the short line between two names, in the middle of the gap */
 .ord-rows{display:flex;flex-direction:column}
-.ord-row{width:100%;min-height:54px;margin:0;padding:0 16px 0 20px;border:0;border-radius:0;background:#ffffff;box-shadow:none;color:var(--ord-text);text-align:left}
-.ord-rows>.ord-row:nth-child(even){background:var(--ord-grey)}
+.ord-row{width:100%;min-height:65px;margin:0;padding:0 16px 0 20px;border:0;border-radius:0;background:#ffffff;box-shadow:none;color:var(--ord-text);text-align:left} /* 65px: 20% taller than the first 54px */
+.ord-rows>.ord-row:nth-child(even){background:var(--ord-zebra)} /* the grey rows, a little deeper than the column-name strip */
 .ord-root .ord-row{line-height:1.25}
 button.ord-row{cursor:pointer;transition:background-color .12s ease}
 button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background:var(--ord-press)}
@@ -41,17 +41,16 @@ button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background
 /* Every detail is regular weight (not bold) and black, except the colour-coded ones, which keep their colours. */
 .ord-ticket{font-size:16px;font-weight:400;font-variant-numeric:tabular-nums}
 .ord-when{font-size:14px;font-weight:400;color:var(--ord-text)}
-.ord-type{display:inline;padding:0;border-radius:0;background:none;color:#309ad1;font-size:14px;font-weight:400} /* the order type as text, in a light sky blue */
+.ord-type{display:inline;padding:0;border-radius:0;background:none;color:#0284c7;font-size:14px;font-weight:400} /* the order type as text, in sky blue */
 .ord-name{font-weight:400}
 .ord-status,.ord-pay{font-size:14px;font-weight:400}
-/* The colours are a little lighter than the full neon orange (#ff6700) and neon green (#00c853): each is mixed with
-   18% white. */
-.ord-status.kitchen{color:#ff822e} /* In kitchen: light neon orange */
-.ord-status.scheduled{color:#ae6283}
-.ord-status.done{color:#2ed272} /* Completed: light neon green */
-.ord-pay.paid{color:#2ed272} /* Paid: light neon green */
-.ord-pay.unpaid{color:#ff822e} /* Not paid or Partially paid: light neon orange */
-.ord-pay.refunded{color:#c24b42} /* Refunded: light red */
+/* Full neon orange and neon green: with regular-weight letters, the lighter shades looked dull. */
+.ord-status.kitchen{color:#ff6700} /* In kitchen: neon orange */
+.ord-status.scheduled{color:#9c3f68}
+.ord-status.done{color:#00c853} /* Completed: neon green */
+.ord-pay.paid{color:#00c853} /* Paid: neon green */
+.ord-pay.unpaid{color:#ff6700} /* Not paid or Partially paid: neon orange */
+.ord-pay.refunded{color:#b42318} /* Refunded: red */
 .ord-server,.ord-buzzer,.ord-items{font-size:14px;font-variant-numeric:tabular-nums}
 .ord-total{font-size:16px;font-weight:400;font-variant-numeric:tabular-nums}
 /* Narrower tablets: Server and Items step out so the rest keeps its room. */
