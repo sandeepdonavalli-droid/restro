@@ -158,3 +158,7 @@
 /* Kiosk-style: no text selection or long-press callout anywhere, except where people type. */
 body,dialog,dialog *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 dialog input,dialog textarea,input,textarea,select,[contenteditable="true"]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+/* A whole screen (Counter, Orders, Floor...) never shows the browser's focus outline: when focus falls back to the
+   screen itself after a key press, Chrome would draw a black-and-white line round it, just under the top banner.
+   Buttons and fields keep their own focus ring. */
+dialog:focus,dialog:focus-visible{outline:none}

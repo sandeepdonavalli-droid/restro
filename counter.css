@@ -677,3 +677,6 @@ button.ctr-history-main{cursor:pointer}
 /* Pure white (every screen): the theme colour is now a neutral dark slate, so Pay keeps a colour of its own, neon
    green, to stand apart from Save (slate). */
 .ctr-root .ctr-actions .ctr-pay{--btn:#00c853}
+/* The options button (three lines) is sky blue, the same sky blue as the order type in Orders. */
+.ctr-root .ctr-options{background:#0284c7;color:#fff}
+.ctr-root .ctr-options:hover{background:#0369a1}
