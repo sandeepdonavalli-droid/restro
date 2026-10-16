@@ -1121,6 +1121,9 @@
     renderMenuBody();
     const lines = dialog.querySelector('.ctr-lines');
     if (lines && dialog.open) { lines.scrollTop = scrollMemo.lines; scrollMemo.lines = lines.scrollTop; }
+    // The order list's scroll handle (scroll-handle.js) instead of the browser's scroll bar: three sky blue lines
+    // together in the middle.
+    if (lines) window.RestroScrollHandle?.attach(lines, { host: lines.parentElement, lines: 3, key: 'counter-lines' });
     if (searchHadFocus) { const s = dialog.querySelector('#counter-search'); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
     if (tableHadFocus) dialog.querySelector('#counter-table')?.focus();
   }

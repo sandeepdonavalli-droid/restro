@@ -682,3 +682,6 @@ button.ctr-history-main{cursor:pointer}
 .ctr-root .ctr-options:hover{background:#0369a1}
 /* The count circle in the Held button: the same sky blue, with white numbers. */
 .ctr-root .ctr-badge{background:#0284c7;color:#fff}
+/* While the order list shows its scroll handle (scroll-handle.js), the prices, the type groups and the Modify buttons
+   keep clear of it on the right. */
+.ctr-lines.rs-on .ctr-line-main,.ctr-lines.rs-on .ctr-group,.ctr-lines.rs-on .ctr-move{padding-right:30px}
