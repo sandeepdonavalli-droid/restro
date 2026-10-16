@@ -83,7 +83,7 @@
   // slides down the side as the list scrolls (at the top when the list is at the top), and dragging it scrolls the list.
   let thumbWatch = null, dragging = false;
   function withThumb(list) {
-    const thumb = el('div', { class: 'ord-thumb', 'aria-hidden': 'true' }, el('span', { class: 'ord-grip' }));
+    const thumb = el('div', { class: 'ord-thumb', 'aria-hidden': 'true' }, el('span', { class: 'ord-grip' }, el('i'), el('i'), el('i'), el('i'), el('i')));
     // The stretch the handle travels: from under the column names down to the bottom of the list.
     const room = () => {
       const top = (list.querySelector('.ord-cols')?.offsetHeight || 0) + 6;
