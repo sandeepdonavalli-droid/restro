@@ -498,10 +498,10 @@
         el('button', { type: 'button', role: 'menuitem', class: `ctr-options-item danger${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete },
           svg(ICON.trash), deleteArmed ? (order.number ? `Tap again to delete #${order.number}` : 'Tap again to delete') : 'Delete order')),
       search,
-      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), 'Held', held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
+      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), el('span', { class: 'ctr-tool-label' }, 'Held'), held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
       // Orders opens the Orders app (all orders, one to a row); Back there returns to Counter as it was.
-      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, svg(ICON.orders), 'Orders'),
-      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'payments'; render(); } }, svg(ICON.history), 'Payment history'));
+      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, svg(ICON.orders), el('span', { class: 'ctr-tool-label' }, 'Orders')),
+      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'payments'; render(); } }, svg(ICON.history), el('span', { class: 'ctr-tool-label' }, 'Payment history')));
     return el('section', { class: 'ctr-menu', 'aria-label': 'Menu' }, top, el('div', { class: 'ctr-menu-body' }),
       // (Not while a sheet such as the quantity pad or Pay is open: the sheet dims the whole screen itself.)
       highlight && !sheet && el('div', { class: 'ctr-highlight-scrim', onclick: () => setHighlight(false) }));

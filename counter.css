@@ -685,3 +685,8 @@ button.ctr-history-main{cursor:pointer}
 /* While the order list shows its scroll handle (scroll-handle.js), the prices, the type groups and the Modify buttons
    keep clear of it on the right. */
 .ctr-lines.rs-on .ctr-line-main,.ctr-lines.rs-on .ctr-group,.ctr-lines.rs-on .ctr-move{padding-right:30px}
+/* Held · Orders · Payment history: the name, its icon and Held's count circle share one centre line, and the number sits
+   in the middle of its circle. Each is centred on its capital letters (cap height down to the baseline) instead of the
+   font's line box, whose empty space under the letters left the names a little high and the number higher still. */
+.ctr-tool-label{text-box:trim-both cap alphabetic}
+.ctr-root .ctr-tool .ctr-badge{display:inline-block;box-sizing:border-box;height:16px;padding:calc((16px - 1cap) / 2) 4px 0;line-height:1;text-align:center;text-box:trim-both cap alphabetic}
