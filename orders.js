@@ -79,6 +79,40 @@
   let scrollTop = 0;
   let fromCounter = false;                 // opened with Counter's Orders button: Back returns to Counter
 
+  // Instead of the browser's scroll bar (track and arrows): a small handle on the right with sky blue grip lines. It
+  // slides down the side as the list scrolls (at the top when the list is at the top), and dragging it scrolls the list.
+  let thumbWatch = null, dragging = false;
+  function withThumb(list) {
+    const thumb = el('div', { class: 'ord-thumb', 'aria-hidden': 'true' }, el('span', { class: 'ord-grip' }));
+    // The stretch the handle travels: from under the column names down to the bottom of the list.
+    const room = () => {
+      const top = (list.querySelector('.ord-cols')?.offsetHeight || 0) + 6;
+      return { top, height: Math.max(0, list.clientHeight - top - 8 - thumb.offsetHeight) };
+    };
+    const place = () => {
+      const max = list.scrollHeight - list.clientHeight;
+      thumb.hidden = max <= 1;
+      if (max <= 1) return;
+      const { top, height } = room();
+      thumb.style.transform = `translateY(${Math.round(top + height * Math.min(1, list.scrollTop / max))}px)`;
+    };
+    list.addEventListener('scroll', place, { passive: true });
+    thumbWatch?.disconnect(); thumbWatch = new ResizeObserver(place); thumbWatch.observe(list);
+    thumb.addEventListener('pointerdown', event => {
+      event.preventDefault();
+      thumb.setPointerCapture(event.pointerId); thumb.classList.add('dragging'); dragging = true;
+      const startY = event.clientY, startTop = list.scrollTop, max = list.scrollHeight - list.clientHeight, { height } = room();
+      const move = e => { if (height > 0) list.scrollTop = startTop + (e.clientY - startY) * max / height; };
+      const end = () => {
+        thumb.classList.remove('dragging'); dragging = false;
+        thumb.removeEventListener('pointermove', move); thumb.removeEventListener('pointerup', end); thumb.removeEventListener('pointercancel', end);
+      };
+      thumb.addEventListener('pointermove', move); thumb.addEventListener('pointerup', end); thumb.addEventListener('pointercancel', end);
+    });
+    requestAnimationFrame(place);
+    return thumb;
+  }
+
   function render() {
     const orders = window.RestroCounter?.orders?.() || [];
     const head = el('div', { class: 'ord-head' },
@@ -92,13 +126,13 @@
         el('div', { class: 'ord-cols', 'aria-hidden': 'true' }, ...COLUMNS.map((name, i) => el('span', { class: `ord-c ${['ord-ticket', 'ord-when', 'ord-typecell', 'ord-name', 'ord-status', 'ord-pay', 'ord-server', 'ord-buzzer', 'ord-total'][i]}` }, name))),
         el('div', { class: 'ord-rows', role: 'list', 'aria-label': 'Orders, newest first' }, ...orders.map(row)))
       : el('div', { class: 'ord-empty' }, el('strong', {}, 'No orders yet'), el('span', {}, 'Orders show here once they are saved or paid in Counter.'));
-    root.replaceChildren(head, grid);
+    root.replaceChildren(head, orders.length ? el('div', { class: 'ord-body' }, grid, withThumb(grid)) : grid);
     if (orders.length) grid.scrollTop = scrollTop;
   }
 
   // While open, the tiles keep up with the kitchen (a scheduled order goes to the kitchen at its time).
   let timer = null;
-  dialog.addEventListener('close', () => { clearInterval(timer); timer = null; fromCounter = false; });
+  dialog.addEventListener('close', () => { clearInterval(timer); timer = null; fromCounter = false; thumbWatch?.disconnect(); });
   // Back: to Counter when Orders was opened from there; otherwise Orders closes (to the home screen).
   function goBack() {
     if (!dialog.open || !fromCounter || !window.RestroCounter) return false;
@@ -121,7 +155,7 @@
       fromCounter = options.from === 'counter';
       render();
       if (!dialog.open) dialog.showModal();
-      clearInterval(timer); timer = setInterval(() => { if (dialog.open) render(); }, 30000);
+      clearInterval(timer); timer = setInterval(() => { if (dialog.open && !dragging) render(); }, 30000);
       dialog.querySelector('#orders-title')?.focus({ preventScroll: true });
     },
     goBack

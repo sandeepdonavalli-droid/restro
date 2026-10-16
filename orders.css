@@ -27,6 +27,16 @@
 /* The columns, the same for the names and every row: Ticket · Date & time · Type · Name · Order status · Payment status ·
    Server · Buzzer · Total. The name takes the room left over. */
 .ord-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 0 16px}
+/* No browser scroll bar (no track, no arrows). Instead a small handle on the right, white with sky blue grip lines,
+   that slides down the side with the list and can be dragged. Its touch area is larger than it looks. */
+.ord-list{scrollbar-width:none}
+.ord-list::-webkit-scrollbar{display:none}
+.ord-body{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.ord-thumb{position:absolute;top:0;right:4px;z-index:2;width:14px;height:56px;border-radius:7px;background:#ffffff;box-shadow:0 0 0 1px #cbcfd5,0 2px 6px rgba(17,24,39,.14);display:grid;place-items:center;cursor:grab;touch-action:none;will-change:transform}
+.ord-thumb::before{content:"";position:absolute;inset:-10px -12px}
+.ord-thumb[hidden]{display:none}
+.ord-thumb.dragging{cursor:grabbing;box-shadow:0 0 0 1.5px #0284c7,0 3px 10px rgba(17,24,39,.2)}
+.ord-grip{width:8px;height:12px;background:linear-gradient(#0284c7 0 2px,transparent 2px 5px,#0284c7 5px 7px,transparent 7px 10px,#0284c7 10px 12px)} /* three sky blue lines */
 .ord-cols,.ord-row{display:grid;grid-template-columns:68px 128px 140px minmax(0,1fr) 168px 124px 96px 62px 104px;align-items:center;column-gap:12px}
 .ord-cols{position:sticky;top:0;z-index:1;padding:12px 16px 8px 20px;background:var(--ord-grey);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text)} /* the column names: bold black, centred */
