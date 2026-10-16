@@ -690,3 +690,8 @@ button.ctr-history-main{cursor:pointer}
    font's line box, whose empty space under the letters left the names a little high and the number higher still. */
 .ctr-tool-label{text-box:trim-both cap alphabetic}
 .ctr-root .ctr-tool .ctr-badge{display:inline-block;box-sizing:border-box;height:16px;padding:calc((16px - 1cap) / 2) 4px 0;line-height:1;text-align:center;text-box:trim-both cap alphabetic}
+/* A sheet (Take payment, quantity, pager, schedule, held, history, receipt) and the order types' dimming cover the whole
+   screen in one piece, the top banner included, so no line shows between the banner and the screen. Sheets stay where
+   they were, clear of the top banner and the bottom bar. */
+.ctr-root .ctr-sheet-wrap{position:fixed;inset:0;padding:calc(var(--header-height) + 24px) 24px}
+.ctr-root .ctr-type-scrim{position:fixed;inset:0}
