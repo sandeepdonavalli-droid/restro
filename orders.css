@@ -25,9 +25,9 @@
 #orders-title:focus{outline:none}
 
 /* The columns, the same for the names and every row: Ticket · Date & time · Type · Name · Order status · Payment status ·
-   Server · Buzzer · Items · Total. The name takes the room left over. */
+   Server · Buzzer · Total. The name takes the room left over. */
 .ord-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 0 16px}
-.ord-cols,.ord-row{display:grid;grid-template-columns:68px 128px 140px minmax(0,1fr) 168px 124px 96px 62px 50px 104px;align-items:center;column-gap:12px}
+.ord-cols,.ord-row{display:grid;grid-template-columns:68px 128px 140px minmax(0,1fr) 168px 124px 96px 62px 104px;align-items:center;column-gap:12px}
 .ord-cols{position:sticky;top:0;z-index:1;padding:12px 16px 8px 20px;background:var(--ord-grey);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text)} /* the column names: bold black, centred */
 .ord-cols .ord-c+.ord-c::before{content:"";position:absolute;left:-7px;top:50%;width:1px;height:12px;margin-top:-6px;background:color-mix(in srgb,var(--ord-muted) 45%,transparent)} /* the short line between two names, in the middle of the gap */
@@ -51,12 +51,12 @@ button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background
 .ord-pay.paid{color:#00c853} /* Paid: neon green */
 .ord-pay.unpaid{color:#ff6700} /* Not paid or Partially paid: neon orange */
 .ord-pay.refunded{color:#b42318} /* Refunded: red */
-.ord-server,.ord-buzzer,.ord-items{font-size:14px;font-variant-numeric:tabular-nums}
+.ord-server,.ord-buzzer{font-size:14px;font-variant-numeric:tabular-nums}
 .ord-total{font-size:16px;font-weight:400;font-variant-numeric:tabular-nums}
-/* Narrower tablets: Server and Items step out so the rest keeps its room. */
+/* Narrower tablets: Server steps out so the rest keeps its room. */
 @media (max-width:1100px){
   .ord-cols,.ord-row{grid-template-columns:64px 112px 124px minmax(0,1fr) 150px 124px 56px 96px}
-  .ord-server,.ord-items{display:none}
+  .ord-server{display:none}
 }
 
 .ord-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:var(--ord-muted)}
