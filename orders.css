@@ -1,9 +1,10 @@
 /* Orders: full-screen app between the status bar and the navigation bar, in pure white with no theme colour (neutral
-   greys for lines and text). One order to a row, the rows running the full width, edge to edge, alternating pure white
-   and a light grey (zebra) for definition, with no colour edge. Everything about an order reads from left to right
-   under the column names, which sit on the light grey and are parted by short lines; names and details are all
-   centred in their columns. Colour is kept only where it means something, a little lighter than full neon: the order type (sky blue text); In kitchen (neon orange), Scheduled,
-   Completed (neon green); Paid (neon green), Not paid or Partially paid (neon orange), Refunded (red). */
+   greys for lines). One order to a row, the rows running the full width, edge to edge, alternating pure white and a
+   light grey (zebra) for definition, with no colour edge. Everything about an order reads from left to right under the
+   column names, which are bold black on the light grey and are parted by short lines; names and details are all
+   centred in their columns. Every detail is regular weight and black, except where colour means something (a little
+   lighter than full neon): the order type (sky blue); In kitchen (orange), Scheduled (plum), Completed (green); Paid
+   (green), Not paid or Partially paid (orange), Refunded (red). */
 .orders-app{position:fixed;inset:var(--header-height) 0 var(--header-height);width:100%;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:#ffffff;color:#1f2933}
 .orders-app[open]{display:block}
 .orders-app::backdrop{background:transparent}
@@ -28,7 +29,7 @@
 .ord-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 0 16px}
 .ord-cols,.ord-row{display:grid;grid-template-columns:68px 128px 140px minmax(0,1fr) 168px 124px 96px 62px 50px 104px;align-items:center;column-gap:12px}
 .ord-cols{position:sticky;top:0;z-index:1;padding:12px 16px 8px 20px;background:var(--ord-grey);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-.ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-muted)} /* the column names, centred */
+.ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text)} /* the column names: bold black, centred */
 .ord-cols .ord-c+.ord-c::before{content:"";position:absolute;left:-7px;top:50%;width:1px;height:12px;margin-top:-6px;background:color-mix(in srgb,var(--ord-muted) 45%,transparent)} /* the short line between two names, in the middle of the gap */
 .ord-rows{display:flex;flex-direction:column}
 .ord-row{width:100%;min-height:54px;margin:0;padding:0 16px 0 20px;border:0;border-radius:0;background:#ffffff;box-shadow:none;color:var(--ord-text);text-align:left}
@@ -37,11 +38,12 @@
 button.ord-row{cursor:pointer;transition:background-color .12s ease}
 button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background:var(--ord-press)}
 .ord-c{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
-.ord-ticket{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
-.ord-when{font-size:14px;color:var(--ord-muted)}
-.ord-type{display:inline;padding:0;border-radius:0;background:none;color:#309ad1;font-size:14px;font-weight:600} /* the order type as text, in a light sky blue */
-.ord-name{font-weight:600}
-.ord-status,.ord-pay{font-size:14px;font-weight:600}
+/* Every detail is regular weight (not bold) and black, except the colour-coded ones, which keep their colours. */
+.ord-ticket{font-size:16px;font-weight:400;font-variant-numeric:tabular-nums}
+.ord-when{font-size:14px;font-weight:400;color:var(--ord-text)}
+.ord-type{display:inline;padding:0;border-radius:0;background:none;color:#309ad1;font-size:14px;font-weight:400} /* the order type as text, in a light sky blue */
+.ord-name{font-weight:400}
+.ord-status,.ord-pay{font-size:14px;font-weight:400}
 /* The colours are a little lighter than the full neon orange (#ff6700) and neon green (#00c853): each is mixed with
    18% white. */
 .ord-status.kitchen{color:#ff822e} /* In kitchen: light neon orange */
@@ -51,7 +53,7 @@ button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background
 .ord-pay.unpaid{color:#ff822e} /* Not paid or Partially paid: light neon orange */
 .ord-pay.refunded{color:#c24b42} /* Refunded: light red */
 .ord-server,.ord-buzzer,.ord-items{font-size:14px;font-variant-numeric:tabular-nums}
-.ord-total{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.ord-total{font-size:16px;font-weight:400;font-variant-numeric:tabular-nums}
 /* Narrower tablets: Server and Items step out so the rest keeps its room. */
 @media (max-width:1100px){
   .ord-cols,.ord-row{grid-template-columns:64px 112px 124px minmax(0,1fr) 150px 124px 56px 96px}
