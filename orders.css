@@ -11,7 +11,7 @@
 
 /* Orders styles stay inside .ord-root, so the system bar (moved into this dialog while it is open) keeps its own look.
    Its own neutral colours, whatever the theme: */
-.ord-root{--ord-text:#1f2933;--ord-muted:#6b7280;--ord-line:#e5e7eb;--ord-grey:#f5f6f7;--ord-zebra:#eef0f2;--ord-press:#e3e6ea;height:100%;display:flex;flex-direction:column;overflow:hidden;font-size:15px;color:var(--ord-text)}
+.ord-root{--ord-text:#1f2933;--ord-muted:#6b7280;--ord-line:#cbcfd5;--ord-grey:#f5f6f7;--ord-zebra:#eef0f2;--ord-press:#e3e6ea;height:100%;display:flex;flex-direction:column;overflow:hidden;font-size:15px;color:var(--ord-text)}
 .ord-root svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .ord-root button{font:inherit}
 .ord-root button:focus-visible{outline:2px solid var(--ord-text);outline-offset:2px}
