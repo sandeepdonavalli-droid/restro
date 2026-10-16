@@ -466,7 +466,7 @@
 
     const actions = el('div', { class: 'ctr-actions' },
       el('button', { type: 'button', class: 'ctr-secondary', disabled: !t.count, onclick: saveOrder }, 'Save'),
-      el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, 'aria-label': t.count ? `Pay ${money(t.total)}` : null, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, 'Pay'));
+      el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, 'aria-label': t.count ? `Payment, ${money(t.total)}` : null, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, 'Payment'));
 
     return el('section', { class: 'ctr-order', 'aria-label': 'Current order' }, header, list, el('div', { class: 'ctr-foot' }, sums, actions));
   }

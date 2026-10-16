@@ -163,14 +163,11 @@
     closeViews();renderRecents();recents.showModal();
   });
   window.addEventListener('restro:app-uninstalled',event=>{recentApps.delete(event.detail.id);if(recents.open)renderRecents();});
-  document.querySelector('#system-lock').addEventListener('click',async()=>{
-    if(locked)return;closeViews();locked=true;try{sessionStorage.setItem('restro.screenLocked','true');}catch{}
-    syncLock();for(const button of navigation)button.disabled=true;lock.showModal();positionBar();
-    await nativeAction('lockScreen');
-  });
+  // The screen is locked with the tablet's own button (no lock button on the bar). A lock still on from before is
+  // ended with Unlock, or when the tablet reports it was unlocked.
   function unlock(){
     locked=false;try{sessionStorage.removeItem('restro.screenLocked');}catch{}
-    for(const button of navigation)button.disabled=false;lock.close();positionBar();document.querySelector('#system-lock').focus({preventScroll:true});
+    for(const button of navigation)button.disabled=false;lock.close();positionBar();shell.focus({preventScroll:true});
   }
   document.querySelector('#screen-unlock').addEventListener('click',unlock);
   lock.addEventListener('cancel',event=>event.preventDefault());
