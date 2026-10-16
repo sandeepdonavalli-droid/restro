@@ -680,3 +680,5 @@ button.ctr-history-main{cursor:pointer}
 /* The options button (three lines) is sky blue, the same sky blue as the order type in Orders. */
 .ctr-root .ctr-options{background:#0284c7;color:#fff}
 .ctr-root .ctr-options:hover{background:#0369a1}
+/* The count circle in the Held button: the same sky blue, with white numbers. */
+.ctr-root .ctr-badge{background:#0284c7;color:#fff}
