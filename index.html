@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="device-controls.css?v=3">
   <link rel="stylesheet" href="system-navigation.css?v=7">
   <link rel="stylesheet" href="themes.css?v=2">
-  <link rel="stylesheet" href="settings.css?v=9">
+  <link rel="stylesheet" href="settings.css?v=10">
   <link rel="stylesheet" href="counter.css?v=109">
   <link rel="stylesheet" href="floor.css?v=13">
   <link rel="stylesheet" href="customers.css?v=12">
@@ -22,9 +22,11 @@
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
   <link rel="stylesheet" href="connectivity-status.css?v=2">
+  <link rel="stylesheet" href="tiles.css?v=1">
   <script src="theme-data.js?v=2"></script>
   <script src="theme-artwork.js?v=3"></script>
   <script src="themes.js?v=6"></script>
+  <script src="tiles.js?v=1"></script>
   <script src="app-layout.js?v=3" defer></script>
   <script src="app.js?v=31" defer></script>
   <script src="insights.js?v=9" defer></script>
@@ -35,7 +37,7 @@
   <script src="sound.js?v=4" defer></script>
   <script src="menu-data.js?v=2" defer></script>
   <script src="scroll-handle.js?v=1" defer></script>
-  <script src="counter.js?v=56" defer></script>
+  <script src="counter.js?v=57" defer></script>
   <script src="floor-data.js?v=1" defer></script>
   <script src="floor.js?v=2" defer></script>
   <script src="customers.js?v=1" defer></script>
@@ -136,7 +138,7 @@
           <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a16 16 0 0 1 20 0M5.5 12a11 11 0 0 1 13 0M9 15.5a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary">Managed by this device</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary">Checking connection…</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="bluetooth" data-keywords="bluetooth connected devices pair scan printer scanner headset"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10-5 4.5V2.5L17 7 7 17"/></svg></span><span class="settings-row-copy"><strong>Bluetooth</strong><span id="settings-bluetooth-summary">Not connected</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="display" data-keywords="display brightness screen dim light theme themes appearance style colour color look"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></span><span class="settings-row-copy"><strong>Display</strong><span id="settings-display-summary">Brightness 100%</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="display" data-keywords="display brightness screen dim light theme themes appearance style colour color look tile tiles tile style 3d bevel keycap extruded block button buttons"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></span><span class="settings-row-copy"><strong>Display</strong><span id="settings-display-summary">Brightness 100%</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="sound" data-keywords="sound volume audio mute speaker touch sounds beep"><span class="settings-row-icon"><svg class="volume-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path class="volume-wave" d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/><path class="volume-mute" d="m16 9.5 5 5m0-5-5 5"/></svg></span><span class="settings-row-copy"><strong>Sound</strong><span id="settings-sound-summary">Volume 70%</span></span></button></li>
         </ul>
         <p id="settings-no-results" class="settings-no-results" hidden>No settings match your search.</p>
@@ -177,6 +179,8 @@
               <div class="settings-item settings-slider-row"><span class="settings-row-copy"><strong id="settings-brightness-label">Brightness</strong><span id="settings-brightness-value">100%</span></span><input id="settings-brightness-range" type="range" min="20" max="100" step="1" value="100" aria-labelledby="settings-brightness-label"></div>
             </div>
             <p class="settings-footnote">Brightness is also in quick controls. Pull down from the top banner.</p>
+            <p class="settings-group-label">Tile style</p>
+            <div id="settings-tiles" class="settings-group tile-styles" role="radiogroup" aria-label="Tile style"></div>
             <p class="settings-group-label">Theme</p>
             <div id="settings-themes" class="settings-themes">
             <p class="theme-description">Choose a look for your POS, then tap Apply theme.</p>

@@ -564,9 +564,12 @@
     layoutPages(view, pager, dots);
   }
 
+  // Room on the right and at the bottom of the pages for the tiles' 3D depth (tiles.css sets it for the tile style in
+  // Settings), so the depth of the last column and the last row is not cut off at the edge of the page.
+  const tileRoom = pager => { const cs = getComputedStyle(pager); return { x: parseFloat(cs.getPropertyValue('--tile-room-x')) || 0, y: parseFloat(cs.getPropertyValue('--tile-room-y')) || 0 }; };
   function layoutPages(view, pager, dots) {
-    const width = pager.clientWidth, height = pager.clientHeight;
-    if (!width || !height) { pageCount = 1; menuLayout = null; pager.append(el('div', { class: 'ctr-page' }, ...view.tiles)); return; } // not on screen: laid out when shown
+    if (!pager.clientWidth || !pager.clientHeight) { pageCount = 1; menuLayout = null; pager.append(el('div', { class: 'ctr-page' }, ...view.tiles)); return; } // not on screen: laid out when shown
+    const room = tileRoom(pager), width = pager.clientWidth - room.x, height = pager.clientHeight - room.y;
     const cols = columnsFor(view.kind, width), colWidth = (width - (cols - 1) * GAP) / cols;
     // Every tile in the list gets the height of the tallest (a long name may take two lines), so rows stay even.
     const probe = el('div', { class: 'ctr-probe', style: `width:${colWidth}px` }, ...view.tiles);
@@ -647,8 +650,8 @@
   function cellAt(x, y) {
     const pager = dialog.querySelector('.ctr-pager'), page = dialog.querySelector(`.ctr-page[data-page="${pageMemo.page}"]`);
     if (!pager || !page || !menuLayout) return null;
-    const r = pager.getBoundingClientRect(), { cols, tileH } = menuLayout, colW = (r.width - (cols - 1) * GAP) / cols;
-    const px = x - r.left, py = y - r.top; if (px < 0 || py < 0 || px > r.width || py > r.height) return null;
+    const r = pager.getBoundingClientRect(), { cols, tileH } = menuLayout, w = r.width - tileRoom(pager).x, colW = (w - (cols - 1) * GAP) / cols;
+    const px = x - r.left, py = y - r.top; if (px < 0 || py < 0 || px > w || py > r.height) return null;
     const col = Math.floor(px / (colW + GAP)), row = Math.floor(py / (tileH + GAP));
     if (col >= cols || px - col * (colW + GAP) > colW || py - row * (tileH + GAP) > tileH) return null; // in a gap between tiles
     return page.children[row * cols + col] || null; // a tile, or an empty place
@@ -754,6 +757,8 @@
   // Turning the tablet (or resizing the window) re-flows the pages.
   let relayout = 0;
   window.addEventListener('resize', () => { cancelAnimationFrame(relayout); relayout = requestAnimationFrame(() => { if (dialog.open && !drag) renderMenuBody(); }); });
+  // A new tile style (Settings) needs a different room for the depth: the pages are laid out again.
+  window.addEventListener('restro:tiles-changed', () => { if (dialog.open && !drag) renderMenuBody(); });
 
   // ---------- swipe an order line left to remove it ----------
   // Drag a line to the left: it slides over a red strip saying Remove. Let go past a third of its width (or flick it)

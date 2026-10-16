@@ -252,3 +252,14 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 .settings-step:focus-visible{outline:2px solid var(--palette-accent);outline-offset:2px}
 .settings-shell .settings-step svg{width:18px;height:18px}
 .settings-stepper output{min-width:64px;text-align:center;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--palette-accent-ink)}
+/* Tile style (Display): the three 3D looks as a list to pick from, each with a sample tile drawn in that look; the one
+   picked is used on every screen at once (tiles.js, tiles.css) */
+.tile-style{cursor:pointer;min-height:84px;padding-top:14px;padding-bottom:14px}
+.tile-style:hover{background:color-mix(in srgb,var(--palette-tile-top) 70%,var(--palette-accent-wash))}
+.tile-style input{appearance:none;-webkit-appearance:none;flex:none;width:22px;height:22px;margin:0;border-radius:50%;border:2px solid var(--palette-muted);display:grid;place-items:center;cursor:pointer}
+.tile-style input::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--palette-accent);transform:scale(0);transition:transform .15s}
+.tile-style input:checked{border-color:var(--palette-accent)}
+.tile-style input:checked::before{transform:scale(1)}
+.tile-style input:focus-visible{outline:2px solid var(--palette-accent);outline-offset:3px}
+.tile-style:has(input:checked) strong{color:var(--palette-accent-ink)}
+@media (prefers-reduced-motion:reduce){.tile-style input::before{transition:none}}

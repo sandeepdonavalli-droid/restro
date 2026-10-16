@@ -1,0 +1,111 @@
+/* Tile style (Settings > Display): one 3D look for every tile and button in the app, set by tiles.js on the page as
+   data-restro-tiles = bevel (Chiselled bevel) · keycap (Keycap) · block (Extruded block).
+   - Light tiles: white, with the stripe down the left edge in the tile's own colour where it has one (order type,
+     Add Customer, Assign Pager, Modify, Schedule, Hold, categories, dishes, Save, Pay, Home); the rest have none.
+   - Dark tiles: the main buttons (Complete payment, Resume, New order, Schedule, Set quantity, Save changes and so on)
+     and the picked one of a set (Cash, the day, the pager), dark slate in the same look.
+   - Filled tiles: a picked order type or Modify on, in the tile's own colour.
+   Pressed, a tile goes down into its depth (Keycap, Extruded block) or its bevel turns in (Chiselled bevel).
+   The tiles keep their size, corners and text; only the edges, the face and the depth are drawn here. Each look's
+   colours sit in custom properties (--t-edge, --t-face, --t-base and the rest), which the dark and filled tiles change.
+   The tile rules carry an id-level weight (:not(#\#), which every element matches) so the look wins over each screen's
+   own tile rules and their hover and pressed states. Left out: the place a held tile will land (.ctr-drag-origin). */
+
+/* Room for the depth on the right and at the bottom of the pages of tiles that are cut off at their edges (Counter's
+   menu, where counter.js lays the tiles out inside it, and More Apps on the home screen), so the last column's and the
+   last row's depth shows in full. */
+:root[data-restro-tiles="bevel"]{--tile-room-x:0px;--tile-room-y:8px}
+:root[data-restro-tiles="keycap"]{--tile-room-x:0px;--tile-room-y:12px}
+:root[data-restro-tiles="block"]{--tile-room-x:9px;--tile-room-y:12px}
+.ctr-page{padding-right:var(--tile-room-x,0px)}
+:root[data-restro-tiles] .apps-page{padding-right:var(--tile-room-x,0px);padding-bottom:var(--tile-room-y,0px)}
+
+/* Each tile's own colour (its stripe), and the smaller tiles, which get half the depth */
+:root[data-restro-tiles] :where(.ctr-category,.ctr-item){--t-c:var(--stripe);--t-sw:6px}
+:root[data-restro-tiles] :where(.ctr-type-btn,.ctr-target,.ctr-move button,.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay,.floor-nav,.cust-nav){--t-c:var(--btn);--t-sw:6px}
+:root[data-restro-tiles] :where(.ctr-tool,.ctr-pick,.ctr-open,.ctr-move button,.ord-nav){--t-d:3px}
+/* Tiles that float over the rest (the order types opened over the tiles, a tile being moved) keep a lift shadow */
+:root[data-restro-tiles] :where(.ctr-type-pop .ctr-type-btn){--t-float:0 10px 26px rgba(0,0,0,.24)}
+:root[data-restro-tiles] :where(.ctr-drag-ghost){--t-float:0 12px 26px rgba(0,0,0,.25)}
+/* The chosen table (Floor) and the chosen customer keep their ring */
+:root[data-restro-tiles] :where(.floor-tile.selected){--t-ring:0 0 0 2px var(--palette-accent)}
+:root[data-restro-tiles] :where(.cust-row.current){--t-ring:0 0 0 1px var(--palette-accent)}
+/* Tinted: Schedule with a time set, a pager in use on another order */
+:root[data-restro-tiles] :where(.ctr-schedule.on){--t-face:linear-gradient(180deg,color-mix(in srgb,var(--btn) 9%,#fff),color-mix(in srgb,var(--btn) 17%,#f1f3f5))}
+:root[data-restro-tiles] :where(.ctr-pager-key.busy){--t-face:linear-gradient(180deg,#f3f4f6,#e5e7eb)}
+/* Save and Pay still fill with their own colour (a little deeper, white name) the moment they are pressed, and fade
+   back when let go (their own rules make the name white) */
+:root[data-restro-tiles] :where(.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay){--t-fill:inset 0 0 0 200px transparent}
+:root[data-restro-tiles] :where(.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay):active:not(:disabled){
+  --t-fill:inset 0 0 0 200px color-mix(in srgb,var(--btn) 78%,#000);--t-edge:color-mix(in srgb,var(--btn) 78%,#000);--t-c:color-mix(in srgb,var(--btn) 78%,#000)}
+
+/* ---------- Chiselled bevel: a dark edge, a white bevel on the top and left, a shaded one on the bottom and right ---------- */
+:root[data-restro-tiles="bevel"] :where(.ctr-type-btn,.ctr-target,.ctr-move button,.ctr-category,.ctr-item,.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay,.ctr-tool,.ctr-methods button,.ctr-chip,.ctr-pad-key,.ctr-pager-key,.ctr-pick,.ctr-sheet .ctr-secondary,.floor-nav,.cust-nav,.ord-nav,.floor-tile,.cust-row,.shortcut,.app-tile,.secondary-button,.primary-button:not(.ctr-pay),.cust-new):where(:not(.ctr-drag-origin)):not(#\#),
+.tile-sample[data-tiles="bevel"]>.tile-sample-face:not(#\#){
+  border:1px solid var(--t-edge,#9aa3ae);border-left:var(--t-sw,1px) solid var(--t-c,var(--t-edge,#9aa3ae));
+  background:var(--t-face,linear-gradient(180deg,#ffffff,#eef0f3));
+  box-shadow:var(--t-fill,inset 0 0 0 0 #0000),inset 2px 2px 0 var(--t-hi,#ffffff),inset -2px -3px 0 var(--t-lo,rgba(17,24,39,.13)),0 3px 6px var(--t-drop,rgba(17,24,39,.15)),var(--t-ring,0 0 #0000),var(--t-float,0 0 #0000);
+  transition:transform .12s ease,box-shadow .25s ease}
+:root[data-restro-tiles="bevel"] :where(.ctr-type-btn,.ctr-target,.ctr-move button,.ctr-category,.ctr-item,.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay,.ctr-tool,.ctr-methods button,.ctr-chip,.ctr-pad-key,.ctr-pager-key,.ctr-pick,.ctr-sheet .ctr-secondary,.floor-nav,.cust-nav,.ord-nav,.floor-tile,.cust-row,.shortcut,.app-tile,.secondary-button,.primary-button:not(.ctr-pay),.cust-new):where(:not(.ctr-drag-origin)):not(#\#):active:not(:disabled){
+  background:var(--t-face-down,linear-gradient(180deg,#e9ecef,#f3f4f6));
+  box-shadow:var(--t-fill,inset 0 0 0 0 #0000),inset 2px 3px 0 var(--t-lo,rgba(17,24,39,.13)),inset -2px -2px 0 var(--t-hi,#ffffff),0 1px 2px var(--t-drop,rgba(17,24,39,.15)),var(--t-ring,0 0 #0000),var(--t-float,0 0 #0000);
+  transform:translateY(1px);transition:transform .06s ease,box-shadow .06s ease}
+/* dark */
+:root[data-restro-tiles="bevel"] :where(.primary-button:not(.ctr-pay),.cust-new,.ctr-methods button.on,.ctr-pick.on,.ctr-pager-key.on){
+  --t-edge:#111827;--t-c:#111827;--t-face:linear-gradient(180deg,#3b4553,#1f2933);--t-face-down:linear-gradient(180deg,#151c24,#27313b);
+  --t-hi:rgba(255,255,255,.16);--t-lo:rgba(0,0,0,.38);--t-drop:rgba(17,24,39,.24)}
+/* filled in the tile's own colour */
+:root[data-restro-tiles="bevel"] :where(.ctr-type-btn.on:not(.ctr-schedule),.ctr-split.on,.ctr-move button.on){
+  --t-edge:color-mix(in srgb,var(--btn) 58%,#000);--t-c:color-mix(in srgb,var(--btn) 58%,#000);
+  --t-face:linear-gradient(180deg,color-mix(in srgb,var(--btn) 90%,#fff),color-mix(in srgb,var(--btn) 76%,#000));
+  --t-face-down:linear-gradient(180deg,color-mix(in srgb,var(--btn) 66%,#000),color-mix(in srgb,var(--btn) 78%,#000));
+  --t-hi:rgba(255,255,255,.24);--t-lo:rgba(0,0,0,.26);--t-drop:rgba(17,24,39,.2)}
+
+/* ---------- Keycap: a white key on a grey base ---------- */
+:root[data-restro-tiles="keycap"] :where(.ctr-type-btn,.ctr-target,.ctr-move button,.ctr-category,.ctr-item,.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay,.ctr-tool,.ctr-methods button,.ctr-chip,.ctr-pad-key,.ctr-pager-key,.ctr-pick,.ctr-sheet .ctr-secondary,.floor-nav,.cust-nav,.ord-nav,.floor-tile,.cust-row,.shortcut,.app-tile,.secondary-button,.primary-button:not(.ctr-pay),.cust-new):where(:not(.ctr-drag-origin)):not(#\#),
+.tile-sample[data-tiles="keycap"]>.tile-sample-face:not(#\#){
+  border:1px solid var(--t-edge,#c4c9d0);border-left:var(--t-sw,1px) solid var(--t-c,var(--t-edge,#c4c9d0));
+  background:var(--t-face,linear-gradient(180deg,#ffffff 0%,#f1f3f5 100%));
+  box-shadow:var(--t-fill,inset 0 0 0 0 #0000),inset 0 2px 0 var(--t-hi,#ffffff),0 var(--t-d,6px) 0 var(--t-base,#c4c9d0),0 calc(var(--t-d,6px) + 3px) 12px -3px var(--t-drop,rgba(17,24,39,.24)),var(--t-ring,0 0 #0000),var(--t-float,0 0 #0000);
+  transition:transform .12s ease,box-shadow .25s ease}
+:root[data-restro-tiles="keycap"] :where(.ctr-type-btn,.ctr-target,.ctr-move button,.ctr-category,.ctr-item,.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay,.ctr-tool,.ctr-methods button,.ctr-chip,.ctr-pad-key,.ctr-pager-key,.ctr-pick,.ctr-sheet .ctr-secondary,.floor-nav,.cust-nav,.ord-nav,.floor-tile,.cust-row,.shortcut,.app-tile,.secondary-button,.primary-button:not(.ctr-pay),.cust-new):where(:not(.ctr-drag-origin)):not(#\#):active:not(:disabled){
+  background:var(--t-face-down,linear-gradient(180deg,#f6f7f8 0%,#eceef1 100%));
+  box-shadow:var(--t-fill,inset 0 0 0 0 #0000),inset 0 2px 0 var(--t-hi,#ffffff),0 calc(var(--t-d,6px) / 2) 0 var(--t-base,#c4c9d0),0 calc(var(--t-d,6px) / 2 + 2px) 6px -2px var(--t-drop,rgba(17,24,39,.24)),var(--t-ring,0 0 #0000),var(--t-float,0 0 #0000);
+  transform:translateY(calc(var(--t-d,6px) / 2));transition:transform .06s ease,box-shadow .06s ease}
+:root[data-restro-tiles="keycap"] :where(.primary-button:not(.ctr-pay),.cust-new,.ctr-methods button.on,.ctr-pick.on,.ctr-pager-key.on){
+  --t-edge:#111827;--t-c:#111827;--t-face:linear-gradient(180deg,#3b4553 0%,#1f2933 100%);--t-face-down:linear-gradient(180deg,#2a3440 0%,#18202a 100%);
+  --t-hi:rgba(255,255,255,.18);--t-base:#0b1118;--t-drop:rgba(17,24,39,.3)}
+:root[data-restro-tiles="keycap"] :where(.ctr-type-btn.on:not(.ctr-schedule),.ctr-split.on,.ctr-move button.on){
+  --t-edge:color-mix(in srgb,var(--btn) 60%,#000);--t-c:color-mix(in srgb,var(--btn) 60%,#000);
+  --t-face:linear-gradient(180deg,color-mix(in srgb,var(--btn) 90%,#fff) 0%,color-mix(in srgb,var(--btn) 78%,#000) 100%);
+  --t-face-down:linear-gradient(180deg,color-mix(in srgb,var(--btn) 80%,#000) 0%,color-mix(in srgb,var(--btn) 72%,#000) 100%);
+  --t-hi:rgba(255,255,255,.24);--t-base:color-mix(in srgb,var(--btn) 48%,#000);--t-drop:rgba(17,24,39,.26)}
+
+/* ---------- Extruded block: a white block with grey depth to the bottom right ---------- */
+:root[data-restro-tiles="block"] :where(.ctr-type-btn,.ctr-target,.ctr-move button,.ctr-category,.ctr-item,.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay,.ctr-tool,.ctr-methods button,.ctr-chip,.ctr-pad-key,.ctr-pager-key,.ctr-pick,.ctr-sheet .ctr-secondary,.floor-nav,.cust-nav,.ord-nav,.floor-tile,.cust-row,.shortcut,.app-tile,.secondary-button,.primary-button:not(.ctr-pay),.cust-new):where(:not(.ctr-drag-origin)):not(#\#),
+.tile-sample[data-tiles="block"]>.tile-sample-face:not(#\#){
+  border:1px solid var(--t-edge,#bfc5cd);border-left:var(--t-sw,1px) solid var(--t-c,var(--t-edge,#bfc5cd));
+  background:var(--t-face,#ffffff);
+  box-shadow:var(--t-fill,inset 0 0 0 0 #0000),1px 1px 0 var(--t-base,#c9ced5),2px 2px 0 var(--t-base,#c9ced5),min(3px,var(--t-d,6px)) min(3px,var(--t-d,6px)) 0 var(--t-base,#c9ced5),
+    min(4px,var(--t-d,6px)) min(4px,var(--t-d,6px)) 0 var(--t-base,#c9ced5),min(5px,var(--t-d,6px)) min(5px,var(--t-d,6px)) 0 var(--t-base,#c9ced5),var(--t-d,6px) var(--t-d,6px) 0 var(--t-base,#c9ced5),
+    calc(var(--t-d,6px) + 1px) calc(var(--t-d,6px) + 3px) 10px -2px var(--t-drop,rgba(17,24,39,.2)),var(--t-ring,0 0 #0000),var(--t-float,0 0 #0000);
+  transition:transform .12s ease,box-shadow .25s ease}
+:root[data-restro-tiles="block"] :where(.ctr-type-btn,.ctr-target,.ctr-move button,.ctr-category,.ctr-item,.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay,.ctr-tool,.ctr-methods button,.ctr-chip,.ctr-pad-key,.ctr-pager-key,.ctr-pick,.ctr-sheet .ctr-secondary,.floor-nav,.cust-nav,.ord-nav,.floor-tile,.cust-row,.shortcut,.app-tile,.secondary-button,.primary-button:not(.ctr-pay),.cust-new):where(:not(.ctr-drag-origin)):not(#\#):active:not(:disabled){
+  background:var(--t-face-down,#f4f5f7);
+  box-shadow:var(--t-fill,inset 0 0 0 0 #0000),min(1px,calc(var(--t-d,6px) / 2)) min(1px,calc(var(--t-d,6px) / 2)) 0 var(--t-base,#c9ced5),min(2px,calc(var(--t-d,6px) / 2)) min(2px,calc(var(--t-d,6px) / 2)) 0 var(--t-base,#c9ced5),
+    calc(var(--t-d,6px) / 2) calc(var(--t-d,6px) / 2) 0 var(--t-base,#c9ced5),calc(var(--t-d,6px) / 2) calc(var(--t-d,6px) / 2) 0 var(--t-base,#c9ced5),calc(var(--t-d,6px) / 2) calc(var(--t-d,6px) / 2) 0 var(--t-base,#c9ced5),
+    calc(var(--t-d,6px) / 2) calc(var(--t-d,6px) / 2) 0 var(--t-base,#c9ced5),calc(var(--t-d,6px) / 2 + 1px) calc(var(--t-d,6px) / 2 + 2px) 5px -2px var(--t-drop,rgba(17,24,39,.2)),var(--t-ring,0 0 #0000),var(--t-float,0 0 #0000);
+  transform:translate(calc(var(--t-d,6px) / 2),calc(var(--t-d,6px) / 2));transition:transform .06s ease,box-shadow .06s ease}
+:root[data-restro-tiles="block"] :where(.primary-button:not(.ctr-pay),.cust-new,.ctr-methods button.on,.ctr-pick.on,.ctr-pager-key.on){
+  --t-edge:#111827;--t-c:#111827;--t-face:#1f2933;--t-face-down:#18202a;--t-base:#0b1118;--t-drop:rgba(17,24,39,.28)}
+:root[data-restro-tiles="block"] :where(.ctr-type-btn.on:not(.ctr-schedule),.ctr-split.on,.ctr-move button.on){
+  --t-edge:color-mix(in srgb,var(--btn) 60%,#000);--t-c:color-mix(in srgb,var(--btn) 60%,#000);
+  --t-face:color-mix(in srgb,var(--btn) 80%,#000);--t-face-down:color-mix(in srgb,var(--btn) 72%,#000);
+  --t-base:color-mix(in srgb,var(--btn) 48%,#000);--t-drop:rgba(17,24,39,.24)}
+
+@media (prefers-reduced-motion:reduce){
+  :root[data-restro-tiles] :where(.ctr-type-btn,.ctr-target,.ctr-move button,.ctr-category,.ctr-item,.ctr-actions .ctr-secondary,.ctr-actions .ctr-pay,.ctr-tool,.ctr-methods button,.ctr-chip,.ctr-pad-key,.ctr-pager-key,.ctr-pick,.ctr-sheet .ctr-secondary,.floor-nav,.cust-nav,.ord-nav,.floor-tile,.cust-row,.shortcut,.app-tile,.secondary-button,.primary-button,.cust-new){transition:none!important}}
+
+/* Settings > Display: the sample tile beside each look's name (always drawn in that look, whichever is in use) */
+.tile-sample{flex:none;display:block}
+.tile-sample-face{--t-c:#4d7cb8;--t-sw:6px;display:flex;align-items:center;justify-content:center;width:132px;height:52px;border-radius:10px;font-size:15px;font-weight:600;line-height:1.2;color:var(--palette-text);white-space:nowrap}
