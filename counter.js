@@ -484,10 +484,12 @@
         } }));
     // Options: a round button at the top of the divider. The divider goes round it (it curves out under the button,
     // wraps its right side and runs up to the top edge), so the button sits in a bubble of the order panel.
+    // The 35px button's centre is 18.5px in and 16px down here: the line wraps it at 21px (3px clear), curves into the
+    // divider at 17px and meets the top edge 32.67px in.
     const bubble = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    bubble.setAttribute('class', 'ctr-bubble'); bubble.setAttribute('aria-hidden', 'true'); bubble.setAttribute('viewBox', '0 0 32 46');
-    bubble.innerHTML = '<path class="ctr-bubble-fill" d="M1 43H1.5A11.5 11.5 0 0 1 13 31.5A15.5 15.5 0 0 0 13 .5V0H1Z"/>'
-      + '<path class="ctr-bubble-line" d="M1.5 43A11.5 11.5 0 0 1 13 31.5A15.5 15.5 0 0 0 13 .5"/>';
+    bubble.setAttribute('class', 'ctr-bubble'); bubble.setAttribute('aria-hidden', 'true'); bubble.setAttribute('viewBox', '0 0 42 56');
+    bubble.innerHTML = '<path class="ctr-bubble-fill" d="M1 54H1.5A17 17 0 0 1 18.5 37A21 21 0 0 0 32.67 .5V0H1Z"/>'
+      + '<path class="ctr-bubble-line" d="M1.5 54A17 17 0 0 1 18.5 37A21 21 0 0 0 32.67 .5"/>';
     const top = el('div', { class: 'ctr-menu-top' },
       bubble,
       el('button', { type: 'button', class: 'ctr-options', 'aria-label': 'Options', title: 'Options', 'aria-haspopup': 'menu', 'aria-expanded': String(optionsMenu), onclick: () => openOptions(!optionsMenu) }, svg(ICON.menu)),
