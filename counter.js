@@ -459,14 +459,15 @@
       }
     } else order.lines.forEach(line => list.append(lineRow(line)));
 
+    // Subtotal and tax; the total is on the Pay tile (no Total line), which leaves more room for the order's items.
     const sums = el('dl', { class: 'ctr-sums' },
       el('dt', {}, 'Subtotal'), el('dd', {}, money(t.subtotal)),
-      el('dt', {}, menu.taxLabel), el('dd', {}, money(t.tax)),
-      el('dt', { class: 'ctr-total' }, 'Total'), el('dd', { class: 'ctr-total' }, money(t.total)));
+      el('dt', {}, menu.taxLabel), el('dd', {}, money(t.tax)));
 
     const actions = el('div', { class: 'ctr-actions' },
       el('button', { type: 'button', class: 'ctr-secondary', disabled: !t.count, onclick: saveOrder }, 'Save'),
-      el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, 'aria-label': t.count ? `Payment, ${money(t.total)}` : null, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, 'Payment'));
+      el('button', { type: 'button', class: 'primary-button ctr-pay', disabled: !t.count, 'aria-label': `Pay ${money(t.total)}`, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } },
+        el('span', {}, 'Pay'), el('span', { class: 'ctr-pay-amount' }, money(t.total))));
 
     return el('section', { class: 'ctr-order', 'aria-label': 'Current order' }, header, list, el('div', { class: 'ctr-foot' }, sums, actions));
   }

@@ -695,3 +695,5 @@ button.ctr-history-main{cursor:pointer}
    they were, clear of the top banner and the bottom bar. */
 .ctr-root .ctr-sheet-wrap{position:fixed;inset:0;padding:calc(var(--header-height) + 24px) 24px}
 .ctr-root .ctr-type-scrim{position:fixed;inset:0}
+/* Pay carries the order's total beside its name (the Total line under the tax is gone) */
+.ctr-root .ctr-actions .ctr-pay .ctr-pay-amount{margin-left:8px;font-variant-numeric:tabular-nums}
