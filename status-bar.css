@@ -13,10 +13,11 @@ html[data-restro-theme] .top-banner .restaurant-name,html[data-restro-theme] .to
 @media (min-width:741px){
   .top-banner .restaurant-name{position:absolute;left:50%;max-width:calc(100% - 560px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transform:translate(-50%,var(--banner-baseline-shift,0px))}
 }
-/* The top ribbon is 10% lower than it was (24px on the tablet instead of 26.65px); the bottom bar keeps its height. The
-   name, the dot, the time and the battery keep their size and stay centred in it. The full-screen apps start right under
-   it, and the Counter's sheets and Recent apps keep their spacing from it. */
-:root{--top-banner-height:round(calc(var(--header-height) * .9),1px)}
+/* The top ribbon ends at the top of the line drawn under the name: 70% of its first height, rounded down to a whole
+   pixel so it never reaches past that line (18px on the tablet instead of 26.65px); the bottom bar keeps its height. The
+   name, the dot, the time and the battery keep their size and stay centred in it. The full-screen apps start right
+   under it, and the Counter's sheets and Recent apps keep their spacing from it. */
+:root{--top-banner-height:round(down,calc(var(--header-height) * .7),1px)}
 .top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height)}
 .counter-app,.floor-app,.customers-app,.orders-app,.settings-app{top:var(--top-banner-height)}
 .ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px)}
