@@ -436,7 +436,7 @@ function alignBannerText(){
   if(!alignmentContext)return;
   // Center the painted letters rather than their font line boxes.
   for(const label of labels){
-    const group=label.closest('.system-status, .identity, .bottom-brand-lock'),row=group.getBoundingClientRect();
+    const group=label.closest('.system-status, .identity, .bottom-identity, .bottom-brand-lock'),row=group.getBoundingClientRect();
     const baseline=label.querySelector('.banner-baseline').getBoundingClientRect().y;
     const ink=verticalGlyphBounds(label.textContent,getComputedStyle(label),label.getBoundingClientRect().width);
     const target=row.y+row.height/2,center=baseline+(ink.top+ink.bottom)/2;

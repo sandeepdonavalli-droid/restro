@@ -1,18 +1,16 @@
-/* Top banner, iPhone style: no bar of its own. The restaurant name, the connection dot, the time and the battery sit
-   straight on the screen in dark grey, the name and the time in bold; Wi-Fi and signal show beside them when the tablet
-   reports them. The dot alone tells the connection: green online, red offline (the word is kept for screen readers only).
-   On tablets the name sits in the middle. A sheet that dims the screen dims these too (counter.css). */
+/* Top banner, iPhone style: no bar of its own. The server's name on the left, and the connection dot, the time and the
+   battery on the right, sit straight on the screen in dark grey, the name and the time in bold; Wi-Fi and signal show
+   beside them when the tablet reports them. The dot alone tells the connection: green online, red offline (the word is
+   kept for screen readers only). A sheet that dims the screen dims these too (counter.css). */
 html[data-restro-theme] .top-banner{background:transparent;border-bottom-color:transparent;box-shadow:none;color:#1f2933}
-html[data-restro-theme] .top-banner .restaurant-name,html[data-restro-theme] .top-banner .system-status,html[data-restro-theme] .top-banner .header-time{color:#1f2933}
-.top-banner .restaurant-name,.top-banner .clock-text{font-weight:700}
+html[data-restro-theme] .top-banner .server-name,html[data-restro-theme] .top-banner .system-status,html[data-restro-theme] .top-banner .header-time{color:#1f2933}
+.top-banner .server-name,.top-banner .clock-text{font-weight:700}
 .top-banner .status-dot{box-shadow:none}
 .top-banner .battery-status{color:#1f2933}
 .top-banner .battery-status[data-battery-state="charging"]{color:#62d36b}
 .top-banner .battery-status[data-battery-state="low"]{color:#ff5c5c}
-/* The name in the middle of the screen (kept clear of Online, the time and the battery on the right) */
-@media (min-width:741px){
-  .top-banner .restaurant-name{position:absolute;left:50%;max-width:calc(100% - 560px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transform:translate(-50%,var(--banner-baseline-shift,0px))}
-}
+/* The server's name at the top left, in capitals like the restaurant's; a long one ends in "…" before the right side */
+.top-banner .server-name{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1;text-transform:uppercase}
 /* The top ribbon is only as tall as its icons (14px on the tablet, instead of 26.65px at first), with no edge line, so it
    ends just under the name: the battery fits exactly and nothing is cut. The name, the dot, the time and the battery keep
    their size and stay centred in it. On phones (two rows) it is 70% of its first height. The bottom bar keeps its
@@ -26,3 +24,15 @@ html[data-restro-theme] .top-banner .restaurant-name,html[data-restro-theme] .to
 /* Wi-Fi, signal and the battery keep no empty place when they are not shown, so what is shown sits at the right edge */
 .top-banner .system-status .network-slot[hidden]{display:none!important}
 .top-banner .battery-status[hidden]{display:none}
+/* The restaurant's name in the bottom right corner of the bottom bar, bold in the bar's light colour, centred in the bar
+   and with its right edge in line with the battery above (the top ribbon's side margin at each screen width). It keeps
+   clear of Back, Home and Recent apps in the middle; a long name ends in "…". */
+:root{--ribbon-edge:28px}
+@media (min-width:1700px){:root{--ribbon-edge:34px}}
+@media (max-width:1450px){:root{--ribbon-edge:23px}}
+@media (max-width:1190px){:root{--ribbon-edge:20px}}
+@media (max-width:740px){:root{--ribbon-edge:17px}}
+@media (max-width:540px){:root{--ribbon-edge:12px}}
+.bottom-identity{position:absolute;top:0;bottom:0;right:var(--ribbon-edge);display:flex;align-items:center;justify-content:flex-end;max-width:calc(50% - 110px - var(--ribbon-edge))}
+@media (max-width:740px){.bottom-identity{max-width:calc(50% - 74px - var(--ribbon-edge))}}
+.bottom-identity .restaurant-name{max-width:100%;font-weight:700;line-height:1;color:inherit}
