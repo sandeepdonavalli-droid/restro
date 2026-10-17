@@ -13,6 +13,14 @@ html[data-restro-theme] .top-banner .restaurant-name,html[data-restro-theme] .to
 @media (min-width:741px){
   .top-banner .restaurant-name{position:absolute;left:50%;max-width:calc(100% - 560px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transform:translate(-50%,var(--banner-baseline-shift,0px))}
 }
+/* The top ribbon is 10% lower than it was (24px on the tablet instead of 26.65px); the bottom bar keeps its height. The
+   name, the dot, the time and the battery keep their size and stay centred in it. The full-screen apps start right under
+   it, and the Counter's sheets and Recent apps keep their spacing from it. */
+:root{--top-banner-height:round(calc(var(--header-height) * .9),1px)}
+.top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height)}
+.counter-app,.floor-app,.customers-app,.orders-app,.settings-app{top:var(--top-banner-height)}
+.ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px)}
+.app-switcher{padding-top:var(--top-banner-height)}
 /* Wi-Fi, signal and the battery keep no empty place when they are not shown, so what is shown sits at the right edge */
 .top-banner .system-status .network-slot[hidden]{display:none!important}
 .top-banner .battery-status[hidden]{display:none}
