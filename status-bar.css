@@ -13,3 +13,6 @@ html[data-restro-theme] .top-banner .restaurant-name,html[data-restro-theme] .to
 @media (min-width:741px){
   .top-banner .restaurant-name{position:absolute;left:50%;max-width:calc(100% - 560px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transform:translate(-50%,var(--banner-baseline-shift,0px))}
 }
+/* Wi-Fi, signal and the battery keep no empty place when they are not shown, so what is shown sits at the right edge */
+.top-banner .system-status .network-slot[hidden]{display:none!important}
+.top-banner .battery-status[hidden]{display:none}
