@@ -228,7 +228,7 @@ $('#delete-app-dialog').addEventListener('close',()=>{deleteAppId=null;const slo
 function syncInstalledControls(){$$('[data-control="settings"]').forEach(control=>{control.hidden=!isInstalledApp('settings');});}
 window.addEventListener('restro:app-uninstalled',syncInstalledControls);syncInstalledControls();
 function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroProfile?.fill();window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
-function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}}
+function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='employees')window.RestroEmployees?.open();else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}}
 function openMove(id){
   moveId=id;setArranging(true);$('#move-description').textContent=`Choose where to insert ${apps[id].name}. Following apps keep their order.`;
   const select=$('#move-page');select.replaceChildren();pages.forEach((_,p)=>{const option=document.createElement('option');option.value=p;option.textContent=`Page ${p+1}`;select.append(option);});

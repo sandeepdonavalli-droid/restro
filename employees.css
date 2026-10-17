@@ -1,0 +1,35 @@
+/* Employees: full-screen app between the status bar and the navigation bar, with the Customers app's look (its header,
+   list rows and form fields come from customers.css through the cust-* classes). Colours come from the active theme. */
+.employees-app{position:fixed;inset:var(--header-height) 0 var(--header-height);width:100%;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:var(--palette-bg);color:var(--palette-text)}
+.employees-app[open]{display:block}
+.employees-app::backdrop{background:transparent}
+#employees-title:focus{outline:none}
+.emp-tools{display:flex;justify-content:flex-end}
+.emp-tag{flex:none;font-size:13px;font-weight:700;color:#00c853} /* Signed in: neon green */
+.emp-intro{margin:0;font-size:14px;color:var(--palette-muted)}
+.emp-label{font-size:14px;font-weight:600;color:var(--palette-muted)}
+/* Role: Owner, Manager, Server as three tiles; the chosen one is dark */
+.emp-roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.emp-roles .ctr-pick{min-height:46px;font-size:15px}
+/* PIN: four boxes with a dot per digit; the field that takes the typing lies over them, invisible */
+.emp-pin{position:relative;display:flex;gap:10px;width:max-content}
+.emp-pin span{display:grid;place-items:center;width:54px;height:54px;border:1px solid var(--palette-line);border-radius:12px;background:var(--palette-tile-top);font-size:26px;line-height:1;color:var(--palette-text)}
+.cust-root .emp-pin input[type=text]{position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;background:transparent;color:transparent;caret-color:transparent;opacity:0;font-size:16px;cursor:pointer}
+.emp-pin:focus-within span.next{border-color:var(--palette-accent);box-shadow:0 0 0 1px var(--palette-accent)}
+
+/* Signing in on the lock screen, once staff accounts exist: the clock, "Enter your PIN", four dots and a number pad in
+   the tiles' look. The restaurant's name is in the bottom right corner, so it is not repeated here. */
+.screen-lock-dialog.pin-mode #lock-restaurant,.screen-lock-dialog.pin-mode #screen-unlock,.screen-lock-dialog:not(.pin-mode) .pin-panel{display:none}
+.screen-lock-dialog.pin-mode .lock-screen-symbol{stroke:currentColor}
+#screen-lock-title:focus{outline:none}
+.pin-panel{display:flex;flex-direction:column;align-items:center;gap:22px}
+.pin-dots{display:flex;gap:16px}
+.pin-dots i{width:14px;height:14px;border:2px solid currentColor;border-radius:50%;box-sizing:border-box}
+.pin-dots i.on{background:currentColor}
+.pin-dots.wrong{animation:pin-shake .4s ease}
+@keyframes pin-shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.pin-pad{display:grid;grid-template-columns:repeat(3,96px);gap:12px}
+.pin-pad .ctr-pad-key{display:grid;place-items:center;width:96px;height:64px;min-height:64px;padding:0;border-radius:14px;font-size:26px;font-weight:600}
+.pin-pad .ctr-pad-key svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media (max-height:620px){.pin-pad{grid-template-columns:repeat(3,84px);gap:8px}.pin-pad .ctr-pad-key{width:84px;height:52px;min-height:52px;font-size:22px}}
+@media (prefers-reduced-motion:reduce){.pin-dots.wrong{animation:none}}

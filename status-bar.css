@@ -18,7 +18,7 @@ html[data-restro-theme] .top-banner .server-name,html[data-restro-theme] .top-ba
 :root{--top-banner-height:var(--network-size)}
 @media (max-width:740px){:root{--top-banner-height:round(down,calc(var(--header-height) * .7),1px)}}
 .top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height);border-bottom-width:0}
-.counter-app,.floor-app,.customers-app,.orders-app,.settings-app{top:var(--top-banner-height)}
+.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:var(--top-banner-height)}
 .ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px)}
 .app-switcher{padding-top:var(--top-banner-height)}
 /* Wi-Fi, signal and the battery keep no empty place when they are not shown, so what is shown sits at the right edge */

@@ -22,7 +22,7 @@
     document.querySelector('#lock-restaurant').textContent=document.querySelector('#restaurant-name').textContent;
   }
   function remember(dialog){
-    const appIds={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','customers-dialog':'customers'};
+    const appIds={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','customers-dialog':'customers','employees-dialog':'employees'};
     const controls={'calculator-dialog':'calculator','camera-dialog':'camera'};
     const insightViews={'order-details-dialog':{id:'last-order',name:'Last order',symbol:'receipt'},'most-sold-dialog':{id:'most-sold',name:'Most sold items',symbol:'chef'}};
     if(dialog.id==='counter-dialog'){recentApps.delete('shortcut:register');recentApps.set('shortcut:register',{shortcutId:'register',name:'Counter'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
@@ -148,7 +148,7 @@
   document.querySelector('#system-back').addEventListener('click',async()=>{
     if(locked)return;
     const opened=dialogs.filter(dialog=>dialog.open).at(-1);
-    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='orders-dialog'&&window.RestroOrders?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;opened.close();return;}
+    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='orders-dialog'&&window.RestroOrders?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;if(opened.id==='employees-dialog'&&window.RestroEmployees?.goBack())return;opened.close();return;}
     if(arranging){endDrag(true);setArranging(false);return;}
     if(currentPage>0){goToPage(currentPage-1);return;}
     await nativeAction('goBack');
@@ -163,15 +163,28 @@
     closeViews();renderRecents();recents.showModal();
   });
   window.addEventListener('restro:app-uninstalled',event=>{recentApps.delete(event.detail.id);if(recents.open)renderRecents();});
-  // The screen is locked with the tablet's own button (no lock button on the bar). A lock still on from before is
-  // ended with Unlock, or when the tablet reports it was unlocked.
+  // The screen is locked with the tablet's own button (no lock button on the bar): the Android app reports it with
+  // restro:device-locked. A lock still on from before is ended with Unlock, or when the tablet reports it was unlocked.
+  // Once staff accounts exist, only a PIN ends a lock (staff sign-in, employees.js): Unlock and the tablet's own unlock
+  // are then left to it.
+  let pinRequired=false;
+  function lockScreen(){
+    if(locked)return;
+    locked=true;try{sessionStorage.setItem('restro.screenLocked','true');}catch{}
+    syncLock();for(const button of navigation)button.disabled=true;
+    if(!lock.open)lock.showModal();positionBar();
+    window.dispatchEvent(new CustomEvent('restro:screen-locked'));
+  }
   function unlock(){
     locked=false;try{sessionStorage.removeItem('restro.screenLocked');}catch{}
     for(const button of navigation)button.disabled=false;lock.close();positionBar();shell.focus({preventScroll:true});
+    window.dispatchEvent(new CustomEvent('restro:screen-unlocked'));
   }
-  document.querySelector('#screen-unlock').addEventListener('click',unlock);
+  document.querySelector('#screen-unlock').addEventListener('click',()=>{if(!pinRequired)unlock();});
   lock.addEventListener('cancel',event=>event.preventDefault());
-  window.addEventListener('restro:device-unlocked',()=>{if(locked)unlock();});
+  window.addEventListener('restro:device-unlocked',()=>{if(locked&&!pinRequired)unlock();});
+  window.addEventListener('restro:device-locked',lockScreen);
+  window.RestroScreenLock=Object.freeze({lock:lockScreen,unlock,requirePin(on){pinRequired=Boolean(on);},get locked(){return locked;}});
   new MutationObserver(()=>{if(locked)syncLock();}).observe(document.querySelector('#clock'),{childList:true,subtree:true,characterData:true});
   if(locked){syncLock();for(const button of navigation)button.disabled=true;lock.showModal();}
   positionBar();
