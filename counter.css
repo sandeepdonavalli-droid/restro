@@ -656,12 +656,12 @@ button.ctr-history-main{cursor:pointer}
    quantity, and a press shrinks it a little). */
 .ctr-qty-num,.ctr-qty-num:hover{background:transparent;box-shadow:none;color:var(--palette-accent);font-weight:700}
 .ctr-qty-num:active{transform:scale(.94)}
-/* The search sits in the middle of the space between the options button and Held, the same distance from each, and
-   keeps its width (60% of that space). The bar is a grid there: a space, the search, an equal space, then Held, Orders
-   and Payment history 6px apart; it starts at the options button's right edge (23px in). Narrow screens keep the
-   full-width search as before. */
+/* The search fills the space between the options button and Held, 10px clear of each: of Held, and of the curved line
+   around the options button (which reaches 4px past the button). That makes it about 60% wider than it was, when it took
+   60% of the space. The bar is a grid there: 14px, the search, 10px, then Held, Orders and Payment history 6px apart; it
+   starts at the options button's right edge (23px in). Narrow screens keep the full-width search as before. */
 @media (min-width:821px){
-  .ctr-menu-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr) minmax(0,1fr) auto auto auto;column-gap:0;padding-left:23px}
+  .ctr-menu-top{display:grid;grid-template-columns:14px minmax(0,1fr) 10px auto auto auto;column-gap:0;padding-left:23px}
   .ctr-menu-top::before{margin-right:0}
   .ctr-search+.ctr-tool{grid-column:4}
   .ctr-tool+.ctr-tool{margin-left:6px}
