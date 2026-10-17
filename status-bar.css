@@ -1,10 +1,10 @@
-/* Top banner, iPhone style: no bar of its own. The restaurant name, Online, the time and the battery sit straight on the
-   screen in dark grey, the name and the time in bold; Wi-Fi and signal show beside them when the tablet reports them.
+/* Top banner, iPhone style: no bar of its own. The restaurant name, the connection dot, the time and the battery sit
+   straight on the screen in dark grey, the name and the time in bold; Wi-Fi and signal show beside them when the tablet
+   reports them. The dot alone tells the connection: green online, red offline (the word is kept for screen readers only).
    On tablets the name sits in the middle. A sheet that dims the screen dims these too (counter.css). */
 html[data-restro-theme] .top-banner{background:transparent;border-bottom-color:transparent;box-shadow:none;color:#1f2933}
 html[data-restro-theme] .top-banner .restaurant-name,html[data-restro-theme] .top-banner .system-status,html[data-restro-theme] .top-banner .header-time{color:#1f2933}
-.top-banner .restaurant-name,.top-banner #online-text,.top-banner .clock-text{font-weight:700}
-.top-banner .header-divider{background:#9aa1ab;opacity:1}
+.top-banner .restaurant-name,.top-banner .clock-text{font-weight:700}
 .top-banner .status-dot{box-shadow:none}
 .top-banner .battery-status{color:#1f2933}
 .top-banner .battery-status[data-battery-state="charging"]{color:#62d36b}

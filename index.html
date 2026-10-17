@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
   <link rel="stylesheet" href="connectivity-status.css?v=2">
-  <link rel="stylesheet" href="status-bar.css?v=2">
+  <link rel="stylesheet" href="status-bar.css?v=3">
   <link rel="stylesheet" href="tiles.css?v=1">
   <script src="theme-data.js?v=2"></script>
   <script src="theme-artwork.js?v=3"></script>
@@ -70,8 +70,7 @@
         <span id="restaurant-name" class="restaurant-name banner-label">RESTAURANT NAME</span>
       </div>
       <div class="system-status">
-        <span class="online-status"><span id="online-dot" class="status-dot offline"></span><span id="online-text" class="banner-label">Offline</span></span>
-        <span class="header-divider" aria-hidden="true"></span>
+        <span class="online-status"><span id="online-dot" class="status-dot offline"></span><span id="online-text" class="sr-only">Offline</span></span>
         <time id="clock" class="header-time"><span class="clock-text banner-label">5:30 PM</span></time>
         <span class="battery-status" role="img" hidden><svg class="battery" viewBox="0 0 29.4 14" aria-hidden="true"><rect x=".7" y=".7" width="25.4" height="12.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect class="battery-fill" x="2.5" y="2.5" width="0" height="9" rx="1.4" fill="currentColor"/><rect x="28" y="4.25" width="1.4" height="5.5" rx=".7" fill="currentColor"/><path class="battery-flash" d="m14.6 2.4-4.3 5.3h3l-1.2 3.9 4.4-5.8h-3.1l1.2-3.4Z" fill="#fff" hidden/></svg></span>
         <span id="cellular-status" class="network-slot" role="img" hidden><svg class="icon signal" viewBox="0 0 24 24" aria-hidden="true"><path data-signal-level="1" d="M3 20v-4" stroke-width="4"/><path data-signal-level="2" d="M9 20V12" stroke-width="4"/><path data-signal-level="3" d="M15 20V8" stroke-width="4"/><path data-signal-level="4" d="M21 20V4" stroke-width="4"/></svg></span>
