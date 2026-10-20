@@ -71,13 +71,16 @@
     const label = `Order ${o.number}, ${dateOf(o.createdAt)} ${timeOf(o.createdAt)}, ${type.label}, ${name}, ${status.text}, ${pay}, ${money(o.total)}`;
     return paid
       ? el('div', { class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': label }, ...cells)
-      : el('button', { type: 'button', class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': `${label}. Open in Counter`, onclick: () => window.RestroCounter?.openOrder(o.number) }, ...cells);
+      : el('button', { type: 'button', class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': `${label}. Open in Counter`, onclick: () => window.RestroCounter?.openOrder(o.uid || o.number) }, ...cells);
   }
 
   // Rendered into its own root so the system bar and toasts placed in the dialog survive re-renders.
   const root = el('div', { class: 'ord-root' }); dialog.prepend(root);
   let scrollTop = 0;
   let fromCounter = false;                 // opened with Counter's Orders button: Back returns to Counter
+
+  // Orders saved, paid or deleted on another tablet (sync.js) show at once
+  window.addEventListener('restro:data-changed', e => { if (dialog.open && (e.detail?.collections || []).includes('orders')) render(); });
 
   function render() {
     const orders = window.RestroCounter?.orders?.() || [];

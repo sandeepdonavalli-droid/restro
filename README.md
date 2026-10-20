@@ -14,4 +14,5 @@ Publish prep: python3 tools/build.py        (writes dist/index.html)
 
 - Website: https://sandeepdonavalli-droid.github.io/restro/ (GitHub Pages, deploys on every push to `main`)
 - Tablet preview: Claude artifact, republished with `tools/build.py`
-- Android native features (Wi-Fi list, Bluetooth scan): see ANDROID-BRIDGE.md
+- Android native features (Wi-Fi list, Bluetooth scan, sync between tablets): see ANDROID-BRIDGE.md
+- Sync between the restaurant's tablets and the cloud: see SYNC.md

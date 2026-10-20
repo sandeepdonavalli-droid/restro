@@ -22,7 +22,7 @@
     : null;
   let people = [];
   try { const saved = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(saved)) people = saved.map(clean).filter(Boolean); } catch {}
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(people)); } catch {} };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(people)); } catch {} window.RestroSync?.wrote(KEY); };
 
   // ---------- PIN hashing ----------
   const b64 = bytes => btoa(String.fromCharCode(...bytes));
@@ -56,6 +56,16 @@
   }
   const ownersLeft = exceptId => people.filter(p => p.role === 'owner' && p.id !== exceptId).length;
   const changed = () => { save(); emit('restro:staff-changed', {}); };
+
+  // Accounts added, changed or deleted on another tablet (sync.js). Someone deleted there is signed out here.
+  window.addEventListener('restro:data-changed', e => {
+    if (!(e.detail?.collections || []).includes('staff')) return;
+    try { const saved = JSON.parse(localStorage.getItem(KEY) || '[]'); people = Array.isArray(saved) ? saved.map(clean).filter(Boolean) : []; } catch {}
+    emit('restro:staff-changed', {});
+    if (currentId && !people.some(p => p.id === currentId)) { setCurrent(null); window.RestroScreenLock?.lock(); }
+    else if (currentId) emit('restro:staff-signed-in', { person: view(people.find(p => p.id === currentId)) });
+    else if (people.length && !window.RestroScreenLock?.locked) window.RestroScreenLock?.lock(); // the restaurant's accounts arrived: sign in with a PIN
+  });
 
   window.RestroStaff = Object.freeze({
     roles: ROLES,
@@ -99,7 +109,7 @@
       if (!person) return { ok: true };
       if (id === currentId) return { error: 'You can’t delete yourself while you’re signed in.' };
       if (person.role === 'owner' && !ownersLeft(id)) return { error: 'There must be at least one owner.' };
-      people = people.filter(p => p.id !== id); changed();
+      window.RestroSync?.removed('staff', id); people = people.filter(p => p.id !== id); changed();
       return { ok: true };
     },
     // The person a PIN belongs to, or null

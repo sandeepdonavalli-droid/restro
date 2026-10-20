@@ -118,8 +118,15 @@
   function stepPrep(delta) {
     const n = Math.min(240, Math.max(5, readPrep() + delta));
     try { localStorage.setItem(PREP_KEY, JSON.stringify(n)); } catch {}
+    window.RestroSync?.wrote(PREP_KEY);
     showPrep(); window.dispatchEvent(new CustomEvent('restro:prep-time-changed', { detail: n }));
   }
+  // Changed on another tablet (sync.js)
+  let prepShown = readPrep();
+  window.addEventListener('restro:data-changed', event => {
+    if (!(event.detail?.collections || []).includes('settings') || readPrep() === prepShown) return;
+    prepShown = readPrep(); showPrep(); window.dispatchEvent(new CustomEvent('restro:prep-time-changed', { detail: prepShown }));
+  });
   document.querySelector('#settings-prep-down').addEventListener('click', () => stepPrep(-5));
   document.querySelector('#settings-prep-up').addEventListener('click', () => stepPrep(5));
   showPrep();

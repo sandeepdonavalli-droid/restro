@@ -16,7 +16,8 @@
 
   // ---------- storage ----------
   const load = (key, fallback) => { try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return v ?? fallback; } catch { return fallback; } };
-  const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
+  // Shared data (orders, held) is passed to sync after every save, so the other tablets get it (sync.js).
+  const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} window.RestroSync?.wrote(key); };
   // Held: only tickets put on Hold. They are kept until the end of the day, then cleared (nothing else is cleared).
   let held = load(HELD_KEY, []); if (!Array.isArray(held)) held = [];
   // Orders: every order saved with Save or Pay, newest first, each Paid or Not paid (payment is not always taken upfront).
@@ -54,12 +55,15 @@
   let panelOrder = ordered(PANEL_TILES, load(PANEL_KEY, null));
   const tileAt = key => ({ 'data-tile': key, style: `order:${panelOrder.indexOf(key)}` });
   let panelArranging = false, panelDrag = null, panelGesture = null, panelHold = null, panelSuppress = false;
-  const nextNumber = () => { const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
+  // Ticket numbers come from sync (in blocks from the main system or the cloud once there are other tablets, so no two
+  // tablets give the same number); on its own a tablet counts on as before.
+  const nextNumber = () => { if (window.RestroSync) return window.RestroSync.nextNumber(); const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
+  const idOf = o => o.uid || `n${o.number}`; // an order's id everywhere (orders from before sync are known by their number)
 
   // ---------- state ----------
   // A new order starts with no order type. Dine in can have a table (picked on the Floor); every other order a customer.
   // Any order can have a pager, and a ready-by time (Schedule). number: set once the order is saved (Save or Pay).
-  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, readyAt: null, holdUntil: null, heldId: null, number: null, lines: [] });
+  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
@@ -70,7 +74,7 @@
     const type = TYPES.includes(o.type) ? o.type : null;
     return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
       pager: cleanPager(o.pager), readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
-      heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null,
+      heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000).map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type })) };
   };
   // An order with no type chosen goes as Dine in, with no table: a table chosen earlier is set aside (as when the type
@@ -90,11 +94,13 @@
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
   let fromOrders = false;                               // opened from a tile in the Orders app (Back returns there)
   let baseline = null;                                  // signature of the saved order on screen (opened from Orders)
+  let opened = null;                                    // that order as saved when it was opened here (JSON): changes made on
+                                                        // another tablet meanwhile are merged with this tablet's on Save or Pay
   const scrollMemo = { lines: 0 };                      // where the order list was scrolled
 
   // Leaving Counter (Home, Recents, or the app/page restarting) keeps everything as it was:
   // the order on screen, plus the category or search the menu was showing.
-  const saveDraft = () => store(DRAFT_KEY, { order, category, query, baseline });
+  const saveDraft = () => store(DRAFT_KEY, { order, category, query, baseline, opened });
   (() => {
     const saved = load(DRAFT_KEY, null);
     if (!saved || typeof saved !== 'object') return;
@@ -103,6 +109,7 @@
     if (menu.categories.some(c => c.id === saved.category)) category = saved.category;
     if (typeof saved.query === 'string') query = saved.query.slice(0, 80);
     if (order.number && typeof saved.baseline === 'string') baseline = saved.baseline;
+    if (order.number && typeof saved.opened === 'string') opened = saved.opened;
   })();
 
   // ---------- money (all maths in paise) ----------
@@ -217,8 +224,8 @@
   function tapDelete() {
     if (!deleteArmed) { deleteArmed = true; render(); dialog.querySelector('.ctr-options-item.danger')?.focus({ preventScroll: true }); return; }
     const n = order.number;
-    if (n) storeOrders(loadOrders().filter(o => !(o.number === n && !o.paidAt)));
-    if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
+    if (n) { const list = loadOrders(), gone = o => (order.uid ? idOf(o) === order.uid : o.number === n) && !o.paidAt; list.filter(gone).forEach(o => window.RestroSync?.removed('orders', idOf(o))); storeOrders(list.filter(o => !gone(o))); }
+    if (order.heldId) { window.RestroSync?.removed('held', order.heldId); held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     fresh(); toast(n ? `Order #${n} deleted` : 'Order deleted');
   }
   // Order type: the four types open right over the tile; picking one sets it (every item moves to it) and closes them.
@@ -241,7 +248,7 @@
   // Puts the order on screen in Held, until the end of the day.
   function hold() {
     if (!order.lines.length) return false;
-    const entry = { ...order, heldId: order.heldId || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: endOfDay() };
+    const entry = { ...order, heldId: order.heldId || window.RestroSync?.newId('h') || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: endOfDay() };
     held = [entry, ...held.filter(h => h.heldId !== entry.heldId)].slice(0, 100); store(HELD_KEY, held);
     return true;
   }
@@ -251,7 +258,7 @@
     if (!order.lines.length || (order.number && signature(order) === baseline)) return false;
     return hold();
   }
-  const fresh = () => { order = blankOrder(); baseline = null; selected = null; sheet = null; typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; scheduleDraft = null; render(); };
+  const fresh = () => { order = blankOrder(); baseline = null; opened = null; selected = null; sheet = null; typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; scheduleDraft = null; render(); };
   // Sends the items not sent yet to the kitchen, as one kitchen ticket. There is no kitchen screen or printer yet,
   // so the ticket is recorded on the order. Returns how many items went.
   function sendToKitchen(entry, now = Date.now()) {
@@ -265,15 +272,21 @@
   // Saves the order on screen in Orders (Save, or Pay with the payment) and sends it to the kitchen, unless it is
   // scheduled for later: then it goes at its ready time minus the preparation time. Saving again sends only what was added.
   function upsertOrder(pay) {
-    const now = Date.now(), list = loadOrders(), prev = order.number ? list.find(o => o.number === order.number && !o.paidAt) : null;
-    const entry = { number: prev ? prev.number : nextNumber(), type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null,
+    const now = Date.now(), list = loadOrders();
+    const prev = order.uid ? list.find(o => idOf(o) === order.uid && !o.paidAt) : order.number ? list.find(o => o.number === order.number && !o.paidAt) : null;
+    const number = prev ? prev.number : nextNumber(), provisional = !prev && Boolean(window.RestroSync?.provisional);
+    let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null,
       lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...totals(),
       createdAt: prev ? createdOf(prev) : now, savedAt: now, sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
       // the server: whoever was signed in when the order was first saved (staff sign-in)
-      server: prev && prev.server ? prev.server : window.RestroStaff?.current?.name || null, serverId: prev && prev.serverId ? prev.serverId : window.RestroStaff?.current?.id || null };
+      server: prev && prev.server ? prev.server : window.RestroStaff?.current?.name || null, serverId: prev && prev.serverId ? prev.serverId : window.RestroStaff?.current?.id || null,
+      // a number given while cut off from the main system stays provisional until the main system settles it
+      ...(provisional || prev?.numberProvisional ? { numberProvisional: true } : {}), ...(prev && Number.isInteger(prev.numberWas) ? { numberWas: prev.numberWas } : {}) };
+    // Changed on another tablet since it was opened here: both tablets' changes are kept (items added on both, and so on)
+    if (prev && opened && window.RestroSync && JSON.stringify(prev) !== opened) entry = window.RestroSync.mergeRecord('orders', JSON.parse(opened), entry, prev);
     const sentNow = !entry.readyAt || kitchenTime(entry) <= now ? sendToKitchen(entry, now) : 0;
-    storeOrders([entry, ...list.filter(o => o.number !== entry.number)]);
+    storeOrders([entry, ...list.filter(o => idOf(o) !== entry.uid)]);
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     return { entry, sentNow, isNew: !prev };
   }
@@ -300,23 +313,24 @@
   function resume(id) {
     const entry = held.find(h => h.heldId === id); if (!entry) return;
     if (order.heldId !== id) park();
-    held = held.filter(h => h.heldId !== id); store(HELD_KEY, held);
+    window.RestroSync?.removed('held', id); held = held.filter(h => h.heldId !== id); store(HELD_KEY, held);
     order = restoreOrder(entry);
     // A held copy of a saved order carries on with that order (unless it has been paid since).
-    const saved = order.number ? loadOrders().find(o => o.number === order.number && !o.paidAt) : null;
-    if (!saved) order.number = null;
-    baseline = saved ? signature(restoreOrder(saved)) : null;
+    const saved = order.number ? loadOrders().find(o => (order.uid ? idOf(o) === order.uid : o.number === order.number) && !o.paidAt) : null;
+    if (!saved) { order.number = null; order.uid = null; } else order.number = saved.number;
+    baseline = saved ? signature(restoreOrder(saved)) : null; opened = saved ? JSON.stringify(saved) : null;
     sheet = null; selected = null; render(); toast('Order resumed');
   }
-  // Opens a saved order that is not paid yet, to add items or take the payment.
-  function openOrder(number) {
-    if (order.number === number) { sheet = null; render(); return; }
-    const saved = loadOrders().find(o => o.number === number && !o.paidAt); if (!saved) return;
+  // Opens a saved order that is not paid yet (by its id, or its number), to add items or take the payment.
+  function openOrder(ref) {
+    const saved = loadOrders().find(o => (typeof ref === 'string' ? idOf(o) === ref : o.number === ref) && !o.paidAt);
+    if (order.number && (saved ? (order.uid ? order.uid === idOf(saved) : order.number === saved.number) : order.number === ref)) { sheet = null; render(); return; }
+    if (!saved) return;
     park();
-    order = restoreOrder(saved); baseline = signature(order);
-    sheet = null; selected = null; render(); toast(`Order #${number} opened`);
+    order = restoreOrder(saved); baseline = signature(order); opened = JSON.stringify(saved);
+    sheet = null; selected = null; render(); toast(`Order #${saved.number} opened`);
   }
-  function removeHeld(id) { held = held.filter(h => h.heldId !== id); store(HELD_KEY, held); render(); }
+  function removeHeld(id) { window.RestroSync?.removed('held', id); held = held.filter(h => h.heldId !== id); store(HELD_KEY, held); render(); }
   // Checked every 20 seconds: tickets on Hold end with the day, and each scheduled order goes to the kitchen at its
   // ready time minus the preparation time (with a notification and a chime).
   function sweep() {
@@ -324,7 +338,8 @@
     const keep = held.filter(h => !(cleanTime(h.holdUntil) && h.holdUntil <= now)), heldChanged = keep.length !== held.length;
     if (heldChanged) { held = keep; store(HELD_KEY, held); }
     const list = loadOrders(); let sent = 0;
-    for (const o of list) if (cleanTime(o.readyAt) && kitchenTime(o) <= now && sendToKitchen(o, now)) { announceKitchen(o); sent++; }
+    // the ticket carries its kitchen time, so tablets sending the same scheduled order make the same ticket (sync keeps one)
+    for (const o of list) if (cleanTime(o.readyAt) && kitchenTime(o) <= now && sendToKitchen(o, kitchenTime(o))) { announceKitchen(o); sent++; }
     if (sent) storeOrders(list);
     if (dialog.open && (heldChanged || (sent && sheet === 'orders'))) render();
   }
@@ -339,6 +354,42 @@
   document.addEventListener('DOMContentLoaded', sweep);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sweep(); });
   window.addEventListener('restro:prep-time-changed', () => { sweep(); if (dialog.open && (sheet === 'orders' || sheet === 'schedule')) render(); });
+  // Changes from another tablet (sync.js): Held and Orders show them at once, and so does the saved order on screen.
+  window.addEventListener('restro:data-changed', e => {
+    const names = e.detail?.collections || [];
+    if (names.includes('held')) { held = load(HELD_KEY, []); if (!Array.isArray(held)) held = []; if (order.heldId && !order.number && !held.some(h => h.heldId === order.heldId)) order.heldId = null; }
+    if (names.includes('orders') && (order.uid || order.number)) followOpenOrder();
+    if (dialog.open && (names.includes('held') || names.includes('orders'))) render();
+  });
+  // An order numbered while this tablet was cut off from the main system, whose number someone else could have: the main
+  // system gave it the next free number.
+  window.addEventListener('restro:orders-renumbered', e => {
+    const list = (e.detail?.orders || []).filter(r => Number.isInteger(r.from) && Number.isInteger(r.to));
+    if (!list.length) return;
+    for (const r of list) if (order.uid && order.uid === r.uid) order.number = r.to;
+    toast(list.length > 2 ? `${list.length} orders have new numbers` : list.map(r => `Order #${r.from} is now #${r.to}`).join(' · '));
+    if (dialog.open) render();
+  });
+  // The saved order on screen changed on another tablet. With nothing unsaved here it shows the new version; with
+  // changes here it carries on, and Save or Pay merges both. Paid or deleted there: what was added here (if anything)
+  // stays on screen as a new order.
+  function followOpenOrder() {
+    const stored = loadOrders().find(o => (order.uid ? idOf(o) === order.uid : o.number === order.number));
+    const unsaved = signature(order) !== baseline;
+    if (stored && !stored.paidAt) {
+      if (opened === JSON.stringify(stored) || unsaved) return;
+      order = restoreOrder(stored); baseline = signature(order); opened = JSON.stringify(stored);
+      return;
+    }
+    const n = order.number, was = opened ? restoreOrder(JSON.parse(opened)) : null;
+    const before = new Map((was ? was.lines : []).map(l => [`${l.id}@${typeOf(was, l)}`, l.qty]));
+    const added = unsaved ? order.lines.map(l => ({ ...l, qty: l.qty - (before.get(keyOf(l)) || 0) })).filter(l => l.qty > 0) : [];
+    const how = stored ? 'paid' : 'deleted';
+    if (added.length) {
+      order = { ...order, number: null, uid: null, heldId: null, lines: added }; baseline = null; opened = null; selected = null;
+      toast(`Order #${n} was ${how} on another tablet · your new items are a new order`);
+    } else { fresh(); toast(`Order #${n} was ${how} on another tablet`); }
+  }
   // A table tapped on the Floor: the order on that table (on screen, saved and not paid, or held) if it has one,
   // otherwise a new Dine in order with the table already chosen. An order on screen with anything not saved goes to Held.
   function openTable(id) {
@@ -346,18 +397,18 @@
     query = ''; category = null;
     if (forTable(order) && (order.lines.length || order.number)) { selected = null; sheet = null; render(); return; }
     const open = loadOrders().find(o => !o.paidAt && forTable(o));
-    if (open) { openOrder(open.number); return; }
+    if (open) { openOrder(idOf(open)); return; }
     const waiting = held.find(forTable);
     if (waiting) { resume(waiting.heldId); return; }
     const parked = park();
-    order = { ...blankOrder(), type: 'dine-in', table: id }; baseline = null; selected = null; sheet = null; render();
+    order = { ...blankOrder(), type: 'dine-in', table: id }; baseline = null; opened = null; selected = null; sheet = null; render();
     if (parked) toast(`Previous order on hold · ${held.length} held`);
   }
   // Pay: the order is saved as paid (and goes to the kitchen if it has not yet), then the receipt shows.
   function complete(received) {
     const t = totals(); if (!t.count || received < t.total) return;
     const { entry } = upsertOrder({ method: 'cash', received, change: received - t.total });
-    receipt = entry; sheet = 'receipt'; order = blankOrder(); baseline = null; selected = null; category = null; query = ''; cashInput = ''; render();
+    receipt = entry; sheet = 'receipt'; order = blankOrder(); baseline = null; opened = null; selected = null; category = null; query = ''; cashInput = ''; render();
     window.RestroSound?.play('tick');
     window.dispatchEvent(new CustomEvent('restro:order-paid', { detail: entry }));
   }
@@ -1084,7 +1135,7 @@
             el('span', {}, [timeOf(o.createdAt), o.readyAt ? `ready ${whenShort(o.readyAt)}` : '', kitchen(o), o.lines.map(l => `${l.name} ×${l.qty}`).join(', ')].filter(Boolean).join(' · '))),
           el('span', { class: 'ctr-history-side' }, el('strong', {}, money(o.total)), el('span', { class: o.paidAt ? 'ctr-paid' : 'ctr-unpaid' }, o.paidAt ? 'Paid' : 'Not paid')));
         li.append(el('div', { class: 'ctr-history-line' }, main, o.paidAt ? el('span', { class: 'ctr-open-gap', 'aria-hidden': 'true' })
-          : el('button', { type: 'button', class: 'primary-button ctr-open', 'aria-label': `Open order ${o.number}`, onclick: () => openOrder(o.number) }, 'Open')));
+          : el('button', { type: 'button', class: 'primary-button ctr-open', 'aria-label': `Open order ${o.number}`, onclick: () => openOrder(idOf(o)) }, 'Open')));
         return li;
       };
       const paymentRow = o => el('li', { class: 'ctr-history-row' },
@@ -1184,7 +1235,7 @@
     // From the Floor: Counter opens on that table's order (Dine in, table chosen).
     openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; fromOrders = false; openTable(id); },
     // From the Orders app: Counter opens on that saved order (not paid yet), to add items or take the payment.
-    openOrder(number) { if (!Number.isInteger(number)) return; openCounter(); fromFloor = false; fromOrders = true; openOrder(number); },
+    openOrder(ref) { if (!Number.isInteger(ref) && typeof ref !== 'string') return; openCounter(); fromFloor = false; fromOrders = true; openOrder(ref); },
     // Every saved order (Save or Pay), newest first, as kept on this device.
     orders() { return JSON.parse(JSON.stringify(allOrders())); },
     goBack,

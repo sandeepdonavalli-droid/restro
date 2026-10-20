@@ -263,3 +263,8 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 .tile-style input:focus-visible{outline:2px solid var(--palette-accent);outline-offset:3px}
 .tile-style:has(input:checked) strong{color:var(--palette-accent-ink)}
 @media (prefers-reduced-motion:reduce){.tile-style input::before{transition:none}}
+
+/* Devices & sync: the main system's pairing code, and the field the other tablets enter it in */
+.sync-code{flex:none;margin-left:auto;font-size:24px;font-weight:700;letter-spacing:.12em;font-variant-numeric:tabular-nums;color:var(--palette-text)}
+.sync-pair{display:flex;gap:12px;align-items:center}
+.settings-app .sync-pair input{flex:1;text-transform:uppercase;letter-spacing:.08em}

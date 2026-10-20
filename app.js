@@ -330,9 +330,10 @@ $$('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.ta
 $('#move-page').addEventListener('change',updateMovePositions);
 $('#move-form').addEventListener('submit',event=>{event.preventDefault();const result=moveApp(moveId,Number($('#move-page').value),Number($('#move-position').value));$('#move-dialog').close();toast(`${apps[moveId].name} moved to page ${result.page}`);});
 const uppercaseRestaurantName=value=>value.trim().toLocaleUpperCase('en-IN').slice(0,48);
-let restaurantName='RESTAURANT NAME';try{restaurantName=localStorage.getItem('restro.restaurantName')||restaurantName;}catch{}
-restaurantName=uppercaseRestaurantName(restaurantName)||'RESTAURANT NAME';$('#restaurant-name').textContent=restaurantName;
-try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}
+let restaurantName='RESTAURANT NAME',storedRestaurantName=null;try{storedRestaurantName=localStorage.getItem('restro.restaurantName');}catch{}
+restaurantName=uppercaseRestaurantName(storedRestaurantName||'')||'RESTAURANT NAME';$('#restaurant-name').textContent=restaurantName;
+// Only a name the owner gave is saved (in capitals); the placeholder isn't, so a new tablet takes the restaurant's name from the others.
+if(storedRestaurantName&&storedRestaurantName!==restaurantName){try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}window.RestroSync?.wrote('restro.restaurantName');}
 // My Profile: restaurant name, email, mobile. Stored on this device until the
 // RESTRO backend exists (Phase 2 of the security plan), then moved there.
 window.RestroProfile=(()=>{
@@ -362,7 +363,8 @@ window.RestroProfile=(()=>{
   ];
   const byIso=iso=>COUNTRIES.find(c=>c.iso===iso)||COUNTRIES[0];
   let profile={email:'',mobile:'',country:'IN'};
-  try{const saved=JSON.parse(localStorage.getItem(KEY)||'null');if(saved&&typeof saved==='object')profile={email:String(saved.email||''),mobile:String(saved.mobile||''),country:byIso(saved.country).iso};}catch{}
+  const loadProfile=()=>{try{const saved=JSON.parse(localStorage.getItem(KEY)||'null');if(saved&&typeof saved==='object')profile={email:String(saved.email||''),mobile:String(saved.mobile||''),country:byIso(saved.country).iso};}catch{}};
+  loadProfile();
   const select=$('#profile-country');
   for(const c of COUNTRIES){const o=document.createElement('option');o.value=c.iso;o.textContent=`+${c.code}  ${c.name}`;select.append(o);}
   const current=()=>byIso(select.value);
@@ -388,12 +390,14 @@ window.RestroProfile=(()=>{
       if(badLength||badStart){showError('#profile-mobile-error',`Enter a ${lengths(c)}-digit ${c.name} mobile number${c.start?` starting with ${[...c.start].join(', ').replace(/, (\d)$/,' or $1')}`:''}.`);ok=false;}else showError('#profile-mobile-error','');
       return ok?{email,mobile,country:c.iso}:null;
     },
-    save(values){profile=values;try{localStorage.setItem(KEY,JSON.stringify(profile));}catch{}this.fill();}
+    save(values){profile=values;try{localStorage.setItem(KEY,JSON.stringify(profile));}catch{}window.RestroSync?.wrote(KEY);this.fill();},
+    // Changed on another tablet (sync.js): read again, and refill the form unless it is being edited
+    reload(){loadProfile();if(!$('#restaurant-form').contains(document.activeElement))this.fill();}
   };
 })();
 $('#profile-mobile').addEventListener('input',event=>{const input=event.target,clean=input.value.replace(/[^\d ]/g,'');if(clean!==input.value)input.value=clean;$('#profile-mobile-error').hidden=true;});
 $('#profile-email').addEventListener('input',()=>{$('#profile-email-error').hidden=true;});
-$('#restaurant-form').addEventListener('submit',event=>{event.preventDefault();const value=uppercaseRestaurantName($('#restaurant-input').value);if(!value){$('#restaurant-input').setCustomValidity('Enter a restaurant name.');$('#restaurant-input').reportValidity();return;}const contact=window.RestroProfile.read();if(!contact)return;restaurantName=value;$('#restaurant-input').setCustomValidity('');$('#restaurant-name').textContent=restaurantName;try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}window.RestroProfile.save(contact);window.dispatchEvent(new CustomEvent('restro:restaurant-renamed',{detail:{name:restaurantName}}));toast('Profile saved');alignBannerText();});
+$('#restaurant-form').addEventListener('submit',event=>{event.preventDefault();const value=uppercaseRestaurantName($('#restaurant-input').value);if(!value){$('#restaurant-input').setCustomValidity('Enter a restaurant name.');$('#restaurant-input').reportValidity();return;}const contact=window.RestroProfile.read();if(!contact)return;restaurantName=value;$('#restaurant-input').setCustomValidity('');$('#restaurant-name').textContent=restaurantName;try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}window.RestroSync?.wrote('restro.restaurantName');window.RestroProfile.save(contact);window.dispatchEvent(new CustomEvent('restro:restaurant-renamed',{detail:{name:restaurantName}}));toast('Profile saved');alignBannerText();});
 $('#restaurant-input').addEventListener('input',event=>{
   const input=event.target,start=input.selectionStart,end=input.selectionEnd,value=input.value;
   input.setCustomValidity('');input.value=value.toLocaleUpperCase('en-IN');
@@ -425,6 +429,13 @@ function verticalGlyphBounds(text,style,width){
   glyphBoundsCache.set(key,bounds);
   return bounds;
 }
+// The restaurant's name and profile changed on another tablet (sync.js)
+window.addEventListener('restro:data-changed',event=>{
+  if(!(event.detail?.collections||[]).includes('settings'))return;
+  let name=restaurantName;try{name=uppercaseRestaurantName(localStorage.getItem('restro.restaurantName')||'')||restaurantName;}catch{}
+  if(name!==restaurantName){restaurantName=name;$('#restaurant-name').textContent=name;if(document.activeElement!==$('#restaurant-input'))$('#restaurant-input').value=name;alignBannerText();}
+  window.RestroProfile.reload();
+});
 function alignBannerText(){
   const labels=$$('.top-banner .banner-label, .bottom-banner .banner-label');
   for(const label of labels){

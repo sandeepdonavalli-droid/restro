@@ -36,7 +36,13 @@
     code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, MAX_ADDRESS), createdAt: Number(c.createdAt) || Date.now() });
   let customers = [];
   try { const saved = JSON.parse(localStorage.getItem(KEY) || '[]'); if (Array.isArray(saved)) customers = saved.filter(c => c && c.id && c.name).map(clean); } catch {}
-  const store = () => { try { localStorage.setItem(KEY, JSON.stringify(customers)); } catch {} };
+  const store = () => { try { localStorage.setItem(KEY, JSON.stringify(customers)); } catch {} window.RestroSync?.wrote(KEY); };
+  // Customers added, changed or deleted on another tablet (sync.js) show here at once
+  window.addEventListener('restro:data-changed', e => {
+    if (!(e.detail?.collections || []).includes('customers')) return;
+    try { const saved = JSON.parse(localStorage.getItem(KEY) || '[]'); customers = Array.isArray(saved) ? saved.filter(c => c && c.id && c.name).map(clean) : []; } catch {}
+    if (dialog.open && !form) render();
+  });
 
   // Mobile numbers follow the restaurant's country (Settings → My Profile).
   const country = () => window.RestroProfile?.country || { code: '91', name: 'India', len: [10], start: '6789', sample: '98765 43210' };
@@ -156,7 +162,7 @@
       return;
     }
     const gone = customers.find(x => x.id === form.id);
-    customers = customers.filter(x => x.id !== form.id); store();
+    window.RestroSync?.removed('customers', form.id); customers = customers.filter(x => x.id !== form.id); store();
     form = null; errors = {}; deleteArmed = false; render(); toast(`${gone ? gone.name : 'Customer'} deleted`);
   }
 
