@@ -888,11 +888,11 @@
   // The place under the finger, from the panel's grid (three columns, two rows), so tiles sliding past never change it.
   function panelCellAt(x, y) {
     const head = dialog.querySelector('.ctr-order-head'); if (!head) return -1;
-    const cs = getComputedStyle(head), r = head.getBoundingClientRect(), gap = parseFloat(cs.columnGap) || 9;
+    const cs = getComputedStyle(head), r = head.getBoundingClientRect(), gap = parseFloat(cs.columnGap) || 9, rowGap = parseFloat(cs.rowGap) || gap;
     const left = r.left + parseFloat(cs.paddingLeft), top = r.top + parseFloat(cs.paddingTop);
-    const width = r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), colW = (width - 2 * gap) / 3, rowH = parseFloat(cs.gridTemplateRows) || 76;
-    const px = x - left, py = y - top; if (px < 0 || py < 0 || px > width || py > 2 * rowH + gap) return -1;
-    return Math.min(1, Math.floor(py / (rowH + gap))) * 3 + Math.min(2, Math.floor(px / (colW + gap)));
+    const width = r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), colW = (width - 2 * gap) / 3, rowH = parseFloat(cs.gridTemplateRows) || 49;
+    const px = x - left, py = y - top; if (px < 0 || py < 0 || px > width || py > 2 * rowH + rowGap) return -1;
+    return Math.min(1, Math.floor(py / (rowH + rowGap))) * 3 + Math.min(2, Math.floor(px / (colW + gap)));
   }
   function movePanelDrag(x, y) {
     const d = panelDrag; d.ghost.style.left = `${x}px`; d.ghost.style.top = `${y}px`;

@@ -11,13 +11,15 @@ html[data-restro-theme] .top-banner .server-name,html[data-restro-theme] .top-ba
 .top-banner .battery-status[data-battery-state="low"]{color:#ff5c5c}
 /* The server's name at the top left, in capitals like the restaurant's; a long one ends in "…" before the right side */
 .top-banner .server-name{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1;text-transform:uppercase}
-/* The top ribbon is only as tall as its icons (14px on the tablet, instead of 26.65px at first), with no edge line, so it
-   ends just under the name: the battery fits exactly and nothing is cut. The name, the dot, the time and the battery keep
+/* The top ribbon is only as tall as its icons (14px on the tablet, instead of 26.65px at first), so it ends just under
+   the name: the battery fits exactly and nothing is cut. A 1px partition line along its bottom edge, inside those 14px,
+   sets it apart from the screen below. The name, the dot, the time and the battery keep
    their size and stay centred in it. On phones (two rows) it is 70% of its first height. The bottom bar keeps its
    height. The full-screen apps start right under it, and the Counter's sheets and Recent apps keep their spacing. */
 :root{--top-banner-height:var(--network-size)}
 @media (max-width:740px){:root{--top-banner-height:round(down,calc(var(--header-height) * .7),1px)}}
 .top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height);border-bottom-width:0}
+.top-banner::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--palette-line,#cbcfd5);pointer-events:none}
 .counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:var(--top-banner-height)}
 .ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px)}
 .app-switcher{padding-top:var(--top-banner-height)}

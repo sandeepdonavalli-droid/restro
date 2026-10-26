@@ -454,7 +454,7 @@ button.ctr-history-main{cursor:pointer}
    room), 9px from the left edge and the divider, 9px apart, and the line below them is 9px under the last row and spans
    exactly their width. The header buttons (Home, Add Customer or Choose table, Assign Pager) are all 41px tall in three
    equal parts; the order type buttons are 34px tall in four equal columns. */
-.ctr-order-head{gap:9px;padding:0 10px 10px 9px}
+.ctr-order-head{gap:9px;padding:0 10px 7px 9px}
 .ctr-titlebar{min-height:41px;margin:0;padding:0;column-gap:9px}
 .ctr-titlebar .ctr-back{left:0;top:0;width:calc((100% - 18px) / 3);height:41px;min-height:41px}
 .ctr-target{min-height:41px}
@@ -525,14 +525,15 @@ button.ctr-history-main{cursor:pointer}
 .ctr-target svg{display:none}
 .ctr-menu-top{padding-top:16px}
 @media (max-width:1100px){.ctr-target,.ctr-target.set{font-size:11.5px;line-height:1.1}.ctr-target span{white-space:normal;text-overflow:clip}} /* narrow tablets: a long name may take two lines */
-/* The panel is six tiles, three per row in two rows, filling the space the controls take on the order side: 9px from the
-   top, the left edge and the divider, 9px apart, each 76px tall. Row 1: Order type · Add Customer (or Choose table) ·
+/* The panel is six tiles, three per row in two rows, filling the space the controls take on the order side: right under
+   the top ribbon, 9px from the left edge and the divider, 9px apart side by side and 6px between the rows, each 49px tall
+   (35% less than the 76px they were, so the order list starts 60px higher), with 7px below them to the line. Row 1: Order type · Add Customer (or Choose table) ·
    Assign Pager; row 2: Modify · Schedule · Hold. Home and Trash are not in it (Home is on the system bar). Order type
    shows the type chosen, filled with that type's colour (blue until one is chosen). Tapping it opens the four types
    right over it, two by two on the same grid as the tiles, with the rest of the screen dimmed; tapping a type picks it,
    tapping outside or Back closes them. The groups stay in the page for their meaning and colours but take no space of
    their own. Names are the menu tiles' size (16px, 14px on narrower tablets); a long one takes two lines. */
-.ctr-order-head{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,76px);gap:9px}
+.ctr-order-head{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,49px);gap:6px 9px}
 .ctr-titlebar,.ctr-targets,.ctr-type-row,.ctr-types,.ctr-type-row .ctr-side{display:contents}
 /* The six tiles take their places in the order they were arranged (each carries its place as its order; the four types
    carry theirs too). Rearranging (hold a tile, as with the menu): the tiles jiggle, the one held follows the finger and
@@ -544,7 +545,7 @@ button.ctr-history-main{cursor:pointer}
 .ctr-order-head .ctr-drag-origin,.ctr-order-head .ctr-drag-origin:disabled{background:var(--palette-accent-wash);outline:2px dashed var(--palette-accent);outline-offset:-2px;box-shadow:none;color:transparent;opacity:1}
 .ctr-order-head .ctr-drag-origin>*{opacity:0}
 @media (prefers-reduced-motion:reduce){.ctr-order-head.arranging [data-tile]{animation:none}}
-.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{width:auto;height:76px;min-height:76px;padding:0 8px;font-size:16px;line-height:1.2;white-space:normal}
+.ctr-order-head .ctr-type-btn,.ctr-order-head .ctr-target,.ctr-order-head .ctr-target.set{width:auto;height:49px;min-height:49px;padding:0 8px;font-size:16px;line-height:1.2;white-space:normal}
 .ctr-order-head .ctr-target span{white-space:normal;text-overflow:ellipsis;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .ctr-type-pick{--btn:#4d7cb8}
 .ctr-type-pick[data-type="dine-in"]{--btn:#d4743a}
