@@ -1,7 +1,8 @@
 /* Top banner, iPhone style: no bar of its own. The server's name on the left, and the connection dot, the time and the
    battery on the right, sit straight on the screen in dark grey, the name and the time in bold; Wi-Fi and signal show
    beside them when the tablet reports them. The dot alone tells the connection: green online, red offline (the word is
-   kept for screen readers only). A sheet that dims the screen dims these too (counter.css). */
+   kept for screen readers only). A partition line sets it apart from the screen below (see the height). A sheet that
+   dims the screen dims these too (counter.css). */
 html[data-restro-theme] .top-banner{background:transparent;border-bottom-color:transparent;box-shadow:none;color:#1f2933}
 html[data-restro-theme] .top-banner .server-name,html[data-restro-theme] .top-banner .system-status,html[data-restro-theme] .top-banner .header-time{color:#1f2933}
 .top-banner .server-name,.top-banner .clock-text{font-weight:700}
@@ -11,15 +12,19 @@ html[data-restro-theme] .top-banner .server-name,html[data-restro-theme] .top-ba
 .top-banner .battery-status[data-battery-state="low"]{color:#ff5c5c}
 /* The server's name at the top left, in capitals like the restaurant's; a long one ends in "…" before the right side */
 .top-banner .server-name{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1;text-transform:uppercase}
-/* The top ribbon is only as tall as its icons (14px on the tablet, instead of 26.65px at first), so it ends just under
-   the name: the battery fits exactly and nothing is cut. A 1px partition line along its bottom edge, inside those 14px,
-   sets it apart from the screen below. The name, the dot, the time and the battery keep
-   their size and stay centred in it. On phones (two rows) it is 70% of its first height. The bottom bar keeps its
-   height. The full-screen apps start right under it, and the Counter's sheets and Recent apps keep their spacing. */
-:root{--top-banner-height:var(--network-size)}
-@media (max-width:740px){:root{--top-banner-height:round(down,calc(var(--header-height) * .7),1px)}}
-.top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height);border-bottom-width:0}
-.top-banner::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--palette-line,#cbcfd5);pointer-events:none}
+/* The top ribbon is 10% taller than its icons (15.33px on the tablet: 14px x 1.1, to the nearest whole device pixel),
+   with a partition line in the app's line colour along its bottom edge, inside it, and a small gap (6px) under the line
+   before the screen's items. The line is two device pixels on the 1.5x tablet and lands on whole pixels, so it stays
+   sharp. The name, the dot, the time and the battery keep their size and stay centred in the ribbon. On phones (two
+   rows) the ribbon is 10% taller than 70% of its first height. The bottom bar keeps its height. The full-screen apps
+   start under the gap (which shows the screen's own background), and the Counter's sheets and Recent apps keep their
+   spacing below it. */
+:root{--top-px:1px;--top-line:1px;--top-gap:6px}
+@media (min-resolution:1.5dppx) and (max-resolution:1.99dppx){:root{--top-px:calc(2px / 3);--top-line:calc(4px / 3)}}
+:root{--top-bar:round(nearest,calc(var(--network-size) * 1.1),var(--top-px));--top-banner-height:calc(var(--top-bar) + var(--top-gap))}
+@media (max-width:740px){:root{--top-bar:round(nearest,calc(round(down,calc(var(--header-height) * .7),1px) * 1.1),var(--top-px))}}
+.top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height);padding-bottom:var(--top-gap);border-bottom-width:0}
+html[data-restro-theme] .top-banner{background:linear-gradient(transparent 0 calc(var(--top-bar) - var(--top-line)),#cbcfd5 0 var(--top-bar),transparent 0)}
 .counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:var(--top-banner-height)}
 .ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px)}
 .app-switcher{padding-top:var(--top-banner-height)}
