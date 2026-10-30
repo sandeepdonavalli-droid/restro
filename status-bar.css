@@ -13,18 +13,18 @@ html[data-restro-theme] .top-banner .server-name,html[data-restro-theme] .top-ba
 /* The server's name at the top left, in capitals like the restaurant's; a long one ends in "…" before the right side */
 .top-banner .server-name{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1;text-transform:uppercase}
 /* The top ribbon is 10% taller than its icons (15.33px on the tablet: 14px x 1.1, to the nearest whole device pixel),
-   with a partition line in the app's line colour along its bottom edge, inside it, and a small gap (6px) under the line
-   before the screen's items. The line is two device pixels on the 1.5x tablet and lands on whole pixels, so it stays
+   then a little space (2px) under the name and the time, so they sit as far above the partition line as below the top
+   edge, then the partition line in the app's line colour, then a small gap (6px) before the screen's items. The line is two device pixels on the 1.5x tablet and lands on whole pixels, so it stays
    sharp. The name, the dot, the time and the battery keep their size and stay centred in the ribbon. On phones (two
    rows) the ribbon is 10% taller than 70% of its first height. The bottom bar keeps its height. The full-screen apps
    start under the gap (which shows the screen's own background), and the Counter's sheets and Recent apps keep their
    spacing below it. */
-:root{--top-px:1px;--top-line:1px;--top-gap:6px}
+:root{--top-px:1px;--top-line:1px;--top-space:2px;--top-gap:6px}
 @media (min-resolution:1.5dppx) and (max-resolution:1.99dppx){:root{--top-px:calc(2px / 3);--top-line:calc(4px / 3)}}
-:root{--top-bar:round(nearest,calc(var(--network-size) * 1.1),var(--top-px));--top-banner-height:calc(var(--top-bar) + var(--top-gap))}
+:root{--top-bar:round(nearest,calc(var(--network-size) * 1.1),var(--top-px));--top-banner-height:calc(var(--top-bar) + var(--top-space) + var(--top-gap))}
 @media (max-width:740px){:root{--top-bar:round(nearest,calc(round(down,calc(var(--header-height) * .7),1px) * 1.1),var(--top-px))}}
-.top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height);padding-bottom:var(--top-gap);border-bottom-width:0}
-html[data-restro-theme] .top-banner{background:linear-gradient(transparent 0 calc(var(--top-bar) - var(--top-line)),#cbcfd5 0 var(--top-bar),transparent 0)}
+.top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height);padding-bottom:calc(var(--top-space) + var(--top-gap));border-bottom-width:0}
+html[data-restro-theme] .top-banner{background:linear-gradient(transparent 0 calc(var(--top-bar) + var(--top-space) - var(--top-line)),#cbcfd5 0 calc(var(--top-bar) + var(--top-space)),transparent 0)}
 .counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:var(--top-banner-height)}
 .ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px)}
 .app-switcher{padding-top:var(--top-banner-height)}
