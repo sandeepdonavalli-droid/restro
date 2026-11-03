@@ -24,7 +24,8 @@
 .ord-head h2{margin:0 0 0 2px;font-size:18px;font-weight:600;color:var(--ord-text)}
 #orders-title:focus{outline:none}
 
-/* The columns, the same for the names and every row: Date & time (the time, the date under it) · Order type · Name (the server under it) · Order
+/* The columns, the same for the names and every row: Date & time (the time, the full date under it) · Order type ·
+   Customer name / Table number - Server (the server under the name or table) · Order
    status · Payment status (the amount, the status under it) · Buzzer. Six columns that share the width, the name the
    most and the buzzer the least, so there is room on small tablets and on large screens alike. No ticket number: it
    shows on the order once opened. */
@@ -34,7 +35,7 @@
 .ord-body{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 .ord-cols,.ord-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(100px,.9fr) minmax(0,1.8fr) minmax(110px,1fr) minmax(110px,1fr) minmax(60px,.55fr);align-items:center;column-gap:12px}
 .ord-cols{position:sticky;top:0;z-index:1;padding:12px 16px 8px 20px;background:var(--ord-grey);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-.ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text)} /* the column names: bold black, centred */
+.ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text);white-space:normal} /* the column names: bold black, centred (a long one takes two lines on a small tablet) */
 .ord-cols .ord-c+.ord-c::before{content:"";position:absolute;left:-7px;top:50%;width:1px;height:12px;margin-top:-6px;background:color-mix(in srgb,var(--ord-muted) 45%,transparent)} /* the short line between two names, in the middle of the gap */
 .ord-rows{display:flex;flex-direction:column}
 .ord-row{width:100%;min-height:65px;margin:0;padding:0 16px 0 20px;border:0;border-radius:0;background:#ffffff;box-shadow:none;color:var(--ord-text);text-align:left} /* 65px: 20% taller than the first 54px */
@@ -60,8 +61,9 @@ button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background
    a little smaller; each ends in "…" when it is too long. */
 .ord-c.ord-two{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:normal}
 .ord-two>span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ord-keep{white-space:nowrap}
 .ord-main{font-size:15px}
-.ord-sub{font-size:13px}
+.ord-sub{font-size:13px;color:var(--ord-muted)} /* the date and the server a little grey beside the time and the name; the payment status keeps its colour */
 .ord-pay .ord-main{font-variant-numeric:tabular-nums}
 
 .ord-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:var(--ord-muted)}
