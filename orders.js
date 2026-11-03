@@ -1,9 +1,9 @@
 'use strict';
 // Orders: a full-screen app with every saved order (Save or Pay), newest first, one order to a row: everything about
-// the order reads from left to right in six columns — the time with the full date under it, the order type, the name (the customer, the
-// table, or Guest) with the server under it, the order status, the payment (the amount with the payment status under
-// it) and the buzzer (pager). The ticket number is not listed: it shows on the order once it is opened. Tapping an
-// order that is not paid yet opens it in Counter; Back returns here.
+// the order reads from left to right in seven columns — the ticket number (made by the system), the time with the
+// date under it, the order type, the customer or table with the server under it, the order status, the payment (the
+// amount with the payment status under it) and the buzzer (pager). Tapping an order that is not paid yet opens it in
+// Counter; Back returns here.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
@@ -46,13 +46,13 @@
   const nameOf = o => [o.customer?.name, o.table ? `Table ${tableName(o.table)}` : ''].filter(Boolean).join(' · ') || 'Guest';
   // Where the order is: waiting for its time (scheduled, with its ready time), with the kitchen, or completed (paid and sent).
   function statusOf(o) {
-    if (!o.sentAt) return o.readyAt ? { text: `Scheduled · ${whenShort(o.readyAt)}`, cls: 'scheduled' } : { text: 'Saved', cls: '' };
+    if (!o.sentAt) return o.readyAt ? { text: 'Scheduled', sub: whenShort(o.readyAt), cls: 'scheduled' } : { text: 'Saved', cls: '' };
     return o.paidAt ? { text: 'Completed', cls: 'done' } : { text: 'In kitchen', cls: 'kitchen' };
   }
-  const COLUMNS = [['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], [() => ['Customer name / ', el('span', { class: 'ord-keep' }, 'Table number - Server')], 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['Buzzer', 'ord-buzzer']];
+  const COLUMNS = [['Ticket', 'ord-ticket'], ['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['Buzzer', 'ord-buzzer']];
   // (the name column's heading, on a small tablet, breaks only after the slash)
-  // The date in full under the time: 03 November 2026
-  const fullDate = when => new Date(when).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+  // The date under the time, in numbers: 03/11/2026 (day/month/year)
+  const fullDate = when => new Date(when).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const cell = (cls, ...content) => el('span', { class: `ord-c ${cls}` }, ...content);
   // Two details in one column, one under the other: the main one, and a smaller one under it (left out when empty)
   const twoLines = (cls, main, sub, subCls = '') => cell(`ord-two ${cls}`, el('span', { class: 'ord-main' }, main), sub ? el('span', { class: `ord-sub ${subCls}`.trim() }, sub) : null);
@@ -64,13 +64,14 @@
     const pay = refunded ? 'Refunded' : paid ? `Paid · ${METHODS[o.method] || 'Cash'}` : partial ? 'Partially paid' : 'Not paid';
     const payClass = refunded ? 'refunded' : paid ? 'paid' : 'unpaid';
     const cells = [
+      cell('ord-ticket', `#${o.number}`),
       twoLines('ord-when', timeOf(o.createdAt), fullDate(o.createdAt)),
       cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
       twoLines('ord-name', name, o.server || ''),
-      cell(`ord-status ${status.cls}`, status.text),
+      status.sub ? twoLines(`ord-status ${status.cls}`, status.text, status.sub) : cell(`ord-status ${status.cls}`, status.text),
       twoLines('ord-pay', money(o.total), pay, payClass),
       cell('ord-buzzer', o.pager ? String(o.pager) : '—')];
-    const label = `Order ${o.number}, ${timeOf(o.createdAt)}, ${fullDate(o.createdAt)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
+    const label = `Order ${o.number}, ${timeOf(o.createdAt)}, ${fullDate(o.createdAt)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
     return paid
       ? el('div', { class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': label }, ...cells)
       : el('button', { type: 'button', class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': `${label}. Open in Counter`, onclick: () => window.RestroCounter?.openOrder(o.uid || o.number) }, ...cells);
