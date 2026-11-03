@@ -1,8 +1,9 @@
 'use strict';
 // Orders: a full-screen app with every saved order (Save or Pay), newest first, one order to a row: everything about
-// the order reads from left to right — the ticket number (made by the system), the date and time, the order type, the
-// order name (the customer, the table, or Guest), the order status, the payment status, the server, the buzzer
-// (pager) and the total. Tapping an order that is not paid yet opens it in Counter; Back returns here.
+// the order reads from left to right in six columns — the time with the date under it, the order type, the name (the customer, the
+// table, or Guest) with the server under it, the order status, the payment (the amount with the payment status under
+// it) and the buzzer (pager). The ticket number is not listed: it shows on the order once it is opened. Tapping an
+// order that is not paid yet opens it in Counter; Back returns here.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
@@ -49,8 +50,10 @@
     if (!o.sentAt) return o.readyAt ? { text: `Scheduled · ${whenShort(o.readyAt)}`, cls: 'scheduled' } : { text: 'Saved', cls: '' };
     return o.paidAt ? { text: 'Completed', cls: 'done' } : { text: 'In kitchen', cls: 'kitchen' };
   }
-  const COLUMNS = ['Ticket', 'Date & time', 'Type', 'Name', 'Order status', 'Payment status', 'Server', 'Buzzer', 'Total'];
+  const COLUMNS = [['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], ['Name', 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['Buzzer', 'ord-buzzer']];
   const cell = (cls, ...content) => el('span', { class: `ord-c ${cls}` }, ...content);
+  // Two details in one column, one under the other: the main one, and a smaller one under it (left out when empty)
+  const twoLines = (cls, main, sub, subCls = '') => cell(`ord-two ${cls}`, el('span', { class: 'ord-main' }, main), sub ? el('span', { class: `ord-sub ${subCls}`.trim() }, sub) : null);
 
   function row(o) {
     const type = typeOf(o), status = statusOf(o), paid = Boolean(o.paidAt), name = nameOf(o);
@@ -59,16 +62,13 @@
     const pay = refunded ? 'Refunded' : paid ? `Paid · ${METHODS[o.method] || 'Cash'}` : partial ? 'Partially paid' : 'Not paid';
     const payClass = refunded ? 'refunded' : paid ? 'paid' : 'unpaid';
     const cells = [
-      cell('ord-ticket', `#${o.number}`),
-      cell('ord-when', `${dateOf(o.createdAt)} · ${timeOf(o.createdAt)}`),
+      twoLines('ord-when', timeOf(o.createdAt), dateOf(o.createdAt)),
       cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
-      cell('ord-name', name),
+      twoLines('ord-name', name, o.server || ''),
       cell(`ord-status ${status.cls}`, status.text),
-      cell(`ord-pay ${payClass}`, pay),
-      cell('ord-server', o.server || '—'),
-      cell('ord-buzzer', o.pager ? String(o.pager) : '—'),
-      cell('ord-total', money(o.total))];
-    const label = `Order ${o.number}, ${dateOf(o.createdAt)} ${timeOf(o.createdAt)}, ${type.label}, ${name}, ${status.text}, ${pay}, ${money(o.total)}`;
+      twoLines('ord-pay', money(o.total), pay, payClass),
+      cell('ord-buzzer', o.pager ? String(o.pager) : '—')];
+    const label = `Order ${o.number}, ${dateOf(o.createdAt)} ${timeOf(o.createdAt)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
     return paid
       ? el('div', { class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': label }, ...cells)
       : el('button', { type: 'button', class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': `${label}. Open in Counter`, onclick: () => window.RestroCounter?.openOrder(o.uid || o.number) }, ...cells);
@@ -92,7 +92,7 @@
     // The column names stay at the top while the rows scroll under them.
     const grid = orders.length
       ? el('div', { class: 'ord-list', onscroll: e => { scrollTop = e.currentTarget.scrollTop; } },
-        el('div', { class: 'ord-cols', 'aria-hidden': 'true' }, ...COLUMNS.map((name, i) => el('span', { class: `ord-c ${['ord-ticket', 'ord-when', 'ord-typecell', 'ord-name', 'ord-status', 'ord-pay', 'ord-server', 'ord-buzzer', 'ord-total'][i]}` }, name))),
+        el('div', { class: 'ord-cols', 'aria-hidden': 'true' }, ...COLUMNS.map(([name, cls]) => el('span', { class: `ord-c ${cls}` }, name))),
         el('div', { class: 'ord-rows', role: 'list', 'aria-label': 'Orders, newest first' }, ...orders.map(row)))
       : el('div', { class: 'ord-empty' }, el('strong', {}, 'No orders yet'), el('span', {}, 'Orders show here once they are saved or paid in Counter.'));
     root.replaceChildren(head, orders.length ? el('div', { class: 'ord-body' }, grid) : grid);

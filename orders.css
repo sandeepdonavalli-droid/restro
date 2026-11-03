@@ -24,13 +24,15 @@
 .ord-head h2{margin:0 0 0 2px;font-size:18px;font-weight:600;color:var(--ord-text)}
 #orders-title:focus{outline:none}
 
-/* The columns, the same for the names and every row: Ticket · Date & time · Type · Name · Order status · Payment status ·
-   Server · Buzzer · Total. The name takes the room left over. */
+/* The columns, the same for the names and every row: Date & time (the time, the date under it) · Order type · Name (the server under it) · Order
+   status · Payment status (the amount, the status under it) · Buzzer. Six columns that share the width, the name the
+   most and the buzzer the least, so there is room on small tablets and on large screens alike. No ticket number: it
+   shows on the order once opened. */
 .ord-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 0 16px}
 /* The list sits in .ord-body, which holds its scroll handle (scroll-handle.js and scroll-handle.css: no browser scroll
    bar; a small white handle with five sky blue lines from its top to its bottom). */
 .ord-body{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.ord-cols,.ord-row{display:grid;grid-template-columns:68px 128px 140px minmax(0,1fr) 168px 124px 96px 62px 104px;align-items:center;column-gap:12px}
+.ord-cols,.ord-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(100px,.9fr) minmax(0,1.8fr) minmax(110px,1fr) minmax(110px,1fr) minmax(60px,.55fr);align-items:center;column-gap:12px}
 .ord-cols{position:sticky;top:0;z-index:1;padding:12px 16px 8px 20px;background:var(--ord-grey);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text)} /* the column names: bold black, centred */
 .ord-cols .ord-c+.ord-c::before{content:"";position:absolute;left:-7px;top:50%;width:1px;height:12px;margin-top:-6px;background:color-mix(in srgb,var(--ord-muted) 45%,transparent)} /* the short line between two names, in the middle of the gap */
@@ -42,7 +44,6 @@ button.ord-row{cursor:pointer;transition:background-color .12s ease}
 button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background:var(--ord-press)}
 .ord-c{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
 /* Every detail is regular weight (not bold) and black, except the colour-coded ones, which keep their colours. */
-.ord-ticket{font-size:16px;font-weight:400;font-variant-numeric:tabular-nums}
 .ord-when{font-size:14px;font-weight:400;color:var(--ord-text)}
 .ord-type{display:inline;padding:0;border-radius:0;background:none;color:#0284c7;font-size:14px;font-weight:400} /* the order type as text, in sky blue */
 .ord-name{font-weight:400}
@@ -51,16 +52,17 @@ button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background
 .ord-status.kitchen{color:#ff6700} /* In kitchen: neon orange */
 .ord-status.scheduled{color:#9c3f68}
 .ord-status.done{color:#00c853} /* Completed: neon green */
-.ord-pay.paid{color:#00c853} /* Paid: neon green */
-.ord-pay.unpaid{color:#ff6700} /* Not paid or Partially paid: neon orange */
-.ord-pay.refunded{color:#b42318} /* Refunded: red */
-.ord-server,.ord-buzzer{font-size:14px;font-variant-numeric:tabular-nums}
-.ord-total{font-size:16px;font-weight:400;font-variant-numeric:tabular-nums}
-/* Narrower tablets: Server steps out so the rest keeps its room. */
-@media (max-width:1100px){
-  .ord-cols,.ord-row{grid-template-columns:64px 112px 124px minmax(0,1fr) 150px 124px 56px 96px}
-  .ord-server{display:none}
-}
+.ord-pay .paid{color:#00c853} /* Paid: neon green */
+.ord-pay .unpaid{color:#ff6700} /* Not paid or Partially paid: neon orange */
+.ord-pay .refunded{color:#b42318} /* Refunded: red */
+.ord-buzzer{font-size:14px;font-variant-numeric:tabular-nums}
+/* Two details in one column (the time with the date, the name with the server, the amount with the payment status): the main one, the other under it,
+   a little smaller; each ends in "…" when it is too long. */
+.ord-c.ord-two{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:normal}
+.ord-two>span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ord-main{font-size:15px}
+.ord-sub{font-size:13px}
+.ord-pay .ord-main{font-variant-numeric:tabular-nums}
 
 .ord-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:var(--ord-muted)}
 .ord-empty strong{font-size:18px;color:var(--ord-text)}

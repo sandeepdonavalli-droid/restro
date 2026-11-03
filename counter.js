@@ -477,6 +477,8 @@
           el('button', { ...tileAt('schedule'), type: 'button', class: `ctr-type-btn ctr-schedule ${order.readyAt ? 'on' : ''}`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule',
             onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
           el('button', { ...tileAt('hold'), type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold'))),
+      // The ticket number of a saved order on screen (Orders lists orders without it), on the line under the tiles
+      order.number && el('span', { class: 'ctr-ticket' }, `#${order.number}`),
       // The four order types, opened from Order type: two by two over the tiles, on the two columns where Order type is
       // (wherever it has been moved to).
       typeMenu && el('div', { class: 'ctr-type-pop' },

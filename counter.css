@@ -706,3 +706,6 @@ button.ctr-history-main{cursor:pointer}
 .ctr-root .ctr-type-scrim{position:fixed;inset:0}
 /* Pay carries the order's total beside its name (the Total line under the tax is gone) */
 .ctr-root .ctr-actions .ctr-pay .ctr-pay-amount{margin-left:8px;font-variant-numeric:tabular-nums}
+/* The ticket number of the saved order on screen: on the line under the six tiles, at its left end, like a label set in
+   the line (Orders lists orders without their numbers). */
+.ctr-order-head .ctr-ticket{position:absolute;z-index:1;left:15px;bottom:0;transform:translateY(50%);padding:0 6px;background:var(--palette-bg);color:var(--palette-text);font-size:12px;font-weight:700;line-height:12px;font-variant-numeric:tabular-nums;pointer-events:none}
