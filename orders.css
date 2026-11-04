@@ -69,21 +69,22 @@
 .ord-status .ord-sub{color:inherit} /* Scheduled, with its ready time under it, both in plum */
 
 /* The two round bubble buttons, side by side after the buzzer, with no column name: text the customer (a send icon,
-   sky blue) and buzz the pager ("Buzz" over its number, neon orange). Without a phone number or a pager, a button is
-   greyed out and does nothing. A finger that moves on them scrolls the list; a tap does the action, never opening the
-   order. */
+   sky blue) and buzz the pager ("Buzz" over its number, neon orange). Glossy bubbles in very light colours: nearly white
+   in the middle, the colour a little brighter towards the edge, a soft shine at the top. Without a phone number or a
+   pager, a button is a plain grey bubble and does nothing. A finger that moves on them scrolls the list; a tap does the
+   action, never opening the order. */
 .ord-c.ord-acts{display:flex;align-items:center;justify-content:center;gap:10px;overflow:visible}
-.ord-bubble{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;width:48px;height:48px;margin:0;padding:0;border:0;border-radius:50%;
-  color:#ffffff;font-weight:700;line-height:1;cursor:pointer;touch-action:manipulation;
-  background-image:radial-gradient(circle at 32% 26%,rgba(255,255,255,.5),rgba(255,255,255,0) 46%);
-  box-shadow:0 2px 4px rgba(15,23,42,.24),inset 0 -2px 4px rgba(15,23,42,.14);transition:transform .08s ease,filter .12s ease}
+.ord-bubble{--shine:radial-gradient(ellipse 46% 32% at 40% 22%,rgba(255,255,255,.95),rgba(255,255,255,0) 72%);
+  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;width:48px;height:48px;margin:0;padding:0;border:0;border-radius:50%;
+  color:var(--ink);font-weight:700;line-height:1;cursor:pointer;touch-action:manipulation;background:var(--shine),var(--body);
+  box-shadow:inset 0 0 0 calc(2px / 3) var(--edge),0 1px 3px rgba(15,23,42,.12);transition:transform .08s ease,filter .12s ease}
 .ord-bubble svg{width:20px;height:20px;stroke-width:2.1;margin-left:-2px}
-.ord-text{background-color:#0284c7}
-.ord-ping{background-color:#ff6700}
+.ord-text{--ink:#0284c7;--edge:rgba(2,132,199,.28);--body:radial-gradient(circle closest-side,#fcfeff 0 42%,#e6f4fd 70%,#b9e1f9 100%)}
+.ord-ping{--ink:#ff6700;--edge:rgba(255,103,0,.3);--body:radial-gradient(circle closest-side,#fffdfb 0 42%,#ffefe1 70%,#ffd2b0 100%)}
 .ord-ping-word{font-size:11px}
 .ord-ping-no{margin-top:2px;font-size:15px;font-variant-numeric:tabular-nums}
-.ord-bubble:not(.off):active{transform:scale(.94);filter:brightness(.92)}
-.ord-bubble.off{background:#ffffff;color:#a3a9b2;box-shadow:inset 0 0 0 calc(4px / 3) #dde1e6;cursor:default}
+.ord-bubble:not(.off):active{transform:scale(.94);filter:brightness(.96)}
+.ord-bubble.off{--ink:#b0b6be;--edge:rgba(15,23,42,.1);--body:radial-gradient(circle closest-side,#ffffff 0 45%,#f4f5f7 74%,#e4e7eb 100%);cursor:default}
 .ord-cols .ord-c.ord-acts::before{display:none} /* no column name, so no line before it */
 @media (prefers-reduced-motion:reduce){.ord-bubble{transition:none}}
 
