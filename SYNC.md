@@ -23,7 +23,7 @@ Card data never exists in RESTRO, because payments go through the provider's hos
 
 ```
 tablet ─┐
-tablet ─┼── main system ── cloud ── the owner's tablet at home
+tablet ─┼── main system ── cloud
 tablet ─┘   (printers)
 ```
 
@@ -39,7 +39,8 @@ So each record has one line of versions per server, and a merge always starts fr
 
 **Without the internet:** the tablets keep working together through the main system.
 
-**If the main system is off:** each tablet keeps working on its own and catches up when the main system is back.
+**If the main system is off:** the tablets can't fire orders, as the main system gives the ticket numbers. Turn it
+back on, or replace it (below).
 
 **To replace the main system:** turn on Main system on another paired tablet. It keeps the same pairing code, so the
 other tablets follow it.
@@ -141,32 +142,32 @@ Deleting on purpose leaves a tombstone, kept for 30 days. Records a tablet only 
 
 ## Ticket numbers
 
-**One sequence a day for the whole restaurant.** The numbers run on across the main system, every tablet and the
-cloud: if the main system's order is #10, the next order, from any tablet, is #11.
+**One sequence a day for the whole restaurant, given by the main system.** The main system gives every ticket number,
+for its own orders and for every tablet's: if its last order is #10, the next order, from any tablet, is #11. Two orders
+never share a number, and a number never changes.
 
 **Every business day starts again at #01.** A business day runs from 4 AM to 4 AM, so a late night after midnight stays
-on the same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`), and numbers are settled within a
-day. Numbers show as #01, #02 … #10. They repeat from day to day, so an order is always found by its `uid`, never by its
-number.
+on the same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
+They repeat from day to day, so an order is always found by its `uid`, never by its number.
 
-**Numbering:** a tablet gives a new order the next number after the highest it knows of that day. Orders reach every
-tablet as they are made, so that is normally the restaurant's next number. Each tablet also remembers the highest
-number it has given or seen today, so the number of an order deleted since isn't given again.
-- A tablet on its own, and the main system without the cloud, number for good.
-- Any other tablet marks the number `numberProvisional` until its server confirms it.
+**Firing an order:** when a tablet fires a new order, it asks the main system for the next number (over the
+restaurant's Wi-Fi or Bluetooth) and saves the order with it. The main system numbers its own orders from the same
+count. It remembers the highest number it has given or seen today, so a deleted order's number isn't given again.
+- **Without the internet:** nothing changes, as the tablets reach the main system over the restaurant's network.
+- **Out of reach of the main system:** a tablet can't fire an order, or save or take payment on one. It says so, and
+  the order stays on its screen until it can.
+- **Out of range, with its own internet (to build, with the cloud):** the cloud will pass the tablet's messages to the
+  main system and back, so it works as if it were in range. This needs the main system online too.
+- **Without a main system:** a tablet asks the cloud for the number instead, and can't fire without the internet.
+- **On its own:** a tablet counts by itself.
 
-**Settling:** the server settles the number when it takes an order, within the order's day.
-- A provisional number stays if no other order that day has it. The server confirms it: it stores the order without
+**A tablet's orders from before it joined:** joining (below) marks them `numberProvisional`. The server settles them
+when it takes them, within the order's day:
+- A provisional number stays if no other order that day has it. The server stores the order without
   `numberProvisional`, as its own new version made on the tablet's version.
-- Otherwise the order gets the day's next number. This happens when two tablets gave the same number at the same
-  moment, or when a tablet was cut off. The same happens to an open order whose number another order that day has.
-- The old number is kept in `numberWas`, and the tablet shows "Order #11 is now #12".
-
-**Which server confirms:** the cloud once it is set up, otherwise the main system. With the cloud, the main system still
-settles clashes between the restaurant's own tablets as it takes their orders, so two of them never share a number,
-even without the internet. It leaves those orders provisional, for the cloud to confirm.
-
-**Joining:** joining (below) marks the tablet's existing orders as provisional.
+- Otherwise the order gets the day's next number, and the old number is kept in `numberWas`. The tablet shows
+  "Order #03 is now #12".
+- The same happens to an open order whose number another order that day has. In normal use this can't happen.
 
 ## Joining
 
@@ -198,6 +199,7 @@ message is dropped.
 | --- | --- | --- |
 | `{ t: 'pull', rid, since }` | tablet → main | `{ t: 'batch', re: rid, server, seq, changes, more }` |
 | `{ t: 'push', rid, changes }` (up to 200 records, about 200 kB) | tablet → main | `{ t: 'ack', re: rid, results }` |
+| `{ t: 'number', rid }` (firing a new order; answered within 4 seconds or not fired) | tablet → main | `{ t: 'number', re: rid, day, number }` |
 | `{ t: 'batch', server, from, seq, changes }` | main → all | None. A tablet whose cursor is behind `from − 1` pulls. |
 
 A tablet pushes and pulls:
@@ -218,6 +220,7 @@ Every request carries these headers:
 | --- | --- | --- |
 | `POST /sync/push` | `{ device, protocol, changes }` | `{ results: [{ c, i, h, ok } \| { c, i, h, conflict, current }] }` |
 | `GET /sync/pull?since=<seq>&limit=300` | none | `{ seq, changes, more }` |
+| `POST /numbers/next` (a tablet without a main system, firing a new order) | `{ device, day }` | `{ day, number }` |
 | WebSocket `/sync/live` (optional) | First message: `{ t: 'auth', token, device, since }` | `{ from, seq, changes }`, as changes happen |
 
 The rules are the server rules above, the same as the main system's. `tools/cloud_reference.py` implements them in
@@ -227,7 +230,9 @@ The cloud must:
 - check the token on every request, and keep each restaurant's data apart;
 - store PIN hashes only in its database, never in logs: a 4-digit PIN's hash is only as safe as the database;
 - keep tombstones for at least 30 days;
-- never accept card data (none is ever sent).
+- never accept card data (none is ever sent);
+- pass local messages between a tablet that is out of range and its main system, when both are online. They stay
+  sealed with the pairing code's key, so the cloud can't read them.
 
 ## Security
 

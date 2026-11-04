@@ -9,9 +9,10 @@ data. The real cloud implements the same endpoints with a database, real sign-in
 Endpoints (every request carries `Authorization: Bearer <token>`):
     POST /v1/restaurants/<id>/sync/push    { device, protocol, changes: [{ c, i, h, b, doc | x }] } -> { results }
     GET  /v1/restaurants/<id>/sync/pull?since=<seq>&limit=<n>                                  -> { seq, changes, more }
+    POST /v1/restaurants/<id>/numbers/next { device, day }                                         -> { day, number }
 
 Ticket numbers are one sequence a day for the whole restaurant, starting again at 1 every business day: each order
-carries its day (YYYY-MM-DD), and the cloud settles numbers within a day.
+carries its day (YYYY-MM-DD). The main system gives them; without one, the cloud does (numbers/next).
 """
 import argparse, json, re, threading, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -42,14 +43,27 @@ class Restaurant:
         self.clock = [t, 0] if t > self.clock[0] else [self.clock[0], self.clock[1] + 1]
         return f'{to36(self.clock[0]).rjust(9, "0")}.{to36(self.clock[1]).rjust(4, "0")}.cloud'
 
-    # Ticket numbers, as on the main system, within the order's day: the cloud confirms a provisional number if no other
-    # order that day has it. Otherwise, and for an open order whose number another order that day has, the order gets the
-    # day's next number: after every number the cloud has seen that day (an order may have been deleted since).
+    def numbers_on(self, day, but=None):
+        return [r['doc']['number'] for key, r in self.records.items() if key.startswith('orders/') and key != f'orders/{but}' and 'doc' in r
+                and isinstance(r['doc'].get('number'), int) and (r['doc'].get('day') or '') == day]
+
+    # The next ticket number of a day, for a tablet without a main system: after every number the cloud has given or
+    # seen that day (an order may have been deleted since)
+    def next_number(self, day):
+        with self.lock:
+            day = str(day or '')
+            number = max(self.days.get(day, 1), max(self.numbers_on(day), default=0) + 1)
+            self.days[day] = number + 1
+            return {'day': day, 'number': number}
+
+    # Ticket numbers, as on the main system, within the order's day. Numbers are given by the main system (or by the
+    # cloud), so this only settles a device's own orders from before it joined (marked provisional): a provisional number
+    # stays if no other order that day has it; otherwise the order gets the day's next number. The same happens to an
+    # open order whose number another order that day has.
     def settle(self, rid, doc):
         n, day = doc.get('number'), doc.get('day') or ''
         if not isinstance(n, int) or isinstance(n, bool): return None
-        others = [r['doc']['number'] for key, r in self.records.items() if key.startswith('orders/') and key != f'orders/{rid}' and 'doc' in r
-                  and isinstance(r['doc'].get('number'), int) and (r['doc'].get('day') or '') == day]
+        others = self.numbers_on(day, rid)
         taken, provisional = n in others, bool(doc.get('numberProvisional'))
         number = max(self.days.get(day, 1), max(others, default=0) + 1) if taken and (provisional or not doc.get('paidAt')) else n
         self.days[day] = max(self.days.get(day, 1), number + 1)
@@ -116,7 +130,7 @@ def make_handler(cloud):
             if cloud.down: return self.reply(503, {'error': 'unavailable'})
             if self.headers.get('Authorization') != f'Bearer {cloud.token}': return self.reply(401, {'error': 'sign in'})
             url = urlparse(self.path)
-            m = re.fullmatch(r'/v1/restaurants/([^/]+)/(sync/push|sync/pull)', url.path)
+            m = re.fullmatch(r'/v1/restaurants/([^/]+)/(sync/push|sync/pull|numbers/next)', url.path)
             if not m: return self.reply(404, {'error': 'not found'})
             r, what = cloud.restaurant(m.group(1)), m.group(2)
             body = {}
@@ -128,6 +142,7 @@ def make_handler(cloud):
             if what == 'sync/pull' and method == 'GET':
                 q = parse_qs(url.query)
                 return self.reply(200, r.pull(int(q.get('since', ['0'])[0] or 0), max(1, min(300, int(q.get('limit', ['300'])[0] or 300)))))
+            if what == 'numbers/next' and method == 'POST': return self.reply(200, r.next_number(body.get('day')))
             return self.reply(405, {'error': 'method'})
         def do_GET(self): self.route('GET')
         def do_POST(self): self.route('POST')

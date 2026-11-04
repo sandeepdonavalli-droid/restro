@@ -20,10 +20,9 @@
 //   version back; the tablet merges the two (field by field against the version both started from; items added on both
 //   sides are all kept; a payment is never undone) and sends the result. Nothing is lost when two tablets change the
 //   same order, and the same change arriving twice changes nothing.
-// - Ticket numbers are one sequence a day for the whole restaurant: every tablet gives the next number after the highest
-//   it knows (orders reach every tablet as they are made), provisional until its server confirms it. If two tablets gave
-//   the same number at the same moment, or one was cut off, the server gives the later order the next free one (the
-//   tablet shows "Order #… is now #…").
+// - Ticket numbers are one sequence a day for the whole restaurant, and the main system gives every one: a tablet asks
+//   it for the next number when it fires a new order, so two orders never share a number. A tablet that can't reach the
+//   main system can't fire an order. (Without a main system, the cloud gives the numbers.)
 // - Messages between tablets are encrypted with a key made from the restaurant's pairing code, so tablets of another
 //   restaurant, or anyone else on the network, can't join or read them.
 // Nothing here is part of the code or the website's data: everything stays on the tablets until the cloud exists.
@@ -394,21 +393,19 @@
   let hubTimer = null;
   function keepHub() { clearTimeout(hubTimer); hubTimer = setTimeout(() => save(HUB, hub), 200); }
   function hubRecord(name, id, seq) { hub.log[`${name}/${id}`] = seq; }
-  // Ticket numbers of the orders it takes from the tablets, within the order's day. A provisional number stays if no
-  // other order that day has it; otherwise (two tablets gave it at the same moment, or one was cut off), and for an open
-  // order whose number another order that day has, the order gets the day's next number. Without the cloud the main
-  // system's word is final, so it confirms the number; with the cloud the order stays provisional for the cloud to
-  // confirm, but two of the restaurant's own orders never share a number, even without the internet. Returns the order
-  // with its number settled, or null if it stays as it is.
+  // Ticket numbers of the orders it takes from the tablets, within the order's day. The main system gives every number,
+  // so this only settles a tablet's own orders from before it joined (marked provisional): a provisional number stays if
+  // no other order that day has it; otherwise the order gets the day's next number. The same happens to an open order
+  // whose number another order that day has. Returns the order with its number settled, or null if it stays as it is.
   function settleNumber(id, doc, docs) {
     if (!Number.isInteger(doc.number)) return null;
-    const final = !upstream(), day = orderDay(doc), n = doc.number, idOf = COLLECTIONS.orders.id;
+    const day = orderDay(doc), n = doc.number, idOf = COLLECTIONS.orders.id;
     const others = [...docs.values()].filter(o => idOf(o) !== id && Number.isInteger(o.number) && orderDay(o) === day);
     const taken = others.some(o => o.number === n);
-    if (doc.numberProvisional ? !taken && !final : !taken || doc.paidAt) return null;
+    if (!doc.numberProvisional && (!taken || doc.paidAt)) return null;
     const number = taken ? nextOn(day, others) : n;
     const { numberProvisional, ...rest } = doc;
-    return { ...rest, number, day, ...(final ? {} : { numberProvisional: true }), ...(number !== n ? { numberWas: Number.isInteger(rest.numberWas) ? rest.numberWas : n } : {}) };
+    return { ...rest, number, day, ...(number !== n ? { numberWas: Number.isInteger(rest.numberWas) ? rest.numberWas : n } : {}) };
   }
   // Changes pushed by a tablet: [{ c, i, h, b, doc | x }] → the answers, and the changes taken (to pass on)
   function hubAccept(changes) {
@@ -498,31 +495,47 @@
   }
 
   // ---------- ticket numbers ----------
-  // One sequence a day for the whole restaurant, from #01: a tablet gives the next number after the highest it knows of
-  // the day, and orders reach every tablet as they are made, so after the main system's #10 a tablet's next order is
-  // #11. With a server the number is provisional (numberProvisional) until the server confirms it, or gives the order
-  // the next free number if another order got the same one. A tablet on its own, and the main system without the cloud,
-  // number for good.
-  let provisional = false;
+  // One sequence a day for the whole restaurant, from #01, and the main system gives every number: its own orders' from
+  // its own count, and a tablet's when it fires a new order (the tablet asks it, over the restaurant's Wi-Fi or
+  // Bluetooth). So after the main system's #10 a tablet's next order is #11, two orders never share a number, and a
+  // number never changes. A tablet that can't reach the main system can't fire an order. Without a main system the cloud
+  // gives the numbers; a tablet on its own counts by itself.
   // The day's next number: after every order of that day here and, for today, after every number this tablet has given
   // or seen (an order may have been deleted since)
   function nextOn(day, docs) {
     const t = load(TICKET_KEY, null), seen = day === today() && isObj(t) && t.day === day ? Number(t.next) || 1 : 1;
     return Math.max(seen, highestOn(day, docs) + 1);
   }
-  // A number given elsewhere (another tablet's order, or one the server settled): this tablet numbers on after it
+  // A number given elsewhere (another tablet's order, or one the server gave or settled): this tablet's count goes past
+  // it, so it carries on the sequence if it becomes the main system
   function sawNumber(doc) {
     if (!isObj(doc) || !Number.isInteger(doc.number)) return;
     const day = orderDay(doc); if (day !== today()) return;
     const t = load(TICKET_KEY, null), next = isObj(t) && t.day === day ? Number(t.next) || 1 : 1;
     if (doc.number >= next) save(TICKET_KEY, { day, next: doc.number + 1 });
   }
-  function nextNumber() {
-    provisional = Boolean(upstream());
-    const day = today(), n = nextOn(day);
-    save(TICKET_KEY, { day, next: n + 1 });
-    return n;
+  // This tablet's own next number: { day, number }
+  function ownNumber() {
+    const day = today(), number = nextOn(day);
+    save(TICKET_KEY, { day, next: number + 1 });
+    return { day, number };
   }
+  // On its own, and as the main system, a tablet gives its numbers itself
+  const givesNumbers = () => device.main || !upstream();
+  // Whether this tablet can fire an order now: always on its own and as the main system; otherwise only while it reaches
+  // its server (the main system, or the cloud without one)
+  function canFire() { return givesNumbers() || (upstream() === 'hub' ? Boolean(Local.hubId()) : Cloud.ready()); }
+  // The number for a new order being fired: { day, number } from whoever gives this tablet its numbers, or null if it
+  // can't be reached (then the order isn't fired)
+  async function takeNumber() {
+    if (givesNumbers()) return ownNumber();
+    const t = upstream() === 'hub' ? await Local.number() : await Cloud.number().catch(() => null);
+    if (!isObj(t) || typeof t.day !== 'string' || !t.day || !Number.isInteger(t.number) || t.number < 1) return null;
+    sawNumber(t);
+    return { day: t.day, number: t.number };
+  }
+  // A number without asking anyone (orders moved over from an earlier version of the app): this tablet's own next one
+  const nextNumber = () => ownNumber().number;
 
   // ---------- tablets nearby: through the Android app (RESTRODevice.localSync) ----------
   // Pairing: the main system makes a code; the other tablets enter it once. A key made from the code (PBKDF2) seals every
@@ -557,12 +570,12 @@
       if (!key || !bridge()) return false;
       try { await bridge().send(await seal({ ...msg, sender: device.id }), to); return true; } catch { return false; }
     }
-    // A request to the main system; resolves with its answer, or null after 10 seconds.
-    function request(msg, to = hubPeer()?.id) {
+    // A request to the main system; resolves with its answer, or null after `wait` (10 seconds unless said).
+    function request(msg, to = hubPeer()?.id, wait = 10000) {
       if (!to) return Promise.resolve(null);
       const id = rand(10);
       return new Promise(resolve => {
-        const timer = setTimeout(() => { waiting.delete(id); resolve(null); }, 10000);
+        const timer = setTimeout(() => { waiting.delete(id); resolve(null); }, wait);
         waiting.set(id, r => { clearTimeout(timer); resolve(r); });
         send({ ...msg, rid: id }, to).then(ok => { if (!ok && waiting.delete(id)) { clearTimeout(timer); resolve(null); } });
       });
@@ -578,7 +591,7 @@
           const { results, accepted } = hubAccept(Array.isArray(msg.changes) ? msg.changes.slice(0, 500) : []);
           send({ t: 'ack', re: msg.rid, results }, fromId);
           if (accepted.length) broadcast({ t: 'batch', server: device.id, from: accepted[0].seq, seq: hub.seq, changes: accepted });
-        }
+        } else if (msg.t === 'number') send({ t: 'number', re: msg.rid, ...ownNumber() }, fromId); // a tablet firing a new order
         return;
       }
       // Other tablets: changes passed on by the main system as they happen
@@ -615,6 +628,8 @@
       } finally { pushing = false; emitStatus(); }
     }
     async function sync() { await push(); await pull(); await push(); }
+    // The next ticket number, from the main system (4 seconds at most, as someone is waiting to fire the order)
+    async function number() { const r = await request({ t: 'number' }, hubPeer()?.id, 4000); return r ? { day: r.day, number: r.number } : null; }
     function onPeers(list) {
       const before = hubPeer()?.id;
       peers = (Array.isArray(list) ? list : []).filter(p => isObj(p) && typeof p.id === 'string' && p.id !== device.id).map(p => ({ id: p.id, name: String(p.name || '').slice(0, 40), main: Boolean(p.main) }));
@@ -638,7 +653,7 @@
         setStatus(device.main ? 'main' : 'searching');
       } catch { setStatus('unavailable'); }
     }
-    return { start, send, push, pull, sync, hubId: () => hubPeer()?.id || null, hubName: () => hubPeer()?.name || null, peers: () => peers.slice(), status: () => status };
+    return { start, send, push, pull, sync, number, hubId: () => hubPeer()?.id || null, hubName: () => hubPeer()?.name || null, peers: () => peers.slice(), status: () => status };
   })();
   function broadcast(msg) { if (device.main) Local.send(msg); }
 
@@ -685,6 +700,8 @@
       finally { busy = false; emitStatus(); schedule(); if (again) sync(); }
     }
     function schedule() { clearTimeout(timer); if (upstream() !== 'cloud') return; timer = setTimeout(sync, Math.min(60000, 15000 * Math.max(1, failures))); }
+    // The next ticket number, for a tablet without a main system: { day, number }
+    const number = () => call('POST', '/numbers/next', { device: device.id, day: today() });
     // Live changes from the cloud, when it offers them (a WebSocket; the token goes in the first message, never in the
     // address). Fetching every 15 seconds carries on either way.
     function connectLive() {
@@ -704,7 +721,7 @@
     }
     window.addEventListener('online', () => { if (upstream() === 'cloud') { status = 'syncing'; sync(); } });
     window.addEventListener('offline', () => { if (upstream() === 'cloud') { status = 'offline'; emitStatus(); } });
-    return { sync, ready, connectLive, status: () => status, lastSync: () => lastSync };
+    return { sync, ready, number, connectLive, status: () => status, lastSync: () => lastSync };
   })();
 
   // ---------- joining ----------
@@ -782,8 +799,7 @@
   }
 
   window.RestroSync = Object.freeze({
-    wrote, removed, nextNumber, newId, mergeRecord, today, orderDay,
-    get provisional() { return provisional; },
+    wrote, removed, takeNumber, canFire, nextNumber, newId, mergeRecord, today, orderDay,
     status,
     get device() { return { ...device }; },
     setDeviceName(name) { device.name = String(name || '').trim().slice(0, 30) || device.name; save(DEVICE, device); Local.start(); emitStatus(); },

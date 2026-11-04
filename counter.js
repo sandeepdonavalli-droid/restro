@@ -55,7 +55,8 @@
   let panelOrder = ordered(PANEL_TILES, load(PANEL_KEY, null));
   const tileAt = key => ({ 'data-tile': key, style: `order:${panelOrder.indexOf(key)}` });
   let panelArranging = false, panelDrag = null, panelGesture = null, panelHold = null, panelSuppress = false;
-  // Ticket numbers come from sync: one sequence a day for every tablet of the restaurant (sync.js).
+  // Ticket numbers come from sync: one sequence a day for the whole restaurant, given by the main system (sync.js). This
+  // one is for orders moved over from an earlier version of the app; a new order gets its number as it is fired (fire()).
   const nextNumber = () => { if (window.RestroSync) return window.RestroSync.nextNumber(); const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
   const idOf = o => o.uid || `n${o.number}`; // an order's id everywhere (orders from before sync are known by their number)
   // A ticket number as shown: #01, #02 … #10 (numbers start again at 1 every day, so they are not ids)
@@ -270,20 +271,22 @@
     entry.sentAt = entry.sentAt || now; entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), { at: now, lines }].slice(-30);
     return lines.reduce((n, l) => n + l.qty, 0);
   }
+  // The saved order (not paid yet) the order on screen carries on, if any
+  const savedOf = list => (order.uid ? list.find(o => idOf(o) === order.uid && !o.paidAt) : order.number ? list.find(o => o.number === order.number && !o.paidAt) : null);
   // Saves the order on screen in Orders (Save, or Pay with the payment) and sends it to the kitchen, unless it is
   // scheduled for later: then it goes at its ready time minus the preparation time. Saving again sends only what was added.
-  function upsertOrder(pay) {
-    const now = Date.now(), list = loadOrders();
-    const prev = order.uid ? list.find(o => idOf(o) === order.uid && !o.paidAt) : order.number ? list.find(o => o.number === order.number && !o.paidAt) : null;
-    const number = prev ? prev.number : nextNumber(), provisional = !prev && Boolean(window.RestroSync?.provisional);
+  // A new order takes `given` ({ day, number }, given as it was fired).
+  function upsertOrder(pay, given = null) {
+    const now = Date.now(), list = loadOrders(), prev = savedOf(list);
+    const number = prev ? prev.number : given ? given.number : nextNumber();
     let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null,
       lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...totals(),
-      createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? window.RestroSync?.orderDay(prev) : window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
+      createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? window.RestroSync?.orderDay(prev) : given?.day || window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
       // the server: whoever was signed in when the order was first saved (staff sign-in)
       server: prev && prev.server ? prev.server : window.RestroStaff?.current?.name || null, serverId: prev && prev.serverId ? prev.serverId : window.RestroStaff?.current?.id || null,
-      // with other tablets, the number stays provisional until the server confirms it
-      ...(provisional || prev?.numberProvisional ? { numberProvisional: true } : {}), ...(prev && Number.isInteger(prev.numberWas) ? { numberWas: prev.numberWas } : {}) };
+      // an order this tablet had from before it joined the others keeps its own number until the main system settles it
+      ...(prev?.numberProvisional ? { numberProvisional: true } : {}), ...(prev && Number.isInteger(prev.numberWas) ? { numberWas: prev.numberWas } : {}) };
     // Changed on another tablet since it was opened here: both tablets' changes are kept (items added on both, and so on)
     if (prev && opened && window.RestroSync && JSON.stringify(prev) !== opened) entry = window.RestroSync.mergeRecord('orders', JSON.parse(opened), entry, prev);
     const sentNow = !entry.readyAt || kitchenTime(entry) <= now ? sendToKitchen(entry, now) : 0;
@@ -291,10 +294,28 @@
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     return { entry, sentNow, isNew: !prev };
   }
+  // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
+  // main system (or the cloud, without one), which gives a new order its number, so no two orders share one. Otherwise
+  // it says so and the order stays on screen. Returns what upsertOrder does, or null.
+  let firing = false;
+  const cantFire = pay => `${window.RestroSync?.status().upstream === 'cloud' ? 'No internet' : 'Can’t reach the main system'} · ${pay ? 'payment not taken' : 'order not saved'}`;
+  async function fire(pay) {
+    const sync = window.RestroSync, target = order;
+    if (firing || !order.lines.length) return null;
+    if (sync && !sync.canFire()) { toast(cantFire(pay)); return null; }
+    let given = null;
+    if (sync && !savedOf(loadOrders())) {
+      firing = true;
+      try { given = await sync.takeNumber(); } catch { given = null; } finally { firing = false; }
+      if (!given) { toast(cantFire(pay)); return null; }
+      if (order !== target || !order.lines.length) return null; // another order took the screen meanwhile
+    }
+    return upsertOrder(pay, given);
+  }
   // Save: the order goes to Orders (not paid yet) and to the kitchen; a new order starts.
-  function saveOrder() {
-    if (!order.lines.length) return;
-    const { entry, sentNow, isNew } = upsertOrder(null);
+  async function saveOrder() {
+    const done = await fire(null); if (!done) return;
+    const { entry, sentNow, isNew } = done;
     const kitchen = sentNow ? (isNew ? 'sent to kitchen' : `${sentNow} more item${sentNow === 1 ? '' : 's'} sent to kitchen`) : entry.readyAt && !entry.sentAt ? `kitchen at ${whenShort(kitchenTime(entry))}` : '';
     toast([`Order ${ticket(entry.number)} saved`, kitchen].filter(Boolean).join(' · '));
     fresh();
@@ -362,8 +383,8 @@
     if (names.includes('orders') && (order.uid || order.number)) followOpenOrder();
     if (dialog.open && (names.includes('held') || names.includes('orders'))) render();
   });
-  // Another order got the same number (given at the same moment on another tablet, or while this one was cut off): the
-  // server gave this order the next free number.
+  // An order this tablet had from before it joined the others, whose number another order that day has: the main system
+  // gave it the next free number.
   window.addEventListener('restro:orders-renumbered', e => {
     const list = (e.detail?.orders || []).filter(r => Number.isInteger(r.from) && Number.isInteger(r.to));
     if (!list.length) return;
@@ -406,9 +427,10 @@
     if (parked) toast(`Previous order on hold · ${held.length} held`);
   }
   // Pay: the order is saved as paid (and goes to the kitchen if it has not yet), then the receipt shows.
-  function complete(received) {
+  async function complete(received) {
     const t = totals(); if (!t.count || received < t.total) return;
-    const { entry } = upsertOrder({ method: 'cash', received, change: received - t.total });
+    const done = await fire({ method: 'cash', received, change: received - t.total }); if (!done) return;
+    const { entry } = done;
     receipt = entry; sheet = 'receipt'; order = blankOrder(); baseline = null; opened = null; selected = null; category = null; query = ''; cashInput = ''; render();
     window.RestroSound?.play('tick');
     window.dispatchEvent(new CustomEvent('restro:order-paid', { detail: entry }));
