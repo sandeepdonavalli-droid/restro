@@ -141,32 +141,38 @@ Deleting on purpose leaves a tombstone, kept for 30 days. Records a tablet only 
 
 ## Ticket numbers
 
-**On its own:** a tablet counts from 1001, as before.
+**Every business day starts again at #01.** A business day runs from 4 AM to 4 AM, so a late night after midnight stays
+on the same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`), and numbers are handed out and
+settled within a day. Numbers show as #01, #02 … #10; they repeat from day to day, so an order is always found by its
+`uid`, never by its number.
 
-**With a server:** a tablet takes numbers in blocks of 50 from its server. It fetches the next block when fewer than
-20 are left.
+**On its own:** a tablet counts from 1 each day.
+
+**With a server:** a tablet takes numbers in blocks of 50 for the day from its server (`{ day, from, to }`). It fetches
+the next block when fewer than 20 are left, and a new day drops the old blocks.
 
 **The main system:**
-- Numbers from its own count.
-- Once the cloud is set up, it numbers from a block of 200 that the cloud gives it, topped up when fewer than 50 are
-  left. That block also covers its tablets when the internet is down.
+- Numbers from its own count for the day.
+- Once the cloud is set up, it numbers from a block of 200 for the day that the cloud gives it, topped up when fewer
+  than 50 are left. That block also covers its tablets when the internet is down.
 
-**Cut off with no numbers left:** a tablet numbers on from the highest number it knows, and marks the order
+**Cut off with no numbers left:** a tablet numbers on from the highest number it knows that day, and marks the order
 `numberProvisional`.
 
-**Settling:** the server settles the number when it takes an order.
+**Settling:** the server settles the number when it takes an order, within the order's day.
 - A provisional number stays if no one could have it: it was never handed out (it is at least the server's next
-  number) and no other order has it.
-- Otherwise the order gets the next free number. The same happens to an unpaid order whose number another order has.
+  number for that day) and no other order that day has it.
+- Otherwise the order gets the next free number of that day. The same happens to an unpaid order whose number another
+  order that day has.
 - The old number is kept in `numberWas`.
 - The server stores the result as its own new version, made on the tablet's version.
 - The tablet shows "Order #… is now #…".
 
 **Joining:** joining (below) marks the tablet's existing orders as provisional.
 
-**Requests for numbers:** each request carries `after`, the highest number the device knows of. The cloud never hands
-out a number at or below it. This matters because the main system may have handed out numbers on its own before the
-cloud was set up.
+**Requests for numbers:** each request carries `day` and `after`, the highest number the device knows of that day. The
+cloud never hands out a number at or below it. This matters because the main system may have handed out numbers on its
+own before the cloud was set up.
 
 ## Joining
 
@@ -198,7 +204,7 @@ message is dropped.
 | --- | --- | --- |
 | `{ t: 'pull', rid, since }` | tablet → main | `{ t: 'batch', re: rid, server, seq, changes, more }` |
 | `{ t: 'push', rid, changes }` (up to 200 records, about 200 kB) | tablet → main | `{ t: 'ack', re: rid, results }` |
-| `{ t: 'lease', rid, count }` | tablet → main | `{ t: 'lease', re: rid, block: { from, to } \| null }` |
+| `{ t: 'lease', rid, count, day }` | tablet → main | `{ t: 'lease', re: rid, block: { day, from, to } \| null }` |
 | `{ t: 'batch', server, from, seq, changes }` | main → all | None. A tablet whose cursor is behind `from − 1` pulls. |
 
 A tablet pushes and pulls:
@@ -219,7 +225,7 @@ Every request carries these headers:
 | --- | --- | --- |
 | `POST /sync/push` | `{ device, protocol, changes }` | `{ results: [{ c, i, h, ok } \| { c, i, h, conflict, current }] }` |
 | `GET /sync/pull?since=<seq>&limit=300` | none | `{ seq, changes, more }` |
-| `POST /numbers/lease` | `{ device, count, after }` | `{ from, to }` |
+| `POST /numbers/lease` | `{ device, count, day, after }` | `{ day, from, to }` |
 | WebSocket `/sync/live` (optional) | First message: `{ t: 'auth', token, device, since }` | `{ from, seq, changes }`, as changes happen |
 
 The rules are the server rules above, the same as the main system's. `tools/cloud_reference.py` implements them in

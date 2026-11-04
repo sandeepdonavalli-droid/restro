@@ -1,9 +1,9 @@
 'use strict';
 // Orders: a full-screen app with every saved order (Save or Pay), newest first, one order to a row: everything about
-// the order reads from left to right in seven columns — the ticket number (made by the system), the time with the
-// date under it, the order type, the customer or table with the server under it, the order status, the payment (the
-// amount with the payment status under it) and the buzzer (pager). Tapping an order that is not paid yet opens it in
-// Counter; Back returns here.
+// the order reads from left to right in seven columns — the ticket number (made by the system, from #01 each day), the
+// time with the date under it, the customer or table with the server under it, the buzzer (pager), the order type, the
+// order status, and the payment (the amount with the payment status under it). The list scrolls by touch, with no scroll
+// bar. Tapping an order that is not paid yet opens it in Counter; Back returns here.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
@@ -49,11 +49,12 @@
     if (!o.sentAt) return o.readyAt ? { text: 'Scheduled', sub: whenShort(o.readyAt), cls: 'scheduled' } : { text: 'Saved', cls: '' };
     return o.paidAt ? { text: 'Completed', cls: 'done' } : { text: 'In kitchen', cls: 'kitchen' };
   }
-  const COLUMNS = [['Ticket', 'ord-ticket'], ['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['Buzzer', 'ord-buzzer']];
+  const COLUMNS = [['Ticket', 'ord-ticket'], ['Date & time', 'ord-when'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Buzzer', 'ord-buzzer'], ['Order type', 'ord-typecell'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay']];
   // (the name column's heading, on a small tablet, breaks only after the slash)
   // The date under the time, in numbers: 03/11/2026 (day/month/year)
   const fullDate = when => new Date(when).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const cell = (cls, ...content) => el('span', { class: `ord-c ${cls}` }, ...content);
+  const ticket = n => `#${String(n).padStart(2, '0')}`; // #01 … the day's numbers start at 1
   // Two details in one column, one under the other: the main one, and a smaller one under it (left out when empty)
   const twoLines = (cls, main, sub, subCls = '') => cell(`ord-two ${cls}`, el('span', { class: 'ord-main' }, main), sub ? el('span', { class: `ord-sub ${subCls}`.trim() }, sub) : null);
 
@@ -64,14 +65,14 @@
     const pay = refunded ? 'Refunded' : paid ? `Paid · ${METHODS[o.method] || 'Cash'}` : partial ? 'Partially paid' : 'Not paid';
     const payClass = refunded ? 'refunded' : paid ? 'paid' : 'unpaid';
     const cells = [
-      cell('ord-ticket', `#${o.number}`),
+      cell('ord-ticket', ticket(o.number)),
       twoLines('ord-when', timeOf(o.createdAt), fullDate(o.createdAt)),
-      cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
       twoLines('ord-name', name, o.server || ''),
+      cell('ord-buzzer', o.pager ? String(o.pager) : '—'),
+      cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
       status.sub ? twoLines(`ord-status ${status.cls}`, status.text, status.sub) : cell(`ord-status ${status.cls}`, status.text),
-      twoLines('ord-pay', money(o.total), pay, payClass),
-      cell('ord-buzzer', o.pager ? String(o.pager) : '—')];
-    const label = `Order ${o.number}, ${timeOf(o.createdAt)}, ${fullDate(o.createdAt)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
+      twoLines('ord-pay', money(o.total), pay, payClass)];
+    const label = `Order ${o.number}, ${timeOf(o.createdAt)}, ${fullDate(o.createdAt)}, ${name}${o.server ? `, server ${o.server}` : ''}${o.pager ? `, buzzer ${o.pager}` : ''}, ${type.label}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}`;
     return paid
       ? el('div', { class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': label }, ...cells)
       : el('button', { type: 'button', class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': `${label}. Open in Counter`, onclick: () => window.RestroCounter?.openOrder(o.uid || o.number) }, ...cells);
@@ -79,7 +80,7 @@
 
   // Rendered into its own root so the system bar and toasts placed in the dialog survive re-renders.
   const root = el('div', { class: 'ord-root' }); dialog.prepend(root);
-  let scrollTop = 0;
+  let scrollTop = 0, scrolledAt = 0;
   let fromCounter = false;                 // opened with Counter's Orders button: Back returns to Counter
 
   // Orders saved, paid or deleted on another tablet (sync.js) show at once
@@ -94,17 +95,12 @@
       el('h2', { id: 'orders-title', tabindex: '-1' }, 'Orders'));
     // The column names stay at the top while the rows scroll under them.
     const grid = orders.length
-      ? el('div', { class: 'ord-list', onscroll: e => { scrollTop = e.currentTarget.scrollTop; } },
+      ? el('div', { class: 'ord-list', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } },
         el('div', { class: 'ord-cols', 'aria-hidden': 'true' }, ...COLUMNS.map(([name, cls]) => el('span', { class: `ord-c ${cls}` }, typeof name === 'function' ? name() : name))),
         el('div', { class: 'ord-rows', role: 'list', 'aria-label': 'Orders, newest first' }, ...orders.map(row)))
       : el('div', { class: 'ord-empty' }, el('strong', {}, 'No orders yet'), el('span', {}, 'Orders show here once they are saved or paid in Counter.'));
     root.replaceChildren(head, orders.length ? el('div', { class: 'ord-body' }, grid) : grid);
-    if (orders.length) {
-      grid.scrollTop = scrollTop;
-      // The scroll handle (scroll-handle.js) instead of the browser's scroll bar: five sky blue lines from its top to
-      // its bottom, travelling under the column names.
-      window.RestroScrollHandle?.attach(grid, { host: grid.parentElement, top: () => grid.querySelector('.ord-cols')?.offsetHeight || 0, lines: 5, spread: true, key: 'orders' });
-    }
+    if (orders.length) grid.scrollTop = scrollTop;
   }
 
   // While open, the tiles keep up with the kitchen (a scheduled order goes to the kitchen at its time).
@@ -132,7 +128,7 @@
       fromCounter = options.from === 'counter';
       render();
       if (!dialog.open) dialog.showModal();
-      clearInterval(timer); timer = setInterval(() => { if (dialog.open && !window.RestroScrollHandle?.dragging) render(); }, 30000);
+      clearInterval(timer); timer = setInterval(() => { if (dialog.open && Date.now() - scrolledAt > 2000) render(); }, 30000); // not while a finger is scrolling
       dialog.querySelector('#orders-title')?.focus({ preventScroll: true });
     },
     goBack

@@ -59,6 +59,8 @@
   // tablets give the same number); on its own a tablet counts on as before.
   const nextNumber = () => { if (window.RestroSync) return window.RestroSync.nextNumber(); const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
   const idOf = o => o.uid || `n${o.number}`; // an order's id everywhere (orders from before sync are known by their number)
+  // A ticket number as shown: #01, #02 … #10 (numbers start again at 1 every day, so they are not ids)
+  const ticket = n => `#${String(n).padStart(2, '0')}`;
 
   // ---------- state ----------
   // A new order starts with no order type. Dine in can have a table (picked on the Floor); every other order a customer.
@@ -226,7 +228,7 @@
     const n = order.number;
     if (n) { const list = loadOrders(), gone = o => (order.uid ? idOf(o) === order.uid : o.number === n) && !o.paidAt; list.filter(gone).forEach(o => window.RestroSync?.removed('orders', idOf(o))); storeOrders(list.filter(o => !gone(o))); }
     if (order.heldId) { window.RestroSync?.removed('held', order.heldId); held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
-    fresh(); toast(n ? `Order #${n} deleted` : 'Order deleted');
+    fresh(); toast(n ? `Order ${ticket(n)} deleted` : 'Order deleted');
   }
   // Order type: the four types open right over the tile; picking one sets it (every item moves to it) and closes them.
   // Picking the type already chosen takes it off again: the tile shows Order type, and the order goes as Dine in.
@@ -277,7 +279,7 @@
     const number = prev ? prev.number : nextNumber(), provisional = !prev && Boolean(window.RestroSync?.provisional);
     let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null,
       lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...totals(),
-      createdAt: prev ? createdOf(prev) : now, savedAt: now, sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
+      createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? window.RestroSync?.orderDay(prev) : window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
       // the server: whoever was signed in when the order was first saved (staff sign-in)
       server: prev && prev.server ? prev.server : window.RestroStaff?.current?.name || null, serverId: prev && prev.serverId ? prev.serverId : window.RestroStaff?.current?.id || null,
@@ -295,7 +297,7 @@
     if (!order.lines.length) return;
     const { entry, sentNow, isNew } = upsertOrder(null);
     const kitchen = sentNow ? (isNew ? 'sent to kitchen' : `${sentNow} more item${sentNow === 1 ? '' : 's'} sent to kitchen`) : entry.readyAt && !entry.sentAt ? `kitchen at ${whenShort(kitchenTime(entry))}` : '';
-    toast([`Order #${entry.number} saved`, kitchen].filter(Boolean).join(' · '));
+    toast([`Order ${ticket(entry.number)} saved`, kitchen].filter(Boolean).join(' · '));
     fresh();
   }
   // Hold (new orders): the ticket waits in Held until the end of the day, as the customer may call or come back.
@@ -328,7 +330,7 @@
     if (!saved) return;
     park();
     order = restoreOrder(saved); baseline = signature(order); opened = JSON.stringify(saved);
-    sheet = null; selected = null; render(); toast(`Order #${saved.number} opened`);
+    sheet = null; selected = null; render(); toast(`Order ${ticket(saved.number)} opened`);
   }
   function removeHeld(id) { window.RestroSync?.removed('held', id); held = held.filter(h => h.heldId !== id); store(HELD_KEY, held); render(); }
   // Checked every 20 seconds: tickets on Hold end with the day, and each scheduled order goes to the kitchen at its
@@ -346,9 +348,9 @@
   function announceKitchen(o) {
     const count = o.lines.reduce((n, l) => n + l.qty, 0);
     const message = [`Ready by ${whenShort(o.readyAt)}`, describe(o), `${count} item${count === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
-    window.RestroNotifications?.push({ id: `kitchen-${o.number}`, title: `Order #${o.number} sent to kitchen`, message, source: 'Counter', appId: 'register' });
+    window.RestroNotifications?.push({ id: `kitchen-${idOf(o)}`, title: `Order ${ticket(o.number)} sent to kitchen`, message, source: 'Counter', appId: 'register' });
     window.RestroSound?.play('alert');
-    toast(`Order #${o.number} sent to kitchen · ready by ${whenShort(o.readyAt)}`);
+    toast(`Order ${ticket(o.number)} sent to kitchen · ready by ${whenShort(o.readyAt)}`);
   }
   setInterval(sweep, 20000);
   document.addEventListener('DOMContentLoaded', sweep);
@@ -367,7 +369,7 @@
     const list = (e.detail?.orders || []).filter(r => Number.isInteger(r.from) && Number.isInteger(r.to));
     if (!list.length) return;
     for (const r of list) if (order.uid && order.uid === r.uid) order.number = r.to;
-    toast(list.length > 2 ? `${list.length} orders have new numbers` : list.map(r => `Order #${r.from} is now #${r.to}`).join(' · '));
+    toast(list.length > 2 ? `${list.length} orders have new numbers` : list.map(r => `Order ${ticket(r.from)} is now ${ticket(r.to)}`).join(' · '));
     if (dialog.open) render();
   });
   // The saved order on screen changed on another tablet. With nothing unsaved here it shows the new version; with
@@ -387,8 +389,8 @@
     const how = stored ? 'paid' : 'deleted';
     if (added.length) {
       order = { ...order, number: null, uid: null, heldId: null, lines: added }; baseline = null; opened = null; selected = null;
-      toast(`Order #${n} was ${how} on another tablet · your new items are a new order`);
-    } else { fresh(); toast(`Order #${n} was ${how} on another tablet`); }
+      toast(`Order ${ticket(n)} was ${how} on another tablet · your new items are a new order`);
+    } else { fresh(); toast(`Order ${ticket(n)} was ${how} on another tablet`); }
   }
   // A table tapped on the Floor: the order on that table (on screen, saved and not paid, or held) if it has one,
   // otherwise a new Dine in order with the table already chosen. An order on screen with anything not saved goes to Held.
@@ -478,7 +480,7 @@
             onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } }, order.readyAt ? whenShort(order.readyAt) : 'Schedule'),
           el('button', { ...tileAt('hold'), type: 'button', class: 'ctr-type-btn ctr-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket }, 'Hold'))),
       // The ticket number of a saved order on screen (Orders lists orders without it), on the line under the tiles
-      order.number && el('span', { class: 'ctr-ticket' }, `#${order.number}`),
+      order.number && el('span', { class: 'ctr-ticket' }, ticket(order.number)),
       // The four order types, opened from Order type: two by two over the tiles, on the two columns where Order type is
       // (wherever it has been moved to).
       typeMenu && el('div', { class: 'ctr-type-pop' },
@@ -554,7 +556,7 @@
         el('button', { type: 'button', role: 'menuitem', class: 'ctr-options-item', disabled: !order.lines.length, onclick: () => setHighlight(true) },
           svg(ICON.expand), 'Highlight order'),
         el('button', { type: 'button', role: 'menuitem', class: `ctr-options-item danger${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete },
-          svg(ICON.trash), deleteArmed ? (order.number ? `Tap again to delete #${order.number}` : 'Tap again to delete') : 'Delete order')),
+          svg(ICON.trash), deleteArmed ? (order.number ? `Tap again to delete ${ticket(order.number)}` : 'Tap again to delete') : 'Delete order')),
       search,
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), el('span', { class: 'ctr-tool-label' }, 'Held'), held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
       // Orders opens the Orders app (all orders, one to a row); Back there returns to Counter as it was.
@@ -1019,7 +1021,7 @@
       const list = el('ul', { class: 'ctr-held' });
       if (!held.length) list.append(el('li', { class: 'ctr-empty' }, el('strong', {}, 'No held orders'), el('span', {}, 'Orders on hold stay here until the end of the day.')));
       for (const h of held.filter(h => Array.isArray(h.lines))) {
-        const count = h.lines.reduce((n, l) => n + l.qty, 0), what = [h.number ? `#${h.number}` : '', describe(h)].filter(Boolean).join(' · ');
+        const count = h.lines.reduce((n, l) => n + l.qty, 0), what = [h.number ? ticket(h.number) : '', describe(h)].filter(Boolean).join(' · ');
         list.append(el('li', {},
           el('div', { class: 'ctr-held-copy' }, el('strong', {}, what || 'Order'), el('span', {}, `${count} item${count === 1 ? '' : 's'} · ${money(h.total)} · held ${timeOf(h.savedAt)}`)),
           el('button', { type: 'button', class: 'ctr-text-button danger', 'aria-label': 'Delete held order', onclick: () => removeHeld(h.heldId) }, svg(ICON.trash)),
@@ -1030,7 +1032,7 @@
     }
     // Assign Pager: the pagers by number; a pager on another open order shows "In use" (it can still be chosen).
     if (sheet === 'pager') {
-      const inUse = new Set([...held, ...loadOrders().filter(o => !o.paidAt && o.number !== order.number)].map(o => cleanPager(o.pager)).filter(Boolean));
+      const inUse = new Set([...held, ...loadOrders().filter(o => !o.paidAt && !(order.uid ? idOf(o) === order.uid : o.number === order.number))].map(o => cleanPager(o.pager)).filter(Boolean));
       const choose = n => { order.pager = n; sheet = null; render(); };
       const grid = el('div', { class: 'ctr-pagers', role: 'radiogroup', 'aria-label': 'Pagers' },
         ...Array.from({ length: PAGERS }, (_, i) => i + 1).map(n => {
@@ -1133,7 +1135,7 @@
         const li = el('li', { class: 'ctr-history-row' }), who = describe(o);
         const main = el('button', { type: 'button', class: 'ctr-history-main', 'aria-expanded': 'false', onclick: e => toggle(li, e.currentTarget, o) },
           el('span', { class: 'ctr-history-copy' },
-            el('strong', {}, `#${o.number}`, who ? el('span', { class: 'ctr-history-desc' }, ` · ${who}`) : null),
+            el('strong', {}, ticket(o.number), who ? el('span', { class: 'ctr-history-desc' }, ` · ${who}`) : null),
             el('span', {}, [timeOf(o.createdAt), o.readyAt ? `ready ${whenShort(o.readyAt)}` : '', kitchen(o), o.lines.map(l => `${l.name} ×${l.qty}`).join(', ')].filter(Boolean).join(' · '))),
           el('span', { class: 'ctr-history-side' }, el('strong', {}, money(o.total)), el('span', { class: o.paidAt ? 'ctr-paid' : 'ctr-unpaid' }, o.paidAt ? 'Paid' : 'Not paid')));
         li.append(el('div', { class: 'ctr-history-line' }, main, o.paidAt ? el('span', { class: 'ctr-open-gap', 'aria-hidden': 'true' })
@@ -1144,7 +1146,7 @@
         el('div', { class: 'ctr-history-main' },
           el('span', { class: 'ctr-history-copy' },
             el('strong', {}, money(o.total), el('span', { class: 'ctr-history-desc' }, ` · ${methodLabel[o.method] || 'Cash'}`)),
-            el('span', {}, [`Order #${o.number}`, Number.isFinite(o.received) ? `Received ${money(o.received)}` : '', o.change > 0 ? `Change ${money(o.change)}` : ''].filter(Boolean).join(' · '))),
+            el('span', {}, [`Order ${ticket(o.number)}`, Number.isFinite(o.received) ? `Received ${money(o.received)}` : '', o.change > 0 ? `Change ${money(o.change)}` : ''].filter(Boolean).join(' · '))),
           el('span', { class: 'ctr-history-side' }, el('span', {}, timeOf(o.paidAt)))));
       let day = null;
       for (const o of rows) {
@@ -1165,7 +1167,7 @@
         el('div', { class: 'ctr-sheet ctr-receipt', role: 'dialog', 'aria-label': 'Payment received' },
           el('span', { class: 'ctr-done-icon' }, svg(ICON.check)),
           el('h3', {}, 'Payment received'),
-          el('p', { class: 'ctr-receipt-meta' }, [`Order #${receipt.number}`, describe(receipt), 'Cash'].filter(Boolean).join(' · ')),
+          el('p', { class: 'ctr-receipt-meta' }, [`Order ${ticket(receipt.number)}`, describe(receipt), 'Cash'].filter(Boolean).join(' · ')),
           el('dl', { class: 'ctr-sums' },
             el('dt', {}, 'Total'), el('dd', {}, money(receipt.total)),
             el('dt', {}, 'Cash received'), el('dd', {}, money(receipt.received)),
