@@ -247,13 +247,13 @@
     if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); toast(`Modify off · all items ${typeLabel[order.type || DEFAULT_TYPE].toLowerCase()}`); }
     selected = null; render();
   }
-  // Puts the order on screen in Held, until the end of the day. A new order's pager is released (its number is free for
+  // Puts the order on screen in Held, until the end of the day. A new order's table and pager are released (free for
   // another order); everything else stays as it was, the customer's phone number too. (A saved order's copy, parked with
-  // changes, keeps its pager: the saved order still has it.) The server is whoever is signed in.
+  // changes, keeps them: the saved order still has them.) The server is whoever is signed in.
   function hold() {
     if (!order.lines.length) return false;
-    const staff = window.RestroStaff?.current;
-    const entry = { ...order, pager: order.number ? order.pager : 0, heldId: order.heldId || window.RestroSync?.newId('h') || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: endOfDay(),
+    const staff = window.RestroStaff?.current, saved = Boolean(order.number);
+    const entry = { ...order, table: saved ? order.table : '', pager: saved ? order.pager : 0, heldId: order.heldId || window.RestroSync?.newId('h') || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: endOfDay(),
       server: staff?.name || null, serverId: staff?.id || null };
     held = [entry, ...held.filter(h => h.heldId !== entry.heldId)].slice(0, 100); store(HELD_KEY, held);
     return true;
@@ -330,8 +330,8 @@
   // Hold (new orders): the ticket waits in Held until the end of the day, as the customer may call or come back.
   function holdTicket() {
     if (!order.lines.length || order.number) return;
-    const pager = order.pager;
-    hold(); toast(`On hold until the end of the day${pager ? ` · pager ${pager} free` : ''}`); fresh();
+    const freed = [usesTable(order) ? `table ${tableName(order.table)}` : '', order.pager ? `pager ${order.pager}` : ''].filter(Boolean);
+    hold(); toast(`On hold until the end of the day${freed.length ? ` · ${freed.join(' and ')} free` : ''}`); fresh();
   }
   // Schedule: the time the customer wants the order ready. It is saved with Save or Pay, and goes to the kitchen
   // the preparation time before.
@@ -346,9 +346,9 @@
     window.RestroSync?.removed('held', id); held = held.filter(h => h.heldId !== id); store(HELD_KEY, held);
     order = restoreOrder(entry);
     // A held copy of a saved order carries on with that order (unless it has been paid since). A new order comes back
-    // without a pager: its pager was released when it was held.
+    // without a table or a pager: they were released when it was held.
     const saved = order.number ? loadOrders().find(o => (order.uid ? idOf(o) === order.uid : o.number === order.number) && !o.paidAt) : null;
-    if (!saved) { order.number = null; order.uid = null; order.pager = 0; } else order.number = saved.number;
+    if (!saved) { order.number = null; order.uid = null; order.table = ''; order.pager = 0; } else order.number = saved.number;
     baseline = saved ? signature(restoreOrder(saved)) : null; opened = saved ? JSON.stringify(saved) : null;
     sheet = null; selected = null; render(); toast('Order resumed');
   }
@@ -421,15 +421,16 @@
       toast(`Order ${ticket(n)} was ${how} on another tablet · your new items are a new order`);
     } else { fresh(); toast(`Order ${ticket(n)} was ${how} on another tablet`); }
   }
-  // A table tapped on the Floor: the order on that table (on screen, saved and not paid, or held) if it has one,
-  // otherwise a new Dine in order with the table already chosen. An order on screen with anything not saved goes to Held.
+  // A table tapped on the Floor: the order on that table (on screen, saved and not paid, or a saved order's held copy)
+  // if it has one, otherwise a new Dine in order with the table already chosen. An order on screen with anything not
+  // saved goes to Held (a new order's table and pager are freed). A held order never keeps a table busy.
   function openTable(id) {
     const forTable = o => o.table === id && usesTable(o);
     query = ''; category = null;
     if (forTable(order) && (order.lines.length || order.number)) { selected = null; sheet = null; render(); return; }
     const open = loadOrders().find(o => !o.paidAt && forTable(o));
     if (open) { openOrder(idOf(open)); return; }
-    const waiting = held.find(forTable);
+    const waiting = held.find(h => h.number && forTable(h));
     if (waiting) { resume(waiting.heldId); return; }
     const parked = park();
     order = { ...blankOrder(), type: 'dine-in', table: id }; baseline = null; opened = null; selected = null; sheet = null; render();
@@ -1275,11 +1276,11 @@
     // Every saved order (Save or Pay), newest first, as kept on this device.
     orders() { return JSON.parse(JSON.stringify(allOrders())); },
     // The held orders, newest first (as the Orders app's Held view shows them): when each was held, its type, its table
-    // (when it goes to one) or customer, the server, the total and its items. Their pagers were released.
+    // (when it goes to one) or customer, the server, the total and its items. Their tables and pagers were released.
     held() {
       return held.filter(h => h && typeof h.heldId === 'string' && Array.isArray(h.lines)).map(h => {
         const r = restoreOrder(h);
-        return { heldId: h.heldId, savedAt: cleanTime(h.savedAt) || Date.now(), type: r.type, split: r.split, table: usesTable(r) ? r.table : '', customer: r.customer,
+        return { heldId: h.heldId, savedAt: cleanTime(h.savedAt) || Date.now(), type: r.type, split: r.split, table: r.number && usesTable(r) ? r.table : '', customer: r.customer,
           server: typeof h.server === 'string' ? h.server : null, total: Number.isFinite(h.total) ? h.total : totalsOf(r).total, number: r.number, lines: r.lines };
       }).sort((a, b) => b.savedAt - a.savedAt);
     },
@@ -1288,7 +1289,8 @@
     resumeHeld(id) { if (typeof id !== 'string' || !held.some(h => h.heldId === id)) return; openCounter(); fromFloor = false; fromOrders = false; resume(id); },
     goBack,
     tablesInUse() {
-      const used = [...loadOrders().filter(o => !o.paidAt), ...held].filter(usesTable).map(o => o.table);
+      // (a held order's table was freed when it was held; a saved order's held copy has the saved order's)
+      const used = [...loadOrders().filter(o => !o.paidAt), ...held.filter(h => h.number)].filter(usesTable).map(o => o.table);
       if (order.lines.length && usesTable(order)) used.push(order.table);
       return used;
     },

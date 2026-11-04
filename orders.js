@@ -9,8 +9,8 @@
 // around the buttons does nothing, so a near miss never opens the order.
 // Held (Counter's Held button) is the same page for the orders on hold, newest first, in the same columns: when it was
 // held, its type, the customer or table with the server, Held as its order status, and the total with Held under it,
-// both Held in grey; both round buttons are greyed out (its pager was released when it was held). Tapping a held order
-// carries on with it in Counter.
+// both Held in grey; both round buttons are greyed out (its table and pager were released when it was held). Tapping
+// a held order carries on with it in Counter.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
