@@ -26,13 +26,13 @@
 
 /* The columns, the same for the names and every row: Date & time (the time, the date under it in numbers) · Order type ·
    Customer / Table - Server (the server under the customer or table) · Order status · Payment status (the amount, the
-   status under it) · Buzzer · then the two round buttons, with no name. The six columns share the width, the name the
-   most and the buzzer the least, so there is room on small tablets and on large screens alike; the buttons keep theirs. */
+   status under it) · then the two round buttons, with no name. The five columns share the width, the name the most, so
+   there is room on small tablets and on large screens alike; the buttons keep theirs. */
 .ord-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 0 16px;scrollbar-width:none}
 .ord-list::-webkit-scrollbar{display:none}
 /* The list sits in .ord-body and scrolls by touch, with no scroll bar at all (nor the scroll handle other screens use). */
 .ord-body{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.ord-cols,.ord-row{display:grid;grid-template-columns:minmax(104px,1fr) minmax(100px,.9fr) minmax(0,1.8fr) minmax(110px,1fr) minmax(110px,1fr) minmax(60px,.55fr) 106px;align-items:center;column-gap:12px}
+.ord-cols,.ord-row{display:grid;grid-template-columns:minmax(104px,1fr) minmax(100px,.9fr) minmax(0,1.8fr) minmax(110px,1fr) minmax(110px,1fr) 136px;align-items:center;column-gap:12px}
 .ord-cols{position:sticky;top:0;z-index:1;padding:12px 16px 8px 20px;background:var(--ord-grey);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text);white-space:normal} /* the column names: bold black, centred (a long one takes two lines on a small tablet) */
 .ord-cols .ord-c+.ord-c::before{content:"";position:absolute;left:-7px;top:50%;width:1px;height:12px;margin-top:-6px;background:color-mix(in srgb,var(--ord-muted) 45%,transparent)} /* the short line between two names, in the middle of the gap */
@@ -57,7 +57,6 @@
 .ord-pay .paid{color:#00c853} /* Paid: neon green */
 .ord-pay .unpaid{color:#ff6700} /* Not paid or Partially paid: neon orange */
 .ord-pay .refunded{color:#b42318} /* Refunded: red */
-.ord-buzzer{font-size:14px;font-variant-numeric:tabular-nums}
 /* Two details in one column (the time with the date, the name with the server, the amount with the payment status): the main one, the other under it,
    a little smaller; each ends in "…" when it is too long. */
 .ord-c.ord-two{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:normal}
@@ -68,19 +67,19 @@
 .ord-pay .ord-main{font-variant-numeric:tabular-nums}
 .ord-status .ord-sub{color:inherit} /* Scheduled, with its ready time under it, both in plum */
 
-/* The two round bubble buttons, side by side after the buzzer, with no column name: text the customer (a send icon,
-   sky blue) and buzz the pager ("Buzz" over its number, neon orange). Glossy bubbles in very light colours: nearly white
-   in the middle, the colour a little brighter towards the edge, a soft shine at the top. Without a phone number or a
-   pager, a button is a plain grey bubble and does nothing. A finger that moves on them scrolls the list; a tap does the
-   action, never opening the order. */
-.ord-c.ord-acts{display:flex;align-items:center;justify-content:center;gap:10px;overflow:visible}
+/* The two round bubble buttons, side by side after the payment status, with no column name: text the customer (a send
+   icon, sky blue) and buzz the pager ("Buzz" over its number, neon orange). 32px apart, so a finger meant for one never
+   lands on the other. Glossy bubbles in light colours: nearly white in the middle, the colour brighter towards the edge,
+   a soft shine at the top. Without a phone number or a pager, a button is a plain grey bubble and does nothing. A
+   finger that moves on them scrolls the list; a tap does the action, never opening the order. */
+.ord-c.ord-acts{display:flex;align-items:center;justify-content:center;gap:32px;overflow:visible;cursor:default}
 .ord-bubble{--shine:radial-gradient(ellipse 46% 32% at 40% 22%,rgba(255,255,255,.95),rgba(255,255,255,0) 72%);
   position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;width:48px;height:48px;margin:0;padding:0;border:0;border-radius:50%;
   color:var(--ink);font-weight:700;line-height:1;cursor:pointer;touch-action:manipulation;background:var(--shine),var(--body);
   box-shadow:inset 0 0 0 calc(2px / 3) var(--edge),0 1px 3px rgba(15,23,42,.12);transition:transform .08s ease,filter .12s ease}
 .ord-bubble svg{width:20px;height:20px;stroke-width:2.1;margin-left:-2px}
-.ord-text{--ink:#0284c7;--edge:rgba(2,132,199,.28);--body:radial-gradient(circle closest-side,#fcfeff 0 42%,#e6f4fd 70%,#b9e1f9 100%)}
-.ord-ping{--ink:#ff6700;--edge:rgba(255,103,0,.3);--body:radial-gradient(circle closest-side,#fffdfb 0 42%,#ffefe1 70%,#ffd2b0 100%)}
+.ord-text{--ink:#0284c7;--edge:rgba(2,132,199,.36);--body:radial-gradient(circle closest-side,#fbfdff 0 38%,#dff1fd 66%,#9ad3f6 100%)}
+.ord-ping{--ink:#ff6700;--edge:rgba(255,103,0,.38);--body:radial-gradient(circle closest-side,#fffcf9 0 38%,#ffe9d6 66%,#ffbc8a 100%)}
 .ord-ping-word{font-size:11px}
 .ord-ping-no{margin-top:2px;font-size:15px;font-variant-numeric:tabular-nums}
 .ord-bubble:not(.off):active{transform:scale(.94);filter:brightness(.96)}

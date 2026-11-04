@@ -1,11 +1,12 @@
 'use strict';
 // Orders: a full-screen app with every saved order (Save or Pay), newest first, one order to a row: everything about
-// the order reads from left to right in six columns — the time with the date under it, the order type, the customer or
-// table with the server under it, the order status, the payment (the amount with the payment status under it) and the
-// buzzer (pager) — then two round buttons side by side, with no column name: text the customer (when the order has
-// their phone number) and buzz the order's pager (whatever the payment status). The ticket number shows on the opened
-// order. The list scrolls by touch, with no scroll bar, over the buttons too. Tapping an order anywhere but its two
-// buttons opens it: in Counter while it isn't paid (Back returns here), as its receipt once it is.
+// the order reads from left to right in five columns — the time with the date under it, the order type, the customer or
+// table with the server under it, the order status, and the payment (the amount with the payment status under it) —
+// then two round buttons side by side, well apart, with no column name: text the customer (when the order has their
+// phone number) and buzz the order's pager, its number on the button (whatever the payment status). The ticket number
+// shows on the opened order. The list scrolls by touch, with no scroll bar, over the buttons too. Tapping an order
+// anywhere but its buttons opens it: in Counter while it isn't paid (Back returns here), as its receipt once it is; a tap
+// around the buttons does nothing, so a near miss never opens the order.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
@@ -52,7 +53,7 @@
     if (!o.sentAt) return o.readyAt ? { text: 'Scheduled', sub: whenShort(o.readyAt), cls: 'scheduled' } : { text: 'Saved', cls: '' };
     return o.paidAt ? { text: 'Completed', cls: 'done' } : { text: 'In kitchen', cls: 'kitchen' };
   }
-  const COLUMNS = [['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['Buzzer', 'ord-buzzer'], ['', 'ord-acts']];
+  const COLUMNS = [['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['', 'ord-acts']];
   // (the name column's heading, on a small tablet, breaks only after the slash)
   // The date under the time, in numbers: 03/11/2026 (day/month/year)
   const fullDate = when => new Date(when).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -68,11 +69,11 @@
     const payClass = refunded ? 'refunded' : paid ? 'paid' : 'unpaid';
     const phone = typeof o.customer?.mobile === 'string' && o.customer.mobile.trim() ? o.customer.mobile.trim() : '';
     // The two round buttons: text the customer (greyed out without a phone number) and buzz the pager ("Buzz" over its
-    // number; "Buzz" greyed out without one). A tap on either only does its action, or nothing when it is greyed out;
-    // it never opens the order.
+    // number; "Buzz" greyed out without one). A tap on either only does its action, or nothing when it is greyed out; a
+    // tap between or around them does nothing; neither ever opens the order.
     const bubble = (cls, on, label, act, ...content) => el('button', { type: 'button', class: `ord-bubble ${cls}${on ? '' : ' off'}`, 'aria-disabled': on ? null : 'true', 'aria-label': label,
       onclick: e => { e.stopPropagation(); if (on) act(); }, onkeydown: e => e.stopPropagation() }, ...content);
-    const acts = cell('ord-acts',
+    const acts = el('span', { class: 'ord-c ord-acts', onclick: e => e.stopPropagation() },
       bubble('ord-text', Boolean(phone), phone ? `Text ${name}` : 'Text: no phone number', () => textCustomer(o), svg(ICON.send)),
       bubble('ord-ping', Boolean(o.pager), o.pager ? `Buzz pager ${o.pager}` : 'Buzz: no pager', () => buzzPager(o), el('span', { class: 'ord-ping-word' }, 'Buzz'), o.pager ? el('span', { class: 'ord-ping-no' }, String(o.pager)) : null));
     const cells = [
@@ -81,7 +82,6 @@
       twoLines('ord-name', name, o.server || ''),
       status.sub ? twoLines(`ord-status ${status.cls}`, status.text, status.sub) : cell(`ord-status ${status.cls}`, status.text),
       twoLines('ord-pay', money(o.total), pay, payClass),
-      cell('ord-buzzer', o.pager ? String(o.pager) : '—'),
       acts];
     const label = `Order ${o.number}, ${timeOf(o.createdAt)}, ${fullDate(o.createdAt)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
     const open = () => (paid ? showReceipt(o) : window.RestroCounter?.openOrder(o.uid || o.number));
