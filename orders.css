@@ -24,15 +24,15 @@
 .ord-head h2{margin:0 0 0 2px;font-size:18px;font-weight:600;color:var(--ord-text)}
 #orders-title:focus{outline:none}
 
-/* The columns, the same for the names and every row: Ticket (#01 … each day) · Date & time (the time, the date under it
-   in numbers) · Customer / Table - Server (the server under the customer or table) · Buzzer · Order type · Order status ·
-   Payment status (the amount, the status under it). Seven columns that share the width, the name the most and the
-   ticket and the buzzer the least, so there is room on small tablets and on large screens alike. */
+/* The columns, the same for the names and every row: Date & time (the time, the date under it in numbers) · Order type ·
+   Customer / Table - Server (the server under the customer or table) · Order status · Payment status (the amount, the
+   status under it) · Buzzer · then the two round buttons, with no name. The six columns share the width, the name the
+   most and the buzzer the least, so there is room on small tablets and on large screens alike; the buttons keep theirs. */
 .ord-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 0 16px;scrollbar-width:none}
 .ord-list::-webkit-scrollbar{display:none}
 /* The list sits in .ord-body and scrolls by touch, with no scroll bar at all (nor the scroll handle other screens use). */
 .ord-body{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.ord-cols,.ord-row{display:grid;grid-template-columns:minmax(56px,.5fr) minmax(104px,1fr) minmax(0,1.8fr) minmax(60px,.55fr) minmax(100px,.9fr) minmax(110px,1fr) minmax(110px,1fr);align-items:center;column-gap:12px}
+.ord-cols,.ord-row{display:grid;grid-template-columns:minmax(104px,1fr) minmax(100px,.9fr) minmax(0,1.8fr) minmax(110px,1fr) minmax(110px,1fr) minmax(60px,.55fr) 106px;align-items:center;column-gap:12px}
 .ord-cols{position:sticky;top:0;z-index:1;padding:12px 16px 8px 20px;background:var(--ord-grey);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .ord-cols .ord-c{position:relative;overflow:visible;text-align:center;font-size:11px;font-weight:700;color:var(--ord-text);white-space:normal} /* the column names: bold black, centred (a long one takes two lines on a small tablet) */
 .ord-cols .ord-c+.ord-c::before{content:"";position:absolute;left:-7px;top:50%;width:1px;height:12px;margin-top:-6px;background:color-mix(in srgb,var(--ord-muted) 45%,transparent)} /* the short line between two names, in the middle of the gap */
@@ -40,11 +40,12 @@
 .ord-row{width:100%;min-height:65px;margin:0;padding:0 16px 0 20px;border:0;border-radius:0;background:#ffffff;box-shadow:none;color:var(--ord-text);text-align:left} /* 65px: 20% taller than the first 54px */
 .ord-rows>.ord-row:nth-child(even){background:var(--ord-zebra)} /* the grey rows, a little deeper than the column-name strip */
 .ord-root .ord-row{line-height:1.25}
-button.ord-row{cursor:pointer;transition:background-color .12s ease}
-button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background:var(--ord-press)}
+.ord-row.ord-open{cursor:pointer;transition:background-color .12s ease}
+.ord-row.ord-open:focus-visible{outline:2px solid var(--ord-text);outline-offset:-2px}
+/* Pressed: the row, unless the press is on one of its two round buttons (they never open the order) */
+.ord-row.ord-open:active:not(:has(.ord-bubble:active)),.ord-rows>.ord-row.ord-open:nth-child(even):active:not(:has(.ord-bubble:active)){background:var(--ord-press)}
 .ord-c{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
 /* Every detail is regular weight (not bold) and black, except the colour-coded ones, which keep their colours. */
-.ord-ticket{font-size:16px;font-weight:400;font-variant-numeric:tabular-nums}
 .ord-when{font-size:14px;font-weight:400;color:var(--ord-text)}
 .ord-type{display:inline;padding:0;border-radius:0;background:none;color:#0284c7;font-size:14px;font-weight:400} /* the order type as text, in sky blue */
 .ord-name{font-weight:400}
@@ -67,6 +68,46 @@ button.ord-row:active,.ord-rows>button.ord-row:nth-child(even):active{background
 .ord-pay .ord-main{font-variant-numeric:tabular-nums}
 .ord-status .ord-sub{color:inherit} /* Scheduled, with its ready time under it, both in plum */
 
+/* The two round bubble buttons, side by side after the buzzer, with no column name: text the customer (a send icon,
+   sky blue) and buzz the pager ("Buzz" over its number, neon orange). Without a phone number or a pager, a button is
+   greyed out and does nothing. A finger that moves on them scrolls the list; a tap does the action, never opening the
+   order. */
+.ord-c.ord-acts{display:flex;align-items:center;justify-content:center;gap:10px;overflow:visible}
+.ord-bubble{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;width:48px;height:48px;margin:0;padding:0;border:0;border-radius:50%;
+  color:#ffffff;font-weight:700;line-height:1;cursor:pointer;touch-action:manipulation;
+  background-image:radial-gradient(circle at 32% 26%,rgba(255,255,255,.5),rgba(255,255,255,0) 46%);
+  box-shadow:0 2px 4px rgba(15,23,42,.24),inset 0 -2px 4px rgba(15,23,42,.14);transition:transform .08s ease,filter .12s ease}
+.ord-bubble svg{width:20px;height:20px;stroke-width:2.1;margin-left:-2px}
+.ord-text{background-color:#0284c7}
+.ord-ping{background-color:#ff6700}
+.ord-ping-word{font-size:11px}
+.ord-ping-no{margin-top:2px;font-size:15px;font-variant-numeric:tabular-nums}
+.ord-bubble:not(.off):active{transform:scale(.94);filter:brightness(.92)}
+.ord-bubble.off{background:#ffffff;color:#a3a9b2;box-shadow:inset 0 0 0 calc(4px / 3) #dde1e6;cursor:default}
+.ord-cols .ord-c.ord-acts::before{display:none} /* no column name, so no line before it */
+@media (prefers-reduced-motion:reduce){.ord-bubble{transition:none}}
+
+/* A paid order's receipt: a white card over the list, darkened behind it. */
+.ord-sheet-wrap{position:absolute;inset:0;z-index:5;display:grid;place-items:center;padding:16px;background:rgba(15,23,42,.32)}
+.ord-receipt{width:min(380px,100%);max-height:100%;overflow:auto;padding:18px 20px 20px;border-radius:16px;background:#ffffff;color:#1f2933;box-shadow:0 18px 48px rgba(15,23,42,.28);scrollbar-width:none}
+.ord-receipt-head{display:flex;align-items:center;justify-content:space-between}
+.ord-receipt-head h3{margin:0;font-size:17px;font-weight:600}
+.ord-x{display:grid;place-items:center;width:32px;height:32px;margin:0;padding:0;border:0;border-radius:50%;background:#f5f6f7;color:#1f2933;box-shadow:inset 0 0 0 1px #cbcfd5;cursor:pointer}
+.ord-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.ord-receipt-no{margin:12px 0 2px;font-size:30px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+.ord-receipt-meta{margin:2px 0 0;font-size:14px;text-align:center}
+.ord-receipt-meta.ord-sub{font-size:13px;color:#6b7280}
+.ord-receipt-lines{margin:14px 0 0;padding:10px 0 0;list-style:none;border-top:1px dashed #cbcfd5}
+.ord-receipt-lines li{display:grid;grid-template-columns:minmax(0,1fr) auto 84px;gap:10px;align-items:baseline;padding:4px 0;font-size:14px}
+.ord-receipt-item{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ord-receipt-qty{color:#6b7280;font-variant-numeric:tabular-nums}
+.ord-receipt-amt{text-align:right;font-variant-numeric:tabular-nums}
+.ord-receipt-sums{display:grid;grid-template-columns:1fr auto;gap:6px 10px;margin:10px 0 0;padding:10px 0 0;border-top:1px dashed #cbcfd5;font-size:14px}
+.ord-receipt-sums dt{margin:0;color:#6b7280}
+.ord-receipt-sums dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.ord-receipt-sums .ord-receipt-total{padding-top:4px;font-size:16px;font-weight:700;color:#1f2933}
+.ord-receipt-paid{margin:14px 0 0;text-align:center;font-size:14px;font-weight:600;color:#00c853}
+
 .ord-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:var(--ord-muted)}
 .ord-empty strong{font-size:18px;color:var(--ord-text)}
-@media (prefers-reduced-motion:reduce){button.ord-row{transition:none}}
+@media (prefers-reduced-motion:reduce){.ord-row.ord-open{transition:none}}

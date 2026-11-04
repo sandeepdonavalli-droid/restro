@@ -1,9 +1,11 @@
 'use strict';
 // Orders: a full-screen app with every saved order (Save or Pay), newest first, one order to a row: everything about
-// the order reads from left to right in seven columns — the ticket number (made by the system, from #01 each day), the
-// time with the date under it, the customer or table with the server under it, the buzzer (pager), the order type, the
-// order status, and the payment (the amount with the payment status under it). The list scrolls by touch, with no scroll
-// bar. Tapping an order that is not paid yet opens it in Counter; Back returns here.
+// the order reads from left to right in six columns — the time with the date under it, the order type, the customer or
+// table with the server under it, the order status, the payment (the amount with the payment status under it) and the
+// buzzer (pager) — then two round buttons side by side, with no column name: text the customer (when the order has
+// their phone number) and buzz the order's pager (whatever the payment status). The ticket number shows on the opened
+// order. The list scrolls by touch, with no scroll bar, over the buttons too. Tapping an order anywhere but its two
+// buttons opens it: in Counter while it isn't paid (Back returns here), as its receipt once it is.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
@@ -20,7 +22,8 @@
     return node;
   }
   const svg = path => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = path; return s; };
-  const ICON = { home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', back: '<path d="m15 6-6 6 6 6"/>' };
+  const ICON = { home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', back: '<path d="m15 6-6 6 6 6"/>',
+    send: '<path d="M21 3 10.2 13.8"/><path d="M21 3 14.3 21l-4.1-7.2L3 9.7Z"/>', close: '<path d="M6 6l12 12M18 6 6 18"/>' };
   const appIcon = () => {
     const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode(shortcuts.find(item => item.id === 'orders').art) : document.createElement('span');
     art.classList.add('ord-title-icon'); return art;
@@ -49,12 +52,11 @@
     if (!o.sentAt) return o.readyAt ? { text: 'Scheduled', sub: whenShort(o.readyAt), cls: 'scheduled' } : { text: 'Saved', cls: '' };
     return o.paidAt ? { text: 'Completed', cls: 'done' } : { text: 'In kitchen', cls: 'kitchen' };
   }
-  const COLUMNS = [['Ticket', 'ord-ticket'], ['Date & time', 'ord-when'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Buzzer', 'ord-buzzer'], ['Order type', 'ord-typecell'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay']];
+  const COLUMNS = [['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['Buzzer', 'ord-buzzer'], ['', 'ord-acts']];
   // (the name column's heading, on a small tablet, breaks only after the slash)
   // The date under the time, in numbers: 03/11/2026 (day/month/year)
   const fullDate = when => new Date(when).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const cell = (cls, ...content) => el('span', { class: `ord-c ${cls}` }, ...content);
-  const ticket = n => `#${String(n).padStart(2, '0')}`; // #01 … the day's numbers start at 1
   // Two details in one column, one under the other: the main one, and a smaller one under it (left out when empty)
   const twoLines = (cls, main, sub, subCls = '') => cell(`ord-two ${cls}`, el('span', { class: 'ord-main' }, main), sub ? el('span', { class: `ord-sub ${subCls}`.trim() }, sub) : null);
 
@@ -64,19 +66,70 @@
     const refunded = Boolean(o.refundedAt), partial = !paid && Number.isFinite(o.paidAmount) && o.paidAmount > 0 && o.paidAmount < o.total;
     const pay = refunded ? 'Refunded' : paid ? `Paid · ${METHODS[o.method] || 'Cash'}` : partial ? 'Partially paid' : 'Not paid';
     const payClass = refunded ? 'refunded' : paid ? 'paid' : 'unpaid';
+    const phone = typeof o.customer?.mobile === 'string' && o.customer.mobile.trim() ? o.customer.mobile.trim() : '';
+    // The two round buttons: text the customer (greyed out without a phone number) and buzz the pager ("Buzz" over its
+    // number; "Buzz" greyed out without one). A tap on either only does its action, or nothing when it is greyed out;
+    // it never opens the order.
+    const bubble = (cls, on, label, act, ...content) => el('button', { type: 'button', class: `ord-bubble ${cls}${on ? '' : ' off'}`, 'aria-disabled': on ? null : 'true', 'aria-label': label,
+      onclick: e => { e.stopPropagation(); if (on) act(); }, onkeydown: e => e.stopPropagation() }, ...content);
+    const acts = cell('ord-acts',
+      bubble('ord-text', Boolean(phone), phone ? `Text ${name}` : 'Text: no phone number', () => textCustomer(o), svg(ICON.send)),
+      bubble('ord-ping', Boolean(o.pager), o.pager ? `Buzz pager ${o.pager}` : 'Buzz: no pager', () => buzzPager(o), el('span', { class: 'ord-ping-word' }, 'Buzz'), o.pager ? el('span', { class: 'ord-ping-no' }, String(o.pager)) : null));
     const cells = [
-      cell('ord-ticket', ticket(o.number)),
       twoLines('ord-when', timeOf(o.createdAt), fullDate(o.createdAt)),
-      twoLines('ord-name', name, o.server || ''),
-      cell('ord-buzzer', o.pager ? String(o.pager) : '—'),
       cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
+      twoLines('ord-name', name, o.server || ''),
       status.sub ? twoLines(`ord-status ${status.cls}`, status.text, status.sub) : cell(`ord-status ${status.cls}`, status.text),
-      twoLines('ord-pay', money(o.total), pay, payClass)];
-    const label = `Order ${o.number}, ${timeOf(o.createdAt)}, ${fullDate(o.createdAt)}, ${name}${o.server ? `, server ${o.server}` : ''}${o.pager ? `, buzzer ${o.pager}` : ''}, ${type.label}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}`;
-    return paid
-      ? el('div', { class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': label }, ...cells)
-      : el('button', { type: 'button', class: 'ord-row', role: 'listitem', style: `--type:${type.color}`, 'aria-label': `${label}. Open in Counter`, onclick: () => window.RestroCounter?.openOrder(o.uid || o.number) }, ...cells);
+      twoLines('ord-pay', money(o.total), pay, payClass),
+      cell('ord-buzzer', o.pager ? String(o.pager) : '—'),
+      acts];
+    const label = `Order ${o.number}, ${timeOf(o.createdAt)}, ${fullDate(o.createdAt)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
+    const open = () => (paid ? showReceipt(o) : window.RestroCounter?.openOrder(o.uid || o.number));
+    return el('div', { class: 'ord-row ord-open', role: 'listitem', tabindex: '0', style: `--type:${type.color}`, 'aria-label': `${label}. ${paid ? 'Open the receipt' : 'Open in Counter'}`, onclick: open,
+      onkeydown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); open(); } } }, ...cells);
   }
+
+  // A paid order's receipt, over the list: its ticket number, the order, the items, the sums and the payment.
+  const ticket = n => `#${String(n).padStart(2, '0')}`;
+  let receipt = null;
+  function closeReceipt() { if (!receipt) return false; receipt.remove(); receipt = null; return true; }
+  function showReceipt(o) {
+    closeReceipt();
+    const type = typeOf(o), sub = Number.isFinite(o.subtotal) ? o.subtotal : o.lines.reduce((n, l) => n + Math.round(l.price * 100) * l.qty, 0);
+    const rate = sub ? Math.round((o.tax / sub) * 1000) / 10 : 0;
+    const cash = (o.method || 'cash') === 'cash' && Number.isFinite(o.received);
+    receipt = el('div', { class: 'ord-sheet-wrap', onclick: e => { if (e.target === e.currentTarget) closeReceipt(); } },
+      el('div', { class: 'ord-receipt', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Receipt, order ${ticket(o.number)}` },
+        el('div', { class: 'ord-receipt-head' },
+          el('h3', {}, 'Receipt'),
+          el('button', { type: 'button', class: 'ord-x', 'aria-label': 'Close', onclick: closeReceipt }, svg(ICON.close))),
+        el('p', { class: 'ord-receipt-no' }, ticket(o.number)),
+        el('p', { class: 'ord-receipt-meta' }, [type.label, nameOf(o)].join(' · ')),
+        el('p', { class: 'ord-receipt-meta ord-sub' }, [`${fullDate(o.createdAt)} · ${timeOf(o.createdAt)}`, o.server || ''].filter(Boolean).join(' · ')),
+        el('ul', { class: 'ord-receipt-lines' }, ...o.lines.map(l => el('li', {},
+          el('span', { class: 'ord-receipt-item' }, l.name), el('span', { class: 'ord-receipt-qty' }, `× ${l.qty}`), el('span', { class: 'ord-receipt-amt' }, money(Math.round(l.price * 100) * l.qty))))),
+        el('dl', { class: 'ord-receipt-sums' },
+          el('dt', {}, 'Subtotal'), el('dd', {}, money(sub)),
+          el('dt', {}, rate ? `GST ${rate}%` : 'GST'), el('dd', {}, money(o.tax || 0)),
+          el('dt', { class: 'ord-receipt-total' }, 'Total'), el('dd', { class: 'ord-receipt-total' }, money(o.total)),
+          ...(cash ? [el('dt', {}, 'Cash received'), el('dd', {}, money(o.received)), el('dt', {}, 'Change given'), el('dd', {}, money(o.change || 0))] : [])),
+        el('p', { class: 'ord-receipt-paid' }, `Paid · ${METHODS[o.method] || 'Cash'} · ${timeOf(o.paidAt)}`)));
+    dialog.append(receipt);
+    receipt.querySelector('.ord-x')?.focus({ preventScroll: true });
+  }
+  // Texting the customer and buzzing pagers go through the Android app (RESTRODevice.sms, RESTRODevice.pager); without
+  // it, the button says so.
+  function textCustomer(o) {
+    const sms = window.RESTRODevice?.sms;
+    if (typeof sms?.send !== 'function') { toast('Texting starts with the RESTRO Android app'); return; }
+    Promise.resolve(sms.send({ to: o.customer.mobile, code: o.customer.code || '91', order: o.uid })).then(ok => toast(ok === false ? 'The text didn’t go' : `Text sent to ${o.customer.name || 'the customer'}`), () => toast('The text didn’t go'));
+  }
+  function buzzPager(o) {
+    const pager = window.RESTRODevice?.pager;
+    if (typeof pager?.buzz !== 'function') { toast('Pagers start with the RESTRO Android app'); return; }
+    Promise.resolve(pager.buzz(o.pager)).then(ok => toast(ok === false ? `Pager ${o.pager} didn’t buzz` : `Pager ${o.pager} buzzed`), () => toast(`Pager ${o.pager} didn’t buzz`));
+  }
+  const toast = message => { if (typeof window.toast === 'function') window.toast(message); };
 
   // Rendered into its own root so the system bar and toasts placed in the dialog survive re-renders.
   const root = el('div', { class: 'ord-root' }); dialog.prepend(root);
@@ -105,13 +158,13 @@
 
   // While open, the tiles keep up with the kitchen (a scheduled order goes to the kitchen at its time).
   let timer = null;
-  dialog.addEventListener('close', () => { clearInterval(timer); timer = null; fromCounter = false; });
+  dialog.addEventListener('close', () => { clearInterval(timer); timer = null; fromCounter = false; closeReceipt(); });
   // Back: to Counter when Orders was opened from there; otherwise Orders closes (to the home screen).
   function goBack() {
     if (!dialog.open || !fromCounter || !window.RestroCounter) return false;
     fromCounter = false; window.RestroCounter.resume(); return true;
   }
-  dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
+  dialog.addEventListener('cancel', event => { if (closeReceipt() || goBack()) event.preventDefault(); }); // Back closes a receipt first
 
   // Toasts must show above this full-screen app (and go back to Counter, or home, after it closes).
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;
