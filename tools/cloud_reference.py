@@ -9,10 +9,11 @@ data. The real cloud implements the same endpoints with a database, real sign-in
 Endpoints (every request carries `Authorization: Bearer <token>`):
     POST /v1/restaurants/<id>/sync/push    { device, protocol, changes: [{ c, i, h, b, doc | x }] } -> { results }
     GET  /v1/restaurants/<id>/sync/pull?since=<seq>&limit=<n>                                  -> { seq, changes, more }
-    POST /v1/restaurants/<id>/numbers/next { device, day }                                         -> { day, number }
+    POST /v1/restaurants/<id>/numbers/next { device, day, after }                                  -> { day, number }
 
 Ticket numbers are one sequence a day for the whole restaurant, starting again at 1 every business day: each order
-carries its day (YYYY-MM-DD). The main system gives them; without one, the cloud does (numbers/next).
+carries its day (YYYY-MM-DD). The cloud keeps the count (numbers/next); the main system keeps it while the restaurant's
+internet is down, and every request carries the highest number the asking device knows of the day.
 """
 import argparse, json, re, threading, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -47,17 +48,19 @@ class Restaurant:
         return [r['doc']['number'] for key, r in self.records.items() if key.startswith('orders/') and key != f'orders/{but}' and 'doc' in r
                 and isinstance(r['doc'].get('number'), int) and (r['doc'].get('day') or '') == day]
 
-    # The next ticket number of a day, for a tablet without a main system: after every number the cloud has given or
-    # seen that day (an order may have been deleted since)
-    def next_number(self, day):
+    # The next ticket number of a day: after every number the cloud has given or seen that day (an order may have been
+    # deleted since), and after `after`, the highest number the asking device knows of the day (the main system may have
+    # numbered orders while the internet was down)
+    def next_number(self, day, after=0):
         with self.lock:
             day = str(day or '')
-            number = max(self.days.get(day, 1), max(self.numbers_on(day), default=0) + 1)
+            after = after if isinstance(after, int) and not isinstance(after, bool) else 0
+            number = max(self.days.get(day, 1), max(self.numbers_on(day), default=0) + 1, after + 1)
             self.days[day] = number + 1
             return {'day': day, 'number': number}
 
-    # Ticket numbers, as on the main system, within the order's day. Numbers are given by the main system (or by the
-    # cloud), so this only settles a device's own orders from before it joined (marked provisional): a provisional number
+    # Ticket numbers, as on the main system, within the order's day. Numbers come from one count (numbers/next), so this
+    # only settles a device's own orders from before it joined (marked provisional): a provisional number
     # stays if no other order that day has it; otherwise the order gets the day's next number. The same happens to an
     # open order whose number another order that day has.
     def settle(self, rid, doc):
@@ -142,7 +145,7 @@ def make_handler(cloud):
             if what == 'sync/pull' and method == 'GET':
                 q = parse_qs(url.query)
                 return self.reply(200, r.pull(int(q.get('since', ['0'])[0] or 0), max(1, min(300, int(q.get('limit', ['300'])[0] or 300)))))
-            if what == 'numbers/next' and method == 'POST': return self.reply(200, r.next_number(body.get('day')))
+            if what == 'numbers/next' and method == 'POST': return self.reply(200, r.next_number(body.get('day'), body.get('after')))
             return self.reply(405, {'error': 'method'})
         def do_GET(self): self.route('GET')
         def do_POST(self): self.route('POST')

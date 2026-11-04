@@ -27,20 +27,21 @@ tablet ─┼── main system ── cloud
 tablet ─┘   (printers)
 ```
 
-Each device has exactly one server:
+Each device has one server at a time:
 
 - A tablet paired with the main system uses the main system. They talk over the restaurant's Wi-Fi or Bluetooth,
   through the Android app.
 - The main system uses the cloud, once it is set up.
 - A tablet without a main system uses the cloud.
 
-The main system is a server for its tablets and a client of the cloud. Paired tablets never talk to the cloud directly.
-So each record has one line of versions per server, and a merge always starts from the right version.
+The main system is a server for its tablets and a client of the cloud. A merge always starts from the version the
+change was made on, so a tablet can change servers safely.
 
-**Without the internet:** the tablets keep working together through the main system.
+**Without the internet:** the tablets keep working together through the main system, and it prints for the kitchen.
 
-**If the main system is off:** the tablets can't fire orders, as the main system gives the ticket numbers. Turn it
-back on, or replace it (below).
+**If the main system is off:** a paired tablet signed in to the cloud carries on with the cloud on its own, once the
+main system has been gone for 5 seconds. It goes back to the main system when it is on again. The kitchen printer is
+wired to the main system, so it can't print until then.
 
 **To replace the main system:** turn on Main system on another paired tablet. It keeps the same pairing code, so the
 other tablets follow it.
@@ -142,24 +143,30 @@ Deleting on purpose leaves a tombstone, kept for 30 days. Records a tablet only 
 
 ## Ticket numbers
 
-**One sequence a day for the whole restaurant, given by the main system.** The main system gives every ticket number,
-for its own orders and for every tablet's: if its last order is #10, the next order, from any tablet, is #11. Two orders
-never share a number, and a number never changes.
+**One sequence a day for the whole restaurant, kept in one place.** The cloud keeps the count. While the restaurant's
+internet is down, the main system keeps it. If the last order is #10, the next order, from any device, is #11. Two
+orders never share a number, and a number never changes.
 
 **Every business day starts again at #01.** A business day runs from 4 AM to 4 AM, so a late night after midnight stays
 on the same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
 They repeat from day to day, so an order is always found by its `uid`, never by its number.
 
-**Firing an order:** when a tablet fires a new order, it asks the main system for the next number (over the
-restaurant's Wi-Fi or Bluetooth) and saves the order with it. The main system numbers its own orders from the same
-count. It remembers the highest number it has given or seen today, so a deleted order's number isn't given again.
-- **Without the internet:** nothing changes, as the tablets reach the main system over the restaurant's network.
-- **Out of reach of the main system:** a tablet can't fire an order, or save or take payment on one. It says so, and
-  the order stays on its screen until it can.
-- **Out of range, with its own internet (to build, with the cloud):** the cloud will pass the tablet's messages to the
-  main system and back, so it works as if it were in range. This needs the main system online too.
-- **Without a main system:** a tablet asks the cloud for the number instead, and can't fire without the internet.
+**Firing an order:** a tablet asks for the next number when it fires a new order, and saves the order with it:
+- **Through the main system,** over the restaurant's Wi-Fi or Bluetooth. The main system asks the cloud (2 seconds at
+  most), or numbers from its own count while the internet is down. It numbers its own orders the same way.
+- **Straight from the cloud,** while the main system can't be reached (say it is off), or doesn't answer in 3 seconds.
+  This needs the tablet to be signed in to the cloud.
+- **Neither:** the tablet can't fire an order, or save or take payment on one. It says so, and the order stays on its
+  screen until it can.
 - **On its own:** a tablet counts by itself.
+
+Every request carries `after`, the highest number the asking device knows of the day, and the answer is always past
+it. So when the internet comes back, the cloud carries on after the numbers the main system gave without it. Each
+device also remembers the highest number it has given or seen today, so a deleted order's number isn't given again.
+
+The one case that can still clash: a tablet out of the main system's range, on its own mobile data, fires while the
+restaurant's internet is down. The cloud then gives the number while the main system also gives numbers. When the two
+meet, the cloud gives the later open order the next number, and the tablet shows "Order #11 is now #12".
 
 **A tablet's orders from before it joined:** joining (below) marks them `numberProvisional`. The server settles them
 when it takes them, within the order's day:
@@ -199,7 +206,7 @@ message is dropped.
 | --- | --- | --- |
 | `{ t: 'pull', rid, since }` | tablet → main | `{ t: 'batch', re: rid, server, seq, changes, more }` |
 | `{ t: 'push', rid, changes }` (up to 200 records, about 200 kB) | tablet → main | `{ t: 'ack', re: rid, results }` |
-| `{ t: 'number', rid }` (firing a new order; answered within 4 seconds or not fired) | tablet → main | `{ t: 'number', re: rid, day, number }` |
+| `{ t: 'number', rid, after }` (firing a new order; answered within 3 seconds or asked of the cloud) | tablet → main | `{ t: 'number', re: rid, day, number }` |
 | `{ t: 'batch', server, from, seq, changes }` | main → all | None. A tablet whose cursor is behind `from − 1` pulls. |
 
 A tablet pushes and pulls:
@@ -220,7 +227,7 @@ Every request carries these headers:
 | --- | --- | --- |
 | `POST /sync/push` | `{ device, protocol, changes }` | `{ results: [{ c, i, h, ok } \| { c, i, h, conflict, current }] }` |
 | `GET /sync/pull?since=<seq>&limit=300` | none | `{ seq, changes, more }` |
-| `POST /numbers/next` (a tablet without a main system, firing a new order) | `{ device, day }` | `{ day, number }` |
+| `POST /numbers/next` (firing a new order) | `{ device, day, after }` | `{ day, number }`, past `after` and every number of the day |
 | WebSocket `/sync/live` (optional) | First message: `{ t: 'auth', token, device, since }` | `{ from, seq, changes }`, as changes happen |
 
 The rules are the server rules above, the same as the main system's. `tools/cloud_reference.py` implements them in
@@ -231,8 +238,7 @@ The cloud must:
 - store PIN hashes only in its database, never in logs: a 4-digit PIN's hash is only as safe as the database;
 - keep tombstones for at least 30 days;
 - never accept card data (none is ever sent);
-- pass local messages between a tablet that is out of range and its main system, when both are online. They stay
-  sealed with the pairing code's key, so the cloud can't read them.
+- give ticket numbers one at a time, so two requests never get the same number.
 
 ## Security
 

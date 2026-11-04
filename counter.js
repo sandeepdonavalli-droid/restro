@@ -55,7 +55,7 @@
   let panelOrder = ordered(PANEL_TILES, load(PANEL_KEY, null));
   const tileAt = key => ({ 'data-tile': key, style: `order:${panelOrder.indexOf(key)}` });
   let panelArranging = false, panelDrag = null, panelGesture = null, panelHold = null, panelSuppress = false;
-  // Ticket numbers come from sync: one sequence a day for the whole restaurant, given by the main system (sync.js). This
+  // Ticket numbers come from sync: one sequence a day for the whole restaurant, kept by the cloud or the main system. This
   // one is for orders moved over from an earlier version of the app; a new order gets its number as it is fired (fire()).
   const nextNumber = () => { if (window.RestroSync) return window.RestroSync.nextNumber(); const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
   const idOf = o => o.uid || `n${o.number}`; // an order's id everywhere (orders from before sync are known by their number)
@@ -295,10 +295,13 @@
     return { entry, sentNow, isNew: !prev };
   }
   // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
-  // main system (or the cloud, without one), which gives a new order its number, so no two orders share one. Otherwise
-  // it says so and the order stays on screen. Returns what upsertOrder does, or null.
+  // main system or the cloud, as a new order takes its number from them, so no two orders share one. Otherwise it says
+  // so and the order stays on screen. Returns what upsertOrder does, or null.
   let firing = false;
-  const cantFire = pay => `${window.RestroSync?.status().upstream === 'cloud' ? 'No internet' : 'Can’t reach the main system'} · ${pay ? 'payment not taken' : 'order not saved'}`;
+  const cantFire = pay => {
+    const st = window.RestroSync?.status();
+    return `${!st?.cloud.setUp ? 'Can’t reach the main system' : st.paired ? 'No connection' : 'No internet'} · ${pay ? 'payment not taken' : 'order not saved'}`;
+  };
   async function fire(pay) {
     const sync = window.RestroSync, target = order;
     if (firing || !order.lines.length) return null;
@@ -383,8 +386,8 @@
     if (names.includes('orders') && (order.uid || order.number)) followOpenOrder();
     if (dialog.open && (names.includes('held') || names.includes('orders'))) render();
   });
-  // An order this tablet had from before it joined the others, whose number another order that day has: the main system
-  // gave it the next free number.
+  // An order this tablet had from before it joined the others, whose number another order that day has: it was given the
+  // next free number.
   window.addEventListener('restro:orders-renumbered', e => {
     const list = (e.detail?.orders || []).filter(r => Number.isInteger(r.from) && Number.isInteger(r.to));
     if (!list.length) return;

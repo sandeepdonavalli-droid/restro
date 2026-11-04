@@ -10,19 +10,20 @@
 //   it calls RestroSync.wrote(key): each record that changed gets a version (a hybrid clock stamp: time · counter ·
 //   tablet) and waits to be sent. A record deleted on purpose goes through RestroSync.removed(), so the deletion travels
 //   too; records a tablet only clears from itself (paid orders past the latest 500, held tickets after their day) don't.
-// - Every tablet has one server, which puts the changes in order and hands them out:
+// - Every tablet has one server at a time, which puts the changes in order and hands them out:
 //     · the main system (the tablet the printers are wired to) for the tablets paired with it, over the restaurant's own
 //       Wi-Fi or Bluetooth through the Android app (RESTRODevice.localSync, see ANDROID-BRIDGE.md), so the restaurant
 //       keeps working together when the internet drops;
-//     · the cloud (once it is set up) for the main system, and for a tablet without one (the owner's, at home).
+//     · the cloud (once it is set up) for the main system, for a tablet without one, and for a paired tablet while it
+//       can't reach the main system (say the main system is off).
 //   The cloud gets everything from the main system, and the tablets get the cloud's changes through it.
 // - A server takes a change only if it was made on the server's latest version of that record. Otherwise it sends that
 //   version back; the tablet merges the two (field by field against the version both started from; items added on both
 //   sides are all kept; a payment is never undone) and sends the result. Nothing is lost when two tablets change the
 //   same order, and the same change arriving twice changes nothing.
-// - Ticket numbers are one sequence a day for the whole restaurant, and the main system gives every one: a tablet asks
-//   it for the next number when it fires a new order, so two orders never share a number. A tablet that can't reach the
-//   main system can't fire an order. (Without a main system, the cloud gives the numbers.)
+// - Ticket numbers are one sequence a day for the whole restaurant, kept by the cloud (by the main system while the
+//   internet is down): a tablet asks for the next number when it fires a new order, through the main system, or from
+//   the cloud while the main system is off. Two orders never share a number. A tablet that reaches neither can't fire.
 // - Messages between tablets are encrypted with a key made from the restaurant's pairing code, so tablets of another
 //   restaurant, or anyone else on the network, can't join or read them.
 // Nothing here is part of the code or the website's data: everything stays on the tablets until the cloud exists.
@@ -89,9 +90,10 @@
   const PAIR = 'restro.sync.pair.v1', CLOUD = 'restro.cloud.v1';
   let pair = load(PAIR, null); if (!isObj(pair) || typeof pair.code !== 'string') pair = null;
   function cloudConfig() { const c = load(CLOUD, null); return isObj(c) && typeof c.endpoint === 'string' && typeof c.restaurantId === 'string' && typeof c.token === 'string' ? c : null; }
-  // This tablet's server: the main system for a tablet paired with one; the cloud for the main system and for a tablet
-  // without one, once it is set up; none for a tablet on its own.
-  const upstream = () => (device.main ? (cloudConfig() ? 'cloud' : null) : pair ? 'hub' : cloudConfig() ? 'cloud' : null);
+  // This tablet's server: for a tablet paired with the main system, the main system, or the cloud (once it is set up)
+  // while the main system can't be reached, say when it is off; the cloud for the main system and for a tablet without
+  // one, once it is set up; none for a tablet on its own.
+  const upstream = () => (device.main ? (cloudConfig() ? 'cloud' : null) : pair ? (cloudConfig() && Local.hubAway() ? 'cloud' : 'hub') : cloudConfig() ? 'cloud' : null);
 
   // ---------- hybrid clock: versions that sort by time across tablets, even with clocks a little apart ----------
   // A version is made after every version it was made from, so a change always sorts after what it changed.
@@ -495,11 +497,12 @@
   }
 
   // ---------- ticket numbers ----------
-  // One sequence a day for the whole restaurant, from #01, and the main system gives every number: its own orders' from
-  // its own count, and a tablet's when it fires a new order (the tablet asks it, over the restaurant's Wi-Fi or
-  // Bluetooth). So after the main system's #10 a tablet's next order is #11, two orders never share a number, and a
-  // number never changes. A tablet that can't reach the main system can't fire an order. Without a main system the cloud
-  // gives the numbers; a tablet on its own counts by itself.
+  // One sequence a day for the whole restaurant, from #01, kept in one place, so two orders never share a number and a
+  // number never changes: the cloud keeps the count while it can be reached, and the main system while the internet is
+  // down. A tablet fires a new order by asking for its number: through the main system (over the restaurant's Wi-Fi or
+  // Bluetooth), or straight from the cloud while the main system can't be reached, say when it is off. A tablet that
+  // reaches neither can't fire an order. Every request carries the highest number the tablet knows of the day, and the
+  // answer is always past it. A tablet on its own counts by itself.
   // The day's next number: after every order of that day here and, for today, after every number this tablet has given
   // or seen (an order may have been deleted since)
   function nextOn(day, docs) {
@@ -514,23 +517,36 @@
     const t = load(TICKET_KEY, null), next = isObj(t) && t.day === day ? Number(t.next) || 1 : 1;
     if (doc.number >= next) save(TICKET_KEY, { day, next: doc.number + 1 });
   }
-  // This tablet's own next number: { day, number }
-  function ownNumber() {
-    const day = today(), number = nextOn(day);
+  // The highest number this tablet knows of today
+  const knownToday = () => nextOn(today()) - 1;
+  // This tablet's own next number, past `after` too: { day, number }
+  function ownNumber(after = 0) {
+    const day = today(), number = Math.max(nextOn(day), after + 1);
     save(TICKET_KEY, { day, next: number + 1 });
     return { day, number };
   }
-  // On its own, and as the main system, a tablet gives its numbers itself
-  const givesNumbers = () => device.main || !upstream();
-  // Whether this tablet can fire an order now: always on its own and as the main system; otherwise only while it reaches
-  // its server (the main system, or the cloud without one)
-  function canFire() { return givesNumbers() || (upstream() === 'hub' ? Boolean(Local.hubId()) : Cloud.ready()); }
-  // The number for a new order being fired: { day, number } from whoever gives this tablet its numbers, or null if it
-  // can't be reached (then the order isn't fired)
+  const validNumber = t => isObj(t) && typeof t.day === 'string' && t.day.length > 0 && Number.isInteger(t.number) && t.number > 0;
+  // A new order's number on the main system (its own order, or a tablet's): from the cloud while it can be reached
+  // (2 seconds at most), from its own count while it can't
+  async function mainNumber(after = 0) {
+    after = Math.max(Number.isInteger(after) ? after : 0, knownToday());
+    if (cloudConfig() && Cloud.reachable()) {
+      const t = await Cloud.number(after, 2000).catch(() => null);
+      if (validNumber(t)) { sawNumber(t); return { day: t.day, number: t.number }; }
+    }
+    return ownNumber(after);
+  }
+  // Whether this tablet can fire an order now: always on its own and as the main system; otherwise while it reaches the
+  // main system, or the cloud once it is set up
+  function canFire() { return device.main || !upstream() || Boolean(Local.hubId()) || (Boolean(cloudConfig()) && Cloud.reachable()); }
+  // The number for a new order being fired: { day, number }, or null if this tablet reaches no one to give it (then the
+  // order isn't fired). The main system first; the cloud while the main system can't be reached, or doesn't answer.
   async function takeNumber() {
-    if (givesNumbers()) return ownNumber();
-    const t = upstream() === 'hub' ? await Local.number() : await Cloud.number().catch(() => null);
-    if (!isObj(t) || typeof t.day !== 'string' || !t.day || !Number.isInteger(t.number) || t.number < 1) return null;
+    if (device.main) return mainNumber();
+    if (!upstream()) return ownNumber();
+    let t = Local.hubId() ? await Local.number(knownToday()) : null;
+    if (!validNumber(t) && cloudConfig() && Cloud.reachable()) t = await Cloud.number(knownToday()).catch(() => null);
+    if (!validNumber(t)) return null;
     sawNumber(t);
     return { day: t.day, number: t.number };
   }
@@ -591,7 +607,7 @@
           const { results, accepted } = hubAccept(Array.isArray(msg.changes) ? msg.changes.slice(0, 500) : []);
           send({ t: 'ack', re: msg.rid, results }, fromId);
           if (accepted.length) broadcast({ t: 'batch', server: device.id, from: accepted[0].seq, seq: hub.seq, changes: accepted });
-        } else if (msg.t === 'number') send({ t: 'number', re: msg.rid, ...ownNumber() }, fromId); // a tablet firing a new order
+        } else if (msg.t === 'number') mainNumber(Number(msg.after)).then(t => send({ t: 'number', re: msg.rid, ...t }, fromId)); // a tablet firing a new order
         return;
       }
       // Other tablets: changes passed on by the main system as they happen
@@ -628,19 +644,31 @@
       } finally { pushing = false; emitStatus(); }
     }
     async function sync() { await push(); await pull(); await push(); }
-    // The next ticket number, from the main system (4 seconds at most, as someone is waiting to fire the order)
-    async function number() { const r = await request({ t: 'number' }, hubPeer()?.id, 4000); return r ? { day: r.day, number: r.number } : null; }
+    // The next ticket number, through the main system (3 seconds at most, as someone is waiting to fire the order).
+    // `after`: the highest number this tablet knows of today.
+    async function number(after) { const r = await request({ t: 'number', after }, hubPeer()?.id, 3000); return r ? { day: r.day, number: r.number } : null; }
+    // The main system counts as there until it has been gone a few seconds (and while a tablet starting up looks for it).
+    // Gone longer, a tablet signed in to the cloud carries on with the cloud, and comes back when the main system does.
+    const HUB_GRACE = 5000;
+    let hubSeenAt = now(), fallback = null;
+    const hubAway = () => !hubPeer() && now() - hubSeenAt > HUB_GRACE;
+    function watchHub() {
+      clearTimeout(fallback);
+      if (!device.main && pair && cloudConfig() && !hubPeer()) fallback = setTimeout(() => { if (upstream() === 'cloud') Cloud.sync(); }, Math.max(0, hubSeenAt + HUB_GRACE - now()) + 100);
+    }
     function onPeers(list) {
       const before = hubPeer()?.id;
       peers = (Array.isArray(list) ? list : []).filter(p => isObj(p) && typeof p.id === 'string' && p.id !== device.id).map(p => ({ id: p.id, name: String(p.name || '').slice(0, 40), main: Boolean(p.main) }));
       const hp = hubPeer();
       setStatus(device.main ? 'main' : !pair ? 'unpaired' : hp ? 'connected' : 'searching');
+      if (hp || before) hubSeenAt = now();
       if (hp && hp.id !== before) sync();
+      watchHub();
     }
     async function start() {
       const gen = ++generation;
       if (stop) { try { stop(); } catch {} stop = null; }
-      peers = []; key = null;
+      peers = []; key = null; hubSeenAt = now(); watchHub();
       if (!bridge()) { setStatus('unavailable'); return; }
       if (!pair) { setStatus('unpaired'); return; }
       const keys = await makeKeys(pair.code);
@@ -653,25 +681,30 @@
         setStatus(device.main ? 'main' : 'searching');
       } catch { setStatus('unavailable'); }
     }
-    return { start, send, push, pull, sync, number, hubId: () => hubPeer()?.id || null, hubName: () => hubPeer()?.name || null, peers: () => peers.slice(), status: () => status };
+    return { start, send, push, pull, sync, number, hubAway, watchHub, hubId: () => hubPeer()?.id || null, hubName: () => hubPeer()?.name || null, peers: () => peers.slice(), status: () => status };
   })();
   function broadcast(msg) { if (device.main) Local.send(msg); }
 
   // ---------- the cloud (set up later; see SYNC.md) ----------
-  // Configured with { endpoint, restaurantId, token } once the restaurant signs in; until then nothing goes out. Only the
-  // main system, and a tablet without one, talk to it.
+  // Configured with { endpoint, restaurantId, token } once the restaurant signs in; until then nothing goes out. The main
+  // system and a tablet without one sync with it; so does a tablet paired with the main system while it can't reach the
+  // main system, and it asks the cloud for ticket numbers then.
   const Cloud = (() => {
     let status = 'not-set-up', lastSync = 0, busy = false, again = false, failures = 0, timer = null, live = null;
     const online = () => navigator.onLine !== false && window.RestroConnectivity?.getStatus?.().internetAvailable !== false;
-    const ready = () => upstream() === 'cloud' && online() && status !== 'offline';
-    async function call(method, path, body) {
+    // Worth trying: online, and the last call didn't fail (a sync tries again)
+    const reachable = () => online() && status !== 'offline';
+    async function call(method, path, body, wait = 20000) {
       const cfg = cloudConfig(); if (!cfg) throw new Error('not set up');
-      const res = await fetch(`${cfg.endpoint.replace(/\/$/, '')}/v1/restaurants/${encodeURIComponent(cfg.restaurantId)}${path}`, {
-        method, headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json', 'X-Restro-Device': device.id, 'X-Restro-Protocol': String(PROTOCOL) },
-        body: body ? JSON.stringify(body) : undefined
-      });
-      if (!res.ok) throw new Error(`cloud ${res.status}`);
-      return res.json();
+      const stopper = new AbortController(), timer = setTimeout(() => stopper.abort(), wait);
+      try {
+        const res = await fetch(`${cfg.endpoint.replace(/\/$/, '')}/v1/restaurants/${encodeURIComponent(cfg.restaurantId)}${path}`, {
+          method, headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json', 'X-Restro-Device': device.id, 'X-Restro-Protocol': String(PROTOCOL) },
+          body: body ? JSON.stringify(body) : undefined, signal: stopper.signal
+        });
+        if (!res.ok) throw new Error(`cloud ${res.status}`);
+        return await res.json();
+      } finally { clearTimeout(timer); }
     }
     async function pushAll() {
       for (let guard = 0; guard < 20; guard++) {
@@ -700,8 +733,12 @@
       finally { busy = false; emitStatus(); schedule(); if (again) sync(); }
     }
     function schedule() { clearTimeout(timer); if (upstream() !== 'cloud') return; timer = setTimeout(sync, Math.min(60000, 15000 * Math.max(1, failures))); }
-    // The next ticket number, for a tablet without a main system: { day, number }
-    const number = () => call('POST', '/numbers/next', { device: device.id, day: today() });
+    // The next ticket number of today, past `after` (the highest number the asking tablet knows of today): { day, number }.
+    // A failure counts as the cloud being unreachable until a sync gets through again.
+    async function number(after, wait = 3000) {
+      try { return await call('POST', '/numbers/next', { device: device.id, day: today(), after }, wait); }
+      catch (e) { status = 'offline'; failures++; emitStatus(); schedule(); throw e; }
+    }
     // Live changes from the cloud, when it offers them (a WebSocket; the token goes in the first message, never in the
     // address). Fetching every 15 seconds carries on either way.
     function connectLive() {
@@ -721,7 +758,7 @@
     }
     window.addEventListener('online', () => { if (upstream() === 'cloud') { status = 'syncing'; sync(); } });
     window.addEventListener('offline', () => { if (upstream() === 'cloud') { status = 'offline'; emitStatus(); } });
-    return { sync, ready, number, connectLive, status: () => status, lastSync: () => lastSync };
+    return { sync, reachable, number, connectLive, status: () => status, lastSync: () => lastSync };
   })();
 
   // ---------- joining ----------
@@ -772,7 +809,7 @@
     return {
       device: { ...device }, mode: state.mode, upstream: upstream(), paired: Boolean(pair), pairCode: device.main ? pair?.code || null : null,
       local: { state: Local.status(), hub: Local.hubName(), tablets: peers.length, otherMains: device.main ? peers.filter(p => p.main).length : Math.max(0, peers.filter(p => p.main).length - 1) },
-      cloud: { state: Cloud.status(), lastSync: Cloud.lastSync() }, waiting: pendingCount()
+      cloud: { state: Cloud.status(), lastSync: Cloud.lastSync(), setUp: Boolean(cloudConfig()) }, waiting: pendingCount()
     };
   }
   let statusTimer = null;
@@ -822,7 +859,7 @@
     configureCloud(cfg) {
       if (isObj(cfg) && typeof cfg.endpoint === 'string' && typeof cfg.restaurantId === 'string' && typeof cfg.token === 'string') {
         save(CLOUD, { endpoint: cfg.endpoint, restaurantId: cfg.restaurantId, token: cfg.token });
-        join(); Cloud.sync(); Cloud.connectLive();
+        join(); Cloud.sync(); Cloud.connectLive(); Local.watchHub();
       } else { try { localStorage.removeItem(CLOUD); } catch {} }
       emitStatus();
     },
