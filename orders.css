@@ -17,9 +17,10 @@
 .ord-root button:focus-visible{outline:2px solid var(--ord-text);outline-offset:2px}
 
 .ord-head{flex:none;display:flex;align-items:center;gap:8px;margin:0 16px;padding:10px 0 9px;border-bottom:1px solid var(--ord-line)}
-.ord-nav{display:grid;place-items:center;width:32px;height:32px;margin:0;padding:0;border:0;border-radius:50%;background:var(--ord-grey);color:var(--ord-text);box-shadow:inset 0 0 0 1px var(--ord-line);cursor:pointer}
+/* Home: round, 35.2px with a 17.6px icon (10% bigger than the first 32px and 16px), the same as on Floor */
+.ord-nav{display:grid;place-items:center;width:35.2px;height:35.2px;margin:0;padding:0;border:0;border-radius:50%;background:var(--ord-grey);color:var(--ord-text);box-shadow:inset 0 0 0 1px var(--ord-line);cursor:pointer}
 .ord-nav:hover{background:var(--ord-press)}
-.ord-nav svg{width:16px;height:16px}
+.ord-nav svg{width:17.6px;height:17.6px}
 .ord-title-icon{display:block;width:36px;height:28px}
 .ord-head h2{margin:0 0 0 2px;font-size:18px;font-weight:600;color:var(--ord-text)}
 #orders-title:focus{outline:none}
