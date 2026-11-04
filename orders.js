@@ -7,6 +7,10 @@
 // shows on the opened order. The list scrolls by touch, with no scroll bar, over the buttons too. Tapping an order
 // anywhere but its buttons opens it: in Counter while it isn't paid (Back returns here), as its receipt once it is; a tap
 // around the buttons does nothing, so a near miss never opens the order.
+// Held (Counter's Held button) is the same page for the orders on hold, newest first, in the same columns: when it was
+// held, its type, the customer or table with the server, Held as its order status, and the total with Held under it,
+// both Held in grey; both round buttons are greyed out (its pager was released when it was held). Tapping a held order
+// carries on with it in Counter.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
@@ -62,29 +66,33 @@
   const twoLines = (cls, main, sub, subCls = '') => cell(`ord-two ${cls}`, el('span', { class: 'ord-main' }, main), sub ? el('span', { class: `ord-sub ${subCls}`.trim() }, sub) : null);
 
   function row(o) {
-    const type = typeOf(o), status = statusOf(o), paid = Boolean(o.paidAt), name = nameOf(o);
-    // Payment status: Paid (with how), Not paid or Partially paid (orange), Refunded (red; once refunds are kept).
-    const refunded = Boolean(o.refundedAt), partial = !paid && Number.isFinite(o.paidAmount) && o.paidAmount > 0 && o.paidAmount < o.total;
-    const pay = refunded ? 'Refunded' : paid ? `Paid · ${METHODS[o.method] || 'Cash'}` : partial ? 'Partially paid' : 'Not paid';
-    const payClass = refunded ? 'refunded' : paid ? 'paid' : 'unpaid';
+    const held = view === 'held', when = held ? o.savedAt : o.createdAt;
+    const type = typeOf(o), status = held ? { text: 'Held', cls: 'held' } : statusOf(o), paid = !held && Boolean(o.paidAt), name = nameOf(o);
+    // Payment status: Paid (with how), Not paid or Partially paid (orange), Refunded (red; once refunds are kept); Held (grey).
+    const refunded = !held && Boolean(o.refundedAt), partial = !held && !paid && Number.isFinite(o.paidAmount) && o.paidAmount > 0 && o.paidAmount < o.total;
+    const pay = held ? 'Held' : refunded ? 'Refunded' : paid ? `Paid · ${METHODS[o.method] || 'Cash'}` : partial ? 'Partially paid' : 'Not paid';
+    const payClass = held ? 'held' : refunded ? 'refunded' : paid ? 'paid' : 'unpaid';
     const phone = typeof o.customer?.mobile === 'string' && o.customer.mobile.trim() ? o.customer.mobile.trim() : '';
     // The two round buttons: text the customer (greyed out without a phone number) and buzz the pager ("Buzz" over its
     // number; "Buzz" greyed out without one). A tap on either only does its action, or nothing when it is greyed out; a
-    // tap between or around them does nothing; neither ever opens the order.
+    // tap between or around them does nothing; neither ever opens the order. A held order has both greyed out.
+    const textOn = !held && Boolean(phone), buzzOn = !held && Boolean(o.pager);
     const bubble = (cls, on, label, act, ...content) => el('button', { type: 'button', class: `ord-bubble ${cls}${on ? '' : ' off'}`, 'aria-disabled': on ? null : 'true', 'aria-label': label,
       onclick: e => { e.stopPropagation(); if (on) act(); }, onkeydown: e => e.stopPropagation() }, ...content);
     const acts = el('span', { class: 'ord-c ord-acts', onclick: e => e.stopPropagation() },
-      bubble('ord-text', Boolean(phone), phone ? `Text ${name}` : 'Text: no phone number', () => textCustomer(o), svg(ICON.send)),
-      bubble('ord-ping', Boolean(o.pager), o.pager ? `Buzz pager ${o.pager}` : 'Buzz: no pager', () => buzzPager(o), el('span', { class: 'ord-ping-word' }, 'Buzz'), o.pager ? el('span', { class: 'ord-ping-no' }, String(o.pager)) : null));
+      bubble('ord-text', textOn, textOn ? `Text ${name}` : held ? 'Text: the order is on hold' : 'Text: no phone number', () => textCustomer(o), svg(ICON.send)),
+      bubble('ord-ping', buzzOn, buzzOn ? `Buzz pager ${o.pager}` : held ? 'Buzz: the order is on hold' : 'Buzz: no pager', () => buzzPager(o), el('span', { class: 'ord-ping-word' }, 'Buzz'), buzzOn ? el('span', { class: 'ord-ping-no' }, String(o.pager)) : null));
     const cells = [
-      twoLines('ord-when', timeOf(o.createdAt), fullDate(o.createdAt)),
+      twoLines('ord-when', timeOf(when), fullDate(when)),
       cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
       twoLines('ord-name', name, o.server || ''),
       status.sub ? twoLines(`ord-status ${status.cls}`, status.text, status.sub) : cell(`ord-status ${status.cls}`, status.text),
       twoLines('ord-pay', money(o.total), pay, payClass),
       acts];
-    const label = `Order ${o.number}, ${timeOf(o.createdAt)}, ${fullDate(o.createdAt)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
-    const open = () => (paid ? showReceipt(o) : window.RestroCounter?.openOrder(o.uid || o.number));
+    const label = held
+      ? `Held order, ${timeOf(when)}, ${fullDate(when)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${money(o.total)}`
+      : `Order ${o.number}, ${timeOf(when)}, ${fullDate(when)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
+    const open = () => (held ? window.RestroCounter?.resumeHeld(o.heldId) : paid ? showReceipt(o) : window.RestroCounter?.openOrder(o.uid || o.number));
     return el('div', { class: 'ord-row ord-open', role: 'listitem', tabindex: '0', style: `--type:${type.color}`, 'aria-label': `${label}. ${paid ? 'Open the receipt' : 'Open in Counter'}`, onclick: open,
       onkeydown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); open(); } } }, ...cells);
   }
@@ -135,27 +143,34 @@
 
   // Rendered into its own root so the system bar and toasts placed in the dialog survive re-renders.
   const root = el('div', { class: 'ord-root' }); dialog.prepend(root);
-  let scrollTop = 0, scrolledAt = 0;
-  let fromCounter = false;                 // opened with Counter's Orders button: Back returns to Counter
+  const scrollTops = { orders: 0, held: 0 }; let scrolledAt = 0;
+  let fromCounter = false;                 // opened with Counter's Orders or Held button: Back returns to Counter
+  let view = 'orders';                     // 'orders', or 'held' (Counter's Held button)
 
-  // Orders saved, paid or deleted on another tablet (sync.js) show at once
-  window.addEventListener('restro:data-changed', e => { if (dialog.open && (e.detail?.collections || []).includes('orders')) render(); });
+  // Orders (and held orders) saved, paid, held, resumed or deleted on another tablet (sync.js) show at once
+  window.addEventListener('restro:data-changed', e => {
+    const names = e.detail?.collections || [];
+    if (dialog.open && names.includes(view === 'held' ? 'held' : 'orders')) render();
+  });
 
   function render() {
-    const orders = window.RestroCounter?.orders?.() || [];
+    const held = view === 'held';
+    const orders = (held ? window.RestroCounter?.held?.() : window.RestroCounter?.orders?.()) || [];
     const head = el('div', { class: 'ord-head' },
       el('button', { type: 'button', class: 'ord-nav', 'aria-label': fromCounter ? 'Back to Counter' : 'Home', title: fromCounter ? 'Back' : 'Home',
         onclick: () => { if (!goBack()) document.querySelector('#system-home')?.click(); } }, svg(fromCounter ? ICON.back : ICON.home)),
       appIcon(),
-      el('h2', { id: 'orders-title', tabindex: '-1' }, 'Orders'));
+      el('h2', { id: 'orders-title', tabindex: '-1' }, held ? 'Held' : 'Orders'));
     // The column names stay at the top while the rows scroll under them.
     const grid = orders.length
-      ? el('div', { class: 'ord-list', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } },
+      ? el('div', { class: 'ord-list', onscroll: e => { scrollTops[view] = e.currentTarget.scrollTop; scrolledAt = Date.now(); } },
         el('div', { class: 'ord-cols', 'aria-hidden': 'true' }, ...COLUMNS.map(([name, cls]) => el('span', { class: `ord-c ${cls}` }, typeof name === 'function' ? name() : name))),
-        el('div', { class: 'ord-rows', role: 'list', 'aria-label': 'Orders, newest first' }, ...orders.map(row)))
-      : el('div', { class: 'ord-empty' }, el('strong', {}, 'No orders yet'), el('span', {}, 'Orders show here once they are saved or paid in Counter.'));
+        el('div', { class: 'ord-rows', role: 'list', 'aria-label': held ? 'Held orders, newest first' : 'Orders, newest first' }, ...orders.map(row)))
+      : held
+        ? el('div', { class: 'ord-empty' }, el('strong', {}, 'No held orders'), el('span', {}, 'Orders on hold stay here until the end of the day.'))
+        : el('div', { class: 'ord-empty' }, el('strong', {}, 'No orders yet'), el('span', {}, 'Orders show here once they are saved or paid in Counter.'));
     root.replaceChildren(head, orders.length ? el('div', { class: 'ord-body' }, grid) : grid);
-    if (orders.length) grid.scrollTop = scrollTop;
+    if (orders.length) grid.scrollTop = scrollTops[view];
   }
 
   // While open, the tiles keep up with the kitchen (a scheduled order goes to the kitchen at its time).
@@ -177,10 +192,13 @@
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
   window.RestroOrders = Object.freeze({
-    // open() from the home screen (or Back from an order); open({ from: 'counter' }) from Counter's Orders button.
+    // open() from the home screen (or Back from an order); open({ from: 'counter' }) from Counter's Orders button;
+    // open({ from: 'counter', view: 'held' }) from Counter's Held button.
     open(options = {}) {
       document.querySelectorAll('dialog[open]').forEach(d => { if (d !== dialog) d.close(); });
       fromCounter = options.from === 'counter';
+      view = options.view === 'held' ? 'held' : 'orders';
+      dialog.dataset.view = view; // (Recents counts Held as Counter's)
       render();
       if (!dialog.open) dialog.showModal();
       clearInterval(timer); timer = setInterval(() => { if (dialog.open && Date.now() - scrolledAt > 2000) render(); }, 30000); // not while a finger is scrolling

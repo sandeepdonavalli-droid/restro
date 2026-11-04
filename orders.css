@@ -58,6 +58,7 @@
 .ord-pay .paid{color:#00c853} /* Paid: neon green */
 .ord-pay .unpaid{color:#ff6700} /* Not paid or Partially paid: neon orange */
 .ord-pay .refunded{color:#b42318} /* Refunded: red */
+.ord-status.held,.ord-pay .held{color:var(--ord-muted)} /* Held (the Held view): grey, as the order status and under the total */
 /* Two details in one column (the time with the date, the name with the server, the amount with the payment status): the main one, the other under it,
    a little smaller; each ends in "…" when it is too long. */
 .ord-c.ord-two{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;white-space:normal}

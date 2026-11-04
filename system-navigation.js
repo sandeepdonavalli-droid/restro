@@ -25,7 +25,7 @@
     const appIds={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','customers-dialog':'customers','employees-dialog':'employees'};
     const controls={'calculator-dialog':'calculator','camera-dialog':'camera'};
     const insightViews={'order-details-dialog':{id:'last-order',name:'Last order',symbol:'receipt'},'most-sold-dialog':{id:'most-sold',name:'Most sold items',symbol:'chef'}};
-    if(dialog.id==='counter-dialog'){recentApps.delete('shortcut:register');recentApps.set('shortcut:register',{shortcutId:'register',name:'Counter'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
+    if(dialog.id==='counter-dialog'||dialog.id==='orders-dialog'&&dialog.dataset.view==='held'){recentApps.delete('shortcut:register');recentApps.set('shortcut:register',{shortcutId:'register',name:'Counter'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
     if(dialog.id==='floor-dialog'){recentApps.delete('shortcut:floor');recentApps.set('shortcut:floor',{shortcutId:'floor',name:'Floor'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
     if(dialog.id==='orders-dialog'){recentApps.delete('shortcut:orders');recentApps.set('shortcut:orders',{shortcutId:'orders',name:'Orders'});if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);return;}
     if(insightViews[dialog.id]){

@@ -247,10 +247,14 @@
     if (!on) { order.lines.forEach(l => { l.type = order.type; }); tidy(); toast(`Modify off · all items ${typeLabel[order.type || DEFAULT_TYPE].toLowerCase()}`); }
     selected = null; render();
   }
-  // Puts the order on screen in Held, until the end of the day.
+  // Puts the order on screen in Held, until the end of the day. A new order's pager is released (its number is free for
+  // another order); everything else stays as it was, the customer's phone number too. (A saved order's copy, parked with
+  // changes, keeps its pager: the saved order still has it.) The server is whoever is signed in.
   function hold() {
     if (!order.lines.length) return false;
-    const entry = { ...order, heldId: order.heldId || window.RestroSync?.newId('h') || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: endOfDay() };
+    const staff = window.RestroStaff?.current;
+    const entry = { ...order, pager: order.number ? order.pager : 0, heldId: order.heldId || window.RestroSync?.newId('h') || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: endOfDay(),
+      server: staff?.name || null, serverId: staff?.id || null };
     held = [entry, ...held.filter(h => h.heldId !== entry.heldId)].slice(0, 100); store(HELD_KEY, held);
     return true;
   }
@@ -326,7 +330,8 @@
   // Hold (new orders): the ticket waits in Held until the end of the day, as the customer may call or come back.
   function holdTicket() {
     if (!order.lines.length || order.number) return;
-    hold(); toast('On hold until the end of the day'); fresh();
+    const pager = order.pager;
+    hold(); toast(`On hold until the end of the day${pager ? ` · pager ${pager} free` : ''}`); fresh();
   }
   // Schedule: the time the customer wants the order ready. It is saved with Save or Pay, and goes to the kitchen
   // the preparation time before.
@@ -340,9 +345,10 @@
     if (order.heldId !== id) park();
     window.RestroSync?.removed('held', id); held = held.filter(h => h.heldId !== id); store(HELD_KEY, held);
     order = restoreOrder(entry);
-    // A held copy of a saved order carries on with that order (unless it has been paid since).
+    // A held copy of a saved order carries on with that order (unless it has been paid since). A new order comes back
+    // without a pager: its pager was released when it was held.
     const saved = order.number ? loadOrders().find(o => (order.uid ? idOf(o) === order.uid : o.number === order.number) && !o.paidAt) : null;
-    if (!saved) { order.number = null; order.uid = null; } else order.number = saved.number;
+    if (!saved) { order.number = null; order.uid = null; order.pager = 0; } else order.number = saved.number;
     baseline = saved ? signature(restoreOrder(saved)) : null; opened = saved ? JSON.stringify(saved) : null;
     sheet = null; selected = null; render(); toast('Order resumed');
   }
@@ -582,7 +588,8 @@
         el('button', { type: 'button', role: 'menuitem', class: `ctr-options-item danger${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete },
           svg(ICON.trash), deleteArmed ? (order.number ? `Tap again to delete ${ticket(order.number)}` : 'Tap again to delete') : 'Delete order')),
       search,
-      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'held'; render(); } }, svg(ICON.held), el('span', { class: 'ctr-tool-label' }, 'Held'), held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
+      // Held opens the held orders in the Orders app, in the same columns; Back there returns to Counter as it was.
+      el('button', { type: 'button', class: 'ctr-tool', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter', view: 'held' }); else { sheet = 'held'; render(); } } }, svg(ICON.held), el('span', { class: 'ctr-tool-label' }, 'Held'), held.length ? el('span', { class: 'ctr-badge' }, String(held.length)) : null),
       // Orders opens the Orders app (all orders, one to a row); Back there returns to Counter as it was.
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, svg(ICON.orders), el('span', { class: 'ctr-tool-label' }, 'Orders')),
       el('button', { type: 'button', class: 'ctr-tool', onclick: () => { sheet = 'payments'; render(); } }, svg(ICON.history), el('span', { class: 'ctr-tool-label' }, 'Payment history')));
@@ -1054,9 +1061,10 @@
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet', role: 'dialog', 'aria-label': 'Held orders' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Held orders'), close), list));
     }
-    // Assign Pager: the pagers by number; a pager on another open order shows "In use" (it can still be chosen).
+    // Assign Pager: the pagers by number; a pager on another open order shows "In use" (it can still be chosen). A held
+    // order's pager was released when it was held (a saved order's held copy has the saved order's).
     if (sheet === 'pager') {
-      const inUse = new Set([...held, ...loadOrders().filter(o => !o.paidAt && !(order.uid ? idOf(o) === order.uid : o.number === order.number))].map(o => cleanPager(o.pager)).filter(Boolean));
+      const inUse = new Set([...held.filter(h => h.number), ...loadOrders().filter(o => !o.paidAt && !(order.uid ? idOf(o) === order.uid : o.number === order.number))].map(o => cleanPager(o.pager)).filter(Boolean));
       const choose = n => { order.pager = n; sheet = null; render(); };
       const grid = el('div', { class: 'ctr-pagers', role: 'radiogroup', 'aria-label': 'Pagers' },
         ...Array.from({ length: PAGERS }, (_, i) => i + 1).map(n => {
@@ -1266,6 +1274,18 @@
     openOrder(ref) { if (!Number.isInteger(ref) && typeof ref !== 'string') return; openCounter(); fromFloor = false; fromOrders = true; openOrder(ref); },
     // Every saved order (Save or Pay), newest first, as kept on this device.
     orders() { return JSON.parse(JSON.stringify(allOrders())); },
+    // The held orders, newest first (as the Orders app's Held view shows them): when each was held, its type, its table
+    // (when it goes to one) or customer, the server, the total and its items. Their pagers were released.
+    held() {
+      return held.filter(h => h && typeof h.heldId === 'string' && Array.isArray(h.lines)).map(h => {
+        const r = restoreOrder(h);
+        return { heldId: h.heldId, savedAt: cleanTime(h.savedAt) || Date.now(), type: r.type, split: r.split, table: usesTable(r) ? r.table : '', customer: r.customer,
+          server: typeof h.server === 'string' ? h.server : null, total: Number.isFinite(h.total) ? h.total : totalsOf(r).total, number: r.number, lines: r.lines };
+      }).sort((a, b) => b.savedAt - a.savedAt);
+    },
+    // From the Held view: Counter opens on that held order, to carry on with it (the order on screen goes to Held first
+    // if it has anything not saved).
+    resumeHeld(id) { if (typeof id !== 'string' || !held.some(h => h.heldId === id)) return; openCounter(); fromFloor = false; fromOrders = false; resume(id); },
     goBack,
     tablesInUse() {
       const used = [...loadOrders().filter(o => !o.paidAt), ...held].filter(usesTable).map(o => o.table);
