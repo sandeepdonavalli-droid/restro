@@ -55,8 +55,7 @@
   let panelOrder = ordered(PANEL_TILES, load(PANEL_KEY, null));
   const tileAt = key => ({ 'data-tile': key, style: `order:${panelOrder.indexOf(key)}` });
   let panelArranging = false, panelDrag = null, panelGesture = null, panelHold = null, panelSuppress = false;
-  // Ticket numbers come from sync (in blocks from the main system or the cloud once there are other tablets, so no two
-  // tablets give the same number); on its own a tablet counts on as before.
+  // Ticket numbers come from sync: one sequence a day for every tablet of the restaurant (sync.js).
   const nextNumber = () => { if (window.RestroSync) return window.RestroSync.nextNumber(); const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
   const idOf = o => o.uid || `n${o.number}`; // an order's id everywhere (orders from before sync are known by their number)
   // A ticket number as shown: #01, #02 … #10 (numbers start again at 1 every day, so they are not ids)
@@ -283,7 +282,7 @@
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
       // the server: whoever was signed in when the order was first saved (staff sign-in)
       server: prev && prev.server ? prev.server : window.RestroStaff?.current?.name || null, serverId: prev && prev.serverId ? prev.serverId : window.RestroStaff?.current?.id || null,
-      // a number given while cut off from the main system stays provisional until the main system settles it
+      // with other tablets, the number stays provisional until the server confirms it
       ...(provisional || prev?.numberProvisional ? { numberProvisional: true } : {}), ...(prev && Number.isInteger(prev.numberWas) ? { numberWas: prev.numberWas } : {}) };
     // Changed on another tablet since it was opened here: both tablets' changes are kept (items added on both, and so on)
     if (prev && opened && window.RestroSync && JSON.stringify(prev) !== opened) entry = window.RestroSync.mergeRecord('orders', JSON.parse(opened), entry, prev);
@@ -363,8 +362,8 @@
     if (names.includes('orders') && (order.uid || order.number)) followOpenOrder();
     if (dialog.open && (names.includes('held') || names.includes('orders'))) render();
   });
-  // An order numbered while this tablet was cut off from the main system, whose number someone else could have: the main
-  // system gave it the next free number.
+  // Another order got the same number (given at the same moment on another tablet, or while this one was cut off): the
+  // server gave this order the next free number.
   window.addEventListener('restro:orders-renumbered', e => {
     const list = (e.detail?.orders || []).filter(r => Number.isInteger(r.from) && Number.isInteger(r.to));
     if (!list.length) return;

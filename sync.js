@@ -20,9 +20,10 @@
 //   version back; the tablet merges the two (field by field against the version both started from; items added on both
 //   sides are all kept; a payment is never undone) and sends the result. Nothing is lost when two tablets change the
 //   same order, and the same change arriving twice changes nothing.
-// - Ticket numbers come in blocks from the server, so two tablets never give the same number. A tablet cut off with none
-//   left numbers on from the highest it knows and marks the order provisional; the server keeps that number if no one
-//   else can have it, or gives the order the next free one (the tablet shows "Order #… is now #…").
+// - Ticket numbers are one sequence a day for the whole restaurant: every tablet gives the next number after the highest
+//   it knows (orders reach every tablet as they are made), provisional until its server confirms it. If two tablets gave
+//   the same number at the same moment, or one was cut off, the server gives the later order the next free one (the
+//   tablet shows "Order #… is now #…").
 // - Messages between tablets are encrypted with a key made from the restaurant's pairing code, so tablets of another
 //   restaurant, or anyone else on the network, can't join or read them.
 // Nothing here is part of the code or the website's data: everything stays on the tablets until the cloud exists.
@@ -47,7 +48,7 @@
     prepMinutes: { key: 'restro.counter.prepMinutes.v1' }
   };
   const NAMES = [...Object.keys(COLLECTIONS), 'settings'];
-  const TICKET_KEY = 'restro.counter.ticket.v2'; // a tablet on its own: { day, next }
+  const TICKET_KEY = 'restro.counter.ticket.v2'; // { day, next }: after the highest number this tablet has given or seen today
   const nameOfKey = key => Object.entries(COLLECTIONS).find(([, c]) => c.key === key)?.[0] || (Object.values(VALUES).some(v => v.key === key) ? 'settings' : null);
 
   // ---------- small helpers ----------
@@ -159,9 +160,9 @@
   //   (JSON), both while it waits, f / fd: the version last sent and its record, while the answer is awaited }
   const META = 'restro.sync.meta.v1', STATE = 'restro.sync.state.v1';
   const meta = load(META, {}); for (const n of NAMES) if (!isObj(meta[n])) meta[n] = {};
-  // mode: 'solo' until a server is in the picture; cursors: how far this tablet has fetched from each server; lease and
-  // spare: blocks of ticket numbers
-  const state = Object.assign({ mode: 'solo', cursors: {}, lease: null, spare: null }, load(STATE, {}));
+  // mode: 'solo' until a server is in the picture; cursors: how far this tablet has fetched from each server
+  const state = Object.assign({ mode: 'solo', cursors: {} }, load(STATE, {}));
+  delete state.lease; delete state.spare; // blocks of numbers, from before the numbers were one sequence
   let metaTimer = null;
   const keepMeta = () => { clearTimeout(metaTimer); metaTimer = setTimeout(flushMeta, 200); };
   const flushMeta = () => { clearTimeout(metaTimer); save(META, meta); save(STATE, state); };
@@ -331,6 +332,7 @@
         }
         touched.add(ch.c);
         const after = d.get(ch.i);
+        if (ch.c === 'orders') sawNumber(after);
         if (ch.c === 'orders' && isObj(mine) && isObj(after) && Number.isInteger(mine.number) && Number.isInteger(after.number) && mine.number !== after.number) renumbered.push({ uid: ch.i, from: mine.number, to: after.number });
         if (device.main && state.mode === 'multi') {
           const fin = m[ch.i];
@@ -383,51 +385,30 @@
 
   // ---------- the main system: the restaurant's own server on its network ----------
   // It takes the other tablets' changes in order (each gets the next sequence number), refuses a change made on an older
-  // version than its own (sending its version back), hands out what each tablet hasn't had yet, and gives out the ticket
-  // numbers for each day (from the cloud's blocks once the cloud is set up). Its own changes go in the same way.
+  // version than its own (sending its version back), hands out what each tablet hasn't had yet, and settles the ticket
+  // numbers of the orders it takes. Its own changes go in the same way.
   const HUB = 'restro.sync.hub.v1';
-  const hub = Object.assign({ seq: 0, log: {}, next: 0, end: null, day: null }, load(HUB, {}));
+  const hub = Object.assign({ seq: 0, log: {} }, load(HUB, {}));
   if (!isObj(hub.log)) hub.log = {};
+  delete hub.next; delete hub.end; delete hub.day; // its count of numbers, from before the numbers were one sequence
   let hubTimer = null;
   function keepHub() { clearTimeout(hubTimer); hubTimer = setTimeout(() => save(HUB, hub), 200); }
   function hubRecord(name, id, seq) { hub.log[`${name}/${id}`] = seq; }
-  // The main system's count is for one day: a new day starts it again at #01 (and drops yesterday's cloud block).
-  function hubToday() {
-    const day = today();
-    if (hub.day !== day) { hub.day = day; hub.next = 0; hub.end = null; keepHub(); }
-    return day;
-  }
-  function hubStartNumbers() {
-    const day = hubToday();
-    if (hub.end != null) return;
-    hub.next = Math.max(hub.next || 0, highestOn(day) + 1, 1); keepHub();
-  }
-  // Ticket numbers from the main system for today: its own count without the cloud; with it, only what is left of the
-  // cloud's block for today. { day, from, to }
-  function hubTake(count) {
-    const day = hubToday();
-    if (cloudConfig() && hub.end == null) return null;
-    if (!hub.next) hubStartNumbers();
-    if (hub.end != null) { const left = hub.end - hub.next + 1; if (left <= 0) return null; count = Math.min(count, left); }
-    const from = hub.next; hub.next += count; keepHub();
-    return { day, from, to: from + count - 1 };
-  }
-  // Without the cloud the main system settles ticket numbers, within the order's day: a provisional number stays if it
-  // was never handed out and no other order that day has it; otherwise, and for an open order whose number another order
-  // that day has, the order gets the next free one. Returns the order with its number settled, or null if it stays.
+  // Ticket numbers of the orders it takes from the tablets, within the order's day. A provisional number stays if no
+  // other order that day has it; otherwise (two tablets gave it at the same moment, or one was cut off), and for an open
+  // order whose number another order that day has, the order gets the day's next number. Without the cloud the main
+  // system's word is final, so it confirms the number; with the cloud the order stays provisional for the cloud to
+  // confirm, but two of the restaurant's own orders never share a number, even without the internet. Returns the order
+  // with its number settled, or null if it stays as it is.
   function settleNumber(id, doc, docs) {
-    if (cloudConfig() || !Number.isInteger(doc.number)) return null;
-    const day = orderDay(doc), current = day === hubToday(), idOf = COLLECTIONS.orders.id;
-    if (current && !hub.next) hubStartNumbers();
-    const n = doc.number, others = [...docs.values()].filter(o => idOf(o) !== id && orderDay(o) === day);
+    if (!Number.isInteger(doc.number)) return null;
+    const final = !upstream(), day = orderDay(doc), n = doc.number, idOf = COLLECTIONS.orders.id;
+    const others = [...docs.values()].filter(o => idOf(o) !== id && Number.isInteger(o.number) && orderDay(o) === day);
     const taken = others.some(o => o.number === n);
-    if (!doc.numberProvisional && !(taken && !doc.paidAt)) { if (current && n >= hub.next) { hub.next = n + 1; keepHub(); } return null; }
-    let number = n;
-    if (doc.numberProvisional && !taken && (!current || n >= hub.next)) { if (current) { hub.next = n + 1; keepHub(); } }
-    else if (current) { const block = hubTake(1); if (!block) return null; number = block.from; }
-    else number = Math.max(0, ...others.filter(o => Number.isInteger(o.number)).map(o => o.number)) + 1; // an earlier day
+    if (doc.numberProvisional ? !taken && !final : !taken || doc.paidAt) return null;
+    const number = taken ? nextOn(day, others) : n;
     const { numberProvisional, ...rest } = doc;
-    return { ...rest, number, day, ...(number !== n ? { numberWas: Number.isInteger(rest.numberWas) ? rest.numberWas : n } : {}) };
+    return { ...rest, number, day, ...(final ? {} : { numberProvisional: true }), ...(number !== n ? { numberWas: Number.isInteger(rest.numberWas) ? rest.numberWas : n } : {}) };
   }
   // Changes pushed by a tablet: [{ c, i, h, b, doc | x }] → the answers, and the changes taken (to pass on)
   function hubAccept(changes) {
@@ -457,6 +438,7 @@
           entry = { ...entry, h: tick(), s: hash(JSON.stringify(fixed)), pv: ch.h };
           if (isObj(before) && Number.isInteger(before.number) && before.number !== fixed.number) renumbered.push({ uid: ch.i, from: before.number, to: fixed.number });
         }
+        if (ch.c === 'orders') sawNumber(doc);
         m[ch.i] = entry;
         hub.seq++; hubRecord(ch.c, ch.i, hub.seq);
         accepted.push(ch.x ? { c: ch.c, i: ch.i, h: entry.h, b: entry.pv, x: 1, seq: hub.seq } : { c: ch.c, i: ch.i, h: entry.h, b: entry.pv, doc, seq: hub.seq });
@@ -503,10 +485,7 @@
   function localCommitted(changes) {
     if (device.main && state.mode === 'multi') {
       // The main system is its own server: the change goes in its log and out to the other tablets at once
-      for (const ch of changes) {
-        hub.seq++; hubRecord(ch.c, ch.i, hub.seq); ch.seq = hub.seq;
-        if (!cloudConfig() && ch.c === 'orders' && ch.doc && Number.isInteger(ch.doc.number) && orderDay(ch.doc) === hubToday() && ch.doc.number >= (hub.next || 0)) hub.next = ch.doc.number + 1;
-      }
+      for (const ch of changes) { hub.seq++; hubRecord(ch.c, ch.i, hub.seq); ch.seq = hub.seq; }
       keepHub();
       broadcast({ t: 'batch', server: device.id, from: changes[0].seq, seq: hub.seq, changes });
     }
@@ -519,51 +498,30 @@
   }
 
   // ---------- ticket numbers ----------
-  // Every business day starts at #01. A tablet on its own counts by itself. With a server, numbers come in blocks of 50
-  // for the day from it (the next block is fetched before this one runs out; a new day drops the old blocks); the main
-  // system numbers from its own count (the cloud's block once there is a cloud). A tablet cut off with none left numbers
-  // on from the highest it knows that day, and the order is marked so (numberProvisional).
-  const BLOCK = 50;
+  // One sequence a day for the whole restaurant, from #01: a tablet gives the next number after the highest it knows of
+  // the day, and orders reach every tablet as they are made, so after the main system's #10 a tablet's next order is
+  // #11. With a server the number is provisional (numberProvisional) until the server confirms it, or gives the order
+  // the next free number if another order got the same one. A tablet on its own, and the main system without the cloud,
+  // number for good.
   let provisional = false;
-  const validBlock = b => isObj(b) && typeof b.day === 'string' && Number.isInteger(b.from) && Number.isInteger(b.to) && b.to >= b.from;
-  function dropOldBlocks(day) {
-    if (state.lease && state.lease.day !== day) state.lease = null;
-    if (state.spare && state.spare.day !== day) state.spare = null;
+  // The day's next number: after every order of that day here and, for today, after every number this tablet has given
+  // or seen (an order may have been deleted since)
+  function nextOn(day, docs) {
+    const t = load(TICKET_KEY, null), seen = day === today() && isObj(t) && t.day === day ? Number(t.next) || 1 : 1;
+    return Math.max(seen, highestOn(day, docs) + 1);
   }
-  // This tablet's own count for the day, never below a number the day already has
-  function ownCount(day) {
-    const t = load(TICKET_KEY, null), n = Math.max(isObj(t) && t.day === day ? Number(t.next) || 1 : 1, highestOn(day) + 1);
-    save(TICKET_KEY, { day, next: n + 1 });
-    return n;
+  // A number given elsewhere (another tablet's order, or one the server settled): this tablet numbers on after it
+  function sawNumber(doc) {
+    if (!isObj(doc) || !Number.isInteger(doc.number)) return;
+    const day = orderDay(doc); if (day !== today()) return;
+    const t = load(TICKET_KEY, null), next = isObj(t) && t.day === day ? Number(t.next) || 1 : 1;
+    if (doc.number >= next) save(TICKET_KEY, { day, next: doc.number + 1 });
   }
   function nextNumber() {
-    provisional = false;
-    const day = today();
-    if (state.mode !== 'multi') return ownCount(day);
-    if (device.main) { const b = hubTake(1); if (b) return b.from; }
-    dropOldBlocks(day);
-    if ((!state.lease || state.lease.next > state.lease.to) && state.spare) { state.lease = { ...state.spare, next: state.spare.from }; state.spare = null; }
-    if (state.lease && state.lease.next <= state.lease.to) { const n = state.lease.next++; keepMeta(); refill(); return n; }
-    refill();
-    provisional = true;
-    return ownCount(day);
-  }
-  let refilling = false;
-  async function refill() {
-    const day = today();
-    dropOldBlocks(day);
-    const left = (state.lease ? Math.max(0, state.lease.to - state.lease.next + 1) : 0) + (state.spare ? state.spare.to - state.spare.from + 1 : 0);
-    const up = upstream();
-    if (refilling || left >= 20 || state.mode !== 'multi' || !up || (device.main && up !== 'cloud')) return;
-    refilling = true;
-    try {
-      const block = up === 'cloud' ? (Cloud.ready() ? await Cloud.lease(BLOCK, day) : null) : Local.hubId() ? await Local.lease(BLOCK, day) : null;
-      if (validBlock(block) && block.day === today()) {
-        if (!state.lease || state.lease.next > state.lease.to) state.lease = { day: block.day, from: block.from, to: block.to, next: block.from };
-        else state.spare = { day: block.day, from: block.from, to: block.to };
-        keepMeta();
-      }
-    } catch {} finally { refilling = false; }
+    provisional = Boolean(upstream());
+    const day = today(), n = nextOn(day);
+    save(TICKET_KEY, { day, next: n + 1 });
+    return n;
   }
 
   // ---------- tablets nearby: through the Android app (RESTRODevice.localSync) ----------
@@ -620,11 +578,6 @@
           const { results, accepted } = hubAccept(Array.isArray(msg.changes) ? msg.changes.slice(0, 500) : []);
           send({ t: 'ack', re: msg.rid, results }, fromId);
           if (accepted.length) broadcast({ t: 'batch', server: device.id, from: accepted[0].seq, seq: hub.seq, changes: accepted });
-        } else if (msg.t === 'lease') {
-          const count = Math.min(200, Math.max(1, Number(msg.count) || BLOCK));
-          let block = hubTake(count);
-          if (!block && upstream() === 'cloud' && Cloud.ready()) block = await Cloud.lease(count, hubToday()).catch(() => null);
-          send({ t: 'lease', re: msg.rid, block: validBlock(block) ? block : null }, fromId);
         }
         return;
       }
@@ -661,8 +614,7 @@
         }
       } finally { pushing = false; emitStatus(); }
     }
-    async function sync() { await push(); await pull(); await push(); refill(); }
-    async function lease(count, day) { const r = await request({ t: 'lease', count, day }); return r && validBlock(r.block) ? r.block : null; }
+    async function sync() { await push(); await pull(); await push(); }
     function onPeers(list) {
       const before = hubPeer()?.id;
       peers = (Array.isArray(list) ? list : []).filter(p => isObj(p) && typeof p.id === 'string' && p.id !== device.id).map(p => ({ id: p.id, name: String(p.name || '').slice(0, 40), main: Boolean(p.main) }));
@@ -686,7 +638,7 @@
         setStatus(device.main ? 'main' : 'searching');
       } catch { setStatus('unavailable'); }
     }
-    return { start, send, push, pull, sync, lease, hubId: () => hubPeer()?.id || null, hubName: () => hubPeer()?.name || null, peers: () => peers.slice(), status: () => status };
+    return { start, send, push, pull, sync, hubId: () => hubPeer()?.id || null, hubName: () => hubPeer()?.name || null, peers: () => peers.slice(), status: () => status };
   })();
   function broadcast(msg) { if (device.main) Local.send(msg); }
 
@@ -729,26 +681,10 @@
         }
         await pushAll(); // what the merges made
         status = 'synced'; lastSync = now(); failures = 0;
-        if (device.main) topUpHubNumbers();
-        refill();
       } catch { status = 'offline'; failures++; }
       finally { busy = false; emitStatus(); schedule(); if (again) sync(); }
     }
     function schedule() { clearTimeout(timer); if (upstream() !== 'cloud') return; timer = setTimeout(sync, Math.min(60000, 15000 * Math.max(1, failures))); }
-    // Blocks are for one day. `after`: the highest number this tablet knows of that day (handed out or on an order), so
-    // the cloud never gives one below it (the main system may have numbered on its own before the cloud was set up).
-    async function lease(count, day = today()) {
-      const after = Math.max(highestOn(day), hub.day === day ? Math.max((hub.next || 1) - 1, hub.end || 0) : 0, state.lease?.day === day ? state.lease.to : 0, state.spare?.day === day ? state.spare.to : 0);
-      const r = await call('POST', '/numbers/lease', { device: device.id, count, day, after });
-      return validBlock(r) && r.day === day ? { day: r.day, from: r.from, to: r.to } : null;
-    }
-    // The main system keeps a block of 200 numbers for the day from the cloud for the tablets around it, for when the
-    // internet drops.
-    async function topUpHubNumbers() {
-      const day = hubToday();
-      if (hub.end != null && hub.end - hub.next + 1 >= 50) return;
-      try { const r = await lease(200, day); if (r && hub.day === day) { if (hub.end == null || hub.next > hub.end) hub.next = r.from; hub.end = r.to; keepHub(); } } catch {}
-    }
     // Live changes from the cloud, when it offers them (a WebSocket; the token goes in the first message, never in the
     // address). Fetching every 15 seconds carries on either way.
     function connectLive() {
@@ -768,19 +704,18 @@
     }
     window.addEventListener('online', () => { if (upstream() === 'cloud') { status = 'syncing'; sync(); } });
     window.addEventListener('offline', () => { if (upstream() === 'cloud') { status = 'offline'; emitStatus(); } });
-    return { sync, lease, ready, connectLive, status: () => status, lastSync: () => lastSync };
+    return { sync, ready, connectLive, status: () => status, lastSync: () => lastSync };
   })();
 
   // ---------- joining ----------
   // A server comes into the picture (this tablet is paired with the main system, made the main system, or the cloud is
-  // set up): numbers come in blocks from now on, and everything this tablet has goes to its server once. Its orders,
-  // numbered on its own (every tablet on its own counts from 1001), are marked provisional, so the server keeps their
-  // numbers where no other order has them and gives the others new ones. Where the server already has another version
-  // of a record (the restaurant's name, say), the server's stays.
+  // set up): everything this tablet has goes to its server once. Its orders, numbered on its own, are marked provisional,
+  // so the server keeps their numbers where no other order that day has them and gives the others the next ones. Where
+  // the server already has another version of a record (the restaurant's name, say), the server's stays.
   function join() {
     const first = state.mode !== 'multi';
     state.mode = 'multi';
-    if (device.main) { hubStartNumbers(); hubLogAll(); }
+    if (device.main) hubLogAll();
     if (upstream()) {
       if (first) markOrdersProvisional();
       offerAll();
@@ -792,7 +727,7 @@
     try { list = JSON.parse(localStorage.getItem(key) || '[]'); } catch { return; }
     if (!Array.isArray(list)) return;
     let changed = false;
-    for (const o of list) if (isObj(o) && Number.isInteger(o.number) && !o.numberProvisional) { o.numberProvisional = true; changed = true; }
+    for (const o of list) if (isObj(o) && Number.isInteger(o.number) && !o.numberProvisional) { o.numberProvisional = true; o.day = orderDay(o); changed = true; }
     if (changed) { try { localStorage.setItem(key, JSON.stringify(list)); } catch {} wrote(key); }
   }
   function offerAll() {

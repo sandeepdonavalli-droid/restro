@@ -2,17 +2,16 @@
 """A reference for the cloud's sync endpoints (see SYNC.md), with the same rules as the main system's.
 
 It keeps everything in memory, has one test token, and is for development and tests only, never for a restaurant's
-data. The real cloud implements the same three endpoints with a database, real sign-in and TLS.
+data. The real cloud implements the same endpoints with a database, real sign-in and TLS.
 
     python3 tools/cloud_reference.py --port 8804 --token <a test token>
 
 Endpoints (every request carries `Authorization: Bearer <token>`):
     POST /v1/restaurants/<id>/sync/push    { device, protocol, changes: [{ c, i, h, b, doc | x }] } -> { results }
     GET  /v1/restaurants/<id>/sync/pull?since=<seq>&limit=<n>                                  -> { seq, changes, more }
-    POST /v1/restaurants/<id>/numbers/lease { device, count, day, after }               -> { day, from, to }
 
-Ticket numbers start again at 1 every business day: each order carries its day (YYYY-MM-DD), and numbers are
-handed out and settled within a day.
+Ticket numbers are one sequence a day for the whole restaurant, starting again at 1 every business day: each order
+carries its day (YYYY-MM-DD), and the cloud settles numbers within a day.
 """
 import argparse, json, re, threading, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -28,7 +27,7 @@ def to36(n):
 class Restaurant:
     """One restaurant's records: each record's latest version, in the order they changed (seq)."""
     def __init__(self):
-        self.seq, self.log, self.records, self.days = 0, {}, {}, {}   # days: business day -> next number
+        self.seq, self.log, self.records, self.days = 0, {}, {}, {}   # days: business day -> after the highest number seen
         self.clock = [0, 0]
         self.lock = threading.Lock()
 
@@ -43,26 +42,18 @@ class Restaurant:
         self.clock = [t, 0] if t > self.clock[0] else [self.clock[0], self.clock[1] + 1]
         return f'{to36(self.clock[0]).rjust(9, "0")}.{to36(self.clock[1]).rjust(4, "0")}.cloud'
 
-    def take(self, count, day, after=0):
-        first = max(self.days.get(day, 1), int(after or 0) + 1)
-        self.days[day] = first + count
-        return first, first + count - 1
-
-    # Ticket numbers, as on the main system, within the order's day: a provisional number stays if it was never handed
-    # out and no other order that day has it; otherwise, and for an open order whose number another order that day has,
-    # the order gets the next free number of that day.
+    # Ticket numbers, as on the main system, within the order's day: the cloud confirms a provisional number if no other
+    # order that day has it. Otherwise, and for an open order whose number another order that day has, the order gets the
+    # day's next number: after every number the cloud has seen that day (an order may have been deleted since).
     def settle(self, rid, doc):
         n, day = doc.get('number'), doc.get('day') or ''
         if not isinstance(n, int) or isinstance(n, bool): return None
-        nxt = self.days.get(day, 1)
-        taken = any(r['doc'].get('number') == n and (r['doc'].get('day') or '') == day for key, r in self.records.items() if key.startswith('orders/') and key != f'orders/{rid}' and 'doc' in r)
-        provisional = bool(doc.get('numberProvisional'))
-        if not provisional and not (taken and not doc.get('paidAt')):
-            if n >= nxt: self.days[day] = n + 1
-            return None
-        number = n
-        if provisional and not taken and n >= nxt: self.days[day] = n + 1
-        else: number = self.take(1, day)[0]
+        others = [r['doc']['number'] for key, r in self.records.items() if key.startswith('orders/') and key != f'orders/{rid}' and 'doc' in r
+                  and isinstance(r['doc'].get('number'), int) and (r['doc'].get('day') or '') == day]
+        taken, provisional = n in others, bool(doc.get('numberProvisional'))
+        number = max(self.days.get(day, 1), max(others, default=0) + 1) if taken and (provisional or not doc.get('paidAt')) else n
+        self.days[day] = max(self.days.get(day, 1), number + 1)
+        if not provisional and number == n: return None
         fixed = {k: v for k, v in doc.items() if k != 'numberProvisional'}
         fixed['number'], fixed['day'] = number, day
         if number != n: fixed['numberWas'] = doc.get('numberWas') if isinstance(doc.get('numberWas'), int) else n
@@ -103,11 +94,6 @@ class Restaurant:
             more = len(entries) > len(page)
             return {'seq': page[-1][0] if more else self.seq, 'changes': changes, 'more': more}
 
-    def lease(self, count, day, after):
-        with self.lock:
-            first, last = self.take(max(1, min(200, int(count or 50))), str(day or ''), after)
-            return {'day': str(day or ''), 'from': first, 'to': last}
-
 class Cloud:
     def __init__(self, token):
         self.token, self.restaurants, self.down = token, {}, False
@@ -130,7 +116,7 @@ def make_handler(cloud):
             if cloud.down: return self.reply(503, {'error': 'unavailable'})
             if self.headers.get('Authorization') != f'Bearer {cloud.token}': return self.reply(401, {'error': 'sign in'})
             url = urlparse(self.path)
-            m = re.fullmatch(r'/v1/restaurants/([^/]+)/(sync/push|sync/pull|numbers/lease)', url.path)
+            m = re.fullmatch(r'/v1/restaurants/([^/]+)/(sync/push|sync/pull)', url.path)
             if not m: return self.reply(404, {'error': 'not found'})
             r, what = cloud.restaurant(m.group(1)), m.group(2)
             body = {}
@@ -142,7 +128,6 @@ def make_handler(cloud):
             if what == 'sync/pull' and method == 'GET':
                 q = parse_qs(url.query)
                 return self.reply(200, r.pull(int(q.get('since', ['0'])[0] or 0), max(1, min(300, int(q.get('limit', ['300'])[0] or 300)))))
-            if what == 'numbers/lease' and method == 'POST': return self.reply(200, r.lease(body.get('count'), body.get('day'), body.get('after')))
             return self.reply(405, {'error': 'method'})
         def do_GET(self): self.route('GET')
         def do_POST(self): self.route('POST')
