@@ -78,7 +78,9 @@
   const dayOf = t => { const d = new Date(t - DAY_START_HOUR * 3600000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const today = () => dayOf(now());
   const orderDay = o => (typeof o?.day === 'string' && o.day ? o.day : dayOf(Number.isFinite(o?.createdAt) && o.createdAt > 0 ? o.createdAt : Date.parse(o?.paidAt) || now()));
-  const highestOn = (day, docs) => Math.max(0, ...[...(docs || readDocs('orders')).values()].filter(o => Number.isInteger(o.number) && orderDay(o) === day).map(o => o.number));
+  // The highest number of a day. Only orders numbered by the day carry `day`; numbers from before (1001 and up, never
+  // starting again) don't hold the day's count up.
+  const highestOn = (day, docs) => Math.max(0, ...[...(docs || readDocs('orders')).values()].filter(o => Number.isInteger(o.number) && typeof o.day === 'string' && o.day === day).map(o => o.number));
   const isObj = v => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 
   // ---------- this tablet ----------
@@ -512,8 +514,8 @@
   // A number given elsewhere (another tablet's order, or one the server gave or settled): this tablet's count goes past
   // it, so it carries on the sequence if it becomes the main system
   function sawNumber(doc) {
-    if (!isObj(doc) || !Number.isInteger(doc.number)) return;
-    const day = orderDay(doc); if (day !== today()) return;
+    if (!isObj(doc) || !Number.isInteger(doc.number) || typeof doc.day !== 'string') return; // not numbered by the day
+    const day = doc.day; if (day !== today()) return;
     const t = load(TICKET_KEY, null), next = isObj(t) && t.day === day ? Number(t.next) || 1 : 1;
     if (doc.number >= next) save(TICKET_KEY, { day, next: doc.number + 1 });
   }

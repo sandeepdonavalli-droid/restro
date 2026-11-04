@@ -281,7 +281,7 @@
     const number = prev ? prev.number : given ? given.number : nextNumber();
     let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null,
       lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...totals(),
-      createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? window.RestroSync?.orderDay(prev) : given?.day || window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
+      createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? prev.day : given?.day || window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
       // the server: whoever was signed in when the order was first saved (staff sign-in)
       server: prev && prev.server ? prev.server : window.RestroStaff?.current?.name || null, serverId: prev && prev.serverId ? prev.serverId : window.RestroStaff?.current?.id || null,
