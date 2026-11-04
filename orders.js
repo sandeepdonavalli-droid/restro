@@ -122,7 +122,9 @@
   function textCustomer(o) {
     const sms = window.RESTRODevice?.sms;
     if (typeof sms?.send !== 'function') { toast('Texting starts with the RESTRO Android app'); return; }
-    Promise.resolve(sms.send({ to: o.customer.mobile, code: o.customer.code || '91', order: o.uid })).then(ok => toast(ok === false ? 'The text didn’t go' : `Text sent to ${o.customer.name || 'the customer'}`), () => toast('The text didn’t go'));
+    const shop = (localStorage.getItem('restro.restaurantName') || '').trim(), named = shop && shop !== 'RESTAURANT NAME';
+    const text = `Your order ${ticket(o.number)} is ready.${named ? ` – ${shop}` : ''}`;
+    Promise.resolve(sms.send({ to: o.customer.mobile, code: o.customer.code || '91', text, order: o.uid })).then(ok => toast(ok === false ? 'The text didn’t go' : `Text sent to ${o.customer.name || 'the customer'}`), () => toast('The text didn’t go'));
   }
   function buzzPager(o) {
     const pager = window.RESTRODevice?.pager;

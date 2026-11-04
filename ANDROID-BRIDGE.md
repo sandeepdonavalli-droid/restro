@@ -64,6 +64,22 @@ and a WebSocket) can sit behind the same two methods.
 Permissions: `NEARBY_WIFI_DEVICES` (Android 13+); `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`
 (Android 12+); `ACCESS_FINE_LOCATION` (older); `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`.
 
+## Texting customers and buzzing pagers: `RESTRODevice.sms` and `RESTRODevice.pager`
+
+Optional. Orders has two round buttons on every order: one texts the customer (when the order has their phone number),
+the other buzzes the order's pager (when it has one), whatever the payment status. Without these, the buttons say that
+texting or pagers start with the Android app.
+
+| Method | Returns | What the app does |
+| --- | --- | --- |
+| `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to`, for example "Your order #12 is ready. – AKSHAYAPATRA". `SmsManager` on the tablet (`SEND_SMS`), or an SMS service once the cloud exists. `order` is the order's id, for a log |
+| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system) |
+
+**When the kitchen marks an order complete** (with the kitchen screen, to build), both go out on their own: the text if
+the order has a phone number, the buzz if it has a pager. With neither, nothing happens. The main system sends them (or
+the tablet that fired the order, without a main system), so each goes out once however many tablets there are. The two
+buttons stay, to send again by hand.
+
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 
 Dispatch these as window events when the tablet's power button locks the screen (`ACTION_SCREEN_OFF`) and when it is
