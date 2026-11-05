@@ -4,7 +4,8 @@
 // table with the server under it, the order status (Open or Closed, with where the order is under Open), and the
 // payment (the amount with the payment status under it) —
 // then two round buttons side by side, well apart, with no column name: text the customer (when the order has their
-// phone number) and buzz the order's pager, its number on the button (whatever the payment status). The ticket number
+// phone number, greyed out once the order is Closed) and buzz the order's pager, its number on the button (whatever the
+// status, until the pager is docked back; then greyed out, keeping the number for the record). The ticket number
 // shows on the opened order. The list scrolls by touch, with no scroll bar, over the buttons too. Tapping an order
 // anywhere but its buttons opens it: in Counter while it isn't paid (Back returns here), as its receipt once it is; a tap
 // around the buttons does nothing, so a near miss never opens the order.
@@ -84,13 +85,17 @@
     const phone = typeof o.customer?.mobile === 'string' && o.customer.mobile.trim() ? o.customer.mobile.trim() : '';
     // The two round buttons: text the customer (greyed out without a phone number) and buzz the pager ("Buzz" over its
     // number; "Buzz" greyed out without one). A tap on either only does its action, or nothing when it is greyed out; a
-    // tap between or around them does nothing; neither ever opens the order. A held order has both greyed out.
-    const textOn = !held && Boolean(phone), buzzOn = !held && Boolean(o.pager);
+    // tap between or around them does nothing; neither ever opens the order. Text is greyed out once the order is Closed
+    // (the customer has it). Buzz works while the order still has its pager, whatever its status: until the pager is
+    // docked back in its docking station (or goes to a newer order); then it is greyed out, its number staying for the
+    // record of which pager the order had. A held order has both greyed out (its pager was released when it was held).
+    const closed = status.cls === 'closed', off = held ? 'the order is on hold' : closed ? 'the order is closed' : '';
+    const textOn = !off && Boolean(phone), buzzOn = !held && Boolean(o.pager) && Boolean(o.pagerOut), pagerNo = !held && o.pager ? String(o.pager) : '';
     const bubble = (cls, on, label, act, ...content) => el('button', { type: 'button', class: `ord-bubble ${cls}${on ? '' : ' off'}`, 'aria-disabled': on ? null : 'true', 'aria-label': label,
       onclick: e => { e.stopPropagation(); if (on) act(); }, onkeydown: e => e.stopPropagation() }, ...content);
     const acts = el('span', { class: 'ord-c ord-acts', onclick: e => e.stopPropagation() },
-      bubble('ord-text', textOn, textOn ? `Text ${name}` : held ? 'Text: the order is on hold' : 'Text: no phone number', () => textCustomer(o), svg(ICON.send)),
-      bubble('ord-ping', buzzOn, buzzOn ? `Buzz pager ${o.pager}` : held ? 'Buzz: the order is on hold' : 'Buzz: no pager', () => buzzPager(o), el('span', { class: 'ord-ping-word' }, 'Buzz'), buzzOn ? el('span', { class: 'ord-ping-no' }, String(o.pager)) : null));
+      bubble('ord-text', textOn, textOn ? `Text ${name}` : `Text: ${off || 'no phone number'}`, () => textCustomer(o), svg(ICON.send)),
+      bubble('ord-ping', buzzOn, buzzOn ? `Buzz pager ${o.pager}` : pagerNo ? `Pager ${pagerNo}: back in its dock` : `Buzz: ${held ? off : 'no pager'}`, () => buzzPager(o), el('span', { class: 'ord-ping-word' }, 'Buzz'), pagerNo ? el('span', { class: 'ord-ping-no' }, pagerNo) : null));
     const cells = [
       twoLines('ord-when', timeOf(when), fullDate(when)),
       cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
@@ -100,7 +105,7 @@
       acts];
     const label = held
       ? `Held order, ${timeOf(when)}, ${fullDate(when)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${money(o.total)}`
-      : `Order ${o.number}, ${timeOf(when)}, ${fullDate(when)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? `, ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
+      : `Order ${o.number}, ${timeOf(when)}, ${fullDate(when)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? `, ${status.sub}` : ''}, ${money(o.total)}, ${pay}${pagerNo ? `, buzzer ${pagerNo}` : ''}`;
     const open = () => (held ? window.RestroCounter?.resumeHeld(o.heldId) : paid ? showReceipt(o) : window.RestroCounter?.openOrder(o.uid || o.number));
     return el('div', { class: 'ord-row ord-open', role: 'listitem', tabindex: '0', style: `--type:${type.color}`, 'aria-label': `${label}. ${paid ? 'Open the receipt' : 'Open in Counter'}`, onclick: open,
       onkeydown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); open(); } } }, ...cells);
@@ -161,6 +166,8 @@
     const names = e.detail?.collections || [];
     if (dialog.open && names.includes(view === 'held' ? 'held' : 'orders')) render();
   });
+  // A pager docked back on this (the main) system: its order's Buzz goes grey at once (Counter records it first)
+  window.addEventListener('restro:pager-docked', () => { if (dialog.open && view === 'orders') render(); });
 
   function render() {
     const held = view === 'held';
