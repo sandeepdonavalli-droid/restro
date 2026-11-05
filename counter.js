@@ -65,27 +65,32 @@
   // ---------- state ----------
   // A new order starts with no order type. Dine in can have a table (picked on the Floor); every other order a customer.
   // Any order can have a pager, and a ready-by time (Schedule). number: set once the order is saved (Save or Pay).
-  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, lines: [] });
+  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
   const cleanPager = n => Number.isInteger(n) && n >= 1 && n <= 99 ? n : 0;
-  // Which order has each pager now: the newest order given it, until the pager is docked back in its docking station
-  // (pagerDockedAt). An older order given the same pager has let it go: the pager came back in between.
+  // A pager's life on an order: handed out (pagerAt; an order from before this kept its creation time) and back
+  // (pagerBackAt: docked in its docking station, or handed to another order, which it can only be once it is back).
+  const pagerTime = o => Number(o.pagerAt) || createdOf(o);
+  // Which order has each pager now: the one it was last handed to, until it comes back. (Never an order it was handed
+  // to before that: it came back from there before it could be handed out again.)
   function pagerHolders(list) {
     const holders = new Map();
-    for (const o of [...list].sort((a, b) => createdOf(b) - createdOf(a))) { const n = cleanPager(o.pager); if (n && !holders.has(n)) holders.set(n, o); }
-    for (const [n, o] of [...holders]) if (o.pagerDockedAt) holders.delete(n);
+    for (const o of [...list].sort((a, b) => pagerTime(b) - pagerTime(a))) { const n = cleanPager(o.pager); if (n && !holders.has(n)) holders.set(n, o); }
+    for (const [n, o] of [...holders]) if (o.pagerBackAt) holders.delete(n);
     return holders;
   }
-  // When each order's pager came back: docked (pagerDockedAt), or else when the next newer order was given it
+  const holdsPager = (o, holders = pagerHolders(loadOrders())) => { const h = holders.get(cleanPager(o.pager)); return Boolean(h) && idOf(h) === idOf(o); };
+  // When each order's pager came back (an order from before this, given the same pager as a later one: when the later
+  // one was given it)
   function pagersBack(list) {
-    const back = new Map(), newer = new Map();
-    for (const o of [...list].sort((a, b) => createdOf(b) - createdOf(a))) {
+    const back = new Map(), later = new Map();
+    for (const o of [...list].sort((a, b) => pagerTime(b) - pagerTime(a))) {
       const n = cleanPager(o.pager); if (!n) continue;
-      const at = Number(o.pagerDockedAt) || (newer.has(n) ? createdOf(newer.get(n)) : 0);
+      const at = Number(o.pagerBackAt) || (later.has(n) ? pagerTime(later.get(n)) : 0);
       if (at) back.set(idOf(o), at);
-      newer.set(n, o);
+      later.set(n, o);
     }
     return back;
   }
@@ -94,10 +99,15 @@
   const restoreOrder = o => {
     const type = TYPES.includes(o.type) ? o.type : null;
     return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
-      pager: cleanPager(o.pager), readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
+      pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000).map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type })) };
   };
+  // A saved order put on screen: its pager shows only while the order still has it. One that came back (docked, or
+  // handed to another order) is no longer the order's: the pager slot is empty, so whatever pager is there when the
+  // order is saved again is its pager (the same one handed back, another one, or none: then it keeps the number of the
+  // one it had, for the record).
+  const onScreen = saved => { const r = restoreOrder(saved); if (r.pager && !holdsPager(saved)) { r.pager = 0; r.pagerAt = null; } return r; };
   // An order with no type chosen goes as Dine in, with no table: a table chosen earlier is set aside (as when the type
   // changes to Takeaway) and comes back if Dine in is chosen again.
   const DEFAULT_TYPE = 'dine-in';
@@ -272,7 +282,7 @@
   function hold() {
     if (!order.lines.length) return false;
     const staff = window.RestroStaff?.current, saved = Boolean(order.number);
-    const entry = { ...order, table: saved ? order.table : '', pager: saved ? order.pager : 0, heldId: order.heldId || window.RestroSync?.newId('h') || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: endOfDay(),
+    const entry = { ...order, table: saved ? order.table : '', pager: saved ? order.pager : 0, pagerAt: saved ? order.pagerAt : null, heldId: order.heldId || window.RestroSync?.newId('h') || `h${Date.now()}`, savedAt: Date.now(), total: totals().total, holdUntil: endOfDay(),
       server: staff?.name || null, serverId: staff?.id || null };
     held = [entry, ...held.filter(h => h.heldId !== entry.heldId)].slice(0, 100); store(HELD_KEY, held);
     return true;
@@ -302,23 +312,40 @@
   function upsertOrder(pay, given = null) {
     const now = Date.now(), list = loadOrders(), prev = savedOf(list);
     const number = prev ? prev.number : given ? given.number : nextNumber();
-    let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, pager: order.pager || 0, readyAt: order.readyAt || null,
+    // The pager: the one on screen when it is saved. Picked in Assign Pager (even the same number again), it is handed
+    // out now: out with the customer until it comes back. Not touched since the order was opened, it stays as it was
+    // (back, if it came back meanwhile). With none on screen, an order whose pager came back keeps that pager's number,
+    // still back, for the record.
+    const onScreenPager = cleanPager(order.pager), holders = pagerHolders(list);
+    const untouched = onScreenPager && prev && cleanPager(prev.pager) === onScreenPager && (Number(prev.pagerAt) || 0) === (Number(order.pagerAt) || 0);
+    const record = !onScreenPager && prev && cleanPager(prev.pager) && !holdsPager(prev, holders);
+    const pagerFields = onScreenPager
+      ? { pager: onScreenPager, pagerAt: order.pagerAt || prev?.pagerAt || (prev ? createdOf(prev) : now), ...(untouched && prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) }
+      : record ? { pager: prev.pager, ...(prev.pagerAt ? { pagerAt: prev.pagerAt } : {}), ...(prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) } : { pager: 0 };
+    let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, ...pagerFields, readyAt: order.readyAt || null,
       lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: lineType(l) })), ...totals(),
       createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? prev.day : given?.day || window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
       // the server: whoever was signed in when the order was first saved (staff sign-in)
       server: prev && prev.server ? prev.server : window.RestroStaff?.current?.name || null, serverId: prev && prev.serverId ? prev.serverId : window.RestroStaff?.current?.id || null,
-      // kept from the kitchen screen and the docking station: the kitchen's "complete" (until more items go to the
-      // kitchen) and the pager docked back (while the order keeps that pager)
+      // kept from the kitchen screen: the kitchen's "complete" (until more items go to the kitchen)
       ...(prev?.kitchenDoneAt ? { kitchenDoneAt: prev.kitchenDoneAt } : {}),
-      ...(prev?.pagerDockedAt && cleanPager(prev.pager) === cleanPager(order.pager) ? { pagerDockedAt: prev.pagerDockedAt } : {}),
       // an order this tablet had from before it joined the others keeps its own number until the main system settles it
       ...(prev?.numberProvisional ? { numberProvisional: true } : {}), ...(prev && Number.isInteger(prev.numberWas) ? { numberWas: prev.numberWas } : {}) };
     // Changed on another tablet since it was opened here: both tablets' changes are kept (items added on both, and so on)
     if (prev && opened && window.RestroSync && JSON.stringify(prev) !== opened) entry = window.RestroSync.mergeRecord('orders', JSON.parse(opened), entry, prev);
+    // (a pager handed out here is out, even if the one it replaced came back on another tablet meanwhile)
+    if (entry.pagerBackAt && !pagerFields.pagerBackAt && entry.pager === pagerFields.pager && (entry.pagerAt || 0) === (pagerFields.pagerAt || 0)) delete entry.pagerBackAt;
     const sentNow = !entry.readyAt || kitchenTime(entry) <= now ? sendToKitchen(entry, now) : 0;
     if (sentNow) delete entry.kitchenDoneAt; // more for the kitchen: not complete any more
-    storeOrders([entry, ...list.filter(o => idOf(o) !== entry.uid)]);
+    // A pager handed out or given up here: every other order that had that number is back from it (a pager can only be
+    // handed out once it is back), each keeping when it came back for the record (the one that had it till now: now)
+    const others = list.filter(o => idOf(o) !== entry.uid);
+    if (!untouched && !record) {
+      const back = pagersBack(list), numbers = new Set([cleanPager(prev?.pager), cleanPager(entry.pager)].filter(Boolean));
+      for (const o of others) if (numbers.has(cleanPager(o.pager)) && !o.pagerBackAt) o.pagerBackAt = back.get(idOf(o)) || now;
+    }
+    storeOrders([entry, ...others]);
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     return { entry, sentNow, isNew: !prev };
   }
@@ -372,8 +399,13 @@
     // A held copy of a saved order carries on with that order (unless it has been paid since). A new order comes back
     // without a table or a pager: they were released when it was held.
     const saved = order.number ? loadOrders().find(o => (order.uid ? idOf(o) === order.uid : o.number === order.number) && !o.paidAt) : null;
-    if (!saved) { order.number = null; order.uid = null; order.table = ''; order.pager = 0; } else order.number = saved.number;
-    baseline = saved ? signature(restoreOrder(saved)) : null; opened = saved ? JSON.stringify(saved) : null;
+    if (!saved) { order.number = null; order.uid = null; order.table = ''; order.pager = 0; order.pagerAt = null; }
+    else {
+      order.number = saved.number;
+      // (the saved order's pager came back meanwhile: no longer on screen, as when the order is opened)
+      if (order.pager && order.pager === cleanPager(saved.pager) && !holdsPager(saved)) { order.pager = 0; order.pagerAt = null; }
+    }
+    baseline = saved ? signature(onScreen(saved)) : null; opened = saved ? JSON.stringify(saved) : null;
     sheet = null; selected = null; render(); toast('Order resumed');
   }
   // Opens a saved order that is not paid yet (by its id, or its number), to add items or take the payment.
@@ -382,7 +414,7 @@
     if (order.number && (saved ? (order.uid ? order.uid === idOf(saved) : order.number === saved.number) : order.number === ref)) { sheet = null; render(); return; }
     if (!saved) return;
     park();
-    order = restoreOrder(saved); baseline = signature(order); opened = JSON.stringify(saved);
+    order = onScreen(saved); baseline = signature(order); opened = JSON.stringify(saved);
     sheet = null; selected = null; render(); toast(`Order ${ticket(saved.number)} opened`);
   }
   function removeHeld(id) { window.RestroSync?.removed('held', id); held = held.filter(h => h.heldId !== id); store(HELD_KEY, held); render(); }
@@ -410,12 +442,13 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sweep(); });
   window.addEventListener('restro:prep-time-changed', () => { sweep(); if (dialog.open && (sheet === 'orders' || sheet === 'schedule')) render(); });
   // A pager docked back in its docking station: the docking station is connected to the main system, whose Android app
-  // reports it (restro:pager-docked, { number }). The order that had the pager lets it go: its Buzz goes grey (the
-  // number stays, for the record), and the pager is free for another order. The mark syncs to the other tablets.
+  // reports it (restro:pager-docked, { number }). The order that had the pager lets it go (pagerBackAt): its Buzz goes
+  // grey (the number stays, for the record), and the pager is free for another order. The mark syncs to the other
+  // tablets. Opened again, the order shows no pager.
   window.addEventListener('restro:pager-docked', e => {
     const n = cleanPager(Number(e.detail?.number)), list = loadOrders(), holder = n ? pagerHolders(list).get(n) : null;
     if (!holder) return;
-    holder.pagerDockedAt = Date.now(); storeOrders(list);
+    holder.pagerBackAt = Date.now(); storeOrders(list);
     if (dialog.open) render();
   });
   // Changes from another tablet (sync.js): Held and Orders show them at once, and so does the saved order on screen.
@@ -442,7 +475,7 @@
     const unsaved = signature(order) !== baseline;
     if (stored && !stored.paidAt) {
       if (opened === JSON.stringify(stored) || unsaved) return;
-      order = restoreOrder(stored); baseline = signature(order); opened = JSON.stringify(stored);
+      order = onScreen(stored); baseline = signature(order); opened = JSON.stringify(stored);
       return;
     }
     const n = order.number, was = opened ? restoreOrder(JSON.parse(opened)) : null;
@@ -1102,7 +1135,7 @@
       // closed; a saved order's held copy has the saved order's)
       const mine = o => (order.uid ? idOf(o) === order.uid : o.number === order.number);
       const inUse = new Set([...held.filter(h => h.number).map(h => cleanPager(h.pager)), ...[...pagerHolders(loadOrders())].filter(([, o]) => !mine(o)).map(([n]) => n)].filter(Boolean));
-      const choose = n => { order.pager = n; sheet = null; render(); };
+      const choose = n => { order.pager = n; order.pagerAt = n ? Date.now() : null; sheet = null; render(); }; // handed out now (even the same number again)
       const grid = el('div', { class: 'ctr-pagers', role: 'radiogroup', 'aria-label': 'Pagers' },
         ...Array.from({ length: PAGERS }, (_, i) => i + 1).map(n => {
           const on = order.pager === n, busy = !on && inUse.has(n);

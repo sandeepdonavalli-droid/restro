@@ -92,10 +92,12 @@ now; subscription levels will decide it later, and without it orders are just Op
 window.dispatchEvent(new CustomEvent('restro:pager-docked', { detail: { number: 12 } }));
 ```
 
-Only then is the pager released from its order: the order that has it (the newest order given that pager) is marked
-`pagerDockedAt`, its Buzz button goes grey with the number kept on it, and the pager shows as free in Counter's Assign
-Pager. The mark syncs to the other tablets. Giving the pager to a newer order also releases it from the older one (it
-must have come back in between). A held order's pager is released when it is held.
+Only then is the pager released from its order: the order that has it (the one it was last handed to) is marked
+`pagerBackAt`, its Buzz button goes grey with the number kept on it, and the pager shows as free in Counter's Assign
+Pager. The mark syncs to the other tablets. Opened again in Counter, the order shows no pager: whatever pager is on it
+when it is saved again is its pager, the same one handed back or another (then out with the customer, `pagerAt`), or
+none (then it keeps the old number, still back, for the record). Handing a pager to an order also marks it back from
+the order that had it (it can only be handed out once it is back). A held order's pager is released when it is held.
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 
