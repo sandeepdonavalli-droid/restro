@@ -78,12 +78,13 @@ texting or pagers start with the Android app.
 **When the kitchen marks an order complete** (with the kitchen screen, to build), both go out on their own: the text
 if the order has a phone number, the buzz if it has a pager. With neither, nothing happens. The main system sends them
 (or the tablet that fired the order, without a main system), so each goes out once however many tablets there are. The
-two buttons stay, to send again by hand: Text until the order is Closed (the customer has it), Buzz until the pager is
-docked back (below), then greyed out with the pager's number kept on it, for the record. The kitchen screen also marks
-the order `kitchenDoneAt` (the time) when the whole order is complete, cleared when more items go to the kitchen.
-Orders shows Open with In kitchen under it once the order goes to the kitchen, then Ready, and Closed once the order
-is also paid (at once, if it was paid upfront). Every restaurant has the kitchen screen for now; subscription levels
-will decide it later, and without it orders are just Open, then Closed when paid.
+two buttons stay, to send again by hand: Buzz until the pager is docked back (below), Text until the order is done on
+every side (Closed, and its pager docked back, or it had none); then greyed out with the pager's number kept on it,
+for the record. The kitchen screen also marks the order `kitchenDoneAt` (the time) when the whole order is complete,
+cleared when more items go to the kitchen. Orders shows Open with In kitchen under it once the order goes to the
+kitchen, then Ready, and Closed once the order is also paid (at once, if it was paid upfront). Every restaurant has
+the kitchen screen for now; subscription levels will decide it later, and without it orders are just Open, then Closed
+when paid.
 
 **When a pager is docked back** in its docking station (connected to the main system), dispatch on the main system:
 
