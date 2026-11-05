@@ -78,6 +78,17 @@
     for (const [n, o] of [...holders]) if (o.pagerDockedAt) holders.delete(n);
     return holders;
   }
+  // When each order's pager came back: docked (pagerDockedAt), or else when the next newer order was given it
+  function pagersBack(list) {
+    const back = new Map(), newer = new Map();
+    for (const o of [...list].sort((a, b) => createdOf(b) - createdOf(a))) {
+      const n = cleanPager(o.pager); if (!n) continue;
+      const at = Number(o.pagerDockedAt) || (newer.has(n) ? createdOf(newer.get(n)) : 0);
+      if (at) back.set(idOf(o), at);
+      newer.set(n, o);
+    }
+    return back;
+  }
   const cleanTime = t => Number.isFinite(t) && t > 0 ? t : null;
   // An order read back from storage (the draft, Held or Orders), keeping only what is valid.
   const restoreOrder = o => {
@@ -1299,10 +1310,10 @@
     // From the Orders app: Counter opens on that saved order (not paid yet), to add items or take the payment.
     openOrder(ref) { if (!Number.isInteger(ref) && typeof ref !== 'string') return; openCounter(); fromFloor = false; fromOrders = true; openOrder(ref); },
     // Every saved order (Save or Pay), newest first, as kept on this device; pagerOut: the order still has its pager (not
-    // docked back, not given to a newer order).
+    // docked back, not given to a newer order); pagerBackAt: when its pager came back.
     orders() {
-      const out = new Set([...pagerHolders(loadOrders()).values()].map(idOf));
-      return JSON.parse(JSON.stringify(allOrders())).map(o => ({ ...o, pagerOut: out.has(idOf(o)) }));
+      const list = loadOrders(), out = new Set([...pagerHolders(list).values()].map(idOf)), back = pagersBack(list);
+      return JSON.parse(JSON.stringify(allOrders())).map(o => ({ ...o, pagerOut: out.has(idOf(o)), pagerBackAt: back.get(idOf(o)) || null }));
     },
     // The held orders, newest first (as the Orders app's Held view shows them): when each was held, its type, its table
     // (when it goes to one) or customer, the server, the total and its items. Their tables and pagers were released.

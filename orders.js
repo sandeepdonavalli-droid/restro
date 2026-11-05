@@ -4,8 +4,9 @@
 // table with the server under it, the order status (Open or Closed, with where the order is under Open), and the
 // payment (the amount with the payment status under it) —
 // then two round buttons side by side, well apart, with no column name: text the customer (when the order has their
-// phone number, whatever the status) and buzz the order's pager, its number on the button (whatever the status, until
-// the pager is docked back; then greyed out, keeping the number for the record). The ticket number
+// phone number, whatever the status, until 1 hour 15 minutes after the order is done on every side) and buzz the
+// order's pager, its number on the button (whatever the status, until the pager is docked back; then greyed out,
+// keeping the number for the record). The ticket number
 // shows on the opened order. The list scrolls by touch, with no scroll bar, over the buttons too. Tapping an order
 // anywhere but its buttons opens it: in Counter while it isn't paid (Back returns here), as its receipt once it is; a tap
 // around the buttons does nothing, so a near miss never opens the order.
@@ -67,6 +68,13 @@
     const sub = waiting ? [`Scheduled ${whenShort(o.readyAt)}`, 'scheduled'] : ready ? ['Ready', 'ready'] : screen ? ['In kitchen', 'kitchen'] : [];
     return { text: 'Open', cls: 'open', sub: sub[0], subCls: sub[1] };
   }
+  // When the order was done on every side: Closed (paid, and complete in the kitchen) with its pager back in its dock
+  // (when it had one); 0 while it isn't. Text greys out 1 hour 15 minutes after that: the customer is long gone.
+  const TEXT_FOR = 75 * 60000;
+  function doneAt(o, status) {
+    if (status.cls !== 'closed' || o.pagerOut) return 0;
+    return Math.max(Date.parse(o.paidAt) || 0, Number(o.kitchenDoneAt) || 0, o.pager ? Number(o.pagerBackAt) || 0 : 0);
+  }
   const COLUMNS = [['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['', 'ord-acts']];
   // (the name column's heading, on a small tablet, breaks only after the slash)
   // The date under the time, in numbers: 03/11/2026 (day/month/year)
@@ -87,11 +95,13 @@
     // number; "Buzz" greyed out without one). A tap on either only does its action, or nothing when it is greyed out; a
     // tap between or around them does nothing; neither ever opens the order. Text works whenever the order has the
     // customer's phone number, whatever its status (a customer may need it again after leaving the pager, or never had
-    // one). Buzz works while the order still has its pager, whatever its status: until the pager is docked back in its
-    // docking station (or goes to a newer order); then it is greyed out, its number staying for the record of which pager
-    // the order had. A held order has both greyed out (its pager was released when it was held).
-    const off = held ? 'the order is on hold' : '';
-    const textOn = !held && Boolean(phone), buzzOn = !held && Boolean(o.pager) && Boolean(o.pagerOut), pagerNo = !held && o.pager ? String(o.pager) : '';
+    // one), until the order has been done on every side for over 1 hour 15 minutes. Buzz works while the order still has
+    // its pager, whatever its status: until the pager is docked back in its docking station (or goes to a newer order);
+    // then it is greyed out, its number staying for the record of which pager the order had. A held order has both
+    // greyed out (its pager was released when it was held).
+    const since = held ? 0 : doneAt(o, status), longDone = since > 0 && Date.now() - since > TEXT_FOR;
+    const off = held ? 'the order is on hold' : longDone ? 'the order was done over 1 hour 15 minutes ago' : '';
+    const textOn = !off && Boolean(phone), buzzOn = !held && Boolean(o.pager) && Boolean(o.pagerOut), pagerNo = !held && o.pager ? String(o.pager) : '';
     const bubble = (cls, on, label, act, ...content) => el('button', { type: 'button', class: `ord-bubble ${cls}${on ? '' : ' off'}`, 'aria-disabled': on ? null : 'true', 'aria-label': label,
       onclick: e => { e.stopPropagation(); if (on) act(); }, onkeydown: e => e.stopPropagation() }, ...content);
     const acts = el('span', { class: 'ord-c ord-acts', onclick: e => e.stopPropagation() },

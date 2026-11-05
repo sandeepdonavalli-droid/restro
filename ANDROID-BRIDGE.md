@@ -78,7 +78,8 @@ texting or pagers start with the Android app.
 **When the kitchen marks an order complete** (with the kitchen screen, to build), both go out on their own: the text
 if the order has a phone number, the buzz if it has a pager. With neither, nothing happens. The main system sends them
 (or the tablet that fired the order, without a main system), so each goes out once however many tablets there are. The
-two buttons stay, to send again by hand: Text whenever the order has the customer's phone number, whatever its status;
+two buttons stay, to send again by hand: Text whenever the order has the customer's phone number, whatever its status,
+until 1 hour 15 minutes after the order is done on every side (Closed, and its pager docked back when it had one);
 Buzz until the pager is docked back (below), then greyed out with the pager's number kept on it, for the record. The
 kitchen screen also marks the order `kitchenDoneAt` (the time) when the whole order is complete, cleared when more
 items go to the kitchen. Orders shows Open with In kitchen under it once the order goes to the kitchen, then Ready,
