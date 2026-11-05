@@ -4,9 +4,8 @@
 // table with the server under it, the order status (Open or Closed, with where the order is under Open), and the
 // payment (the amount with the payment status under it) —
 // then two round buttons side by side, well apart, with no column name: text the customer (when the order has their
-// phone number, until the order is Closed and its pager docked back) and buzz the order's pager, its number on the
-// button (whatever the status, until the pager is docked back; then greyed out, keeping the number for the record).
-// The ticket number
+// phone number, whatever the status) and buzz the order's pager, its number on the button (whatever the status, until
+// the pager is docked back; then greyed out, keeping the number for the record). The ticket number
 // shows on the opened order. The list scrolls by touch, with no scroll bar, over the buttons too. Tapping an order
 // anywhere but its buttons opens it: in Counter while it isn't paid (Back returns here), as its receipt once it is; a tap
 // around the buttons does nothing, so a near miss never opens the order.
@@ -86,13 +85,13 @@
     const phone = typeof o.customer?.mobile === 'string' && o.customer.mobile.trim() ? o.customer.mobile.trim() : '';
     // The two round buttons: text the customer (greyed out without a phone number) and buzz the pager ("Buzz" over its
     // number; "Buzz" greyed out without one). A tap on either only does its action, or nothing when it is greyed out; a
-    // tap between or around them does nothing; neither ever opens the order. Buzz works while the order still has its
-    // pager, whatever its status: until the pager is docked back in its docking station (or goes to a newer order); then
-    // it is greyed out, its number staying for the record of which pager the order had. Text is greyed out once the order
-    // is done on every side: Closed (the kitchen's and the payment's) and its pager back (the handover's), or it had none.
-    // A held order has both greyed out (its pager was released when it was held).
-    const done = status.cls === 'closed' && !o.pagerOut, off = held ? 'the order is on hold' : done ? 'the order is closed' : '';
-    const textOn = !off && Boolean(phone), buzzOn = !held && Boolean(o.pager) && Boolean(o.pagerOut), pagerNo = !held && o.pager ? String(o.pager) : '';
+    // tap between or around them does nothing; neither ever opens the order. Text works whenever the order has the
+    // customer's phone number, whatever its status (a customer may need it again after leaving the pager, or never had
+    // one). Buzz works while the order still has its pager, whatever its status: until the pager is docked back in its
+    // docking station (or goes to a newer order); then it is greyed out, its number staying for the record of which pager
+    // the order had. A held order has both greyed out (its pager was released when it was held).
+    const off = held ? 'the order is on hold' : '';
+    const textOn = !held && Boolean(phone), buzzOn = !held && Boolean(o.pager) && Boolean(o.pagerOut), pagerNo = !held && o.pager ? String(o.pager) : '';
     const bubble = (cls, on, label, act, ...content) => el('button', { type: 'button', class: `ord-bubble ${cls}${on ? '' : ' off'}`, 'aria-disabled': on ? null : 'true', 'aria-label': label,
       onclick: e => { e.stopPropagation(); if (on) act(); }, onkeydown: e => e.stopPropagation() }, ...content);
     const acts = el('span', { class: 'ord-c ord-acts', onclick: e => e.stopPropagation() },
