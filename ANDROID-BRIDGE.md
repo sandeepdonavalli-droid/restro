@@ -78,7 +78,11 @@ texting or pagers start with the Android app.
 **When the kitchen marks an order complete** (with the kitchen screen, to build), both go out on their own: the text if
 the order has a phone number, the buzz if it has a pager. With neither, nothing happens. The main system sends them (or
 the tablet that fired the order, without a main system), so each goes out once however many tablets there are. The two
-buttons stay, to send again by hand.
+buttons stay, to send again by hand. The kitchen screen also marks the order `kitchenDoneAt` (the time) when the whole
+order is complete, cleared when more items go to the kitchen. Orders shows Open with In kitchen under it once the
+order goes to the kitchen, then Ready, and Closed once the order is also paid (at once, if it was paid upfront). Every
+restaurant has the kitchen screen for now; subscription levels will decide it later, and without it orders are just
+Open, then Closed when paid.
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 

@@ -1,7 +1,8 @@
 'use strict';
 // Orders: a full-screen app with every saved order (Save or Pay), newest first, one order to a row: everything about
 // the order reads from left to right in five columns — the time with the date under it, the order type, the customer or
-// table with the server under it, the order status, and the payment (the amount with the payment status under it) —
+// table with the server under it, the order status (Open or Closed, with where the order is under Open), and the
+// payment (the amount with the payment status under it) —
 // then two round buttons side by side, well apart, with no column name: text the customer (when the order has their
 // phone number) and buzz the order's pager, its number on the button (whatever the payment status). The ticket number
 // shows on the opened order. The list scrolls by touch, with no scroll bar, over the buttons too. Tapping an order
@@ -52,10 +53,18 @@
   }
   // The customer's name, the table, or Guest when the order has neither.
   const nameOf = o => [o.customer?.name, o.table ? `Table ${tableName(o.table)}` : ''].filter(Boolean).join(' · ') || 'Guest';
-  // Where the order is: waiting for its time (scheduled, with its ready time), with the kitchen, or completed (paid and sent).
+  // The order status: Open (orange) until the order is done, then Closed (green). With the kitchen screen (KDS, to
+  // build: it marks the order `kitchenDoneAt` when the kitchen marks the whole order complete), done means paid and
+  // marked complete. Under Open: Scheduled with its time (plum) while the order waits for its kitchen time, even when it
+  // is paid; In kitchen (grey) once it goes to the kitchen; then Ready (green) once the kitchen marks it complete (a paid
+  // order closes then). Without the kitchen screen, Open and Closed only, by the payment.
+  // Every restaurant has the kitchen screen for now (the full software); subscription levels will decide it later.
+  const KITCHEN_SCREEN = true;
   function statusOf(o) {
-    if (!o.sentAt) return o.readyAt ? { text: 'Scheduled', sub: whenShort(o.readyAt), cls: 'scheduled' } : { text: 'Saved', cls: '' };
-    return o.paidAt ? { text: 'Completed', cls: 'done' } : { text: 'In kitchen', cls: 'kitchen' };
+    const waiting = !o.sentAt && Boolean(o.readyAt), screen = KITCHEN_SCREEN && Boolean(o.sentAt), ready = screen && Boolean(o.kitchenDoneAt);
+    if (o.paidAt && !waiting && (!screen || ready)) return { text: 'Closed', cls: 'closed' };
+    const sub = waiting ? [`Scheduled ${whenShort(o.readyAt)}`, 'scheduled'] : ready ? ['Ready', 'ready'] : screen ? ['In kitchen', 'kitchen'] : [];
+    return { text: 'Open', cls: 'open', sub: sub[0], subCls: sub[1] };
   }
   const COLUMNS = [['Date & time', 'ord-when'], ['Order type', 'ord-typecell'], [() => ['Customer / ', el('span', { class: 'ord-keep' }, 'Table - Server')], 'ord-name'], ['Order status', 'ord-status'], ['Payment status', 'ord-pay'], ['', 'ord-acts']];
   // (the name column's heading, on a small tablet, breaks only after the slash)
@@ -86,12 +95,12 @@
       twoLines('ord-when', timeOf(when), fullDate(when)),
       cell('ord-typecell', el('span', { class: 'ord-type' }, type.label)),
       twoLines('ord-name', name, o.server || ''),
-      status.sub ? twoLines(`ord-status ${status.cls}`, status.text, status.sub) : cell(`ord-status ${status.cls}`, status.text),
+      status.sub ? twoLines(`ord-status ${status.cls}`, status.text, status.sub, status.subCls) : cell(`ord-status ${status.cls}`, status.text),
       twoLines('ord-pay', money(o.total), pay, payClass),
       acts];
     const label = held
       ? `Held order, ${timeOf(when)}, ${fullDate(when)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${money(o.total)}`
-      : `Order ${o.number}, ${timeOf(when)}, ${fullDate(when)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? ` ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
+      : `Order ${o.number}, ${timeOf(when)}, ${fullDate(when)}, ${type.label}, ${name}${o.server ? `, server ${o.server}` : ''}, ${status.text}${status.sub ? `, ${status.sub}` : ''}, ${money(o.total)}, ${pay}${o.pager ? `, buzzer ${o.pager}` : ''}`;
     const open = () => (held ? window.RestroCounter?.resumeHeld(o.heldId) : paid ? showReceipt(o) : window.RestroCounter?.openOrder(o.uid || o.number));
     return el('div', { class: 'ord-row ord-open', role: 'listitem', tabindex: '0', style: `--type:${type.color}`, 'aria-label': `${label}. ${paid ? 'Open the receipt' : 'Open in Counter'}`, onclick: open,
       onkeydown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); open(); } } }, ...cells);

@@ -3,8 +3,9 @@
    light grey (zebra) for definition, with no colour edge. Everything about an order reads from left to right under the
    column names, which are bold black on the light grey and are parted by short lines; names and details are all
    centred in their columns. Every detail is regular weight and black, except where colour means something (full
-   neon, so it stays bright without bold): the order type (sky blue); In kitchen (neon orange), Scheduled (plum),
-   Completed (neon green); Paid (neon green), Not paid or Partially paid (neon orange), Refunded (red). */
+   neon, so it stays bright without bold): the order type (sky blue); Open (neon orange), with In kitchen (grey), Ready
+   (neon green) or Scheduled and its time (plum) under it, and Closed (neon green); Paid (neon green), Not paid or
+   Partially paid (neon orange), Refunded (red). */
 .orders-app{position:fixed;inset:var(--header-height) 0 var(--header-height);width:100%;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:#ffffff;color:#1f2933}
 .orders-app[open]{display:block}
 .orders-app::backdrop{background:transparent}
@@ -52,9 +53,10 @@
 .ord-name{font-weight:400}
 .ord-status,.ord-pay{font-size:14px;font-weight:400}
 /* Full neon orange and neon green: with regular-weight letters, the lighter shades looked dull. */
-.ord-status.kitchen{color:#ff6700} /* In kitchen: neon orange */
-.ord-status.scheduled{color:#9c3f68}
-.ord-status.done{color:#00c853} /* Completed: neon green */
+.ord-status.open{color:#ff6700} /* Open: neon orange */
+.ord-status.closed{color:#00c853} /* Closed: neon green */
+.ord-status .ord-sub.ready{color:#00c853} /* under Open: Ready, neon green (In kitchen stays grey) */
+.ord-status .ord-sub.scheduled{color:#9c3f68} /* under Open: Scheduled and its time, plum */
 .ord-pay .paid{color:#00c853} /* Paid: neon green */
 .ord-pay .unpaid{color:#ff6700} /* Not paid or Partially paid: neon orange */
 .ord-pay .refunded{color:#b42318} /* Refunded: red */
@@ -67,7 +69,6 @@
 .ord-main{font-size:15px}
 .ord-sub{font-size:13px;color:var(--ord-muted)} /* the date and the server a little grey beside the time and the name; the payment status keeps its colour */
 .ord-pay .ord-main{font-variant-numeric:tabular-nums}
-.ord-status .ord-sub{color:inherit} /* Scheduled, with its ready time under it, both in plum */
 
 /* The two round bubble buttons, side by side after the payment status, with no column name: text the customer (a send
    icon, sky blue) and buzz the pager ("Buzz" over its number, neon orange). 32px apart, so a finger meant for one never
