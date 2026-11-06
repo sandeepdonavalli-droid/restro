@@ -13,7 +13,8 @@
 .cust-nav{display:grid;place-items:center;width:32px;height:32px;margin:0;padding:0;border:0;border-radius:50%;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent);cursor:pointer}
 .cust-nav:hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
 .cust-nav svg{width:16px;height:16px}
-.cust-title-icon{display:block;width:36px;height:28px}
+/* The app's icon (Customers, Employees): square, 35.2px as in Orders and Floor, centred on the line with Home and the title */
+.cust-title-icon{display:block;flex:none;width:35.2px;height:35.2px}
 .cust-head h2{margin:0 0 0 2px;font-size:18px;font-weight:600;color:var(--palette-accent-ink)}
 #customers-title:focus{outline:none}
 

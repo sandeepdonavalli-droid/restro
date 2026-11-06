@@ -93,3 +93,12 @@
 
 /* A narrow screen: the apps take the width (the widgets stay on tablets) */
 @media (max-width:900px){#home .launcher-content{grid-template-columns:minmax(0,1fr)}#home .home-widgets{display:none}}
+
+/* An app's icon outside the home screen (app headers, Recent apps, quick controls, notifications, dialogs, Settings):
+   the new icons show exactly as designed (not brightened or masked like the old pictures), whole and square, filling
+   and centred in their place. Where the old pictures sat on a tinted square, the icon is the square. */
+.app-art.tile-art{filter:none!important;-webkit-mask-image:none!important;mask-image:none!important;mix-blend-mode:normal!important;transform:none!important}
+.app-art.tile-art>svg{display:block;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important}
+.notification-icon:has(>.app-art.tile-art),.quick-control-icon:has(>.app-art.tile-art){background:none;box-shadow:none}
+.notification-icon>.app-art.tile-art{width:100%;height:100%}
+html[data-restro-theme] .quick-control-icon.selected-gear .app-art.tile-art{width:100%;height:100%}

@@ -17,7 +17,8 @@
 .floor-nav{display:grid;place-items:center;width:35.2px;height:35.2px;margin:0;padding:0;border:0;border-radius:50%;background:#f5f6f7;color:#1f2933;box-shadow:inset 0 0 0 1px #cbcfd5;cursor:pointer}
 .floor-nav:hover{background:#e3e6ea}
 .floor-nav svg{width:17.6px;height:17.6px}
-.floor-title-icon{display:block;width:36px;height:28px}
+/* The app's icon: square, as tall as the round Home button, centred on the line with it and the title */
+.floor-title-icon{display:block;flex:none;width:35.2px;height:35.2px}
 .floor-head h2{margin:0 0 0 2px;font-size:18px;font-weight:600;color:var(--palette-accent-ink)}
 #floor-title:focus{outline:none}
 
