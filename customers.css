@@ -9,10 +9,13 @@
 .cust-root button{font:inherit}
 .cust-root button:focus-visible{outline:2px solid var(--palette-accent);outline-offset:2px}
 
+/* Header (Customers and Employees), exactly as in Orders and Floor: the round Home button (a back arrow when it goes
+   back: opened from Counter, or inside a form), the app's icon and the title, with a line under them all. Home is the
+   same everywhere, in the same neutral greys whatever the theme: 35.2px with a 17.6px icon. */
 .cust-head{flex:none;display:flex;align-items:center;gap:8px;margin:0 16px;padding:10px 0 9px;border-bottom:1px solid var(--palette-line)}
-.cust-nav{display:grid;place-items:center;width:32px;height:32px;margin:0;padding:0;border:0;border-radius:50%;background:var(--palette-accent-wash);color:var(--palette-accent-ink);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palette-accent) 30%,transparent);cursor:pointer}
-.cust-nav:hover{background:color-mix(in srgb,var(--palette-accent) 22%,transparent)}
-.cust-nav svg{width:16px;height:16px}
+.cust-nav{display:grid;place-items:center;width:35.2px;height:35.2px;margin:0;padding:0;border:0;border-radius:50%;background:#f5f6f7;color:#1f2933;box-shadow:inset 0 0 0 1px #cbcfd5;cursor:pointer}
+.cust-nav:hover{background:#e3e6ea}
+.cust-nav svg{width:17.6px;height:17.6px}
 /* The app's icon (Customers, Employees): square, 35.2px as in Orders and Floor, centred on the line with Home and the title */
 .cust-title-icon{display:block;flex:none;width:35.2px;height:35.2px}
 .cust-head h2{margin:0 0 0 2px;font-size:18px;font-weight:600;color:var(--palette-accent-ink)}
@@ -53,36 +56,3 @@
 .cust-delete{margin:0 auto 0 0;min-height:40px;padding:0 12px;border:0;border-radius:12px;background:transparent;color:#b42318;font-size:14px;font-weight:600;cursor:pointer}
 .cust-delete.armed{background:#b42318;color:#fff}
 .cust-root .primary-button{margin:0;min-height:42px;padding:0 20px;border-radius:12px;font-size:15px;font-weight:600}
-/* Header: the same as Counter's everywhere. Home is a 47x33 rounded block at the left edge whose bottom sits on the
-   header line; the line starts just right of it and runs to the far edge. The band above the line is 36px.
-   Its tint sits on Counter's panel colour, so it looks exactly the same on any page.
-   Opened from Counter, or inside a customer's form, the same button shows a back arrow, because it goes back. */
-.cust-head{position:relative;min-height:36px;margin:0;padding:1px 16px 2px 6px;border-bottom:0}
-.cust-head::after{content:"";position:absolute;left:59px;right:0;bottom:0;height:0;border-top:1px solid var(--palette-line);pointer-events:none}
-.cust-nav{position:relative;top:2px;width:47px;height:33px;border-radius:8px;background:linear-gradient(var(--palette-accent-wash),var(--palette-accent-wash)) var(--palette-tile-top)}
-.cust-nav:hover{background:linear-gradient(color-mix(in srgb,var(--palette-accent) 22%,transparent),color-mix(in srgb,var(--palette-accent) 22%,transparent)) var(--palette-tile-top)}
-.cust-nav svg{width:20px;height:20px}
-/* Home: 51x41 at the top-left corner, as in Counter; the header line starts just right of it */
-.cust-head{padding-left:63px}
-.cust-nav{position:absolute;left:4px;top:2px;width:51px;height:41px}
-.cust-nav svg{width:24px;height:24px}
-.cust-head::after{left:61px}
-.cust-head::after{left:64px} /* 9px gap after Home, as in Counter */
-.cust-head::after{right:9px} /* 9px gap at the right edge, as in Counter */
-/* Home is as wide as in Counter (a third of its header on a tablet); the title and the header line start 9px after it */
-.cust-nav{width:140px}
-.cust-head{padding-left:153px}
-.cust-head::after{left:153px}
-.cust-nav{border-radius:10px} /* same corners as Home in Counter */
-/* Home in the same tile style as in Counter */
-.cust-nav,.cust-nav:hover{border:1px solid var(--palette-edge);background:linear-gradient(145deg,var(--palette-tile-top),var(--palette-tile-bottom));box-shadow:0 2px 5px var(--palette-soft-shadow)}
-.cust-nav:hover{border-color:var(--palette-accent)}
-.cust-nav:active{transform:scale(.97)}
-.cust-nav,.cust-nav:hover{border-left:6px solid var(--palette-accent)} /* Home with the tile stripe, as in Counter */
-.cust-nav,.cust-nav:hover{border-color:var(--palette-accent)} /* border in the theme colour, as in Counter */
-.cust-nav,.cust-nav:hover{--btn:#4d7cb8;border-color:var(--palette-edge);border-left-color:var(--btn);color:color-mix(in srgb,var(--btn) 80%,#000)} /* Home blue, as in Counter */
-/* Home in the same place as in Counter (9px in, 9px down); the header line lines up with its bottom edge and the title
-   is centred beside it */
-.cust-head{min-height:50px;padding:9px 16px 0 158px;align-items:center}
-.cust-nav{left:9px;top:9px}
-.cust-head::after{left:158px}
