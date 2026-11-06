@@ -45,7 +45,7 @@
 
   function render() {
     const setup = !Staff.hasAccounts();
-    const title = setup ? 'Owner account' : form ? (form.id ? 'Edit employee' : 'New employee') : 'Employees';
+    const title = setup ? 'Owner account' : form ? (form.id ? 'Edit employee' : 'New employee') : 'Staff';
     const back = Boolean(form) && !setup;
     const head = el('div', { class: 'cust-head' },
       el('button', { type: 'button', class: 'cust-nav', 'aria-label': back ? 'Back to employees' : 'Home', title: back ? 'Back' : 'Home',
@@ -64,7 +64,7 @@
       svg(ICON.chevron)));
     return el('div', { class: 'cust-body' },
       el('div', { class: 'emp-tools' }, el('button', { type: 'button', class: 'cust-new', onclick: () => openForm(null) }, svg(ICON.plus), 'New employee')),
-      el('ul', { class: 'cust-list', 'aria-label': 'Employees' }, Staff.list().map(row)));
+      el('ul', { class: 'cust-list', 'aria-label': 'Staff' }, Staff.list().map(row)));
   }
 
   function formView(setup) {
@@ -140,7 +140,7 @@
 
   window.RestroEmployees = Object.freeze({
     open() {
-      if (Staff.hasAccounts() && !isOwner()) { toast('Only the owner can open Employees.'); return; }
+      if (Staff.hasAccounts() && !isOwner()) { toast('Only the owner can open Staff.'); return; }
       document.querySelectorAll('dialog[open]').forEach(d => d.close());
       form = Staff.hasAccounts() ? null : { id: null, name: '', role: 'owner', pin: '' };
       errors = {}; deleteArmed = false; render();
@@ -216,13 +216,13 @@
     lockTitle.toggleAttribute('autofocus', on);
     if (on) lockTitle.setAttribute('tabindex', '-1'); else lockTitle.removeAttribute('tabindex');
   }
-  // The signed-in person at the top right: a circle with the first letter of their name (the name read out, and shown
-  // on hover); a person outline while nobody is signed in
+  // The signed-in person at the top right: a circle with their initials, first name and last name ("AK"; one letter
+  // when there is no last name), the name read out and shown on hover; a person outline while nobody is signed in
   const profile = document.querySelector('#server-profile'), initial = document.querySelector('#server-initial');
   function paintName() {
     if (!profile) return;
-    const name = (Staff.current?.name || '').trim();
-    initial.textContent = name ? Array.from(name)[0].toLocaleUpperCase('en-IN') : '';
+    const name = (Staff.current?.name || '').trim(), words = name.split(/\s+/).filter(Boolean);
+    initial.textContent = (words.length > 1 ? [words[0], words.at(-1)] : words).map(w => Array.from(w)[0]).join('').toLocaleUpperCase('en-IN');
     profile.classList.toggle('signed-out', !name);
     profile.setAttribute('aria-label', name ? `Signed in: ${name}` : 'Nobody signed in');
     profile.title = name || 'Nobody signed in';

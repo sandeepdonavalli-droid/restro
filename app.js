@@ -9,20 +9,25 @@ const shortcuts = [
   { id:'pager-hub', name:'Pager Hub', art:{file:'pager-hub-p59.png',w:1536,h:1024,viewBox:'153 78 1300 896'} },
   { id:'closeout', name:'End Day', art:art('master',962,146,210,189) }
 ];
+// The home screen's apps (POS Home Handoff), in the design's order: page 1 Payments to Menu, page 2 Gallery, Camera and
+// Help. Their icons come from assets/app-icons (theme-artwork.js). Printers is set up in Settings, so it is not an app.
+const tileArt = name => ({ url: `assets/app-icons/${name}.webp`, w: 384, h: 384, tile: true });
 const apps = {
-  menu:{name:'Menu',art:art('master',49,478,212,128)},
-  transactions:{name:'Payment History',art:art('master',299,478,184,128)},
-  refunds:{name:'Refunds',art:art('master',540,477,172,128)},
-  cash:{name:'Cash log',art:art('apps',772,472,158,133)},
+  transactions:{name:'Payments',art:art('master',299,478,184,128)},
   inventory:{name:'Inventory',art:art('master',997,474,178,133)},
-  employees:{name:'Employees',art:art('master',46,667,196,124)},
+  refunds:{name:'Refunds',art:art('master',540,477,172,128)},
+  cash:{name:'Cash Bag',art:art('apps',772,472,158,133)},
+  calculator:{name:'Calculator',art:tileArt('calculator')},
+  employees:{name:'Staff',art:art('master',46,667,196,124)},
   customers:{name:'Customers',art:art('master',299,674,173,117)},
-  printers:{name:'Printers',art:art('master',532,657,172,134)},
-  help:{name:'Help',art:art('master',778,668,155,123)},
-  store:{name:'App Store',art:art('apps',980,659,211,146)},
   analytics:{name:'Analytics',art:art('analytics',70,490,172,144)},
   settings:{name:'Settings',art:{file:'settings-g39.png',w:1254,h:1254,viewBox:'22 150 1221 986'}},
-  'qr-studio':{name:'QR Studio',art:{url:'assets/qr-studio/D.webp',w:1536,h:1024,viewBox:'48 405 244 264',sprite:true,themeId:'D'}}
+  store:{name:'App Store',art:art('apps',980,659,211,146)},
+  'qr-studio':{name:'QR Studio',art:{url:'assets/qr-studio/D.webp',w:1536,h:1024,viewBox:'48 405 244 264',sprite:true,themeId:'D'}},
+  menu:{name:'Menu',art:art('master',49,478,212,128)},
+  gallery:{name:'Gallery',art:tileArt('gallery')},
+  camera:{name:'Camera',art:tileArt('camera')},
+  help:{name:'Help',art:art('master',778,668,155,123)}
 };
 shortcuts.forEach(item=>{item.art.key=item.id;});
 Object.entries(apps).forEach(([id,item])=>{item.art.key=id;});
@@ -33,15 +38,11 @@ function installedAppIds(){return Object.keys(apps).filter(isInstalledApp);}
 // Every surface, including theme previews and quick controls, uses this artwork catalog.
 function artSource(a){return a.url||`assets/icons/${a.file||`${a.source}-${a.x}-${a.y}-${a.w}-${a.h}.png`}`;}
 const PAGE_CAPACITY=RestroLayout.capacity;
-const defaultPages=[installedAppIds(),[],[]];
-const collapsedDefault=[Object.keys(apps)];
+// Two pages, as designed: the first 12 apps, then the rest. The design's set and order start every tablet afresh once
+// (a new layout key); after that, apps and pages moved by staff stay as they leave them.
+const defaultPages=[installedAppIds().slice(0,PAGE_CAPACITY),installedAppIds().slice(PAGE_CAPACITY)];
 let savedPages=null;
-try {
-  const current=localStorage.getItem('restro.appLayout.v4');
-  savedPages=JSON.parse(current||localStorage.getItem('restro.appLayout.v3')||localStorage.getItem('restro.appLayout.v2')||localStorage.getItem('restro.appLayout.v1')||'null');
-  // Repair the previous default once; later user page additions/deletions persist.
-  if(!current&&JSON.stringify(savedPages)===JSON.stringify(collapsedDefault))savedPages=defaultPages;
-}catch{}
+try{savedPages=JSON.parse(localStorage.getItem('restro.appLayout.v5')||'null');}catch{}
 let pages=RestroLayout.restore(savedPages,installedAppIds(),defaultPages);
 let currentPage=0, arranging=false, drag=null, holdTimer=null, gesture=null, moveId=null, deleteAppId=null, deletingApp=false, toastTimer=null, lastWheelAt=0;
 const viewport=$('#apps-viewport'), track=$('#pages-track');
@@ -193,7 +194,7 @@ function goToPage(page){
   currentPage=next;updatePage();return true;
 }
 function setArranging(value){if(arranging===value)return;arranging=value;if(!value)currentPage=Math.min(currentPage,pages.length-1);renderPages();}
-function saveLayout(){try{localStorage.setItem('restro.appLayout.v4',JSON.stringify(pages));}catch{}}
+function saveLayout(){try{localStorage.setItem('restro.appLayout.v5',JSON.stringify(pages));}catch{}}
 function moveApp(id,targetPage,targetPosition){
   if(!isInstalledApp(id))throw new Error('Choose an installed app.');
   const moved=RestroLayout.move(pages,id,targetPage,targetPosition);pages=moved.pages;
@@ -236,7 +237,7 @@ $('#delete-app-dialog').addEventListener('close',()=>{deleteAppId=null;const slo
 function syncInstalledControls(){$$('[data-control="settings"]').forEach(control=>{control.hidden=!isInstalledApp('settings');});}
 window.addEventListener('restro:app-uninstalled',syncInstalledControls);syncInstalledControls();
 function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroProfile?.fill();window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
-function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='employees')window.RestroEmployees?.open();else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}}
+function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='employees')window.RestroEmployees?.open();else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}else if(id==='calculator'||id==='camera')document.querySelector(`[data-control="${id}"]`)?.click();}
 function openMove(id){
   moveId=id;setArranging(true);$('#move-description').textContent=`Choose where to insert ${apps[id].name}. Following apps keep their order.`;
   const select=$('#move-page');select.replaceChildren();pages.forEach((_,p)=>{const option=document.createElement('option');option.value=p;option.textContent=`Page ${p+1}`;select.append(option);});

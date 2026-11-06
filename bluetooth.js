@@ -252,6 +252,11 @@
   }
 
   refreshState().then(() => window.dispatchEvent(new CustomEvent('restro:bluetooth-changed', { detail: { connected: connected.size } })));
+  // The top bar's Bluetooth icon: shown while Bluetooth is on and usable here (on the tablet, as the tablet reports it)
+  const statusIcon = document.querySelector('#bluetooth-status');
+  const paintStatus = () => { if (statusIcon) statusIcon.hidden = !(isOn() && !reasonCache); };
+  window.addEventListener('restro:bluetooth-changed', paintStatus);
+
   window.RestroBluetooth = Object.freeze({
     get on() { return isOn(); },
     get canToggle() { return canToggle(); },

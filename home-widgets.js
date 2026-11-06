@@ -74,13 +74,13 @@
     const where = o => o.table ? `Table ${window.RestroFloor?.tableName(o.table) || o.table}` : o.customer?.name || TYPES[o.type] || 'Order';
     const chip = s => (s.sub === 'Ready' ? 'ready' : s.sub === 'In kitchen' ? 'kitchen' : String(s.sub || '').startsWith('Scheduled') ? 'scheduled' : 'open');
     const rows = open.slice(0, 3).map(o => {
-      const s = statusOf(o), label = s.sub || 'Open';
+      const s = statusOf(o), label = s.sub === 'In kitchen' ? 'Cooking' : s.sub || 'Open';
       const go = () => (o.paidAt ? window.RestroOrders?.open() : window.RestroCounter?.openOrder(o.uid || o.number));
       return el('button', { type: 'button', class: 'hw-order', 'aria-label': `Order ${ticket(o.number)}, ${where(o)}, ${minutes(now - o.createdAt)}, ${label}`, onclick: go },
         el('strong', {}, ticket(o.number)), el('span', { class: 'hw-where' }, `${where(o)} · ${minutes(now - o.createdAt)}`), el('span', { class: `hw-chip ${chip(s)}` }, label.replace(/^Scheduled /, '')));
     });
     return card('hw-orders', 'orders', 'Orders', line, () => window.RestroOrders?.open(),
-      rows.length ? el('div', { class: 'hw-list' }, ...rows) : null);
+      el('div', { class: 'hw-list' }, ...rows));
   }
 
   function floorCard() {

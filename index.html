@@ -23,20 +23,20 @@
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
   <link rel="stylesheet" href="connectivity-status.css?v=2">
-  <link rel="stylesheet" href="status-bar.css?v=14">
+  <link rel="stylesheet" href="status-bar.css?v=16">
   <link rel="stylesheet" href="tiles.css?v=4">
-  <link rel="stylesheet" href="launcher.css?v=4">
+  <link rel="stylesheet" href="launcher.css?v=6">
   <script src="theme-data.js?v=2"></script>
-  <script src="theme-artwork.js?v=4"></script>
+  <script src="theme-artwork.js?v=5"></script>
   <script src="themes.js?v=6"></script>
   <script src="tiles.js?v=1"></script>
   <script src="app-layout.js?v=4" defer></script>
   <script src="sync.js?v=6" defer></script>
-  <script src="app.js?v=36" defer></script>
-  <script src="home-widgets.js?v=2" defer></script>
+  <script src="app.js?v=37" defer></script>
+  <script src="home-widgets.js?v=4" defer></script>
   <script src="connectivity-status.js?v=4" defer></script>
   <script src="wifi.js?v=3" defer></script>
-  <script src="bluetooth.js?v=3" defer></script>
+  <script src="bluetooth.js?v=4" defer></script>
   <script src="device-controls.js?v=8" defer></script>
   <script src="sound.js?v=4" defer></script>
   <script src="menu-data.js?v=2" defer></script>
@@ -51,7 +51,7 @@
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=15" defer></script>
   <script src="staff.js?v=2" defer></script>
-  <script src="employees.js?v=2" defer></script>
+  <script src="employees.js?v=3" defer></script>
 </head>
 <body>
   <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -69,22 +69,24 @@
     <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
   </svg>
   <div class="app-shell">
-    <!-- The top bar (POS Home Handoff): the restaurant's mark and name with the date and time on the left; the connection
-         dot, the battery, signal and Wi-Fi, and the signed-in server's profile circle on the right (status-bar.css) -->
+    <!-- The top bar (POS Home Handoff, final): one line. Left: the restaurant's mark, its name, the date and time. Right:
+         our status icons (Bluetooth, Wi-Fi, signal, battery: shown as the tablet reports them), the Online pill and the
+         signed-in server's profile circle. The same bar on every page (status-bar.css). -->
     <header id="top-banner" class="top-banner" title="Pull down for quick controls">
       <button id="quick-controls-open" class="quick-controls-trigger sr-only" type="button" aria-label="Open quick controls" aria-haspopup="dialog" aria-controls="quick-controls-dialog">Quick controls</button>
       <div class="identity">
         <span id="restaurant-mark" class="restaurant-mark" aria-hidden="true">R</span>
-        <span class="identity-lines">
-          <span id="restaurant-name" class="restaurant-name">RESTAURANT NAME</span>
-          <time id="clock" class="header-time"><span id="clock-date" class="clock-date"></span><span class="clock-dot" aria-hidden="true"> · </span><span class="clock-text">5:30 PM</span></time>
-        </span>
+        <span id="restaurant-name" class="restaurant-name">RESTAURANT NAME</span>
+        <time id="clock" class="header-time"><span id="clock-date" class="clock-date"></span><span class="clock-dot" aria-hidden="true"> · </span><span class="clock-text">5:30 PM</span></time>
       </div>
       <div class="system-status">
-        <span class="online-status"><span id="online-dot" class="status-dot offline"></span><span id="online-text" class="sr-only">Offline</span></span>
-        <span class="battery-status" role="img" hidden><svg class="battery" viewBox="0 0 29.4 14" aria-hidden="true"><rect x=".7" y=".7" width="25.4" height="12.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect class="battery-fill" x="2.5" y="2.5" width="0" height="9" rx="1.4" fill="currentColor"/><rect x="28" y="4.25" width="1.4" height="5.5" rx=".7" fill="currentColor"/><path class="battery-flash" d="m14.6 2.4-4.3 5.3h3l-1.2 3.9 4.4-5.8h-3.1l1.2-3.4Z" fill="#fff" hidden/></svg></span>
-        <span id="cellular-status" class="network-slot" role="img" hidden><svg class="icon signal" viewBox="0 0 24 24" aria-hidden="true"><path data-signal-level="1" d="M3 20v-4" stroke-width="4"/><path data-signal-level="2" d="M9 20V12" stroke-width="4"/><path data-signal-level="3" d="M15 20V8" stroke-width="4"/><path data-signal-level="4" d="M21 20V4" stroke-width="4"/></svg></span>
-        <span id="wifi-status" class="network-slot" role="img" hidden><svg class="icon wifi" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(0 -2.1) scale(1 1.205)"><path data-wifi-level="4" d="M2 8a17 17 0 0 1 20 0"/><path data-wifi-level="3" d="M5.5 11.5a11 11 0 0 1 13 0"/><path data-wifi-level="2" d="M9 15a5 5 0 0 1 6 0"/><circle data-wifi-level="1" class="wifi-dot" cx="12" cy="18.5" r="1.5" fill="currentColor" stroke="none"/><g class="wifi-warning" hidden><path d="M12 11.4v4.5"/><circle cx="12" cy="18.5" r="1.1"/></g></g></svg></span>
+        <span class="device-status">
+          <span id="bluetooth-status" class="network-slot" role="img" aria-label="Bluetooth on" hidden><svg class="icon bluetooth" viewBox="0 0 24 24" aria-hidden="true"><path d="m6.5 7 11 10-5.5 4.5v-19l5.5 4.5-11 10"/></svg></span>
+          <span id="wifi-status" class="network-slot" role="img" hidden><svg class="icon wifi" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(0 -2.1) scale(1 1.205)"><path data-wifi-level="4" d="M2 8a17 17 0 0 1 20 0"/><path data-wifi-level="3" d="M5.5 11.5a11 11 0 0 1 13 0"/><path data-wifi-level="2" d="M9 15a5 5 0 0 1 6 0"/><circle data-wifi-level="1" class="wifi-dot" cx="12" cy="18.5" r="1.5" fill="currentColor" stroke="none"/><g class="wifi-warning" hidden><path d="M12 11.4v4.5"/><circle cx="12" cy="18.5" r="1.1"/></g></g></svg></span>
+          <span id="cellular-status" class="network-slot" role="img" hidden><svg class="icon signal" viewBox="0 0 24 24" aria-hidden="true"><path data-signal-level="1" d="M3 20v-4" stroke-width="4"/><path data-signal-level="2" d="M9 20V12" stroke-width="4"/><path data-signal-level="3" d="M15 20V8" stroke-width="4"/><path data-signal-level="4" d="M21 20V4" stroke-width="4"/></svg></span>
+          <span class="battery-status" role="img" hidden><svg class="battery" viewBox="0 0 29.4 14" aria-hidden="true"><rect x=".7" y=".7" width="25.4" height="12.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect class="battery-fill" x="2.5" y="2.5" width="0" height="9" rx="1.4" fill="currentColor"/><rect x="28" y="4.25" width="1.4" height="5.5" rx=".7" fill="currentColor"/><path class="battery-flash" d="m14.6 2.4-4.3 5.3h3l-1.2 3.9 4.4-5.8h-3.1l1.2-3.4Z" fill="#fff" hidden/></svg></span>
+        </span>
+        <span class="online-status online-pill"><span id="online-dot" class="status-dot offline"></span><span id="online-text">Offline</span></span>
         <span id="server-profile" class="server-profile signed-out" role="img" aria-label="Nobody signed in"><span id="server-initial" class="server-initial" aria-hidden="true"></span><svg class="server-glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg></span>
       </div>
     </header>

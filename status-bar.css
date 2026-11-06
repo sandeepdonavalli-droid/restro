@@ -1,36 +1,45 @@
-/* The top bar (POS Home Handoff): the design's header, 64 design pixels high (--hl-u: one design pixel, launcher.css), on
-   every screen. Left: the restaurant's mark (the first letter of its name on a dark rounded square), its name (in
-   capitals, as kept) and under it the date and the time. Right: the connection dot (green online, red offline; the word
-   is kept for screen readers only), the battery, signal and Wi-Fi when the tablet reports them, and the signed-in
-   server's profile circle (their first letter; a person outline when nobody is signed in). On the home screen it sits on
-   the page's grey; over an open app it is white with a partition line under it (the line is two device pixels on the
-   1.5x tablet, so it stays sharp). Pull it down for quick controls, as before. A sheet that dims the screen dims it too
-   (counter.css). */
-:root{--top-px:1px;--top-line:1px;--top-gap:6px;--top-banner-height:calc(64 * var(--hl-u))}
-@media (min-resolution:1.5dppx) and (max-resolution:1.99dppx){:root{--top-px:calc(2px / 3);--top-line:calc(4px / 3)}}
-#top-banner{position:sticky;top:0;z-index:3;box-sizing:border-box;height:var(--top-banner-height);min-height:var(--top-banner-height);display:flex;align-items:center;gap:calc(14 * var(--hl-u));padding:0 calc(24 * var(--hl-u));border:0;background:var(--hl-bg);box-shadow:none;color:var(--hl-text);font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;line-height:1}
-html[data-app-open] #top-banner{background:#ffffff;box-shadow:inset 0 calc(-1 * var(--top-line)) 0 #cbcfd5,0 var(--top-gap) 0 #ffffff}
-#top-banner .identity{flex:1;min-width:0;display:flex;align-items:center;gap:calc(14 * var(--hl-u))}
-#top-banner .restaurant-mark{flex:none;width:calc(36 * var(--hl-u));height:calc(36 * var(--hl-u));border-radius:calc(11 * var(--hl-u));background:#1C1917;color:#ffffff;display:grid;place-items:center;font-size:calc(16 * var(--hl-u));font-weight:700;line-height:1}
-#top-banner .identity-lines{min-width:0;display:flex;flex-direction:column}
-#top-banner .restaurant-name{max-width:100%;font-size:calc(15 * var(--hl-u));font-weight:600;line-height:1.25;letter-spacing:0;color:var(--hl-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#top-banner .header-time{display:block;min-width:0;height:auto;font-size:calc(12 * var(--hl-u));font-weight:400;line-height:1.3;color:var(--hl-muted);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#top-banner .system-status{flex:none;display:flex;align-items:center;gap:calc(14 * var(--hl-u));color:#1f2933}
-#top-banner .online-status{min-width:0;height:auto}
-#top-banner .status-dot{box-shadow:none}
-#top-banner .battery-status{color:#1f2933}
-#top-banner .battery-status[data-battery-state="charging"]{color:#62d36b}
-#top-banner .battery-status[data-battery-state="low"]{color:#ff5c5c}
-/* Wi-Fi, signal and the battery keep no empty place when they are not shown, so what is shown sits by the profile */
-#top-banner .system-status .network-slot[hidden]{display:none!important}
-#top-banner .battery-status[hidden]{display:none}
-#top-banner .server-profile{flex:none;width:calc(44 * var(--hl-u));height:calc(44 * var(--hl-u));margin-left:calc(-4 * var(--hl-u));border-radius:50%;background:#1C1917;color:#ffffff;display:grid;place-items:center;font-size:calc(14 * var(--hl-u));font-weight:600;line-height:1}
-#top-banner .server-glyph{width:52%;height:52%;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round}
+/* The top bar (POS Home Handoff, final: 05_header, design-tokens.json "header"), the same on every page. One line, 40
+   high, 24 in at the sides, 10 between its items; white at 86% over a blur of what is behind it, a hairline along its
+   bottom edge and a soft shadow under it. Left: the restaurant's mark (the first letter of its name, 26 square, radius
+   8), its name (14 semibold), then the date and time (12.5). Right, 8 apart: our status icons as the tablet reports them
+   (Bluetooth, Wi-Fi, signal, battery: they work as before), the Online pill (28 high, a 7 dot: green online, red
+   offline) and the signed-in server's profile circle (28, their initials; a person outline while nobody is signed in).
+   On the home screen the wallpaper shows faintly through it; over an app it is white, and its shadow falls on the top of
+   the app as on a plain page. Pull it down for quick controls, as before. Sizes in design pixels (--hl-u, launcher.css). */
+:root{--top-banner-height:calc(40 * var(--hl-u))}
+#top-banner{position:sticky;top:0;z-index:3;box-sizing:border-box;height:var(--top-banner-height);min-height:var(--top-banner-height);display:flex;align-items:center;gap:calc(10 * var(--hl-u));padding:0 calc(24 * var(--hl-u));border:0;background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(calc(20 * var(--hl-u))) saturate(1.4);backdrop-filter:blur(calc(20 * var(--hl-u))) saturate(1.4);box-shadow:0 1px 0 rgba(17,24,39,.16),0 calc(6 * var(--hl-u)) calc(18 * var(--hl-u)) rgba(17,24,39,.12);color:#1C1917;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;line-height:normal}
+#top-banner .identity{flex:1;min-width:0;display:flex;align-items:center;gap:calc(10 * var(--hl-u))}
+#top-banner .restaurant-mark{flex:none;width:calc(26 * var(--hl-u));height:calc(26 * var(--hl-u));border-radius:calc(8 * var(--hl-u));background:#1C1917;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:calc(13 * var(--hl-u));font-weight:700}
+#top-banner .restaurant-name{flex:0 1 auto;min-width:0;max-width:none;font-size:calc(14 * var(--hl-u));font-weight:600;line-height:normal;letter-spacing:0;color:#1C1917;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#top-banner .header-time{flex:none;display:block;min-width:0;height:auto;font-size:calc(12.5 * var(--hl-u));font-weight:400;line-height:normal;letter-spacing:0;color:#57534E;text-align:left;white-space:nowrap}
+#top-banner .system-status{flex:none;margin-left:auto;display:flex;align-items:center;gap:calc(8 * var(--hl-u))}
+/* Our status icons, in the bar's dark text colour, before the Online pill */
+#top-banner .device-status{display:flex;align-items:center;gap:calc(10 * var(--hl-u));margin-right:calc(4 * var(--hl-u));color:#1C1917}
+#top-banner .device-status:not(:has(> :not([hidden]))){display:none}
+#top-banner .network-slot{width:calc(16 * var(--hl-u));height:calc(16 * var(--hl-u))}
+#top-banner .network-slot .icon{width:100%;height:100%}
+#top-banner .bluetooth{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#top-banner .battery-status{height:auto;color:#1C1917}
+#top-banner .battery{width:calc(25 * var(--hl-u));height:calc(12 * var(--hl-u))}
+#top-banner .battery-status[data-battery-state="charging"]{color:#16A34A}
+#top-banner .battery-status[data-battery-state="low"]{color:#DC2626}
+#top-banner .system-status .network-slot[hidden],#top-banner .battery-status[hidden]{display:none!important}
+#top-banner .online-pill{flex:none;height:calc(28 * var(--hl-u));min-width:0;padding:0 calc(11 * var(--hl-u));box-sizing:border-box;display:flex;align-items:center;gap:calc(6 * var(--hl-u));border-radius:999px;background:#FFFFFF;font-size:calc(12 * var(--hl-u));font-weight:500;color:#44403C;white-space:nowrap}
+#top-banner .online-pill .status-dot{flex:none;width:calc(7 * var(--hl-u));height:calc(7 * var(--hl-u));border-radius:999px;background:#16A34A;box-shadow:none}
+#top-banner .online-pill .status-dot.offline{background:#DC2626}
+#top-banner .server-profile{flex:none;width:calc(28 * var(--hl-u));height:calc(28 * var(--hl-u));border-radius:50%;background:#1C1917;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:calc(11.5 * var(--hl-u));font-weight:600;letter-spacing:.02em;line-height:1}
+#top-banner .server-glyph{width:58%;height:58%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 #top-banner .server-profile:not(.signed-out) .server-glyph,#top-banner .server-profile.signed-out .server-initial{display:none}
-/* The full-screen apps start under the bar and its gap and end above the swipe bar's strip (system-navigation.css),
-   which is white under them (painted under the apps, so a sheet's dimming covers it too); the Counter's sheets, Recent apps, quick controls and the small dialogs keep their spacing
-   to both */
-.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:calc(var(--top-banner-height) + var(--top-gap));bottom:var(--home-bar-height)}
+/* Over an open app the page under the bar is the app's white */
+html[data-app-open][data-restro-theme] body .app-shell{background:#FFFFFF}
+
+/* The full-screen apps start right under the bar and end above the swipe bar's strip (system-navigation.css), which
+   is white under them (painted under the apps, so a sheet's dimming covers it too). The bar's hairline and shadow fall
+   on the top of the app as on a plain page: the apps sit above the bar, so each app draws them, from a bar-sized box just
+   above its top edge (clipped away, only its shadow shows). The Counter's sheets, Recent apps, quick
+   controls and the small dialogs keep their spacing to both. */
+.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:var(--top-banner-height);bottom:var(--home-bar-height)}
+:is(.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app)::before{content:"";position:absolute;left:0;right:0;top:calc(-1 * var(--top-banner-height));z-index:39;height:var(--top-banner-height);box-shadow:0 1px 0 rgba(17,24,39,.16),0 calc(6 * var(--hl-u)) calc(18 * var(--hl-u)) rgba(17,24,39,.12);pointer-events:none}
 html[data-app-open] .app-shell::after{content:"";position:fixed;left:0;right:0;bottom:0;z-index:4;height:var(--home-bar-height);background:#ffffff;pointer-events:none}
 .ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px);padding-bottom:calc(var(--home-bar-height) + 24px)}
 .app-switcher{padding-top:var(--top-banner-height)}
