@@ -43,12 +43,15 @@
     const key=appId||control;recentApps.delete(key);recentApps.set(key,{appId,control,name});
     if(recentApps.size>8)recentApps.delete(recentApps.keys().next().value);
   }
+  const fullApps='.counter-app,.floor-app,.orders-app,.settings-app,.customers-app,.employees-app';
   function positionBar(){
     const opened=dialogs.filter(dialog=>dialog.open);
     const active=locked?lock:opened.at(-1);
-    // Native modal dialogs make their siblings inert. Keep the system controls
-    // inside the active dialog so Back and Home work there as well.
+    // Native modal dialogs make their siblings inert. Keep the swipe bar (and the keyboard's Back, Home and Recent
+    // apps) inside the active dialog so they work there as well.
     (active||shell).append(bar);
+    // The top bar is white over an open app, on the page's grey on the home screen (status-bar.css)
+    document.documentElement.toggleAttribute('data-app-open',opened.some(dialog=>dialog.matches(fullApps)));
     alignBannerText();
   }
   const observer=new MutationObserver(records=>{
@@ -145,23 +148,117 @@
     // Tapping empty space goes back, like the iPhone app switcher.
     recents.addEventListener('click',event=>{if(event.target===recents||event.target===recentList||event.target.classList?.contains('switcher-item')||event.target.classList?.contains('recent-apps-empty'))recents.close();});
   }
-  document.querySelector('#system-back').addEventListener('click',async()=>{
+  async function goBack(){
     if(locked)return;
     const opened=dialogs.filter(dialog=>dialog.open).at(-1);
     if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='orders-dialog'&&window.RestroOrders?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;if(opened.id==='employees-dialog'&&window.RestroEmployees?.goBack())return;opened.close();return;}
     if(arranging){endDrag(true);setArranging(false);return;}
     if(currentPage>0){goToPage(currentPage-1);return;}
     await nativeAction('goBack');
-  });
-  document.querySelector('#system-home').addEventListener('click',async()=>{
+  }
+  async function goHome(){
     if(locked)return;closeViews();goToPage(0);shell.focus({preventScroll:true});await nativeAction('goHome');
-  });
-  document.querySelector('#system-recents').addEventListener('click',async()=>{
+  }
+  async function showRecents(){
     if(locked)return;
     if(await nativeAction('openRecentApps'))return;
     if(recents.open){recents.close();return;}
     closeViews();renderRecents();recents.showModal();
+  }
+  document.querySelector('#system-back').addEventListener('click',goBack);
+  document.querySelector('#system-home').addEventListener('click',goHome);
+  document.querySelector('#system-recents').addEventListener('click',showRecents);
+  // The tablet's own Back, Home and Recent apps (gestures or buttons) come in here from the RESTRO Android app
+  window.RestroSystem=Object.freeze({back:goBack,home:goHome,recents:showRecents});
+
+  // ---------- The swipe bar: swipe up from the bottom strip for Home (the open app shrinks away with the finger), swipe
+  // up and hold still for Recent apps. A short or sideways move, or a tap, does nothing. ----------
+  const HOME_DISTANCE=48,HOLD_DISTANCE=72,HOLD_TIME=280;
+  let swipe=null;
+  const topView=()=>dialogs.filter(dialog=>dialog.open&&dialog!==lock).at(-1)||null;
+  function follow(app,dy,held){
+    if(!app)return;
+    const pull=Math.min(1,-dy/360);
+    app.style.transition=held?'transform .18s ease-out,border-radius .18s':'none';app.style.transformOrigin='50% 100%';
+    app.style.transform=`translateY(${Math.round(dy*.55)}px) scale(${held?.72:1-pull*.2})`;app.style.borderRadius=`${Math.round(Math.min(1,pull*3)*28)}px`;
+  }
+  function settle(app){
+    if(!app)return;
+    app.style.transition='transform .22s ease,border-radius .22s ease';app.style.transform='';app.style.borderRadius='';
+    setTimeout(()=>{if(!app.style.transform){app.style.transition='';app.style.transformOrigin='';}},240);
+  }
+  function leave(app,then){
+    if(!app){then();return;}
+    app.style.transition='transform .17s ease-in,opacity .17s ease-in';app.style.transform='translateY(-14%) scale(.5)';app.style.opacity='0';
+    setTimeout(()=>{then();for(const name of ['transition','transform','opacity','borderRadius','transformOrigin'])app.style[name]='';},170);
+  }
+  bar.addEventListener('pointerdown',event=>{
+    if(locked||event.target.closest('.android-controls')||(event.pointerType==='mouse'&&event.button!==0))return;
+    event.preventDefault();
+    swipe={id:event.pointerId,x:event.clientX,y:event.clientY,t:performance.now(),dy:0,held:false,still:0,app:topView()};
+    bar.setPointerCapture(event.pointerId);
   });
+  bar.addEventListener('pointermove',event=>{
+    if(!swipe||event.pointerId!==swipe.id)return;
+    const dy=Math.min(0,event.clientY-swipe.y);
+    // Held still after coming far enough up: Recent apps, once the finger lifts
+    if(Math.abs(dy-swipe.dy)>4){
+      swipe.dy=dy;clearTimeout(swipe.still);
+      if(-dy>=HOLD_DISTANCE&&!swipe.held)swipe.still=setTimeout(()=>{if(swipe){swipe.held=true;follow(swipe.app,swipe.dy,true);}},HOLD_TIME);
+    }
+    if(!swipe.held)follow(swipe.app,dy,false);
+  });
+  function endSwipe(event,cancelled){
+    if(!swipe||event.pointerId!==swipe.id)return;
+    const {app,held,t,x,y}=swipe,dy=Math.min(0,event.clientY-y),dx=Math.abs(event.clientX-x),fast=-dy/Math.max(1,performance.now()-t)>.5;
+    clearTimeout(swipe.still);swipe=null;
+    const upward=-dy>dx;
+    if(!cancelled&&upward&&held){settle(app);showRecents();return;}
+    if(!cancelled&&upward&&(-dy>=HOME_DISTANCE||fast&&-dy>=20)){leave(app,goHome);return;}
+    settle(app);
+  }
+  bar.addEventListener('pointerup',event=>endSwipe(event,false));
+  bar.addEventListener('pointercancel',event=>endSwipe(event,true));
+  bar.addEventListener('contextmenu',event=>event.preventDefault());
+
+  // ---------- Back: swipe in from the left or right edge while an app or a window is open (on the home screen the
+  // edges turn the pages). A round arrow comes out with the finger; far enough, and it goes back. ----------
+  const EDGE=22,BACK_DISTANCE=64,arrow=bar.querySelector('.back-arrow');
+  let edge=null;
+  function paintArrow(progress){
+    const p=Math.max(0,Math.min(1,progress)),x=edge.side>0?-40+56*p:innerWidth-56*p,y=Math.max(8,Math.min(innerHeight-48,edge.y-20));
+    arrow.classList.toggle('right',edge.side<0);
+    arrow.style.transform=`translate(${Math.round(x)}px,${Math.round(y)}px) scale(${p>=1?1.1:1})`;arrow.style.opacity=String(Math.min(1,p*1.6));
+  }
+  document.addEventListener('pointerdown',event=>{
+    edge=null;
+    if(locked||!event.isPrimary||(event.pointerType==='mouse'&&event.button!==0)||!topView()||event.target.closest?.('.home-bar'))return;
+    const side=event.clientX<=EDGE?1:event.clientX>=innerWidth-EDGE?-1:0;
+    if(side)edge={id:event.pointerId,x:event.clientX,y:event.clientY,side,going:false};
+  },true);
+  document.addEventListener('pointermove',event=>{
+    if(!edge||event.pointerId!==edge.id)return;
+    const dx=(event.clientX-edge.x)*edge.side,dy=Math.abs(event.clientY-edge.y);
+    if(!edge.going){if(dy>24&&dy>dx){edge=null;return;}if(dx<10)return;edge.going=true;}
+    paintArrow(dx/BACK_DISTANCE);
+  },true);
+  // A touch that swipes in from an edge doesn't scroll what's under it (an upward or downward one still does)
+  document.addEventListener('touchmove',event=>{
+    if(!edge||!event.cancelable||!event.touches[0])return;
+    const touch=event.touches[0],dx=(touch.clientX-edge.x)*edge.side,dy=Math.abs(touch.clientY-edge.y);
+    if(dx>0&&dx>=dy)event.preventDefault();
+  },{capture:true,passive:false});
+  function endEdge(event,cancelled){
+    if(!edge||event.pointerId!==edge.id)return;
+    const {going,side,x}=edge,dx=(event.clientX-x)*side;edge=null;arrow.style.opacity='0';
+    if(cancelled||!going||dx<BACK_DISTANCE)return;
+    // The press that made the swipe is not a tap on what is under it
+    const swallow=e=>{e.stopPropagation();e.preventDefault();};
+    document.addEventListener('click',swallow,{capture:true,once:true});setTimeout(()=>document.removeEventListener('click',swallow,{capture:true}),0);
+    goBack();
+  }
+  document.addEventListener('pointerup',event=>endEdge(event,false),true);
+  document.addEventListener('pointercancel',event=>endEdge(event,true),true);
   window.addEventListener('restro:app-uninstalled',event=>{recentApps.delete(event.detail.id);if(recents.open)renderRecents();});
   // The screen is locked with the tablet's own button (no lock button on the bar): the Android app reports it with
   // restro:device-locked. A lock still on from before is ended with Unlock, or when the tablet reports it was unlocked.

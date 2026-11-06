@@ -104,3 +104,13 @@ the order that had it (it can only be handed out once it is back). A held order'
 Dispatch these as window events when the tablet's power button locks the screen (`ACTION_SCREEN_OFF`) and when it is
 unlocked (`ACTION_USER_PRESENT`). With staff accounts set up, locking signs the person out and the lock screen asks for
 a PIN.
+
+## Back, Home and Recent apps: `RestroSystem.back()`, `.home()`, `.recents()`
+
+RESTRO has no bottom bar: a swipe bar instead (a black pill at the bottom centre). Swiping up from the bottom edge goes
+Home, swiping up and holding opens Recent apps, and swiping in from the left or right edge goes Back, like Android's own
+gesture navigation. When Android's gesture navigation is on and reaches the app first, forward it: the back gesture
+(`OnBackPressedCallback`) to `RestroSystem.back()`, Home (when RESTRO is the tablet's home app, `onNewIntent` with
+`CATEGORY_HOME`) to `RestroSystem.home()`, and Recent apps to `RestroSystem.recents()`. Each does exactly what the
+swipe does in the page. Going the other way, the page still calls `RESTRODevice.goHome()`, `goBack()` and
+`openRecentApps()` when the app provides them.

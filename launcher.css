@@ -1,0 +1,95 @@
+/* Home screen launcher (POS Home Handoff): the apps, 4 × 3 to a page with dots under them, the live widgets on the right
+   (home-widgets.js), and the dock of the five main apps along the bottom, floating on the page with red count badges and
+   the swipe bar under its middle app (system-navigation.css). Every app is a rounded-square icon (corner radius 30/112 of
+   its size) with one uniform border over its art (drawn into the new icons; drawn here for an app without one), its name
+   under it. Sizes follow the design's 1440 × 900 screen, top bar included, scaled to the tablet (--hl-u: one design
+   pixel). Moving apps, pages and Uninstall work as before. */
+:root{--hl-u:max(.62px,min(calc(100vw / 1440),calc(100dvh / 900)));--hl-bg:#EEF0F3;--hl-text:#1C1917;--hl-muted:#57534E;--hl-accent:#2563EB}
+#home{background:var(--hl-bg);color:var(--hl-text);font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif}
+#home .workspace{height:100%;box-sizing:border-box;padding:0;display:flex;flex-direction:column;gap:0}
+#home .more-apps{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 calc(24 * var(--hl-u)) calc(20 * var(--hl-u))}
+#home .more-heading-row{position:absolute;width:1px;height:1px;min-height:0;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0} /* named for screen readers only */
+#home .launcher-content{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) calc(500 * var(--hl-u));grid-template-rows:minmax(0,1fr);column-gap:calc(24 * var(--hl-u));row-gap:0}
+
+/* The apps: 4 columns × 3 rows to a page; the dots under them */
+#home .apps-panel{grid-column:1;grid-row:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:calc(12 * var(--hl-u));padding:0;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible}
+#home .launcher-content .apps-viewport{flex:1;min-height:0;border-radius:0}
+#home .apps-page{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:0;padding:calc(8 * var(--hl-u)) calc(12 * var(--hl-u))}
+#home .app-slot{align-items:center;justify-content:center;border-radius:calc(28 * var(--hl-u))}
+#home .app-tile,.app-tile.drag-ghost{--icon:calc(126 * var(--hl-u));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(10 * var(--hl-u));width:auto;height:auto;max-height:none;padding:calc(4 * var(--hl-u));border:0;border-radius:calc(20 * var(--hl-u));background:none;box-shadow:none;color:var(--hl-text)}
+#home .launcher-content .app-label,.app-tile.drag-ghost .app-label{width:auto;height:auto;min-height:0;display:block;font-size:calc(16 * var(--hl-u));font-weight:500;line-height:1.2;letter-spacing:0;white-space:nowrap;color:var(--hl-text)}
+#home .pagination{flex:none;height:auto;min-height:0;padding:0 0 calc(4 * var(--hl-u));margin:0}
+#home .page-dots{gap:calc(8 * var(--hl-u))}
+#home .page-dot{width:calc(10 * var(--hl-u));height:calc(10 * var(--hl-u));min-width:0;min-height:0;padding:0;border:0;border-radius:999px;background:#C4C8CF;box-shadow:none;transition:width .2s}
+#home .page-dot[aria-selected="true"]{width:calc(28 * var(--hl-u));background:var(--hl-accent)}
+
+/* An app's icon: a rounded-square tile with one uniform border over its art (the same on every icon) and a soft shadow.
+   The new icons are whole tiles with the border drawn in; an app without one (Printers) keeps its picture on a white
+   tile with the border drawn here. */
+#home .app-icon,.drag-ghost .app-icon{position:relative;flex:none;width:var(--icon);height:var(--icon);box-sizing:border-box;border-radius:calc(var(--icon) * 30 / 112);background:linear-gradient(180deg,#FFFFFF,#F2F4F7);box-shadow:0 calc(2 * var(--hl-u)) calc(4 * var(--hl-u)) rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;isolation:isolate}
+#home .app-icon::after,.drag-ghost .app-icon::after{content:"";position:absolute;inset:0;z-index:2;border-radius:inherit;box-shadow:inset 0 0 0 calc(var(--icon) * 12 / 1024) rgba(17,24,39,.28),inset 0 0 0 calc(var(--icon) * 18 / 1024) rgba(255,255,255,.16);pointer-events:none}
+#home .app-icon .app-art,.drag-ghost .app-icon .app-art{width:78%;height:72%;max-width:none;max-height:none;align-self:center;display:flex;align-items:center;justify-content:center;transform:none}
+#home .app-icon .app-art svg,.drag-ghost .app-icon .app-art svg{width:100%;height:auto;max-height:100%}
+#home .app-icon:has(> .tile-art),.drag-ghost .app-icon:has(> .tile-art){background:none}
+#home .app-icon:has(> .tile-art)::after,.drag-ghost .app-icon:has(> .tile-art)::after{content:none}
+#home .app-icon .app-art.tile-art,.drag-ghost .app-icon .app-art.tile-art{width:100%;height:100%}
+#home .app-icon .app-art.tile-art svg,.drag-ghost .app-icon .app-art.tile-art svg{display:block;width:100%;height:100%;max-height:none}
+#home .app-badge{position:absolute;top:calc(-6 * var(--hl-u));right:calc(-6 * var(--hl-u));z-index:3;min-width:calc(28 * var(--hl-u));height:calc(28 * var(--hl-u));padding:0 calc(8 * var(--hl-u));box-sizing:border-box;border:calc(3 * var(--hl-u)) solid var(--hl-bg);border-radius:999px;background:#DC2626;color:#FFFFFF;font-size:calc(13 * var(--hl-u));font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center}
+#home .app-badge[hidden]{display:none}
+#home .app-tile .app-remove-button{top:calc(-6 * var(--hl-u));left:calc(50% - var(--icon) / 2 - 10 * var(--hl-u));right:auto}
+
+/* The dock: the five main apps along the bottom, bigger, with bold names, floating on the page (no bar behind them) */
+#home .main-shortcuts{flex:none;margin:0 calc(24 * var(--hl-u)) calc(14 * var(--hl-u));padding:calc(6 * var(--hl-u)) calc(16 * var(--hl-u));border:0;border-radius:0;background:none;box-shadow:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;align-items:start}
+#home .shortcut{--icon:min(calc(172 * var(--hl-u)),calc((100vw - 80 * var(--hl-u)) / 5 - 8px));display:flex;flex-direction:column;align-items:center;gap:calc(8 * var(--hl-u));min-width:0;height:auto;padding:calc(6 * var(--hl-u)) 0;border:0;border-radius:calc(20 * var(--hl-u));background:transparent;box-shadow:none;color:var(--hl-text);cursor:pointer}
+#home .shortcut-label{min-height:0;font-size:calc(19 * var(--hl-u));font-weight:700;line-height:1.2;color:var(--hl-text)}
+#home button:focus-visible,#home .shortcut:focus-visible,#home .app-tile:focus-visible{outline:2px solid var(--hl-accent);outline-offset:2px}
+
+/* The live widgets: cards with the same rim and depth as the icons */
+#home .home-widgets{grid-column:2;grid-row:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:calc(12 * var(--hl-u))}
+#home .hw-card{box-sizing:border-box;min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:calc(10 * var(--hl-u));padding:calc(18 * var(--hl-u)) calc(20 * var(--hl-u));border-radius:calc(24 * var(--hl-u));background:linear-gradient(180deg,#FFFFFF,#FBFCFD);box-shadow:inset 0 0 0 1.25px rgba(17,24,39,.20),inset 0 0 0 2.5px rgba(255,255,255,.6),0 2px 4px rgba(0,0,0,.10);color:var(--hl-text)}
+#home .hw-pair{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(12 * var(--hl-u))}
+#home .hw-pair .hw-card{padding:calc(14 * var(--hl-u)) calc(16 * var(--hl-u));gap:calc(8 * var(--hl-u))}
+#home .hw-head,#home .hw-sales-head{margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+#home .hw-head{display:flex;align-items:center;gap:calc(12 * var(--hl-u));min-width:0}
+#home .hw-head .app-icon{--icon:calc(40 * var(--hl-u))}
+#home .hw-titles{display:flex;flex-direction:column;min-width:0}
+#home .hw-title{font-size:calc(16 * var(--hl-u));font-weight:600;line-height:1.25}
+#home .hw-line{font-size:calc(12 * var(--hl-u));color:var(--hl-muted);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Today's sales */
+#home .hw-sales{padding:calc(16 * var(--hl-u)) calc(20 * var(--hl-u));gap:calc(10 * var(--hl-u))}
+#home .hw-sales-head{display:flex;flex-direction:column;gap:calc(10 * var(--hl-u))}
+#home .hw-sales .hw-title{font-size:calc(14 * var(--hl-u));color:#44403C}
+#home .hw-sales-row{display:flex;align-items:flex-end;justify-content:space-between;gap:calc(16 * var(--hl-u))}
+#home .hw-sales-figures{display:flex;flex-direction:column;gap:calc(2 * var(--hl-u));min-width:0}
+#home .hw-total{font-size:calc(32 * var(--hl-u));font-weight:700;letter-spacing:-.02em;line-height:1.2}
+#home .hw-sales .hw-line{font-size:calc(13 * var(--hl-u));color:#44403C}
+#home .hw-bars{flex:none;width:calc(140 * var(--hl-u));height:calc(48 * var(--hl-u));display:flex;align-items:flex-end;gap:calc(4 * var(--hl-u))}
+#home .hw-bar{flex:1;border-radius:calc(3 * var(--hl-u));background:#D6D3D1}
+#home .hw-bar.now{background:var(--hl-accent)}
+#home .hw-bar.later{background:#F5F5F4}
+#home .hw-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(8 * var(--hl-u))}
+#home .hw-stat{display:flex;flex-direction:column;gap:calc(2 * var(--hl-u));padding:calc(8 * var(--hl-u)) calc(12 * var(--hl-u));border-radius:calc(12 * var(--hl-u));background:#F5F5F4}
+#home .hw-stat span{font-size:calc(11 * var(--hl-u));color:var(--hl-muted)}
+#home .hw-stat strong{font-size:calc(17 * var(--hl-u));font-weight:600}
+/* Orders */
+#home .hw-list{display:flex;flex-direction:column;gap:calc(5 * var(--hl-u))}
+#home .hw-order{height:calc(30 * var(--hl-u));min-width:0;padding:0 calc(12 * var(--hl-u));border:0;border-radius:calc(10 * var(--hl-u));background:#F7F6FA;display:flex;align-items:center;gap:calc(10 * var(--hl-u));font:inherit;font-size:calc(13 * var(--hl-u));color:inherit;text-align:left;cursor:pointer}
+#home .hw-order strong{font-weight:700}
+#home .hw-where{min-width:0;color:var(--hl-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#home .hw-chip{flex:none;margin-left:auto;padding:calc(3 * var(--hl-u)) calc(9 * var(--hl-u));border-radius:999px;font-size:calc(11 * var(--hl-u));font-weight:600}
+#home .hw-chip.ready{background:#DCFCE7;color:#166534}
+#home .hw-chip.kitchen{background:#FEF3C7;color:#92400E}
+#home .hw-chip.scheduled{background:#F6E7EF;color:#9C3F68}
+#home .hw-chip.open{background:#FFEDD5;color:#C2410C}
+/* Floor */
+#home .hw-tables{margin-top:auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:calc(4 * var(--hl-u))}
+#home .hw-table{height:calc(19 * var(--hl-u));min-width:0;padding:0;border:0;border-radius:calc(7 * var(--hl-u));background:#F3F2F7;color:var(--hl-text);font:inherit;font-size:calc(12 * var(--hl-u));font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#home .hw-table.busy{background:#FDE7C2}
+/* Pager Hub */
+#home .hw-pager-grid{margin-top:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(8 * var(--hl-u))}
+#home .hw-pager{height:calc(40 * var(--hl-u));min-width:0;padding:0;border:0;border-radius:calc(12 * var(--hl-u));background:#FCE7F3;color:#831843;font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+#home .hw-pager strong{font-size:calc(18 * var(--hl-u));font-weight:700;line-height:1.2}
+#home .hw-pager span{font-size:calc(11 * var(--hl-u));font-weight:500;line-height:1.2}
+
+/* A narrow screen: the apps take the width (the widgets stay on tablets) */
+@media (max-width:900px){#home .launcher-content{grid-template-columns:minmax(0,1fr)}#home .home-widgets{display:none}}

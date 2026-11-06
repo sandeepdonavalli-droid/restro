@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="styles.css?v=27">
   <link rel="stylesheet" href="quality-layout.css?v=4">
   <link rel="stylesheet" href="device-controls.css?v=3">
-  <link rel="stylesheet" href="system-navigation.css?v=8">
+  <link rel="stylesheet" href="system-navigation.css?v=10">
   <link rel="stylesheet" href="themes.css?v=2">
   <link rel="stylesheet" href="settings.css?v=11">
   <link rel="stylesheet" href="counter.css?v=119">
@@ -23,16 +23,17 @@
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
   <link rel="stylesheet" href="connectivity-status.css?v=2">
-  <link rel="stylesheet" href="status-bar.css?v=11">
-  <link rel="stylesheet" href="tiles.css?v=2">
+  <link rel="stylesheet" href="status-bar.css?v=14">
+  <link rel="stylesheet" href="tiles.css?v=3">
+  <link rel="stylesheet" href="launcher.css?v=3">
   <script src="theme-data.js?v=2"></script>
-  <script src="theme-artwork.js?v=3"></script>
+  <script src="theme-artwork.js?v=4"></script>
   <script src="themes.js?v=6"></script>
   <script src="tiles.js?v=1"></script>
-  <script src="app-layout.js?v=3" defer></script>
+  <script src="app-layout.js?v=4" defer></script>
   <script src="sync.js?v=6" defer></script>
-  <script src="app.js?v=34" defer></script>
-  <script src="insights.js?v=9" defer></script>
+  <script src="app.js?v=36" defer></script>
+  <script src="home-widgets.js?v=2" defer></script>
   <script src="connectivity-status.js?v=4" defer></script>
   <script src="wifi.js?v=3" defer></script>
   <script src="bluetooth.js?v=3" defer></script>
@@ -44,13 +45,13 @@
   <script src="floor-data.js?v=1" defer></script>
   <script src="floor.js?v=2" defer></script>
   <script src="customers.js?v=2" defer></script>
-  <script src="orders.js?v=16" defer></script>
+  <script src="orders.js?v=17" defer></script>
   <script src="settings.js?v=10" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
-  <script src="system-navigation.js?v=14" defer></script>
+  <script src="system-navigation.js?v=15" defer></script>
   <script src="staff.js?v=2" defer></script>
-  <script src="employees.js?v=1" defer></script>
+  <script src="employees.js?v=2" defer></script>
 </head>
 <body>
   <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -68,22 +69,29 @@
     <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
   </svg>
   <div class="app-shell">
-    <header class="top-banner" title="Pull down for quick controls">
+    <!-- The top bar (POS Home Handoff): the restaurant's mark and name with the date and time on the left; the connection
+         dot, the battery, signal and Wi-Fi, and the signed-in server's profile circle on the right (status-bar.css) -->
+    <header id="top-banner" class="top-banner" title="Pull down for quick controls">
       <button id="quick-controls-open" class="quick-controls-trigger sr-only" type="button" aria-label="Open quick controls" aria-haspopup="dialog" aria-controls="quick-controls-dialog">Quick controls</button>
       <div class="identity">
-        <span id="server-name" class="server-name banner-label">SERVER NAME</span>
+        <span id="restaurant-mark" class="restaurant-mark" aria-hidden="true">R</span>
+        <span class="identity-lines">
+          <span id="restaurant-name" class="restaurant-name">RESTAURANT NAME</span>
+          <time id="clock" class="header-time"><span id="clock-date" class="clock-date"></span><span class="clock-dot" aria-hidden="true"> · </span><span class="clock-text">5:30 PM</span></time>
+        </span>
       </div>
       <div class="system-status">
         <span class="online-status"><span id="online-dot" class="status-dot offline"></span><span id="online-text" class="sr-only">Offline</span></span>
-        <time id="clock" class="header-time"><span class="clock-text banner-label">5:30 PM</span></time>
         <span class="battery-status" role="img" hidden><svg class="battery" viewBox="0 0 29.4 14" aria-hidden="true"><rect x=".7" y=".7" width="25.4" height="12.6" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect class="battery-fill" x="2.5" y="2.5" width="0" height="9" rx="1.4" fill="currentColor"/><rect x="28" y="4.25" width="1.4" height="5.5" rx=".7" fill="currentColor"/><path class="battery-flash" d="m14.6 2.4-4.3 5.3h3l-1.2 3.9 4.4-5.8h-3.1l1.2-3.4Z" fill="#fff" hidden/></svg></span>
         <span id="cellular-status" class="network-slot" role="img" hidden><svg class="icon signal" viewBox="0 0 24 24" aria-hidden="true"><path data-signal-level="1" d="M3 20v-4" stroke-width="4"/><path data-signal-level="2" d="M9 20V12" stroke-width="4"/><path data-signal-level="3" d="M15 20V8" stroke-width="4"/><path data-signal-level="4" d="M21 20V4" stroke-width="4"/></svg></span>
         <span id="wifi-status" class="network-slot" role="img" hidden><svg class="icon wifi" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(0 -2.1) scale(1 1.205)"><path data-wifi-level="4" d="M2 8a17 17 0 0 1 20 0"/><path data-wifi-level="3" d="M5.5 11.5a11 11 0 0 1 13 0"/><path data-wifi-level="2" d="M9 15a5 5 0 0 1 6 0"/><circle data-wifi-level="1" class="wifi-dot" cx="12" cy="18.5" r="1.5" fill="currentColor" stroke="none"/><g class="wifi-warning" hidden><path d="M12 11.4v4.5"/><circle cx="12" cy="18.5" r="1.1"/></g></g></svg></span>
+        <span id="server-profile" class="server-profile signed-out" role="img" aria-label="Nobody signed in"><span id="server-initial" class="server-initial" aria-hidden="true"></span><svg class="server-glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg></span>
       </div>
     </header>
-    <main class="dashboard">
+    <!-- Home: the apps, 4 × 3 to a page with dots, and the live widgets beside them; the dock of the five main apps
+         across the bottom (launcher.css, home-widgets.js) -->
+    <main id="home" class="dashboard">
       <section class="workspace" aria-label="Restaurant apps">
-        <div id="main-shortcuts" class="main-shortcuts" aria-label="Main shortcuts"></div>
         <section class="more-apps" aria-labelledby="more-heading">
           <div class="more-heading-row"><h1 id="more-heading">More Apps</h1></div>
           <div class="launcher-content">
@@ -96,29 +104,24 @@
             <p id="swipe-hint" hidden>Swipe left for more</p>
           </div>
           </div>
-          <aside id="insight-widget" class="insight-widget" aria-labelledby="insights-heading">
-            <div class="insight-stack"><div class="insight-card">
-            <div class="insight-heading"><h2 id="insights-heading">Insights</h2></div>
-            <div id="insight-content" class="insight-content" role="group" aria-roledescription="carousel" tabindex="0" aria-label="Restaurant insights" aria-live="off"></div>
-            <div id="insight-progress" class="insight-progress" aria-hidden="true"></div>
-            <div class="insight-footer"><time id="insight-date"></time><span>Sample data</span></div>
-            <p id="insight-announcement" class="sr-only" aria-live="polite"></p>
-            </div></div>
-          </aside>
+          <aside id="home-widgets" class="home-widgets" aria-label="Today"></aside>
           </div>
           <p class="sr-only" id="page-announcement" aria-live="polite"></p>
         </section>
+        <nav id="main-shortcuts" class="main-shortcuts" aria-label="Main apps"></nav>
       </section>
     </main>
-    <nav id="system-navigation" class="bottom-banner" aria-label="System navigation">
+    <!-- No bottom bar: a swipe bar (system-navigation.css/js). Swipe up from the bottom edge for Home, swipe up and hold for
+         Recent apps, swipe in from the left or right edge for Back. Back, Home and Recent apps stay as buttons for the
+         keyboard and screen readers, out of sight until focused. -->
+    <nav id="system-navigation" class="home-bar" aria-label="System navigation">
       <div class="android-controls">
         <button id="system-back" type="button" class="system-control" aria-label="Back" title="Back"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 4 5 12l12 8Z"/></svg></button>
         <button id="system-home" type="button" class="system-control" aria-label="Home" title="Home"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></button>
         <button id="system-recents" type="button" class="system-control" aria-label="Recent apps" title="Recent apps"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx=".8"/></svg></button>
       </div>
-      <div class="bottom-identity">
-        <span id="restaurant-name" class="restaurant-name banner-label">RESTAURANT NAME</span>
-      </div>
+      <span class="home-indicator" aria-hidden="true"></span>
+      <span class="back-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg></span>
     </nav>
   </div>
   <dialog id="recents-dialog" class="app-switcher" aria-labelledby="recents-title">

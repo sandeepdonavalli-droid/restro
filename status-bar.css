@@ -1,45 +1,38 @@
-/* Top banner, iPhone style: no bar of its own. The server's name on the left, and the connection dot, the time and the
-   battery on the right, sit straight on the screen in dark grey, the name and the time in bold; Wi-Fi and signal show
-   beside them when the tablet reports them. The dot alone tells the connection: green online, red offline (the word is
-   kept for screen readers only). A partition line sets it apart from the screen below (see the height). A sheet that
-   dims the screen dims these too (counter.css). */
-html[data-restro-theme] .top-banner{background:transparent;border-bottom-color:transparent;box-shadow:none;color:#1f2933}
-html[data-restro-theme] .top-banner .server-name,html[data-restro-theme] .top-banner .system-status,html[data-restro-theme] .top-banner .header-time{color:#1f2933}
-.top-banner .server-name,.top-banner .clock-text{font-weight:700}
-.top-banner .status-dot{box-shadow:none}
-.top-banner .battery-status{color:#1f2933}
-.top-banner .battery-status[data-battery-state="charging"]{color:#62d36b}
-.top-banner .battery-status[data-battery-state="low"]{color:#ff5c5c}
-/* The server's name at the top left, in capitals like the restaurant's; a long one ends in "…" before the right side */
-.top-banner .server-name{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1;text-transform:uppercase}
-/* The top ribbon is 10% taller than its icons (15.33px on the tablet: 14px x 1.1, to the nearest whole device pixel),
-   then a little space (2px) under the name and the time, so they sit as far above the partition line as below the top
-   edge, then the partition line in the app's line colour, then a small gap (6px) before the screen's items. The line is two device pixels on the 1.5x tablet and lands on whole pixels, so it stays
-   sharp. The name, the dot, the time and the battery keep their size and stay centred in the ribbon. On phones (two
-   rows) the ribbon is 10% taller than 70% of its first height. The bottom bar keeps its height. The full-screen apps
-   start under the gap (which shows the screen's own background), and the Counter's sheets and Recent apps keep their
-   spacing below it. */
-:root{--top-px:1px;--top-line:1px;--top-space:2px;--top-gap:6px}
+/* The top bar (POS Home Handoff): the design's header, 64 design pixels high (--hl-u: one design pixel, launcher.css), on
+   every screen. Left: the restaurant's mark (the first letter of its name on a dark rounded square), its name (in
+   capitals, as kept) and under it the date and the time. Right: the connection dot (green online, red offline; the word
+   is kept for screen readers only), the battery, signal and Wi-Fi when the tablet reports them, and the signed-in
+   server's profile circle (their first letter; a person outline when nobody is signed in). On the home screen it sits on
+   the page's grey; over an open app it is white with a partition line under it (the line is two device pixels on the
+   1.5x tablet, so it stays sharp). Pull it down for quick controls, as before. A sheet that dims the screen dims it too
+   (counter.css). */
+:root{--top-px:1px;--top-line:1px;--top-gap:6px;--top-banner-height:calc(64 * var(--hl-u))}
 @media (min-resolution:1.5dppx) and (max-resolution:1.99dppx){:root{--top-px:calc(2px / 3);--top-line:calc(4px / 3)}}
-:root{--top-bar:round(nearest,calc(var(--network-size) * 1.1),var(--top-px));--top-banner-height:calc(var(--top-bar) + var(--top-space) + var(--top-gap))}
-@media (max-width:740px){:root{--top-bar:round(nearest,calc(round(down,calc(var(--header-height) * .7),1px) * 1.1),var(--top-px))}}
-.top-banner{height:var(--top-banner-height);min-height:var(--top-banner-height);padding-bottom:calc(var(--top-space) + var(--top-gap));border-bottom-width:0}
-html[data-restro-theme] .top-banner{background:linear-gradient(transparent 0 calc(var(--top-bar) + var(--top-space) - var(--top-line)),#cbcfd5 0 calc(var(--top-bar) + var(--top-space)),transparent 0)}
-.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:var(--top-banner-height)}
-.ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px)}
+#top-banner{position:sticky;top:0;z-index:3;box-sizing:border-box;height:var(--top-banner-height);min-height:var(--top-banner-height);display:flex;align-items:center;gap:calc(14 * var(--hl-u));padding:0 calc(24 * var(--hl-u));border:0;background:var(--hl-bg);box-shadow:none;color:var(--hl-text);font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;line-height:1}
+html[data-app-open] #top-banner{background:#ffffff;box-shadow:inset 0 calc(-1 * var(--top-line)) 0 #cbcfd5,0 var(--top-gap) 0 #ffffff}
+#top-banner .identity{flex:1;min-width:0;display:flex;align-items:center;gap:calc(14 * var(--hl-u))}
+#top-banner .restaurant-mark{flex:none;width:calc(36 * var(--hl-u));height:calc(36 * var(--hl-u));border-radius:calc(11 * var(--hl-u));background:#1C1917;color:#ffffff;display:grid;place-items:center;font-size:calc(16 * var(--hl-u));font-weight:700;line-height:1}
+#top-banner .identity-lines{min-width:0;display:flex;flex-direction:column}
+#top-banner .restaurant-name{max-width:100%;font-size:calc(15 * var(--hl-u));font-weight:600;line-height:1.25;letter-spacing:0;color:var(--hl-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#top-banner .header-time{display:block;min-width:0;height:auto;font-size:calc(12 * var(--hl-u));font-weight:400;line-height:1.3;color:var(--hl-muted);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#top-banner .system-status{flex:none;display:flex;align-items:center;gap:calc(14 * var(--hl-u));color:#1f2933}
+#top-banner .online-status{min-width:0;height:auto}
+#top-banner .status-dot{box-shadow:none}
+#top-banner .battery-status{color:#1f2933}
+#top-banner .battery-status[data-battery-state="charging"]{color:#62d36b}
+#top-banner .battery-status[data-battery-state="low"]{color:#ff5c5c}
+/* Wi-Fi, signal and the battery keep no empty place when they are not shown, so what is shown sits by the profile */
+#top-banner .system-status .network-slot[hidden]{display:none!important}
+#top-banner .battery-status[hidden]{display:none}
+#top-banner .server-profile{flex:none;width:calc(44 * var(--hl-u));height:calc(44 * var(--hl-u));margin-left:calc(-4 * var(--hl-u));border-radius:50%;background:#1C1917;color:#ffffff;display:grid;place-items:center;font-size:calc(14 * var(--hl-u));font-weight:600;line-height:1}
+#top-banner .server-glyph{width:52%;height:52%;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round}
+#top-banner .server-profile:not(.signed-out) .server-glyph,#top-banner .server-profile.signed-out .server-initial{display:none}
+/* The full-screen apps start under the bar and its gap and end above the swipe bar's strip (system-navigation.css),
+   which is white under them (painted under the apps, so a sheet's dimming covers it too); the Counter's sheets, Recent apps, quick controls and the small dialogs keep their spacing
+   to both */
+.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:calc(var(--top-banner-height) + var(--top-gap));bottom:var(--home-bar-height)}
+html[data-app-open] .app-shell::after{content:"";position:fixed;left:0;right:0;bottom:0;z-index:4;height:var(--home-bar-height);background:#ffffff;pointer-events:none}
+.ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px);padding-bottom:calc(var(--home-bar-height) + 24px)}
 .app-switcher{padding-top:var(--top-banner-height)}
-/* Wi-Fi, signal and the battery keep no empty place when they are not shown, so what is shown sits at the right edge */
-.top-banner .system-status .network-slot[hidden]{display:none!important}
-.top-banner .battery-status[hidden]{display:none}
-/* The restaurant's name in the bottom right corner of the bottom bar, bold in the bar's light colour, centred in the bar
-   and with its right edge in line with the battery above (the top ribbon's side margin at each screen width). It keeps
-   clear of Back, Home and Recent apps in the middle; a long name ends in "…". */
-:root{--ribbon-edge:28px}
-@media (min-width:1700px){:root{--ribbon-edge:34px}}
-@media (max-width:1450px){:root{--ribbon-edge:23px}}
-@media (max-width:1190px){:root{--ribbon-edge:20px}}
-@media (max-width:740px){:root{--ribbon-edge:17px}}
-@media (max-width:540px){:root{--ribbon-edge:12px}}
-.bottom-identity{position:absolute;top:0;bottom:0;right:var(--ribbon-edge);display:flex;align-items:center;justify-content:flex-end;max-width:calc(50% - 110px - var(--ribbon-edge))}
-@media (max-width:740px){.bottom-identity{max-width:calc(50% - 74px - var(--ribbon-edge))}}
-.bottom-identity .restaurant-name{max-width:100%;font-weight:700;line-height:1;color:inherit}
+.quick-drawer{padding-bottom:calc(var(--home-bar-height) + env(safe-area-inset-bottom,0px))}
+.delete-app-dialog,.insight-detail-dialog{padding-bottom:calc(28px + var(--home-bar-height))}

@@ -216,13 +216,16 @@
     lockTitle.toggleAttribute('autofocus', on);
     if (on) lockTitle.setAttribute('tabindex', '-1'); else lockTitle.removeAttribute('tabindex');
   }
-  // The signed-in person's name at the top left (in capitals, like the restaurant's)
-  const nameNode = document.querySelector('#server-name');
+  // The signed-in person at the top right: a circle with the first letter of their name (the name read out, and shown
+  // on hover); a person outline while nobody is signed in
+  const profile = document.querySelector('#server-profile'), initial = document.querySelector('#server-initial');
   function paintName() {
-    if (!nameNode) return;
-    const p = Staff.current;
-    nameNode.textContent = p ? p.name.toUpperCase() : 'SERVER NAME';
-    if (typeof window.alignBannerText === 'function') window.alignBannerText();
+    if (!profile) return;
+    const name = (Staff.current?.name || '').trim();
+    initial.textContent = name ? Array.from(name)[0].toLocaleUpperCase('en-IN') : '';
+    profile.classList.toggle('signed-out', !name);
+    profile.setAttribute('aria-label', name ? `Signed in: ${name}` : 'Nobody signed in');
+    profile.title = name || 'Nobody signed in';
   }
   window.addEventListener('restro:staff-signed-in', () => { paintName(); if (dialog.open && !isOwner()) close(); });
   window.addEventListener('restro:staff-changed', () => { syncLockMode(); if (dialog.open && !form) render(); });

@@ -1,17 +1,26 @@
-/* Both system bars share one height. Navigation stays at the viewport center. */
-.top-banner .restaurant-name{max-width:100%;flex:0 1 auto}
-.bottom-banner{position:fixed;inset:auto 0 0;height:var(--header-height);min-height:var(--header-height);margin:0;padding:0 clamp(15px,1.4vw,28px);border:0;border-top:1px solid var(--line);background:linear-gradient(110deg,#22282a,#171c1e);color:var(--ivory);z-index:40;box-sizing:border-box;font-size:1rem;line-height:1;isolation:isolate}
-.android-controls{position:absolute;left:50%;top:0;height:100%;transform:translateX(-50%);display:flex;align-items:center;gap:26px}
-.system-control{height:100%;width:48px;min-height:0;min-width:0;display:grid;place-items:center;padding:0;border:0;border-radius:0;background:transparent;color:var(--ivory);touch-action:manipulation;cursor:pointer}
-.system-control:hover{background:#ffffff09}
-.system-control:active{background:#f4ac7218}
-.system-control:focus-visible{outline:1px solid var(--copper);outline-offset:-3px;border-radius:5px}
-.system-control:disabled{opacity:.35;cursor:default;background:transparent}
+/* No bottom bar (Apple and Android style): a swipe bar instead, a short black pill at the bottom centre, under the dock's
+   middle app and a little wider than its icon, on a clear strip (--home-bar-height) that the apps end above. Swipe up
+   from the strip for Home, swipe up and hold for Recent apps, swipe in from the left or right edge for Back
+   (system-navigation.js). The strip only takes swipes, so a stray tap on it does nothing. Back, Home and Recent apps are
+   still buttons for the keyboard and screen readers, out of sight until one of them is focused. */
+:root{--home-bar-height:max(16px,calc(14 * var(--hl-u)))}
+.home-bar{position:fixed;inset:auto 0 0;z-index:40;height:var(--home-bar-height);margin:0;padding:0;border:0;background:transparent;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.home-indicator{position:absolute;left:50%;bottom:calc((var(--home-bar-height) - max(4px,5 * var(--hl-u))) / 2);width:calc(220 * var(--hl-u));height:max(4px,calc(5 * var(--hl-u)));border-radius:999px;background:#1C1917;transform:translateX(-50%);pointer-events:none}
+.screen-lock-dialog .home-indicator{display:none}
+.android-controls{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px;border-radius:999px;background:#1C1917;opacity:0;pointer-events:none}
+.android-controls:focus-within{opacity:1;pointer-events:auto}
+.system-control{width:48px;height:36px;min-height:0;min-width:0;display:grid;place-items:center;padding:0;border:0;border-radius:999px;background:transparent;color:#ffffff;cursor:pointer}
+.system-control:focus-visible{outline:2px solid #ffffff;outline-offset:-2px}
+.system-control:disabled{opacity:.35;cursor:default}
 /* Icons are keyed to the bar itself (#system-navigation), so an open app's styles can't resize or restyle them */
 #system-navigation .system-glyph{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
-.workspace{padding-bottom:max(10dvh,calc(var(--header-height) + 12px))}
-.toast{bottom:calc(var(--header-height) + 16px)}
-.screen-lock-dialog{position:fixed;inset:0;margin:0;width:100%;height:100dvh;max-width:none;max-height:none;padding:24px 24px calc(var(--header-height) + 24px);border:0;border-radius:0;color:var(--ivory);background:radial-gradient(ellipse at 38% 45%,#253840,#142128);box-sizing:border-box}
+/* Back: a round arrow that comes out of the edge with the finger, and goes once it has come far enough */
+.back-arrow{position:fixed;left:0;top:0;z-index:41;width:40px;height:40px;border-radius:50%;background:#1C1917;color:#ffffff;display:grid;place-items:center;opacity:0;pointer-events:none;will-change:transform,opacity}
+.back-arrow svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.back-arrow.right svg{transform:scaleX(-1)}
+.workspace{padding-bottom:calc(var(--home-bar-height) + 12px)}
+.toast{bottom:calc(var(--home-bar-height) + 16px)}
+.screen-lock-dialog{position:fixed;inset:0;margin:0;width:100%;height:100dvh;max-width:none;max-height:none;padding:24px 24px calc(var(--home-bar-height) + 24px);border:0;border-radius:0;color:var(--ivory);background:radial-gradient(ellipse at 38% 45%,#253840,#142128);box-sizing:border-box}
 .screen-lock-dialog[open]{display:grid;place-items:center}
 .screen-lock-dialog::backdrop{background:#142128}
 .lock-screen-content{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center}
@@ -20,11 +29,9 @@
 #lock-restaurant{font-size:18px;line-height:1.5;text-transform:uppercase;max-width:80vw;overflow-wrap:anywhere}
 .lock-screen-content h2{font-size:16px;font-weight:400;color:#b7c8cc;line-height:1.4}
 .lock-screen-content .primary-button{margin-top:8px;min-width:130px}
-@media(min-width:741px) and (max-height:680px){.workspace{padding-bottom:max(6dvh,calc(var(--header-height) + 12px))}}
-@media(max-width:740px){.workspace{padding-bottom:calc(var(--header-height) + 24px)}.android-controls{gap:8px}.system-control{width:36px}#system-navigation .system-glyph{width:14px;height:14px}}
 
 /* App switcher (Apple-style recents) */
-.app-switcher{position:fixed;inset:0;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:var(--header-height) 0 calc(var(--header-height) + 8px);border:0;background:transparent;color:var(--palette-text,#fff);overflow:hidden;box-sizing:border-box}
+.app-switcher{position:fixed;inset:0;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:var(--top-banner-height) 0 calc(var(--home-bar-height) + 8px);border:0;background:transparent;color:var(--palette-text,#fff);overflow:hidden;box-sizing:border-box}
 .app-switcher[open]{display:flex;flex-direction:column;justify-content:center}
 .app-switcher::backdrop{background:color-mix(in srgb,var(--palette-bg-end,#142128) 55%,transparent);backdrop-filter:blur(22px) saturate(1.2);-webkit-backdrop-filter:blur(22px) saturate(1.2)}
 .switcher-track{flex:1;min-height:0;display:flex;align-items:center;gap:clamp(18px,3vw,40px);overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:0 calc(50vw - min(23vw,260px));scrollbar-width:none;touch-action:pan-x;overscroll-behavior:contain}
@@ -42,6 +49,10 @@
 .switcher-card-body{flex:1;min-height:0;display:grid;place-items:center;padding:24px}
 .switcher-card-icon{width:48%!important;height:62%!important;max-width:240px;display:grid;place-items:center;background:none!important;box-shadow:none!important}
 .switcher-card-icon svg{width:46%;height:46%}
+/* An app's icon (a whole rounded tile) shows whole and square: on the card, and small beside its name */
+.switcher-card-icon.app-art.tile-art{width:auto!important;height:46%!important;aspect-ratio:1}
+.switcher-label-icon.app-art.tile-art{width:28px!important;height:28px!important}
+.switcher-card-icon.tile-art svg,.switcher-label-icon.tile-art svg{width:100%;height:100%}
 .switcher-card-icon.app-art{width:56%!important;height:70%!important}
 .switcher-hint{flex:none;text-align:center;font-size:14px;color:var(--palette-muted,#c5d0d3);padding:6px 16px 4px}
 .app-switcher .recent-apps-empty{flex:1;align-self:center;text-align:center;font-size:18px;color:var(--palette-muted,#c5d0d3);padding:0;margin:auto;width:100vw}

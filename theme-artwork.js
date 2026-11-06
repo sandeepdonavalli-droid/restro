@@ -45,9 +45,13 @@
     regions['qr-studio']=qrStudio[id].region;
     variants.set(id,regions);
   }
+  // The app icons (POS Home Handoff): each a whole rounded tile with its border drawn in, the same in every theme. An
+  // app with no icon in the set (Printers) keeps its theme's picture.
+  const tileIcons={register:'counter',floor:'floor',orders:'orders','pager-hub':'pager-hub',closeout:'end-day',menu:'menu',transactions:'payments',refunds:'refunds',cash:'cash-bag',inventory:'inventory',employees:'staff',customers:'customers',help:'help',store:'app-store',analytics:'analytics',settings:'settings','qr-studio':'qr-studio'};
   function resolve(art,themeId=document.documentElement.dataset.restroArtwork||document.documentElement.dataset.restroTheme) {
     const key=art.key;
     if (overrides.has(key)) return overrides.get(key);
+    if (tileIcons[key]) return {key,url:`assets/app-icons/${tileIcons[key]}.webp`,w:384,h:384,tile:true};
     if (prepared.has(`${themeId}:${key}`)) return prepared.get(`${themeId}:${key}`);
     const region=variants.get(themeId)?.[key];
     if (!region) return art;

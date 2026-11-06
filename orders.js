@@ -231,6 +231,8 @@
       clearInterval(timer); timer = setInterval(() => { if (dialog.open && Date.now() - scrolledAt > 2000) render(); }, 30000); // not while a finger is scrolling
       dialog.querySelector('#orders-title')?.focus({ preventScroll: true });
     },
+    // An order's status as this page shows it ({ text: 'Open' or 'Closed', cls, sub, subCls }), for the home screen
+    status: o => statusOf(o),
     goBack
   });
 })();

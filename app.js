@@ -61,7 +61,8 @@ function artNode(definition,themeId){
   const a=window.RestroArtwork.resolve(definition,themeId);
   if(a.file||a.url){
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-    svg.setAttribute('viewBox',a.viewBox||`0 0 ${a.w} ${a.h}`);svg.setAttribute('preserveAspectRatio',a.sprite||a.clean?'xMidYMid meet':'xMidYMax meet');svg.setAttribute('focusable','false');
+    svg.setAttribute('viewBox',a.viewBox||`0 0 ${a.w} ${a.h}`);svg.setAttribute('preserveAspectRatio',a.sprite||a.clean||a.tile?'xMidYMid meet':'xMidYMax meet');svg.setAttribute('focusable','false');
+    if(a.tile)wrapper.classList.add('tile-art');
     const image=document.createElementNS('http://www.w3.org/2000/svg','image');image.setAttribute('href',artSource(a));image.setAttribute('width',a.w);image.setAttribute('height',a.h);
     if(a.sprite){
       wrapper.classList.add('theme-art');wrapper.dataset.renderedTheme=a.themeId;
@@ -96,6 +97,7 @@ function refreshArtwork(){
     wrapper.replaceChildren(...replacement.childNodes);
     wrapper.classList.toggle('theme-art',replacement.classList.contains('theme-art'));
     wrapper.classList.toggle('clean-art',replacement.classList.contains('clean-art'));
+    wrapper.classList.toggle('tile-art',replacement.classList.contains('tile-art'));
     if(replacement.dataset.renderedTheme)wrapper.dataset.renderedTheme=replacement.dataset.renderedTheme;
     else delete wrapper.dataset.renderedTheme;
     if(replacement.dataset.artworkSelection)wrapper.dataset.artworkSelection=replacement.dataset.artworkSelection;
@@ -106,10 +108,16 @@ window.addEventListener('restro:theme-changed',refreshArtwork);
 window.addEventListener('restro:artwork-changed',refreshArtwork);
 document.querySelectorAll('[data-app-icon]').forEach(image=>{const item=apps[image.dataset.appIcon]||shortcuts.find(entry=>entry.id===image.dataset.appIcon);if(item)image.replaceWith(artNode(item.art));});
 
+// An app's icon: its art on a rounded-square tile; the dock's apps also carry a red count badge (home-widgets.js)
+function appIcon(item,badge=false){
+  const icon=document.createElement('span');icon.className='app-icon';icon.dataset.icon=item.art.key;icon.append(artNode(item.art));
+  if(badge){const count=document.createElement('span');count.className='app-badge';count.hidden=true;icon.append(count);}
+  return icon;
+}
 for(const item of shortcuts){
   const node=document.createElement('div');node.className='shortcut';node.dataset.app=item.id;
   const label=document.createElement('span');label.className='shortcut-label';label.textContent=item.name;
-  node.append(artNode(item.art),label);$('#main-shortcuts').append(node);
+  node.append(appIcon(item,true),label);$('#main-shortcuts').append(node);
   if(item.id==='register'){
     node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Counter');
     node.addEventListener('click',()=>window.RestroCounter?.open());
@@ -142,7 +150,7 @@ function renderPages(){
       const id=page[position];const slot=document.createElement('div');slot.className='app-slot'+(!id?' empty':'')+(drag&&drag.id===id?' drop-target':'');slot.dataset.page=p;slot.dataset.position=position;
       if(id){
         const item=apps[id],tile=document.createElement('div');tile.className='app-tile'+(drag&&drag.id===id?' drag-origin':'');tile.dataset.id=id;tile.tabIndex=0;tile.setAttribute('role','group');tile.setAttribute('aria-label',`${item.name}. Hold to rearrange or press M to move.`);
-        const label=document.createElement('span');label.className='app-label';label.textContent=item.name;tile.append(artNode(item.art),label);
+        const label=document.createElement('span');label.className='app-label';label.textContent=item.name;tile.append(appIcon(item),label);
         if(arranging){
           const remove=document.createElement('button');remove.type='button';remove.className='app-remove-button';remove.setAttribute('aria-label',`Uninstall ${item.name}`);remove.title=`Uninstall ${item.name}`;
           remove.innerHTML='<span class="app-remove-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></span>';
@@ -467,8 +475,13 @@ function alignBannerText(){
   }
 }
 function alignDashboardText(){alignBannerText();}
+// The restaurant's mark at the top left: the first letter of its name on the dark square
+function paintRestaurantMark(){const mark=$('#restaurant-mark');if(mark)mark.textContent=(Array.from($('#restaurant-name').textContent.trim())[0]||'R').toLocaleUpperCase('en-IN');}
+new MutationObserver(paintRestaurantMark).observe($('#restaurant-name'),{childList:true,characterData:true,subtree:true});paintRestaurantMark();
+// The top bar's date and time, "Fri, 6 Nov · 8:35 AM"
 function updateClock(){
   const now=new Date();
+  $('#clock-date').textContent=now.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
   $('#clock .clock-text').textContent=now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
   $('#clock').dateTime=now.toISOString();
   const date=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
