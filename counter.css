@@ -139,13 +139,13 @@ button.ctr-history-main{cursor:pointer}
 .ctr-root .ctr-sheet-wrap{position:fixed;inset:0;padding:calc(var(--header-height) + 24px) 24px}
 
 /* ===== The Counter screen (POS Counter Handoff: 01_screens, 02_redlines, 03_specs) =====
-   The design's sizes as they are (its dp are the tablet's CSS pixels: --u is one design pixel, 1px on the 1280 x 800
-   tablet and larger screens), the layout fitting the tablet: the order panel as designed (475 wide), the menu taking the
-   width left. Only a screen smaller than the tablet draws it all smaller. Hairlines stay 1px. It fills the screen under
-   the top bar (the swipe bar sits in its bottom margin), on the page grey #F3F4F7, in Inter. */
+   Counter Update 2 (Full HD): the screen is 1920 x 1000 and everything under the shared top bar is the first design's
+   sizes x 1.2 (--u: one pixel of that design, fitted to the screen with launcher.css --fu), the order panel 520 of them
+   (624 dp) and 10 from the top bar and the bottom (12 dp); the menu takes the width left. Hairlines stay 1px. It fills
+   the screen under the top bar (the swipe bar sits in its bottom margin), on the page grey #F3F4F7, in Inter. */
 dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;color:#1C1917}
-.ctr-root{--u:min(1px,calc(100vw / 1280),calc(100vh / 800))} /* the design's sizes as they are on the tablet (1280 x 800 and up), smaller only on a smaller screen */
-.cx-shell{height:100%;box-sizing:border-box;display:flex;gap:calc(20 * var(--u));padding:calc(18 * var(--u)) calc(20 * var(--u));background:#F3F4F7;color:#1C1917;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;font-size:calc(16 * var(--u));line-height:normal}
+.ctr-root{--u:calc(1.2 * var(--fu))} /* Update 2: the first design's pixel x 1.2 on the 1920 x 1000 screen (launcher.css --fu) */
+.cx-shell{height:100%;box-sizing:border-box;display:flex;gap:calc(20 * var(--u));padding:calc(10 * var(--u)) calc(20 * var(--u));background:#F3F4F7;color:#1C1917;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;font-size:calc(16 * var(--u));line-height:normal}
 .cx-shell button{font-family:inherit;-webkit-tap-highlight-color:transparent}
 .ctr-root svg.cx-i{flex:none;fill:currentColor;stroke:none}
 .ctr-root svg.cx-i.s14{width:calc(14 * var(--u));height:calc(14 * var(--u))}
@@ -157,8 +157,8 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .ctr-root svg.cx-i.s26{width:calc(26 * var(--u));height:calc(26 * var(--u))}
 .cx-shell button:focus-visible,.cx-shell input:focus-visible{outline:2px solid #1E5BD6;outline-offset:2px}
 
-/* ---------- order panel: 475 wide, white, radius 28, padding 18, items 12 apart ---------- */
-.cx-order{flex:none;width:calc(475 * var(--u));min-height:0;box-sizing:border-box;display:flex;flex-direction:column;gap:calc(12 * var(--u));padding:calc(18 * var(--u));border-radius:calc(28 * var(--u));background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(17,24,39,.07),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(12 * var(--u)) calc(32 * var(--u)) rgba(15,23,42,.10)}
+/* ---------- order panel: 520 wide (Update 2), white, radius 28, padding 18, items 12 apart ---------- */
+.cx-order{flex:none;width:calc(520 * var(--u));min-height:0;box-sizing:border-box;display:flex;flex-direction:column;gap:calc(12 * var(--u));padding:calc(18 * var(--u));border-radius:calc(28 * var(--u));background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(17,24,39,.07),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(12 * var(--u)) calc(32 * var(--u)) rgba(15,23,42,.10)}
 /* Context buttons: each row its own grid, columns 1.1 / 0.95 / 1.15, 10 apart; buttons 52 tall, radius 16, 15/600 */
 .cx-ctx{position:relative;flex:none;display:grid;grid-template-columns:1.1fr .95fr 1.15fr;gap:calc(10 * var(--u))}
 .cx-seg .cx-b{width:100%}
@@ -183,11 +183,11 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-oh{flex:none;display:flex;align-items:baseline;justify-content:space-between;padding:calc(6 * var(--u)) calc(4 * var(--u)) 0}
 .cx-oh h2{margin:0;font-size:calc(18 * var(--u));font-weight:700;line-height:normal}
 .cx-oh h2:focus{outline:none}
-.cx-oh span{font-size:calc(13 * var(--u));color:#78716C}
+.cx-oh span{font-size:calc(13 * var(--u));color:#615C57}
 /* The lines, 8 apart (the list scrolls when they don't fit) */
 .cx-lines{flex:1;min-height:0;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:calc(8 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
 .cx-lines::-webkit-scrollbar{display:none}
-.cx-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(6 * var(--u));text-align:center;color:#78716C;font-size:calc(14 * var(--u))}
+.cx-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(6 * var(--u));text-align:center;color:#615C57;font-size:calc(14 * var(--u))}
 .cx-empty strong{font-size:calc(16 * var(--u));font-weight:600;color:#57534E}
 /* A line: name (1fr) | stepper | price (112, right-aligned), 10 apart; row 2 its modifiers and note link, row 3 its note */
 .cx-line{position:relative;flex:none;border-radius:calc(18 * var(--u));touch-action:pan-y}
@@ -202,19 +202,19 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-stp>button:active{transform:scale(.92)}
 .cx-stp>.cx-qty{width:auto;height:auto;min-width:calc(26 * var(--u));background:none;font-size:calc(16 * var(--u));font-weight:700;line-height:normal;text-align:center}
 .cx-lt{grid-row:1;align-self:center;display:flex;align-items:baseline;justify-content:flex-end;gap:calc(6 * var(--u));white-space:nowrap;font-size:calc(16 * var(--u));font-weight:700}
-.cx-lt small{font-size:calc(12 * var(--u));font-weight:500;color:#8A847F}
+.cx-lt small{font-size:calc(12 * var(--u));font-weight:500;color:#6E6964}
 .cx-lt b{font-weight:700}
 .cx-mcs{grid-column:1 / 3;grid-row:2;margin-top:calc(-8 * var(--u));display:flex;flex-wrap:wrap;gap:calc(6 * var(--u))}
 .cx-mc{position:relative;height:calc(24 * var(--u));margin:0;padding:0 calc(9 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;font-size:calc(12 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
 .cx-mc::before{content:"";position:absolute;inset:calc(-6 * var(--u)) calc(-3 * var(--u))} /* easier to tap than it looks */
 .cx-mc.sp{background:#FFF9EC;color:#9A6B1F;box-shadow:inset 0 0 0 1px #F6E6C2}
 .cx-mc.nn{background:#F7F8FA;color:#57534E;box-shadow:inset 0 0 0 1px #ECEEF2}
-.cx-an{position:relative;grid-column:3;grid-row:2;justify-self:end;align-self:start;height:calc(26 * var(--u));margin:calc(-6 * var(--u)) 0 0;padding:0;border:0;display:flex;align-items:center;gap:calc(4 * var(--u));background:none;color:#78716C;font-size:calc(12.5 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
+.cx-an{position:relative;grid-column:3;grid-row:2;justify-self:end;align-self:start;height:calc(26 * var(--u));margin:calc(-6 * var(--u)) 0 0;padding:0;border:0;display:flex;align-items:center;gap:calc(4 * var(--u));background:none;color:#615C57;font-size:calc(12.5 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
 .cx-an span{text-decoration:underline 1px #C9C5C1;text-underline-offset:calc(3 * var(--u))}
 .cx-an svg{color:#A8A29E}
 .cx-an::before{content:"";position:absolute;inset:calc(-11 * var(--u)) calc(-8 * var(--u))} /* a 48 tap area */
 .cx-cmt{grid-column:1 / 4;grid-row:3;margin-top:calc(-6 * var(--u));display:flex;align-items:flex-start;gap:calc(6 * var(--u));font-size:calc(12.5 * var(--u));font-style:italic;font-synthesis:style;line-height:1.35;color:#57534E;overflow-wrap:anywhere}
-.cx-cmt svg{margin-top:calc(1 * var(--u));color:#78716C}
+.cx-cmt svg{margin-top:calc(1 * var(--u));color:#615C57}
 /* Modify on: a line's name picks it; under it, the order types to move it to (its own in amber) */
 .cx-line.open .cx-row{box-shadow:inset 0 0 0 1.5px #E9CF8B}
 .cx-move{grid-column:1 / 4;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:calc(6 * var(--u))}
@@ -223,8 +223,8 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-move button.on{background:#FDE9B8;color:#7A4A00;box-shadow:none}
 .cx-move button.on svg{color:#7A4A00}
 .cx-group{flex:none;display:flex;align-items:center;gap:calc(6 * var(--u));padding:calc(4 * var(--u)) calc(4 * var(--u)) 0;font-size:calc(13 * var(--u));font-weight:700;color:#57534E}
-.cx-group svg{color:#78716C}
-.cx-group-count{margin-left:auto;font-weight:500;color:#78716C}
+.cx-group svg{color:#615C57}
+.cx-group-count{margin-left:auto;font-weight:500;color:#615C57}
 /* Swipe a line left to remove it: it slides over a red strip saying Remove */
 .cx-line.swiping{overflow:hidden;background:#B91C1C}
 .cx-line.swiping>.cx-row{position:relative;z-index:1;transform:translateX(var(--swipe,0px))}
@@ -243,18 +243,18 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-pay:disabled{box-shadow:none}
 /* Highlight order: the order takes the whole left side (the context buttons step aside); the menu side is dimmed */
 .cx-shell.highlight .cx-ctx{display:none}
-.cx-dim{position:absolute;inset:calc(-18 * var(--u)) calc(-20 * var(--u));z-index:30;background:rgba(15,23,42,.45);animation:cx-fade .14s ease-out}
+.cx-dim{position:absolute;inset:calc(-10 * var(--u)) calc(-20 * var(--u));z-index:30;background:rgba(15,23,42,.45);animation:cx-fade .14s ease-out}
 
 /* ---------- menu side ---------- */
 .cx-main{position:relative;flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
 .cx-tb{flex:none;display:flex;align-items:center;gap:calc(10 * var(--u))}
 .cx-mb{flex:none;width:calc(52 * var(--u));height:calc(52 * var(--u));margin:0;padding:0;border:0;border-radius:calc(18 * var(--u));display:flex;align-items:center;justify-content:center;background:#1E5BD6;color:#FFFFFF;box-shadow:0 calc(6 * var(--u)) calc(14 * var(--u)) rgba(30,91,214,.30);cursor:pointer}
 .cx-mb.lifted{position:relative;z-index:50;box-shadow:0 0 0 calc(4 * var(--u)) rgba(255,255,255,.9),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(0,0,0,.3)}
-.cx-sr{flex:1;min-width:0;height:calc(52 * var(--u));box-sizing:border-box;display:flex;align-items:center;gap:calc(10 * var(--u));padding:0 calc(18 * var(--u));border-radius:999px;background:#FFFFFF;color:#78716C;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:text}
+.cx-sr{flex:1;min-width:0;height:calc(52 * var(--u));box-sizing:border-box;display:flex;align-items:center;gap:calc(10 * var(--u));padding:0 calc(18 * var(--u));border-radius:999px;background:#FFFFFF;color:#615C57;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:text}
 .cx-sr:focus-within{box-shadow:inset 0 0 0 2px #1E5BD6,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
 .cx-sr input{flex:1;min-width:0;height:100%;margin:0;padding:0;border:0;background:transparent;color:#1C1917;font:inherit;font-size:calc(16 * var(--u));outline:none}
 .cx-shell .cx-sr input:focus-visible{outline:none}
-.cx-sr input::placeholder{color:#78716C;opacity:1}
+.cx-sr input::placeholder{color:#615C57;opacity:1}
 .cx-sr input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:calc(18 * var(--u));height:calc(18 * var(--u));margin:0;cursor:pointer;background:#A8A29E;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'/%3E%3C/svg%3E") center/contain no-repeat}
 .cx-tc{flex:none;height:calc(52 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(18 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;gap:calc(8 * var(--u));background:#FFFFFF;color:#1C1917;font-size:calc(15 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:pointer}
 .cx-mb:active,.cx-tc:active{transform:scale(.97)}
@@ -273,7 +273,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 /* The menu under the bar, in the display style chosen (Settings > Counter) */
 .cx-area{flex:1;min-height:0;display:flex;flex-direction:column}
 /* It scrolls up and down; its edges reach out over the gaps around it so the cards' shadows are not cut off */
-.cx-scroll{flex:1;min-height:0;margin:calc(-12 * var(--u)) calc(-20 * var(--u)) calc(-18 * var(--u));padding:calc(12 * var(--u)) calc(20 * var(--u)) calc(18 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
+.cx-scroll{flex:1;min-height:0;margin:calc(-12 * var(--u)) calc(-20 * var(--u)) calc(-10 * var(--u));padding:calc(12 * var(--u)) calc(20 * var(--u)) calc(10 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
 .cx-scroll::-webkit-scrollbar{display:none}
 .cx-h{flex:none;margin:calc(24 * var(--u)) calc(4 * var(--u)) calc(14 * var(--u));font-size:calc(20 * var(--u));font-weight:700;line-height:normal}
 /* Pills on top (the default): category pills 56 tall, 10 apart, wrapping; the selected one dark */
@@ -302,14 +302,14 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-ci img{width:calc(46 * var(--u));height:calc(46 * var(--u));filter:drop-shadow(0 calc(4 * var(--u)) calc(4 * var(--u)) rgba(0,0,0,.15));-webkit-user-drag:none}
 .cx-cat-copy{display:block;min-width:0;font-size:calc(16 * var(--u));line-height:normal}
 .cx-cat-copy b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:calc(19 * var(--u));font-weight:700;overflow:hidden} /* a long name takes two lines on a narrower menu */
-.cx-cat-copy span{font-size:calc(13 * var(--u));color:#78716C}
+.cx-cat-copy span{font-size:calc(13 * var(--u));color:#615C57}
 /* Inside a category: "‹ All categories" (56 tall), the category's colour bar (4 x 28), its name 22/800 and count */
 .cx-crumb{flex:none;display:flex;align-items:center;gap:calc(14 * var(--u));margin:calc(18 * var(--u)) 0 calc(16 * var(--u))}
 .cx-bk{flex:none;height:calc(56 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(20 * var(--u)) 0 calc(12 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;gap:calc(4 * var(--u));background:#FFFFFF;color:#1C1917;font-size:calc(15 * var(--u));font-weight:600;line-height:normal;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:pointer}
 .cx-bk:active{transform:scale(.97)}
 .cx-crumb i{flex:none;width:calc(4 * var(--u));height:calc(28 * var(--u));border-radius:calc(4 * var(--u))}
 .cx-crumb b{font-size:calc(22 * var(--u));font-weight:800;line-height:normal}
-.cx-crumb .cnt{margin-left:calc(-4 * var(--u));padding-top:calc(4 * var(--u));font-size:calc(14 * var(--u));line-height:normal;color:#78716C}
+.cx-crumb .cnt{margin-left:calc(-4 * var(--u));padding-top:calc(4 * var(--u));font-size:calc(14 * var(--u));line-height:normal;color:#615C57}
 /* Vertical rail: the category pills down the left (196 wide; it scrolls), 16 from the items, two across */
 .cx-split{flex:1;min-height:0;display:flex;gap:calc(16 * var(--u));margin-top:calc(18 * var(--u))}
 .cx-rail{flex:none;width:calc(196 * var(--u));display:flex;flex-direction:column;gap:calc(10 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
@@ -345,7 +345,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-x{flex:none;width:calc(48 * var(--u));height:calc(48 * var(--u));margin:calc(-6 * var(--u)) calc(-6 * var(--u)) 0 0;padding:0;border:0;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#F3F4F7;color:#44403C;cursor:pointer}
 .cx-og-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:calc(10 * var(--u))}
 .cx-og-head strong{font-size:calc(16 * var(--u));font-weight:700}
-.cx-og-head span{font-size:calc(13 * var(--u));color:#78716C}
+.cx-og-head span{font-size:calc(13 * var(--u));color:#615C57}
 .cx-og-options{display:flex;flex-wrap:wrap;gap:calc(10 * var(--u))}
 .cx-opt{height:calc(48 * var(--u));margin:0;padding:0 calc(18 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;gap:calc(6 * var(--u));background:#FFFFFF;color:#1C1917;font-size:calc(15 * var(--u));font-weight:600;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.12);cursor:pointer}
 .cx-opt.on{background:#1C1917;color:#FFFFFF;box-shadow:none}
