@@ -7,11 +7,10 @@
   const defaultId = window.RestroDefaultTheme;
   let activeId = defaultId;
 
-  // Every screen is pure white with no theme colour: white surfaces, neutral greys for lines and text, a dark slate
-  // where a theme colour used to be (buttons, the selected page dot, focus). These colours are the same whatever theme
-  // is chosen; the chosen theme now only picks the app pictures. Colour that carries meaning (order types, categories,
-  // paid / not paid) is set by each screen itself. Border lines (edge, line, panel-edge, side-edge) are #cbcfd5: as dark
-  // as they were with the themes (Matte Clay's #d4cdc4), in a neutral grey, so tiles and panels stand out on white.
+  // Every page but the home screen is pure white with no theme colour: white surfaces, neutral greys for lines and text, a
+  // dark slate where a theme colour used to be (buttons, the selected page dot, focus). These colours are the same
+  // whatever theme is chosen. Colour that carries meaning (order types, categories, paid / not paid) is set by each screen
+  // itself. Border lines (edge, line, panel-edge, side-edge) are #cbcfd5, so tiles and panels stand out on white.
   const PURE = {
     scheme: 'light', bg: '#ffffff', 'bg-top': '#ffffff', 'bg-end': '#ffffff', text: '#1f2933', muted: '#6b7280',
     'tile-top': '#ffffff', 'tile-bottom': '#ffffff', edge: '#cbcfd5', 'card-middle': '#ffffff', panel: '#ffffff',
@@ -20,6 +19,7 @@
     'side-top': '#ffffff', 'side-middle': '#f9fafb', 'side-bottom': '#e5e7eb', 'side-edge': '#cbcfd5', 'edge-glow': '#cbcfd544',
     highlight: '#ffffffbb', shadow: '#0000001a', 'soft-shadow': '#00000012', 'accent-wash': '#f3f4f6', backdrop: '#11182770'
   };
+  // The chosen theme is the home screen's (White, Sea breeze or Aurora: theme-data.js); the pages keep the colours above
   function apply(id, persist = true) {
     const theme = byId.get(id);
     if (!theme) return false;
@@ -27,8 +27,8 @@
       root.style.setProperty(`--palette-${name}`, value);
     }
     activeId = id;
-    root.dataset.restroTheme = 'W';      // pure white: the themes' own extra styles (tinted tiles, shadows) stay off
-    root.dataset.restroArtwork = id;     // the chosen theme still picks the pictures
+    root.dataset.restroTheme = 'W';      // the pages: pure white
+    root.dataset.homeTheme = id;         // the home screen: launcher.css, status-bar.css
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', PURE.bar);
     if (persist) {
       try { localStorage.setItem(storageKey, id); } catch {}
@@ -36,7 +36,7 @@
     window.dispatchEvent(new CustomEvent('restro:theme-changed', { detail: { id, name: theme.name } }));
     return true;
   }
-  // Retired palettes migrate to Matte Clay; saved choices among the six remain.
+  // The six earlier themes are gone: a tablet that had one of them starts on White.
   // This preference never contains customer pages, app order or restaurant name.
   try {
     const saved = localStorage.getItem(storageKey);
@@ -52,24 +52,15 @@
   });
 
   document.addEventListener('DOMContentLoaded', () => {
-    // The theme picker lives in place on the Settings > Themes page.
+    // The theme picker lives in place on the Settings > Display page
     const options = document.querySelector('#theme-options');
     const applyButton = document.querySelector('#theme-apply');
     const status = document.querySelector('#theme-apply-status');
     const buttons = new Map();
     let pendingId = activeId;
 
-    function paintSwatch(element, theme) {
-      element.style.setProperty('--swatch-top', theme.tokens['tile-top']);
-      element.style.setProperty('--swatch-bottom', theme.tokens['tile-bottom']);
-      element.style.setProperty('--swatch-edge', theme.tokens.edge);
-      element.style.setProperty('--swatch-accent', theme.tokens.accent);
-    }
     function refresh() {
-      const current = byId.get(activeId), pending = byId.get(pendingId);
-      const currentName = document.querySelector('#current-theme-name'), swatch = document.querySelector('#current-theme-swatch');
-      if (currentName) currentName.textContent = current.name;
-      if (swatch) paintSwatch(swatch, current);
+      const pending = byId.get(pendingId);
       document.querySelector('#theme-selection-name').textContent = pending.name;
       status.textContent = pendingId === activeId ? 'Current theme' : 'Ready to apply';
       applyButton.disabled = pendingId === activeId;
@@ -89,23 +80,24 @@
       focusCurrent() { const button = buttons.get(pendingId); button?.focus({ preventScroll: true }); button?.scrollIntoView({ block: 'nearest' }); }
     });
 
-    // Preview each selected skin using the same shared app/artwork catalog.
+    // Each theme as a small home screen: its background, its top bar, three app icons and a widget card (settings.css)
     for (const theme of catalog) {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'theme-option'; button.dataset.themeOption = theme.id;
-      button.setAttribute('role', 'radio'); button.setAttribute('aria-label', `${theme.id} ${theme.name}`);
-      const preview = document.createElement('span'); preview.className = 'theme-preview'; preview.setAttribute('aria-hidden', 'true');
-      for (const [name, value] of Object.entries(theme.tokens)) preview.style.setProperty(`--preview-${name}`, value);
-      const tiles = document.createElement('span'); tiles.className = 'theme-preview-tiles';
+      button.setAttribute('role', 'radio'); button.setAttribute('aria-label', theme.name);
+      const preview = document.createElement('span'); preview.className = 'theme-preview home-preview'; preview.dataset.homeTheme = theme.id;
+      preview.setAttribute('aria-hidden', 'true');
+      const bar = document.createElement('span'); bar.className = 'home-preview-bar';
+      const icons = document.createElement('span'); icons.className = 'home-preview-icons';
       for (const item of [shortcuts[0], shortcuts[3], apps.settings]) {
-        const tile = document.createElement('span'); tile.className = 'theme-preview-tile'; tile.append(artNode(item.art, theme.id)); tiles.append(tile);
+        const icon = document.createElement('span'); icon.className = 'home-preview-icon'; icon.append(artNode(item.art)); icons.append(icon);
       }
-      preview.append(tiles);
+      const card = document.createElement('span'); card.className = 'home-preview-card';
+      preview.append(bar, icons, card);
       const caption = document.createElement('span'); caption.className = 'theme-option-caption';
-      const number = document.createElement('span'); number.className = 'theme-number'; number.textContent = theme.id;
       const name = document.createElement('strong'); name.textContent = theme.name;
       const state = document.createElement('span'); state.className = 'theme-state';
-      caption.append(number, name, state); button.append(preview, caption);
+      caption.append(name, state); button.append(preview, caption);
       button.addEventListener('click', () => select(theme.id));
       buttons.set(theme.id, button); options.append(button);
     }

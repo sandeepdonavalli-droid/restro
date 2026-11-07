@@ -25,7 +25,7 @@
   const svg = path => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = path; return s; };
   const ICON = { home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', back: '<path d="m15 6-6 6 6 6"/>' };
   const floorIcon = () => {
-    const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode(shortcuts.find(item => item.id === 'floor').art) : document.createElement('span');
+    const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode({ ...shortcuts.find(item => item.id === 'floor').art, plain: true }) : document.createElement('span');
     art.classList.add('floor-title-icon'); return art;
   };
 

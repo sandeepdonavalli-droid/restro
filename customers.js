@@ -26,7 +26,7 @@
     plus: '<path d="M12 5v14M5 12h14"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/>', chevron: '<path d="m9 6 6 6-6 6"/>'
   };
   const appIcon = () => {
-    const art = typeof artNode === 'function' && typeof apps !== 'undefined' && apps.customers ? artNode(apps.customers.art) : document.createElement('span');
+    const art = typeof artNode === 'function' && typeof apps !== 'undefined' && apps.customers ? artNode({ ...apps.customers.art, plain: true }) : document.createElement('span');
     art.classList.add('cust-title-icon'); return art;
   };
   const toast = message => { if (typeof window.toast === 'function') window.toast(message); };

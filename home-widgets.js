@@ -5,8 +5,8 @@
 // - Orders: how many are open and ready, the latest three open ones with where they are. An order opens in Counter.
 // - Floor: the tables, the ones in use highlighted. A table opens its order (or a new one) in Counter.
 // - Pager Hub: the pagers out with customers, longest wait first. A pager buzzes.
-// The dock's red badges count the open orders (Orders) and the pagers out (Pager Hub). Everything follows the data:
-// on any change from another tablet, when an app closes, and every 30 seconds (the waits).
+// The apps carry no count badges for now. Everything follows the data: on any change from another tablet, when an app
+// closes, and every 30 seconds (the waits).
 (() => {
   const panel = document.querySelector('#home-widgets');
   if (!panel) return;
@@ -74,7 +74,7 @@
     const where = o => o.table ? `Table ${window.RestroFloor?.tableName(o.table) || o.table}` : o.customer?.name || TYPES[o.type] || 'Order';
     const chip = s => (s.sub === 'Ready' ? 'ready' : s.sub === 'In kitchen' ? 'kitchen' : String(s.sub || '').startsWith('Scheduled') ? 'scheduled' : 'open');
     const rows = open.slice(0, 3).map(o => {
-      const s = statusOf(o), label = s.sub === 'In kitchen' ? 'Cooking' : s.sub || 'Open';
+      const s = statusOf(o), label = s.sub || 'Open';
       const go = () => (o.paidAt ? window.RestroOrders?.open() : window.RestroCounter?.openOrder(o.uid || o.number));
       return el('button', { type: 'button', class: 'hw-order', 'aria-label': `Order ${ticket(o.number)}, ${where(o)}, ${minutes(now - o.createdAt)}, ${label}`, onclick: go },
         el('strong', {}, ticket(o.number)), el('span', { class: 'hw-where' }, `${where(o)} · ${minutes(now - o.createdAt)}`), el('span', { class: `hw-chip ${chip(s)}` }, label.replace(/^Scheduled /, '')));
@@ -104,23 +104,9 @@
       tiles.length ? el('div', { class: 'hw-pager-grid' }, ...tiles) : null);
   }
 
-  // The dock's badges: open orders, pagers out
-  function badges(orders) {
-    const statusOf = o => window.RestroOrders?.status?.(o) || { text: o.paidAt ? 'Closed' : 'Open' };
-    const set = (id, n, what) => {
-      const badge = document.querySelector(`.shortcut[data-app="${id}"] .app-badge`), node = badge?.closest('.shortcut');
-      if (!badge) return;
-      badge.hidden = !n; badge.textContent = n > 99 ? '99+' : String(n);
-      node?.setAttribute('aria-label', `Open ${node.querySelector('.shortcut-label')?.textContent || ''}${n ? `, ${n} ${what}` : ''}`);
-    };
-    set('orders', orders.filter(o => statusOf(o).text === 'Open').length, 'open');
-    set('pager-hub', orders.filter(o => o.pagerOut && o.pager).length, 'out');
-  }
-
   function render() {
     const now = Date.now(), orders = window.RestroCounter?.orders?.() || [];
     panel.replaceChildren(salesCard(orders, now), ordersCard(orders, now), el('div', { class: 'hw-pair' }, floorCard(), pagersCard(orders, now)));
-    badges(orders);
   }
   document.addEventListener('DOMContentLoaded', render);
   window.addEventListener('restro:data-changed', render);

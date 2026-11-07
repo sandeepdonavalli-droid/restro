@@ -29,7 +29,7 @@
     del: '<path d="M9 6h11v12H9l-6-6 6-6Z"/><path d="m12 9 5 6m0-6-5 6"/>'
   };
   const appIcon = () => {
-    const art = typeof artNode === 'function' && typeof apps !== 'undefined' && apps.employees ? artNode(apps.employees.art) : document.createElement('span');
+    const art = typeof artNode === 'function' && typeof apps !== 'undefined' && apps.employees ? artNode({ ...apps.employees.art, plain: true }) : document.createElement('span');
     art.classList.add('cust-title-icon'); return art;
   };
   const toast = message => { if (typeof window.toast === 'function') window.toast(message); };

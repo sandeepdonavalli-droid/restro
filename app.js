@@ -118,7 +118,7 @@ function appIcon(item,badge=false){
 for(const item of shortcuts){
   const node=document.createElement('div');node.className='shortcut';node.dataset.app=item.id;
   const label=document.createElement('span');label.className='shortcut-label';label.textContent=item.name;
-  node.append(appIcon(item,true),label);$('#main-shortcuts').append(node);
+  node.append(appIcon(item),label);$('#main-shortcuts').append(node);
   if(item.id==='register'){
     node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Counter');
     node.addEventListener('click',()=>window.RestroCounter?.open());

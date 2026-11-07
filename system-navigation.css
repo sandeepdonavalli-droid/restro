@@ -5,7 +5,7 @@
    still buttons for the keyboard and screen readers, out of sight until one of them is focused. */
 :root{--home-bar-height:max(16px,calc(14 * var(--hl-u)))}
 .home-bar{position:fixed;inset:auto 0 0;z-index:40;height:var(--home-bar-height);margin:0;padding:0;border:0;background:transparent;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.home-indicator{position:absolute;left:50%;bottom:calc((var(--home-bar-height) - max(4px,5 * var(--hl-u))) / 2);width:calc(220 * var(--hl-u));height:max(4px,calc(5 * var(--hl-u)));border-radius:999px;background:#1C1917;transform:translateX(-50%);pointer-events:none}
+.home-indicator{position:absolute;left:50%;bottom:calc((var(--home-bar-height) - max(4px,5 * var(--hl-u))) / 2);width:calc(220 * var(--hl-u));height:max(4px,calc(5 * var(--hl-u)));border-radius:999px;background:var(--home-indicator,#1C1917);transform:translateX(-50%);pointer-events:none}
 .screen-lock-dialog .home-indicator{display:none}
 .android-controls{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px;border-radius:999px;background:#1C1917;opacity:0;pointer-events:none}
 .android-controls:focus-within{opacity:1;pointer-events:auto}

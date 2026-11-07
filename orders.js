@@ -33,7 +33,7 @@
   const ICON = { home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', back: '<path d="m15 6-6 6 6 6"/>',
     send: '<path d="M21 3 10.2 13.8"/><path d="M21 3 14.3 21l-4.1-7.2L3 9.7Z"/>', close: '<path d="M6 6l12 12M18 6 6 18"/>' };
   const appIcon = () => {
-    const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode(shortcuts.find(item => item.id === 'orders').art) : document.createElement('span');
+    const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode({ ...shortcuts.find(item => item.id === 'orders').art, plain: true }) : document.createElement('span');
     art.classList.add('ord-title-icon'); return art;
   };
 
