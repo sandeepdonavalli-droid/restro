@@ -11,7 +11,7 @@ The code is in `sync.js`. The screens only make two calls:
 
 | Shared by all the restaurant's tablets | Stays on each tablet |
 | --- | --- |
-| Orders (`restro.counter.orders.v1`) | Theme, tile style, sounds, brightness |
+| Orders (`restro.counter.orders.v1`) | Theme, tile style, sounds, brightness, the Counter’s menu display style |
 | Held tickets (`restro.counter.held.v1`) | Home screen and tile order |
 | Customers (`restro.customers.v1`) | The order being rung up |
 | Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | Who is signed in |
@@ -124,7 +124,7 @@ Every record that changed gets a new version and waits to be sent. The tablet re
 A merge starts from the version both sides started from:
 
 - **Fields.** A field changed on one side takes that side. A field changed on both takes the later version's.
-- **Order lines.** Lines merge item by item:
+- **Order lines.** Lines merge item by item (the same item with other choices, such as Extra spicy, is a line of its own):
   - Quantities add up both sides' changes: mine + theirs − what both started from.
   - An item taken off on one side, and left alone on the other, goes.
 - **Kitchen tickets.** The tickets from both sides are kept. For what was sent to the kitchen, the larger count wins.

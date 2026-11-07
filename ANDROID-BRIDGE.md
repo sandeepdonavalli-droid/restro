@@ -105,6 +105,17 @@ Dispatch these as window events when the tablet's power button locks the screen 
 unlocked (`ACTION_USER_PRESENT`). With staff accounts set up, locking signs the person out and the lock screen asks for
 a PIN.
 
+## Printing the bill: `RESTRODevice.printer.printBill(bill)`
+
+Counter's menu (the three-line button) has **Print bill**. With this method present, the bill goes to it, to print on
+the restaurant's printer; without it, the browser's own printing opens. Return `false` (or throw) if it didn't print;
+Counter says so.
+
+`bill` is plain data: `{ restaurant, number, at, type, table, customer, pager, lines, subtotal, tax, taxLabel, total }`.
+`number` is the ticket (`"#05"`, or `null` for an order not saved yet), `at` the time in milliseconds, amounts in rupees.
+Each line is `{ name, qty, each, total, modifiers, note }`: print `modifiers` (e.g. `"Medium spicy"`,
+`"Extra gravy +₹40"`) and the `note` (free text for the kitchen) under their line.
+
 ## Back, Home and Recent apps: `RestroSystem.back()`, `.home()`, `.recents()`
 
 RESTRO has no bottom bar: a swipe bar instead (a black pill at the bottom centre), like an iPhone. Swiping up from the

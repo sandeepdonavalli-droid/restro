@@ -120,10 +120,10 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 .theme-option:hover{border-color:var(--palette-edge)}
 .theme-option[aria-checked="true"]{border-color:var(--palette-accent);box-shadow:0 0 0 1px var(--palette-accent),0 4px 10px var(--palette-soft-shadow)}
 .theme-option:focus-visible{outline:2px solid var(--palette-accent);outline-offset:2px}
-.theme-option-caption{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 5px;padding:0 5px 5px;min-height:66px}
+.theme-option-caption{display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:start;gap:4px 5px;padding:0 5px 5px;min-height:66px}
 .theme-number{grid-column:1;font-size:12px;line-height:1.4;color:var(--palette-muted)}
 .theme-option-caption strong{grid-column:1/-1;grid-row:2;font-size:15px;line-height:1.35;font-weight:600;overflow-wrap:anywhere}
-.theme-state{grid-column:2;grid-row:1;font-size:12px;font-weight:600;line-height:1.4;color:var(--palette-accent-ink)}
+.theme-state{grid-column:2;grid-row:1;min-height:1.4em;font-size:12px;font-weight:600;line-height:1.4;color:var(--palette-accent-ink)} /* its line kept when empty, so every name lines up */
 .theme-options{gap:16px}
 /* Each preview is this home screen itself, as it is right now (themes.js: a still copy of its top bar, apps, widgets and
    dock, laid out at the screen's own size and scaled down to the card), in the theme and with the background the card
@@ -132,6 +132,15 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 .theme-preview.home-preview::after{content:"";position:absolute;inset:0;z-index:1;border:1px solid #cbcfd5;border-radius:inherit;pointer-events:none}
 .home-live-screen{position:absolute;left:0;top:0;display:flex;flex-direction:column;overflow:hidden;background:var(--home-bg);transform:scale(var(--preview-scale,0));transform-origin:0 0;contain:strict;pointer-events:none;user-select:none;-webkit-user-select:none}
 .home-live-pill{position:absolute;left:50%;bottom:calc((var(--home-bar-height) - max(4px,5 * var(--hl-u))) / 2);width:calc(220 * var(--hl-u));height:max(4px,calc(5 * var(--hl-u)));border-radius:999px;background:var(--home-indicator,#1C1917);transform:translateX(-50%)}
+
+/* Counter > Menu display style: each card is the Counter as it is now in that style (settings.js: a still copy of the
+   top bar over the Counter's order panel and menu, laid out at the screen's own size and scaled down to the card), the
+   same size as the theme cards. The frame is drawn over its edge. */
+.theme-preview.counter-preview{position:relative;display:block;width:100%;height:auto;aspect-ratio:16/10;padding:0;border:0;border-radius:10px;background:#F3F4F7;overflow:hidden;isolation:isolate}
+.theme-preview.counter-preview::after{content:"";position:absolute;inset:0;z-index:1;border:1px solid #cbcfd5;border-radius:inherit;pointer-events:none}
+.counter-live-screen{position:absolute;left:0;top:0;display:flex;flex-direction:column;overflow:hidden;background:#FFFFFF;transform:scale(var(--preview-scale,0));transform-origin:0 0;contain:strict;pointer-events:none;user-select:none;-webkit-user-select:none}
+.counter-live-app{position:relative;flex:1;min-height:0;display:block;background:#F3F4F7}
+.counter-live-app>.ctr-root{height:100%}
 
 /* Home screen background: Default and Mirror, each as this home screen in the selected theme with it, the same size as
    the theme cards above */

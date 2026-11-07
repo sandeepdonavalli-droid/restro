@@ -139,8 +139,11 @@
         el('p', { class: 'ord-receipt-no' }, ticket(o.number)),
         el('p', { class: 'ord-receipt-meta' }, [type.label, nameOf(o)].join(' · ')),
         el('p', { class: 'ord-receipt-meta ord-sub' }, [`${fullDate(o.createdAt)} · ${timeOf(o.createdAt)}`, o.server || ''].filter(Boolean).join(' · ')),
+        // each item with its modifiers and its note for the kitchen under it, as on the bill
         el('ul', { class: 'ord-receipt-lines' }, ...o.lines.map(l => el('li', {},
-          el('span', { class: 'ord-receipt-item' }, l.name), el('span', { class: 'ord-receipt-qty' }, `× ${l.qty}`), el('span', { class: 'ord-receipt-amt' }, money(Math.round(l.price * 100) * l.qty))))),
+          el('span', { class: 'ord-receipt-item' }, l.name), el('span', { class: 'ord-receipt-qty' }, `× ${l.qty}`), el('span', { class: 'ord-receipt-amt' }, money(Math.round(l.price * 100) * l.qty)),
+          Array.isArray(l.mods) && l.mods.length ? el('span', { class: 'ord-receipt-mods' }, l.mods.map(m => (m.price ? `${m.label} +₹${m.price}` : m.label)).join(' · ')) : null,
+          l.note ? el('span', { class: 'ord-receipt-note' }, l.note) : null))),
         el('dl', { class: 'ord-receipt-sums' },
           el('dt', {}, 'Subtotal'), el('dd', {}, money(sub)),
           el('dt', {}, rate ? `GST ${rate}%` : 'GST'), el('dd', {}, money(o.tax || 0)),

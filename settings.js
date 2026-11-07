@@ -37,6 +37,7 @@
       if (selected) entry.setAttribute('aria-current', 'page'); else entry.removeAttribute('aria-current');
     }
     if (id === 'display') window.RestroThemePicker?.reset();
+    if (id === 'counter') paintStylePreviews(); else clearStylePreviews();
     renderLivePanels(id);
     dialog.querySelector('.settings-pages').scrollTop = 0;
     if (!twoPane.matches) shell.dataset.view = 'detail';
@@ -131,6 +132,81 @@
   document.querySelector('#settings-prep-up').addEventListener('click', () => stepPrep(5));
   showPrep();
 
+  // Counter: Menu display style (Category grid, Pills on top, Vertical rail). Each card is the Counter as it is now in
+  // that style (RestroCounter.preview) under a copy of the top bar, laid out at the screen's own size and scaled down to
+  // the card, made each time the Counter page opens and cleared when it closes. Tapping a card uses it straight away.
+  // The choice is a preference kept on this device only (counter.js).
+  const counterStyles = document.querySelector('#counter-style-options');
+  const styleCards = new Map(), stylePreviews = [];
+  const menuStyles = window.RestroCounter?.menuStyles || [];
+  let shot = { w: innerWidth, h: innerHeight };
+  const fitPreview = box => { const w = box.getBoundingClientRect().width; if (w) box.style.setProperty('--preview-scale', String(w / shot.w)); };
+  const previewFit = new ResizeObserver(list => { for (const entry of list) fitPreview(entry.target); });
+  // What the top bar inherits from the screen around it, so the cards' own text styles stay out
+  const inheritedLooks = ['color', 'font-family', 'font-size', 'font-style', 'font-weight', 'font-stretch', 'font-variant', 'font-feature-settings', 'font-variation-settings', 'font-kerning', 'line-height', 'letter-spacing', 'word-spacing', 'text-align', 'text-transform', 'text-indent', 'text-shadow', 'text-rendering', 'white-space', 'word-break', 'overflow-wrap', 'hyphens', 'direction', 'visibility', 'cursor', 'list-style', '-webkit-font-smoothing'];
+  function paintStylePreviews() {
+    const counter = window.RestroCounter, banner = document.querySelector('#top-banner'), appShell = document.querySelector('.app-shell');
+    if (!dialog.open || current !== 'counter' || !counter || !banner || !appShell) { clearStylePreviews(); return; }
+    const look = getComputedStyle(appShell), widths = stylePreviews.map(box => box.getBoundingClientRect().width);
+    shot = { w: innerWidth, h: innerHeight };
+    const bar = banner.cloneNode(true);
+    for (const part of [bar, ...bar.querySelectorAll('*')]) for (const name of ['autofocus', 'name', 'title', 'aria-live']) part.removeAttribute(name);
+    stylePreviews.forEach((box, i) => {
+      const screen = document.createElement('span'); screen.className = 'counter-live-screen'; screen.inert = true;
+      for (const name of inheritedLooks) screen.style.setProperty(name, look.getPropertyValue(name));
+      screen.style.width = `${shot.w}px`; screen.style.height = `${shot.h}px`;
+      const app = document.createElement('span'); app.className = 'counter-live-app';
+      app.append(counter.preview(box.dataset.counterStyle));
+      const pill = document.createElement('span'); pill.className = 'home-live-pill';
+      screen.append(i ? bar.cloneNode(true) : bar, app, pill);
+      box.style.aspectRatio = `${shot.w} / ${shot.h}`;
+      if (widths[i]) box.style.setProperty('--preview-scale', String(widths[i] / shot.w));
+      box.replaceChildren(screen);
+    });
+  }
+  function clearStylePreviews() { for (const box of stylePreviews) box.replaceChildren(); }
+  function syncCounterStyle() {
+    const style = window.RestroCounter?.menuStyle;
+    document.querySelector('#settings-counter-summary').textContent = `Menu display: ${style?.name || 'Pills on top'}`;
+    for (const [id, card] of styleCards) {
+      card.setAttribute('aria-checked', String(id === style?.id));
+      card.tabIndex = id === style?.id ? 0 : -1;
+      card.querySelector('.theme-state').textContent = id === style?.id ? 'Applied' : id === 'pills' ? 'Default' : '';
+    }
+  }
+  for (const style of menuStyles) {
+    const card = document.createElement('button');
+    card.type = 'button'; card.className = 'theme-option counter-style'; card.dataset.counterStyle = style.id;
+    card.setAttribute('role', 'radio'); card.setAttribute('aria-label', style.name);
+    const box = document.createElement('span'); box.className = 'theme-preview counter-preview'; box.dataset.counterStyle = style.id; box.setAttribute('aria-hidden', 'true');
+    stylePreviews.push(box); previewFit.observe(box);
+    const caption = document.createElement('span'); caption.className = 'theme-option-caption';
+    const name = document.createElement('strong'); name.textContent = style.name;
+    const state = document.createElement('span'); state.className = 'theme-state';
+    caption.append(name, state); card.append(box, caption);
+    card.addEventListener('click', () => window.RestroCounter?.setMenuStyle(style.id));
+    styleCards.set(style.id, card); counterStyles.append(card);
+  }
+  counterStyles.addEventListener('keydown', event => {
+    const card = event.target.closest('.counter-style'); if (!card) return;
+    const index = menuStyles.findIndex(style => style.id === card.dataset.counterStyle);
+    let next = index;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % menuStyles.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + menuStyles.length - 1) % menuStyles.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = menuStyles.length - 1;
+    else return;
+    event.preventDefault(); window.RestroCounter?.setMenuStyle(menuStyles[next].id); styleCards.get(menuStyles[next].id).focus({ preventScroll: true });
+  });
+  window.addEventListener('restro:counter-style-changed', syncCounterStyle);
+  // The screen turned or resized while the Counter page is open: take the pictures again at the new size
+  let restyling = 0;
+  addEventListener('resize', () => {
+    if (!dialog.open || current !== 'counter' || !stylePreviews[0]?.firstChild || (innerWidth === shot.w && innerHeight === shot.h)) return;
+    cancelAnimationFrame(restyling); restyling = requestAnimationFrame(paintStylePreviews);
+  });
+  syncCounterStyle();
+
   for (const entry of entries) entry.addEventListener('click', () => show(entry.dataset.page, { focus: !twoPane.matches }));
   back.addEventListener('click', showList);
   search.addEventListener('input', filter);
@@ -148,6 +224,7 @@
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
   dialog.addEventListener('close', () => {
     window.RestroThemePicker?.reset();
+    clearStylePreviews();
     if (toastNode.parentElement === dialog) toastHome.append(toastNode);
   });
   // Keep toasts visible above the full-screen Settings app.

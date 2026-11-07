@@ -108,6 +108,9 @@
 .ord-receipt-item{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ord-receipt-qty{color:#6b7280;font-variant-numeric:tabular-nums}
 .ord-receipt-amt{text-align:right;font-variant-numeric:tabular-nums}
+/* An item's modifiers and its note for the kitchen, under it */
+.ord-receipt-mods,.ord-receipt-note{grid-column:1 / -1;margin-top:-2px;font-size:12.5px;color:#57534e}
+.ord-receipt-note{font-style:italic;font-synthesis:style}
 .ord-receipt-sums{display:grid;grid-template-columns:1fr auto;gap:6px 10px;margin:10px 0 0;padding:10px 0 0;border-top:1px dashed #cbcfd5;font-size:14px}
 .ord-receipt-sums dt{margin:0;color:#6b7280}
 .ord-receipt-sums dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}

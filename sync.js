@@ -31,12 +31,15 @@
   const PROTOCOL = 1;
 
   // ---------- what syncs ----------
+  // An order's line is known by its item, its order type and its choices (modifiers): the same item with other choices
+  // is a line of its own (counter.js). A saved order keeps its choices as { id, label, ... }; the one on screen as ids.
+  const lineKey = l => `${l.id}@${l.type || ''}${Array.isArray(l.mods) && l.mods.length ? `#${l.mods.map(m => (typeof m === 'string' ? m : m?.id)).join('+')}` : ''}`;
   // Collections: a list of records under one key, `id` naming a record, with the rules for merging two versions.
   const COLLECTIONS = {
     orders: { key: 'restro.counter.orders.v1', id: o => (typeof o?.uid === 'string' ? o.uid : Number.isFinite(o?.number) ? `n${o.number}` : null),
-      rules: { keyed: { lines: l => `${l.id}@${l.type}`, kots: k => String(k.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'] } },
+      rules: { keyed: { lines: lineKey, kots: k => String(k.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'] } },
     held: { key: 'restro.counter.held.v1', id: h => (typeof h?.heldId === 'string' ? h.heldId : null), keep: h => !(Number.isFinite(h.holdUntil) && h.holdUntil <= Date.now()),
-      rules: { keyed: { lines: l => `${l.id}@${l.type || ''}` }, additive: { lines: 'qty' } } },
+      rules: { keyed: { lines: lineKey }, additive: { lines: 'qty' } } },
     customers: { key: 'restro.customers.v1', id: c => (typeof c?.id === 'string' ? c.id : null) },
     staff: { key: 'restro.staff.v1', id: p => (typeof p?.id === 'string' ? p.id : null) }
   };
@@ -282,7 +285,7 @@
     const out = { ...doc, subtotal, tax, total: subtotal + tax, count: doc.lines.reduce((n, l) => n + l.qty, 0) };
     if (Array.isArray(doc.kots)) {
       const sent = { ...(isObj(doc.sent) ? doc.sent : {}) }, fromTickets = {};
-      for (const k of doc.kots) for (const l of Array.isArray(k?.lines) ? k.lines : []) if (Number.isFinite(l?.qty)) fromTickets[`${l.id}@${l.type}`] = (fromTickets[`${l.id}@${l.type}`] || 0) + l.qty;
+      for (const k of doc.kots) for (const l of Array.isArray(k?.lines) ? k.lines : []) if (Number.isFinite(l?.qty)) fromTickets[lineKey(l)] = (fromTickets[lineKey(l)] || 0) + l.qty;
       for (const [key, n] of Object.entries(fromTickets)) sent[key] = Math.max(Number(sent[key]) || 0, n);
       out.sent = sent;
     }
