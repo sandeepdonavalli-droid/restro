@@ -10,24 +10,24 @@
   <link rel="stylesheet" href="styles.css?v=27">
   <link rel="stylesheet" href="quality-layout.css?v=4">
   <link rel="stylesheet" href="device-controls.css?v=3">
-  <link rel="stylesheet" href="system-navigation.css?v=11">
+  <link rel="stylesheet" href="system-navigation.css?v=12">
   <link rel="stylesheet" href="themes.css?v=2">
-  <link rel="stylesheet" href="settings.css?v=12">
+  <link rel="stylesheet" href="settings.css?v=13">
   <link rel="stylesheet" href="counter.css?v=119">
-  <link rel="stylesheet" href="floor.css?v=16">
-  <link rel="stylesheet" href="customers.css?v=14">
+  <link rel="stylesheet" href="floor.css?v=18">
+  <link rel="stylesheet" href="customers.css?v=16">
   <link rel="stylesheet" href="employees.css?v=1">
-  <link rel="stylesheet" href="orders.css?v=34">
+  <link rel="stylesheet" href="orders.css?v=36">
   <link rel="stylesheet" href="scroll-handle.css?v=1">
   <link rel="stylesheet" href="app-widget-controls.css?v=5">
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=1">
   <link rel="stylesheet" href="connectivity-status.css?v=2">
-  <link rel="stylesheet" href="status-bar.css?v=17">
+  <link rel="stylesheet" href="status-bar.css?v=18">
   <link rel="stylesheet" href="tiles.css?v=4">
   <link rel="stylesheet" href="launcher.css?v=7">
   <script src="theme-data.js?v=3"></script>
-  <script src="theme-artwork.js?v=6"></script>
+  <script src="theme-artwork.js?v=7"></script>
   <script src="themes.js?v=7"></script>
   <script src="tiles.js?v=1"></script>
   <script src="app-layout.js?v=4" defer></script>
@@ -49,7 +49,7 @@
   <script src="settings.js?v=10" defer></script>
   <script src="battery-status.js?v=1" defer></script>
   <script src="notifications.js?v=1" defer></script>
-  <script src="system-navigation.js?v=15" defer></script>
+  <script src="system-navigation.js?v=16" defer></script>
   <script src="staff.js?v=2" defer></script>
   <script src="employees.js?v=4" defer></script>
 </head>
@@ -113,9 +113,10 @@
         <nav id="main-shortcuts" class="main-shortcuts" aria-label="Main apps"></nav>
       </section>
     </main>
-    <!-- No bottom bar: a swipe bar (system-navigation.css/js). Swipe up from the bottom edge for Home, swipe up and hold for
-         Recent apps, swipe in from the left or right edge for Back. Back, Home and Recent apps stay as buttons for the
-         keyboard and screen readers, out of sight until focused. -->
+    <!-- No bottom bar: a swipe bar (system-navigation.css/js), like an iPhone. Swipe up from the bottom edge and the app
+         closes into its icon (Home); swipe up and hold, or a long slow swipe, for Recent apps; swipe in from the left or
+         right edge for Back. Back, Home and Recent apps stay as buttons for the keyboard and screen readers, out of sight
+         until focused. -->
     <nav id="system-navigation" class="home-bar" aria-label="System navigation">
       <div class="android-controls">
         <button id="system-back" type="button" class="system-control" aria-label="Back" title="Back"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 4 5 12l12 8Z"/></svg></button>
@@ -129,7 +130,6 @@
   <dialog id="recents-dialog" class="app-switcher" aria-labelledby="recents-title">
     <h2 id="recents-title" class="visually-hidden">Recent apps</h2>
     <div id="recent-apps-list" class="switcher-track" role="list"></div>
-    <p class="switcher-hint">Slide to browse · Swipe up to close an app</p>
   </dialog>
   <dialog id="screen-lock-dialog" class="screen-lock-dialog" aria-labelledby="screen-lock-title">
     <div class="lock-screen-content"><svg class="lock-screen-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><time id="lock-clock"></time><p id="lock-restaurant"></p><h2 id="screen-lock-title">Screen locked</h2><button id="screen-unlock" type="button" class="primary-button">Unlock</button></div>
@@ -142,7 +142,7 @@
   <dialog id="settings-dialog" class="settings-app" aria-labelledby="settings-title">
     <div class="settings-shell" data-view="list">
       <nav class="settings-nav" aria-label="Settings categories">
-        <div class="settings-nav-top"><h2 id="settings-title" tabindex="-1" autofocus>Settings</h2><button class="settings-icon-button" type="button" data-close aria-label="Close settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+        <div class="settings-nav-top"><button class="settings-back-round" type="button" data-close aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><h2 id="settings-title" tabindex="-1" autofocus>Settings</h2></div>
         <label class="settings-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg><span class="visually-hidden">Search settings</span><input id="settings-search" type="search" placeholder="Search settings" autocomplete="off" enterkeyhint="search"></label>
         <ul class="settings-list">
           <li><button class="settings-row" type="button" data-page="restaurant" data-keywords="my profile restaurant name banner title shop business email mail mobile phone number contact"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg></span><span class="settings-row-copy"><strong>My Profile</strong></span></button></li>

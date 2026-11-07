@@ -107,9 +107,9 @@ a PIN.
 
 ## Back, Home and Recent apps: `RestroSystem.back()`, `.home()`, `.recents()`
 
-RESTRO has no bottom bar: a swipe bar instead (a black pill at the bottom centre). Swiping up from the bottom edge goes
-Home, swiping up and holding opens Recent apps, and swiping in from the left or right edge goes Back, like Android's own
-gesture navigation. When Android's gesture navigation is on and reaches the app first, forward it: the back gesture
+RESTRO has no bottom bar: a swipe bar instead (a black pill at the bottom centre), like an iPhone. Swiping up from the
+bottom edge goes Home (the app closes into its icon), swiping up and holding (or a long, slow swipe up) opens Recent apps,
+and swiping in from the left or right edge goes Back. When Android's gesture navigation is on and reaches the app first, forward it: the back gesture
 (`OnBackPressedCallback`) to `RestroSystem.back()`, Home (when RESTRO is the tablet's home app, `onNewIntent` with
 `CATEGORY_HOME`) to `RestroSystem.home()`, and Recent apps to `RestroSystem.recents()`. Each does exactly what the
 swipe does in the page. Going the other way, the page still calls `RESTRODevice.goHome()`, `goBack()` and

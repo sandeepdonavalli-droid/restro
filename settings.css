@@ -13,9 +13,15 @@
 
 /* Category list */
 .settings-nav{min-height:0;overflow:auto;overscroll-behavior:contain;padding:22px 16px 28px 20px;display:flex;flex-direction:column;gap:8px;background:var(--palette-bg-top);border-right:1px solid var(--palette-line)}
-.settings-nav-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 4px 10px 8px}
+/* The title with the round back arrow before it (as in Orders opened from Counter): back to wherever Settings was opened
+   from. The title is centred on the arrow by its capital letters. */
+.settings-nav-top{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:6px 4px 10px 8px}
+.settings-back-round{flex:none;display:grid;place-items:center;width:35.2px;height:35.2px;min-height:0;margin:0;padding:0;border:0;border-radius:50%;background:#f5f6f7;color:#1f2933;box-shadow:inset 0 0 0 1px #cbcfd5;cursor:pointer}
+.settings-back-round:hover{background:#e3e6ea}
+.settings-back-round:focus-visible{outline:2px solid #1f2933;outline-offset:2px}
+.settings-back-round svg{width:17.6px;height:17.6px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .settings-nav-top h2:focus{outline:none}
-.settings-nav-top h2{font-size:32px;line-height:1.15;font-weight:500;letter-spacing:-.01em;color:var(--palette-text)}
+.settings-nav-top h2{margin:0;text-box:trim-both cap alphabetic;font-size:32px;line-height:1.15;font-weight:500;letter-spacing:-.01em;color:var(--palette-text)}
 .settings-icon-button{display:grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;margin:0;border:0;border-radius:50%;background:transparent;color:var(--palette-text);cursor:pointer}
 .settings-icon-button:hover{background:var(--palette-accent-wash)}
 .settings-icon-button:focus-visible,.settings-row:focus-visible,.settings-profile:focus-visible{outline:2px solid var(--palette-accent);outline-offset:2px}

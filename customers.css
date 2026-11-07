@@ -12,13 +12,15 @@
 /* Header (Customers and Employees), exactly as in Orders and Floor: the round Home button (a back arrow when it goes
    back: opened from Counter, or inside a form), the app's icon and the title, with a line under them all. Home is the
    same everywhere, in the same neutral greys whatever the theme: 35.2px with a 17.6px icon. */
-.cust-head{flex:none;display:flex;align-items:center;gap:8px;margin:0 16px;padding:10px 0 9px;border-bottom:1px solid var(--palette-line)}
+/* Home, the icon and the title are evenly spaced (10px between what shows) and centred on one line: the icons show at the
+   Home button's height (35.2px; on a white tile, the drawing alone), and the title is centred by its capital letters */
+.cust-head{flex:none;display:flex;align-items:center;gap:10px;margin:0 16px;padding:10px 0 9px;border-bottom:1px solid var(--palette-line)}
 .cust-nav{display:grid;place-items:center;width:35.2px;height:35.2px;margin:0;padding:0;border:0;border-radius:50%;background:#f5f6f7;color:#1f2933;box-shadow:inset 0 0 0 1px #cbcfd5;cursor:pointer}
 .cust-nav:hover{background:#e3e6ea}
 .cust-nav svg{width:17.6px;height:17.6px}
 /* The app's icon (Customers, Employees): square, 35.2px as in Orders and Floor, centred on the line with Home and the title */
 .cust-title-icon{display:block;flex:none;width:35.2px;height:35.2px}
-.cust-head h2{margin:0 0 0 2px;font-size:18px;font-weight:600;color:var(--palette-accent-ink)}
+.cust-head h2{margin:0 0 0 -1px;text-box:trim-both cap alphabetic;font-size:18px;font-weight:600;color:var(--palette-accent-ink)}
 #customers-title:focus{outline:none}
 
 .cust-body{width:min(680px,100%);margin:0 auto;padding:16px}

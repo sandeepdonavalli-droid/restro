@@ -1,7 +1,7 @@
 /* No bottom bar (Apple and Android style): a swipe bar instead, a short black pill at the bottom centre, under the dock's
    middle app and a little wider than its icon, on a clear strip (--home-bar-height) that the apps end above. Swipe up
-   from the strip for Home, swipe up and hold for Recent apps, swipe in from the left or right edge for Back
-   (system-navigation.js). The strip only takes swipes, so a stray tap on it does nothing. Back, Home and Recent apps are
+   from the strip for Home, swipe up and hold (or swipe up a long way, slowly) for Recent apps, swipe in from the left or
+   right edge for Back (system-navigation.js). The strip only takes swipes, so a stray tap on it does nothing. Back, Home and Recent apps are
    still buttons for the keyboard and screen readers, out of sight until one of them is focused. */
 :root{--home-bar-height:max(16px,calc(14 * var(--hl-u)))}
 .home-bar{position:fixed;inset:auto 0 0;z-index:40;height:var(--home-bar-height);margin:0;padding:0;border:0;background:transparent;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -30,31 +30,48 @@
 .lock-screen-content h2{font-size:16px;font-weight:400;color:#b7c8cc;line-height:1.4}
 .lock-screen-content .primary-button{margin-top:8px;min-width:130px}
 
-/* App switcher (Apple-style recents) */
-.app-switcher{position:fixed;inset:0;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:var(--top-banner-height) 0 calc(var(--home-bar-height) + 8px);border:0;background:transparent;color:var(--palette-text,#fff);overflow:hidden;box-sizing:border-box}
-.app-switcher[open]{display:flex;flex-direction:column;justify-content:center}
-.app-switcher::backdrop{background:color-mix(in srgb,var(--palette-bg-end,#142128) 55%,transparent);backdrop-filter:blur(22px) saturate(1.2);-webkit-backdrop-filter:blur(22px) saturate(1.2)}
-.switcher-track{flex:1;min-height:0;display:flex;align-items:center;gap:clamp(18px,3vw,40px);overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;padding:0 calc(50vw - min(23vw,260px));scrollbar-width:none;touch-action:pan-x;overscroll-behavior:contain}
-.switcher-track::-webkit-scrollbar{display:none}
-.switcher-track.switcher-sliding{scroll-snap-type:none;scroll-behavior:auto;cursor:grabbing}
-.switcher-item{flex:none;width:min(46vw,520px);display:flex;flex-direction:column;gap:12px;scroll-snap-align:center;transition:transform .26s cubic-bezier(.2,.8,.2,1),opacity .26s,width .26s .1s,margin .26s .1s}
-.switcher-item.switcher-dragging{transition:none}
-.switcher-item.switcher-gone{width:0;margin-right:calc(-1 * clamp(18px,3vw,40px));pointer-events:none}
-.switcher-label{display:flex;align-items:center;gap:10px;padding-left:6px;color:var(--palette-text,#fff);font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden}
-.switcher-label-icon{flex:none;width:34px!important;height:34px!important;display:grid;place-items:center;background:none!important;box-shadow:none!important}
-.switcher-label-icon svg{width:24px;height:24px}
-.switcher-card{position:relative;display:flex;flex-direction:column;width:100%;aspect-ratio:16/10.5;padding:0;margin:0;overflow:hidden;border:1px solid var(--palette-edge,#56656b);border-radius:26px;background:linear-gradient(160deg,var(--palette-bg-top,#26343a),var(--palette-bg-end,#1a2428));box-shadow:0 24px 60px var(--palette-shadow,#0008),0 2px 6px var(--palette-soft-shadow,#0004);color:var(--palette-text,#fff);cursor:pointer;touch-action:pan-x;user-select:none;-webkit-user-select:none}
-.switcher-card:focus-visible{outline:3px solid var(--palette-accent,#f4ac72);outline-offset:4px}
-.switcher-card-bar{flex:none;display:flex;align-items:center;height:42px;padding:0 20px;background:var(--palette-bar,#2b363b);color:var(--palette-on-accent,#fff);font-size:14px;font-weight:600;letter-spacing:.02em;text-align:left}
-.switcher-card-body{flex:1;min-height:0;display:grid;place-items:center;padding:24px}
-.switcher-card-icon{width:48%!important;height:62%!important;max-width:240px;display:grid;place-items:center;background:none!important;box-shadow:none!important}
-.switcher-card-icon svg{width:46%;height:46%}
-/* An app's icon (a whole rounded tile) shows whole and square: on the card, and small beside its name */
-.switcher-card-icon.app-art.tile-art{width:auto!important;height:46%!important;aspect-ratio:1}
-.switcher-label-icon.app-art.tile-art{width:28px!important;height:28px!important}
-.switcher-card-icon.tile-art svg,.switcher-label-icon.tile-art svg{width:100%;height:100%}
-.switcher-card-icon.app-art{width:56%!important;height:70%!important}
-.switcher-hint{flex:none;text-align:center;font-size:14px;color:var(--palette-muted,#c5d0d3);padding:6px 16px 4px}
-.app-switcher .recent-apps-empty{flex:1;align-self:center;text-align:center;font-size:18px;color:var(--palette-muted,#c5d0d3);padding:0;margin:auto;width:100vw}
-@media (max-width:700px){.switcher-item{width:72vw}.switcher-track{padding:0 14vw}}
-@media (prefers-reduced-motion:reduce){.switcher-item,.switcher-track{transition:none;scroll-behavior:auto}}
+/* ---------- Swiping an app away, iPhone style (system-navigation.js) ----------
+   The open app's windows move as one card: rounded, with a shadow, the pill fading. The home screen shows behind it,
+   blurred under the veil, and comes back into focus as the app closes into its icon (the icon itself, .sys-ghost,
+   fading in as it lands). */
+:root{--switcher-veil:rgba(236,238,242,.5)}
+html[data-home-theme="sea-breeze"]{--switcher-veil:rgba(222,236,246,.46)}
+html[data-home-theme="aurora"]{--switcher-veil:rgba(14,16,38,.5)}
+.home-veil{position:fixed;left:0;right:0;top:var(--top-banner-height);bottom:0;z-index:30;opacity:0;pointer-events:none;background:var(--switcher-veil);-webkit-backdrop-filter:blur(26px) saturate(1.3);backdrop-filter:blur(26px) saturate(1.3)}
+dialog.sys-moving{overflow:hidden!important;will-change:transform}
+dialog.sys-moving::before{content:none!important}
+dialog.sys-moving::backdrop{opacity:0;transition:opacity .2s}
+dialog.sys-moving .home-indicator{opacity:0;transition:opacity .12s}
+dialog.sys-lifted{border-radius:34px!important;box-shadow:0 24px 72px rgba(17,24,39,.3)!important;transition:border-radius .16s ease-out,box-shadow .16s ease-out}
+dialog.sys-hidden{opacity:0!important}
+html.sys-motion #home{will-change:transform}
+html.sys-motion .home-veil{will-change:opacity}
+.sys-ghost{position:fixed;inset:auto;left:0;top:0;width:0;height:0;margin:0;padding:0;border:0;background:none;overflow:visible;pointer-events:none;transform-origin:50% 50%}
+.sys-ghost:not(:popover-open){display:none}
+.sys-ghost img{display:block;width:100%;height:100%}
+.app-area-probe{position:fixed;left:0;right:0;top:var(--top-banner-height);bottom:var(--home-bar-height);visibility:hidden;pointer-events:none}
+
+/* ---------- Recent apps, iPhone style ----------
+   The apps as cards in a row over the blurred home screen, the newest on the right and the older ones tucked under it
+   to the left, each a picture of the app as it was left with the app's icon and name above it. The top bar stays
+   clear. */
+.app-switcher{position:fixed;inset:0;z-index:35;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:transparent;overflow:hidden;color:var(--home-label,#1C1917)}
+.app-switcher[open]{display:block}
+.app-switcher::backdrop{background:transparent}
+.app-switcher:focus{outline:none}
+.switcher-track{position:absolute;inset:0;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.switcher-item{position:absolute;left:0;top:0;width:var(--card-w);height:var(--card-h);will-change:transform}
+.switcher-inner{position:absolute;inset:0;transform-origin:50% 50%}
+.switcher-label{position:absolute;left:4px;bottom:calc(100% + 12px);display:flex;align-items:center;gap:10px;max-width:calc(var(--card-w) * .6);font-size:16px;font-weight:600;line-height:1.2;color:var(--home-label,#1C1917);text-shadow:var(--home-label-shadow,none);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.switcher-label-icon{flex:none;width:30px!important;height:30px!important;display:grid;place-items:center;background:none!important;box-shadow:none!important}
+.switcher-label-icon svg{width:100%;height:100%}
+.switcher-card{position:absolute;inset:0;overflow:hidden;border-radius:var(--card-radius);background:#FFFFFF;box-shadow:0 2px 6px rgba(17,24,39,.08),0 16px 44px rgba(17,24,39,.22);cursor:pointer;outline:none}
+.app-switcher .switcher-card:focus-visible{outline:none}
+.app-switcher.keys .switcher-card:focus-visible{box-shadow:0 0 0 3px var(--home-dot,#1C1917),0 16px 44px rgba(17,24,39,.22)}
+.switcher-screen{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;contain:strict;pointer-events:none}
+.switcher-screen .snap-part::before{content:none!important}
+.switcher-blank{position:absolute;inset:0;display:grid;place-items:center;background:#FFFFFF}
+.switcher-blank-icon{width:22%!important;height:auto!important;aspect-ratio:1;background:none!important;box-shadow:none!important}
+.switcher-blank-icon svg{width:100%;height:100%}
+.app-switcher .recent-apps-empty{position:absolute;inset:var(--top-banner-height) 0 0;display:grid;place-items:center;margin:0;font-size:18px;color:var(--home-label,#1C1917);opacity:.7}
+@media (prefers-reduced-motion:reduce){dialog.sys-moving::backdrop,dialog.sys-moving .home-indicator{transition:none}}

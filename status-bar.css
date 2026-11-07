@@ -42,6 +42,5 @@ html[data-app-open][data-restro-theme] body .app-shell{background:#FFFFFF}
 :is(.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app)::before{content:"";position:absolute;left:0;right:0;top:calc(-1 * var(--top-banner-height));z-index:39;height:var(--top-banner-height);box-shadow:var(--bar-shadow);pointer-events:none}
 html[data-app-open] .app-shell::after{content:"";position:fixed;left:0;right:0;bottom:0;z-index:4;height:var(--home-bar-height);background:#ffffff;pointer-events:none}
 .ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px);padding-bottom:calc(var(--home-bar-height) + 24px)}
-.app-switcher{padding-top:var(--top-banner-height)}
 .quick-drawer{padding-bottom:calc(var(--home-bar-height) + env(safe-area-inset-bottom,0px))}
 .delete-app-dialog,.insight-detail-dialog{padding-bottom:calc(28px + var(--home-bar-height))}
