@@ -241,12 +241,12 @@
   // Where a window closes into: its app's icon on the home screen (the dock or the first page), or, with no icon to go
   // to, the middle of the screen
   const iconOf={'settings-dialog':'settings','customers-dialog':'customers','employees-dialog':'employees','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','calculator-dialog':'calculator','camera-dialog':'camera'};
+  // (any app can be in the dock or on the pages: app.js)
   function iconNode(dialog){
-    const dock=dialog.id==='counter-dialog'?'register':dialog.id==='floor-dialog'?'floor':dialog.id==='orders-dialog'?(dialog.dataset.view==='held'?'register':'orders')
-      :dialog.id==='device-settings-dialog'&&document.querySelector('#device-settings-title')?.textContent==='Pager Hub'?'pager-hub':null;
-    if(dock)return home.querySelector(`#main-shortcuts .shortcut[data-app="${dock}"] .app-icon`);
-    const app=iconOf[dialog.id];
-    return app?home.querySelector(`#pages-track .apps-page[data-page="0"] .app-tile[data-id="${app}"] .app-icon`):null;
+    const id=dialog.id==='counter-dialog'?'register':dialog.id==='floor-dialog'?'floor':dialog.id==='orders-dialog'?(dialog.dataset.view==='held'?'register':'orders')
+      :dialog.id==='device-settings-dialog'&&document.querySelector('#device-settings-title')?.textContent==='Pager Hub'?'pager-hub':iconOf[dialog.id];
+    if(!id)return null;
+    return home.querySelector(`#main-shortcuts .shortcut[data-app="${id}"] .app-icon`)||home.querySelector(`#pages-track .apps-page[data-page="0"] .app-tile[data-id="${id}"] .app-icon`);
   }
   function targetFor(stack){
     for(const dialog of [...stack].reverse()){

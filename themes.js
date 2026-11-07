@@ -90,6 +90,50 @@
     const buttons = new Map(), backgroundButtons = new Map();
     let pendingId = activeId, pendingBackground = backgroundId;
 
+    // Every preview is this tablet's home screen as it is right now (its own apps and pages, the dock, the widgets and
+    // the name), copied each time the Display page opens and shown small, in a theme and with a background
+    // (settings.css). Only a picture: nothing in it can be tapped, focused or read out. Cleared when Settings closes.
+    const picker = options.closest('dialog'), previews = [];
+    let shotWidth = innerWidth, shotHeight = innerHeight;
+    const scaleOf = box => { const width = box.getBoundingClientRect().width; if (width) box.style.setProperty('--preview-scale', String(width / shotWidth)); };
+    const fit = new ResizeObserver(entries => { for (const entry of entries) scaleOf(entry.target); });
+    function previewBox(themeId, background) {
+      const box = document.createElement('span'); box.className = 'theme-preview home-preview home-live';
+      box.dataset.homeTheme = themeId; box.dataset.homeBackground = background; box.setAttribute('aria-hidden', 'true');
+      previews.push(box); fit.observe(box); return box;
+    }
+    function copyOf(node) {
+      const copy = node.cloneNode(true);
+      copy.style.removeProperty('transform'); // a swipe's zoom, if one was under way
+      for (const part of [copy, ...copy.querySelectorAll('*')]) for (const name of ['autofocus', 'name', 'title', 'aria-live']) part.removeAttribute(name);
+      return copy;
+    }
+    // What the top bar and the home inherit from the screen around them, so the cards' own text styles stay out
+    const inherited = ['color', 'font-family', 'font-size', 'font-style', 'font-weight', 'font-stretch', 'font-variant', 'font-feature-settings', 'font-variation-settings', 'font-kerning', 'line-height', 'letter-spacing', 'word-spacing', 'text-align', 'text-transform', 'text-indent', 'text-shadow', 'text-rendering', 'white-space', 'word-break', 'overflow-wrap', 'hyphens', 'direction', 'visibility', 'cursor', 'list-style', '-webkit-font-smoothing'];
+    function paintPreviews() {
+      const shell = document.querySelector('.app-shell'), banner = document.querySelector('#top-banner'), home = document.querySelector('#home');
+      if (!picker?.open || !shell || !banner || !home) { for (const box of previews) box.replaceChildren(); return; }
+      // One copy, then one more of it for each card; the cards measured once, before any goes in
+      const look = getComputedStyle(shell), widths = previews.map(box => box.getBoundingClientRect().width);
+      shotWidth = innerWidth; shotHeight = innerHeight;
+      const screen = document.createElement('span'); screen.className = 'home-live-screen'; screen.inert = true;
+      for (const name of inherited) screen.style.setProperty(name, look.getPropertyValue(name));
+      screen.style.width = `${shotWidth}px`; screen.style.height = `${shotHeight}px`;
+      const pill = document.createElement('span'); pill.className = 'home-live-pill';
+      screen.append(copyOf(banner), copyOf(home), pill);
+      previews.forEach((box, i) => {
+        box.style.aspectRatio = `${shotWidth} / ${shotHeight}`;
+        if (widths[i]) box.style.setProperty('--preview-scale', String(widths[i] / shotWidth));
+        box.replaceChildren(i ? screen.cloneNode(true) : screen);
+      });
+    }
+    // The screen turned or resized while the Display page is open: take the pictures again at the new size
+    let resizing = 0;
+    addEventListener('resize', () => {
+      if (!picker?.open || !previews[0]?.firstChild || (innerWidth === shotWidth && innerHeight === shotHeight)) return;
+      cancelAnimationFrame(resizing); resizing = requestAnimationFrame(paintPreviews);
+    });
+
     function refresh() {
       const pending = byId.get(pendingId), unchanged = pendingId === activeId && pendingBackground === backgroundId;
       document.querySelector('#theme-selection-name').textContent = pendingBackground === 'mirror' ? `${pending.name} · Mirror` : pending.name;
@@ -100,13 +144,13 @@
         button.tabIndex = id === pendingId ? 0 : -1;
         button.querySelector('.theme-state').textContent = id === activeId ? 'Applied' : id === pendingId ? 'Selected' : id === defaultId ? 'Default' : '';
       }
-      // The background choices show the selected theme, as it looks with each
+      // Each theme is shown with the background selected; each background in the theme selected
+      for (const [, button] of buttons) button.querySelector('.home-live').dataset.homeBackground = pendingBackground;
       for (const [id, button] of backgroundButtons) {
         button.setAttribute('aria-checked', String(id === pendingBackground));
         button.tabIndex = id === pendingBackground ? 0 : -1;
         button.querySelector('.theme-state').textContent = id === backgroundId ? 'Applied' : id === pendingBackground ? 'Selected' : '';
-        const preview = button.querySelector('.background-preview'), src = `assets/home-backgrounds/previews/${pendingId}-${id}.webp`;
-        if (preview.getAttribute('src') !== src) preview.src = src;
+        button.querySelector('.home-live').dataset.homeTheme = pendingId;
       }
     }
     function select(id, focus = false) {
@@ -120,24 +164,16 @@
       if (focus) backgroundButtons.get(id).focus({ preventScroll: true });
     }
     window.RestroThemePicker = Object.freeze({
-      reset() { pendingId = activeId; pendingBackground = backgroundId; refresh(); },
+      reset() { pendingId = activeId; pendingBackground = backgroundId; paintPreviews(); refresh(); },
       focusCurrent() { const button = buttons.get(pendingId); button?.focus({ preventScroll: true }); button?.scrollIntoView({ block: 'nearest' }); }
     });
 
-    // Each theme as a small home screen: its background, its top bar, three app icons and a widget card (settings.css)
+    // Each theme as this home screen in it
     for (const theme of catalog) {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'theme-option'; button.dataset.themeOption = theme.id;
       button.setAttribute('role', 'radio'); button.setAttribute('aria-label', theme.name);
-      const preview = document.createElement('span'); preview.className = 'theme-preview home-preview'; preview.dataset.homeTheme = theme.id;
-      preview.setAttribute('aria-hidden', 'true');
-      const bar = document.createElement('span'); bar.className = 'home-preview-bar';
-      const icons = document.createElement('span'); icons.className = 'home-preview-icons';
-      for (const item of [shortcuts[0], shortcuts[3], apps.settings]) {
-        const icon = document.createElement('span'); icon.className = 'home-preview-icon'; icon.append(artNode(item.art)); icons.append(icon);
-      }
-      const card = document.createElement('span'); card.className = 'home-preview-card';
-      preview.append(bar, icons, card);
+      const preview = previewBox(theme.id, pendingBackground);
       const caption = document.createElement('span'); caption.className = 'theme-option-caption';
       const name = document.createElement('strong'); name.textContent = theme.name;
       const state = document.createElement('span'); state.className = 'theme-state';
@@ -157,13 +193,12 @@
       else return;
       event.preventDefault(); select(catalog[next].id, true); buttons.get(catalog[next].id).scrollIntoView({ block: 'nearest' });
     });
-    // Home screen background: Default and Mirror, each shown as the selected theme's home screen with it
+    // Home screen background: Default and Mirror, each as this home screen in the selected theme with it
     for (const background of BACKGROUNDS) {
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'theme-option'; button.dataset.backgroundOption = background.id;
       button.setAttribute('role', 'radio'); button.setAttribute('aria-label', `${background.name} background`);
-      const preview = document.createElement('img'); preview.className = 'theme-preview background-preview'; preview.alt = '';
-      preview.width = 720; preview.height = 450; preview.decoding = 'async';
+      const preview = previewBox(pendingId, background.id);
       const caption = document.createElement('span'); caption.className = 'theme-option-caption';
       const name = document.createElement('strong'); name.textContent = background.name;
       const state = document.createElement('span'); state.className = 'theme-state';

@@ -125,20 +125,18 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 .theme-option-caption strong{grid-column:1/-1;grid-row:2;font-size:15px;line-height:1.35;font-weight:600;overflow-wrap:anywhere}
 .theme-state{grid-column:2;grid-row:1;font-size:12px;font-weight:600;line-height:1.4;color:var(--palette-accent-ink)}
 .theme-options{gap:16px}
-/* Each theme as a small home screen (themes.js): its background, its top bar, three app icons and a widget card, in the
-   theme's own colours (the --home-* and --bar-* values, launcher.css) */
-.theme-preview.home-preview{position:relative;display:block;width:100%;aspect-ratio:16/10;height:auto;padding:0;border:1px solid #cbcfd5;border-radius:10px;background:var(--home-bg);overflow:hidden}
-.home-preview-bar{position:absolute;left:0;right:0;top:0;height:11%;background:var(--bar-bg);box-shadow:0 1px 0 var(--bar-line),0 2px 6px rgba(17,24,39,.12)}
-.home-preview-icons{position:absolute;left:7%;top:25%;width:52%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9%}
-.home-preview-icon{display:block;aspect-ratio:1;filter:drop-shadow(0 1px 1px rgba(20,20,40,.30)) drop-shadow(0 3px 5px rgba(30,30,60,.25))}
-.home-preview-icon .app-art{display:block;width:100%;height:100%}
-.home-preview-card{position:absolute;right:6%;top:22%;width:28%;height:62%;border-radius:8px;background:var(--home-card-bg);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 1px rgba(17,24,39,.08),0 4px 10px rgba(15,23,42,.16)}
+/* Each preview is this home screen itself, as it is right now (themes.js: a still copy of its top bar, apps, widgets and
+   dock, laid out at the screen's own size and scaled down to the card), in the theme and with the background the card
+   shows (the --home-* and --bar-* values, launcher.css). The frame is drawn over its edge. */
+.theme-preview.home-preview{position:relative;display:block;width:100%;height:auto;aspect-ratio:16/10;padding:0;border:0;border-radius:10px;background:var(--home-bg);overflow:hidden;isolation:isolate}
+.theme-preview.home-preview::after{content:"";position:absolute;inset:0;z-index:1;border:1px solid #cbcfd5;border-radius:inherit;pointer-events:none}
+.home-live-screen{position:absolute;left:0;top:0;display:flex;flex-direction:column;overflow:hidden;background:var(--home-bg);transform:scale(var(--preview-scale,0));transform-origin:0 0;contain:strict;pointer-events:none;user-select:none;-webkit-user-select:none}
+.home-live-pill{position:absolute;left:50%;bottom:calc((var(--home-bar-height) - max(4px,5 * var(--hl-u))) / 2);width:calc(220 * var(--hl-u));height:max(4px,calc(5 * var(--hl-u)));border-radius:999px;background:var(--home-indicator,#1C1917);transform:translateX(-50%)}
 
-/* Home screen background: Default and Mirror, each as a picture of the selected theme's home screen with it (themes.js),
-   the same size as the theme cards above */
+/* Home screen background: Default and Mirror, each as this home screen in the selected theme with it, the same size as
+   the theme cards above */
 .theme-background-label{margin:14px 0 10px 4px}
 .background-options{overflow:visible}
-.theme-preview.background-preview{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;border:1px solid #cbcfd5;border-radius:10px;background:#F3F5F8}
 
 /* Narrow screens: one column, like a phone */
 @media (max-width:1000px){.theme-options{grid-template-columns:repeat(2,minmax(0,1fr))}}

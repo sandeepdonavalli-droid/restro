@@ -38,12 +38,30 @@ function installedAppIds(){return Object.keys(apps).filter(isInstalledApp);}
 // Every surface, including theme previews and quick controls, uses this artwork catalog.
 function artSource(a){return a.url||`assets/icons/${a.file||`${a.source}-${a.x}-${a.y}-${a.w}-${a.h}.png`}`;}
 const PAGE_CAPACITY=RestroLayout.capacity;
+// Any app can sit in the dock or on the pages: the five main apps (shortcuts) start in the dock, the rest on the pages.
+const shortcutById=new Map(shortcuts.map(item=>[item.id,item]));
+function itemOf(id){return Object.hasOwn(apps,id)?apps[id]:shortcutById.get(id)||null;}
+function isHomeItem(id){return shortcutById.has(id)||isInstalledApp(id);}
+// The dock always holds five apps, by default the five main ones. Staff can reorder them, and swap any of them with an
+// app on the pages (each takes the other's place). A place left by an uninstalled app goes back to a main app.
+const DOCK_SIZE=5,defaultDock=shortcuts.map(item=>item.id);
+function restoreDock(saved){
+  const places=Array.from({length:DOCK_SIZE},(_,i)=>Array.isArray(saved)?saved[i]:defaultDock[i]),seen=new Set();
+  const dockIds=places.map(id=>{if(typeof id!=='string'||!isHomeItem(id)||seen.has(id))return null;seen.add(id);return id;});
+  const spare=defaultDock.filter(id=>!seen.has(id));
+  return dockIds.map(id=>id||spare.shift());
+}
+let savedDock=null;
+try{savedDock=JSON.parse(localStorage.getItem('restro.dock.v1')||'null');}catch{}
+let dock=restoreDock(savedDock);
+// Everything not in the dock goes on the pages: the apps first, then any main app swapped out of the dock
+const pageItemIds=()=>[...installedAppIds(),...defaultDock].filter(id=>!dock.includes(id));
 // Two pages, as designed: the first 12 apps, then the rest. The design's set and order start every tablet afresh once
 // (a new layout key); after that, apps and pages moved by staff stay as they leave them.
 const defaultPages=[installedAppIds().slice(0,PAGE_CAPACITY),installedAppIds().slice(PAGE_CAPACITY)];
 let savedPages=null;
 try{savedPages=JSON.parse(localStorage.getItem('restro.appLayout.v5')||'null');}catch{}
-let pages=RestroLayout.restore(savedPages,installedAppIds(),defaultPages);
+let pages=RestroLayout.restore(savedPages,pageItemIds(),defaultPages);
 let currentPage=0, arranging=false, drag=null, holdTimer=null, gesture=null, moveId=null, deleteAppId=null, deletingApp=false, toastTimer=null, lastWheelAt=0;
 const viewport=$('#apps-viewport'), track=$('#pages-track');
 // Horizontal centers of the unchanged PNG artwork, including its transparent margins.
@@ -115,33 +133,25 @@ function appIcon(item,badge=false){
   if(badge){const count=document.createElement('span');count.className='app-badge';count.hidden=true;icon.append(count);}
   return icon;
 }
-for(const item of shortcuts){
-  const node=document.createElement('div');node.className='shortcut';node.dataset.app=item.id;
-  const label=document.createElement('span');label.className='shortcut-label';label.textContent=item.name;
-  node.append(appIcon(item),label);$('#main-shortcuts').append(node);
-  if(item.id==='register'){
-    node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Counter');
-    node.addEventListener('click',()=>window.RestroCounter?.open());
-    node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroCounter?.open();}});
-  }
-  if(item.id==='floor'){
-    // Floor shows the tables; Counter also opens it to pick a table for a dine-in order.
-    node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Floor');
-    node.addEventListener('click',()=>window.RestroFloor?.open());
-    node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroFloor?.open();}});
-  }
-  if(item.id==='orders'){
-    // Orders: every saved order as a tile, full screen; a tile not paid yet opens in Counter.
-    node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Orders');
-    node.addEventListener('click',()=>window.RestroOrders?.open());
-    node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroOrders?.open();}});
-  }
-  if(item.id==='pager-hub'){
-    // Pager Hub opens from here and from its quick-controls tile.
-    node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label','Open Pager Hub');
-    node.addEventListener('click',()=>window.RestroPagerHub?.open());
-    node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.RestroPagerHub?.open();}});
-  }
+// The dock: its five apps, each opening as it does on the pages. End Day has nothing to open yet.
+const dockNav=$('#main-shortcuts');
+function renderDock(){
+  dockNav.replaceChildren();
+  dock.forEach((id,index)=>{
+    const item=itemOf(id);if(!item)return;
+    const node=document.createElement('div');node.className='shortcut'+(drag&&drag.id===id?' drag-origin':'');node.dataset.app=id;node.dataset.dock=index;
+    const label=document.createElement('span');label.className='shortcut-label';label.textContent=item.name;
+    node.append(appIcon(item),label);
+    if(id!=='closeout'){node.setAttribute('role','button');node.tabIndex=0;node.setAttribute('aria-label',`${item.name}. Hold to rearrange or press M to move.`);}
+    dockNav.append(node);
+  });
+}
+function openItem(id){
+  if(id==='register')window.RestroCounter?.open();
+  else if(id==='floor')window.RestroFloor?.open();
+  else if(id==='orders')window.RestroOrders?.open();
+  else if(id==='pager-hub')window.RestroPagerHub?.open();
+  else if(Object.hasOwn(apps,id))openApp(id);
 }
 function renderPages(){
   track.replaceChildren();
@@ -150,9 +160,9 @@ function renderPages(){
     for(let position=0;position<PAGE_CAPACITY;position++){
       const id=page[position];const slot=document.createElement('div');slot.className='app-slot'+(!id?' empty':'')+(drag&&drag.id===id?' drop-target':'');slot.dataset.page=p;slot.dataset.position=position;
       if(id){
-        const item=apps[id],tile=document.createElement('div');tile.className='app-tile'+(drag&&drag.id===id?' drag-origin':'');tile.dataset.id=id;tile.tabIndex=0;tile.setAttribute('role','group');tile.setAttribute('aria-label',`${item.name}. Hold to rearrange or press M to move.`);
+        const item=itemOf(id),tile=document.createElement('div');tile.className='app-tile'+(drag&&drag.id===id?' drag-origin':'');tile.dataset.id=id;tile.tabIndex=0;tile.setAttribute('role','group');tile.setAttribute('aria-label',`${item.name}. Hold to rearrange or press M to move.`);
         const label=document.createElement('span');label.className='app-label';label.textContent=item.name;tile.append(appIcon(item),label);
-        if(arranging){
+        if(arranging&&Object.hasOwn(apps,id)){
           const remove=document.createElement('button');remove.type='button';remove.className='app-remove-button';remove.setAttribute('aria-label',`Uninstall ${item.name}`);remove.title=`Uninstall ${item.name}`;
           remove.innerHTML='<span class="app-remove-symbol"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></span>';
           remove.addEventListener('click',event=>{event.stopPropagation();requestAppDeletion(id);});tile.append(remove);
@@ -174,7 +184,7 @@ function renderPages(){
     button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
     button.addEventListener('click',addAppPage);section.append(button);track.append(section);
   }
-  renderDots();updatePage(false);document.body.classList.toggle('arranging',arranging);
+  renderDock();renderDots();updatePage(false);document.body.classList.toggle('arranging',arranging);
 }
 function renderDots(){
   $('#page-dots').replaceChildren();
@@ -184,8 +194,8 @@ function renderDots(){
 }
 function updatePage(animate=true){
   track.classList.toggle('no-transition',!animate);track.style.transform=`translateX(-${currentPage*100}%)`;
-  $$('.apps-page').forEach((page,p)=>{page.inert=p!==currentPage;page.setAttribute('aria-hidden',String(p!==currentPage));});
-  $$('.page-dot').forEach((dot,p)=>{dot.setAttribute('aria-selected',String(p===currentPage));dot.tabIndex=p===currentPage?0:-1;});
+  $$('.apps-page',track).forEach((page,p)=>{page.inert=p!==currentPage;page.setAttribute('aria-hidden',String(p!==currentPage));});
+  $$('.page-dot',$('#page-dots')).forEach((dot,p)=>{dot.setAttribute('aria-selected',String(p===currentPage));dot.tabIndex=p===currentPage?0:-1;});
   $('#swipe-hint').textContent=arranging?'Hold near the edge to change pages':currentPage===pages.length-1?'Swipe right to go back':'Swipe left for more';
   $('#page-announcement').textContent=currentPage===pages.length?'Add an app page':`More Apps, page ${currentPage+1} of ${pages.length}`;
 }
@@ -194,9 +204,9 @@ function goToPage(page){
   currentPage=next;updatePage();return true;
 }
 function setArranging(value){if(arranging===value)return;arranging=value;if(!value)currentPage=Math.min(currentPage,pages.length-1);renderPages();}
-function saveLayout(){try{localStorage.setItem('restro.appLayout.v5',JSON.stringify(pages));}catch{}}
+function saveLayout(){try{localStorage.setItem('restro.appLayout.v5',JSON.stringify(pages));localStorage.setItem('restro.dock.v1',JSON.stringify(dock));}catch{}}
 function moveApp(id,targetPage,targetPosition){
-  if(!isInstalledApp(id))throw new Error('Choose an installed app.');
+  if(!isHomeItem(id)||dock.includes(id))throw new Error('Choose an app on the pages.');
   const moved=RestroLayout.move(pages,id,targetPage,targetPosition);pages=moved.pages;
   saveLayout();currentPage=moved.page;renderPages();return {app:id,page:moved.page+1,position:moved.position+1};
 }
@@ -224,6 +234,7 @@ async function confirmAppDeletion(){
       const result=await host.uninstallApp(id);if(result===false||result?.success===false)throw new Error('The app could not be uninstalled. Please try again.');
     }
     removedAppIds.add(id);pages=pages.map(page=>page.filter(appId=>appId!==id));
+    if(dock.includes(id)){dock=restoreDock(dock.map(appId=>appId===id?null:appId));pages=RestroLayout.restore(pages,pageItemIds(),pages);}
     try{localStorage.setItem('restro.removedApps.v1',JSON.stringify([...removedAppIds]));}catch{}
     saveLayout();renderPages();window.dispatchEvent(new CustomEvent('restro:app-uninstalled',{detail:{id,name:apps[id].name}}));
     $('#delete-app-dialog').close();toast(`${apps[id].name} uninstalled`);
@@ -239,51 +250,118 @@ window.addEventListener('restro:app-uninstalled',syncInstalledControls);syncInst
 function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroProfile?.fill();window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
 function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='employees')window.RestroEmployees?.open();else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}else if(id==='calculator'||id==='camera')document.querySelector(`[data-control="${id}"]`)?.click();}
 function openMove(id){
-  moveId=id;setArranging(true);$('#move-description').textContent=`Choose where to insert ${apps[id].name}. Following apps keep their order.`;
+  const item=itemOf(id);if(!item)return;
+  moveId=id;setArranging(true);
   const select=$('#move-page');select.replaceChildren();pages.forEach((_,p)=>{const option=document.createElement('option');option.value=p;option.textContent=`Page ${p+1}`;select.append(option);});
-  const sourcePage=pages.findIndex(page=>page.includes(id));$('#move-page').value=String(sourcePage);updateMovePositions();$('#move-position').value=String(pages[sourcePage].indexOf(id));openDialog('move-dialog');
+  const dockOption=document.createElement('option');dockOption.value='dock';dockOption.textContent='Dock';select.append(dockOption);
+  const sourcePage=pages.findIndex(page=>page.includes(id));select.value=sourcePage<0?'dock':String(sourcePage);updateMovePositions();
+  $('#move-position').value=String(sourcePage<0?dock.indexOf(id):pages[sourcePage].indexOf(id));openDialog('move-dialog');
 }
+// Within the pages an app is inserted (the apps after it shift along); to or from the dock it swaps with the app there
 function updateMovePositions(){
-  const page=Number($('#move-page').value);$('#move-position').replaceChildren();
-  const length=Math.min(PAGE_CAPACITY,pages[page].length+1);
-  for(let i=0;i<length;i++){const option=document.createElement('option');option.value=String(i);option.textContent=pages[page][i]?`Before ${apps[pages[page][i]].name}`:pages[page].length?'After the last app':'First app';$('#move-position').append(option);}
+  const value=$('#move-page').value,inDock=dock.includes(moveId),name=itemOf(moveId).name,list=$('#move-position');list.replaceChildren();
+  const add=(position,text)=>{const option=document.createElement('option');option.value=String(position);option.textContent=text;list.append(option);};
+  if(value==='dock'){
+    $('#move-description').textContent=inDock?`Choose where ${name} goes in the dock.`:`Choose the dock app ${name} swaps places with.`;
+    dock.forEach((other,i)=>add(i,other===moveId?'Where it is now':inDock?`In place of ${itemOf(other).name}`:`Swap with ${itemOf(other).name}`));
+  }else if(inDock){
+    const page=Number(value);$('#move-description').textContent=`Choose the app ${name} swaps places with.`;
+    pages[page].forEach((other,i)=>add(i,`Swap with ${itemOf(other).name}`));
+  }else{
+    const page=Number(value);$('#move-description').textContent=`Choose where to insert ${name}. Following apps keep their order.`;
+    const length=Math.min(PAGE_CAPACITY,pages[page].length+1);
+    for(let i=0;i<length;i++)add(i,pages[page][i]?`Before ${itemOf(pages[page][i]).name}`:pages[page].length?'After the last app':'First app');
+  }
 }
-function startDrag(tile,event){
-  if(drag)return;const id=tile.dataset.id,rect=tile.getBoundingClientRect(),ghost=tile.cloneNode(true);setArranging(true);ghost.classList.add('drag-ghost');ghost.tabIndex=-1;ghost.setAttribute('aria-hidden','true');ghost.style.width=`${rect.width}px`;ghost.style.height=`${rect.height}px`;ghost.style.left=`${event.clientX}px`;ghost.style.top=`${event.clientY}px`;document.body.append(ghost);const origin=$(`.app-tile[data-id="${id}"]`);origin.classList.add('drag-origin');origin.closest('.app-slot')?.classList.add('drop-target');
-  drag={id,ghost,startPage:currentPage,edgeTimer:null,edgeDirection:0,target:null,lastX:event.clientX,lastY:event.clientY,original:pages.map(page=>[...page]),previewKey:''};gesture=null;viewport.setPointerCapture(event.pointerId);
+// Holding an app lifts it out of its place (on the pages or in the dock): only the app itself shows, a little larger,
+// and it follows the finger from where it was. Its place stays empty until it lands.
+function startDrag(node,event){
+  if(drag)return;
+  const id=node.dataset.id||node.dataset.app,item=itemOf(id),fromDock=node.matches('.shortcut');if(!item)return;
+  const icon=node.querySelector('.app-icon').getBoundingClientRect(),rect=node.getBoundingClientRect();
+  setArranging(true);
+  const ghost=document.createElement('div');ghost.className='app-tile drag-ghost';ghost.setAttribute('aria-hidden','true');
+  const label=document.createElement('span');label.className='app-label';label.textContent=item.name;ghost.append(appIcon(item),label);
+  // The app is the size of the place it is over: a page app's size over the pages, a dock app's over the dock
+  const widthOf=node=>node?parseFloat(getComputedStyle(node).width):0;
+  const sizes={page:widthOf(track.querySelector('.app-tile .app-icon'))||icon.width,dock:widthOf(dockNav.querySelector('.app-icon'))||icon.width};
+  ghost.classList.toggle('in-dock',fromDock);ghost.style.setProperty('--icon',`${fromDock?sizes.dock:sizes.page}px`);
+  const cx=rect.left+rect.width/2,cy=icon.top+icon.height/2;
+  ghost.style.left=`${cx}px`;ghost.style.top=`${cy}px`;document.body.append(ghost);
+  try{ghost.animate([{transform:'translate(-50%,-50%) scale(1)'},{transform:'translate(-50%,-50%) scale(1.08)'}],{duration:140,easing:'ease-out',fill:'forwards'});}catch{}
+  drag={id,ghost,fromDock,sizes,inDock:fromDock,offsetX:event.clientX-cx,offsetY:event.clientY-cy,startPage:currentPage,edgeTimer:null,edgeDirection:0,target:null,lastX:event.clientX,lastY:event.clientY,
+    original:{pages:pages.map(page=>[...page]),dock:[...dock]},previewKey:''};
+  gesture=null;
+  [...$$(`.app-tile[data-id="${id}"]`,track),...$$(`.shortcut[data-app="${id}"]`,dockNav)].forEach(origin=>origin.classList.add('drag-origin'));
+  try{viewport.setPointerCapture(event.pointerId);}catch{}
 }
-// Where each app is shown right now (its centre, so the jiggle doesn't matter and a slide in progress is included).
-function appPlaces(){const places=new Map();$$('.apps-page .app-tile').forEach(tile=>{const r=tile.getBoundingClientRect();places.set(tile.dataset.id,{page:tile.closest('.app-slot').dataset.page,x:r.left+r.width/2,y:r.top+r.height/2});});return places;}
-// Apps that changed place slide from where they were shown to their new place.
+// Where each app is shown right now, on the pages or in the dock (its centre, so the jiggle doesn't matter and a slide in
+// progress is included)
+function appPlaces(){
+  const places=new Map();
+  $$('.apps-page .app-tile',track).forEach(tile=>{const r=tile.getBoundingClientRect();places.set(tile.dataset.id,{page:tile.closest('.app-slot').dataset.page,x:r.left+r.width/2,y:r.top+r.height/2});});
+  $$('.shortcut',dockNav).forEach(node=>{const r=node.getBoundingClientRect();places.set(node.dataset.app,{page:'dock',x:r.left+r.width/2,y:r.top+r.height/2});});
+  return places;
+}
+// Apps that changed place slide from where they were shown to their new place (between the dock and this page too)
 function slideFrom(before){
-  $$('.apps-page .app-tile').forEach(tile=>{
-    const was=before.get(tile.dataset.id);if(!was||was.page!==tile.closest('.app-slot').dataset.page||tile.classList.contains('drag-origin'))return;
-    const r=tile.getBoundingClientRect(),dx=was.x-(r.left+r.width/2),dy=was.y-(r.top+r.height/2);if(Math.abs(dx)<1&&Math.abs(dy)<1)return;
-    try{tile.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'translate(0,0)'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)',composite:'add'});}catch{}
+  const here=String(currentPage);
+  [...$$('.apps-page .app-tile',track),...$$('.shortcut',dockNav)].forEach(node=>{
+    const id=node.dataset.id||node.dataset.app,was=before.get(id),page=node.matches('.shortcut')?'dock':node.closest('.app-slot').dataset.page;
+    if(!was||node.classList.contains('drag-origin'))return;
+    if(was.page!==page&&!(was.page==='dock'&&page===here)&&!(page==='dock'&&was.page===here))return;
+    const r=node.getBoundingClientRect(),dx=was.x-(r.left+r.width/2),dy=was.y-(r.top+r.height/2);if(Math.abs(dx)<1&&Math.abs(dy)<1)return;
+    try{node.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'translate(0,0)'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)',composite:'add'});}catch{}
   });
 }
 // The place under the finger, from the grid itself: apps sliding past never change it (no back-and-forth shaking).
-function slotAt(x,y){return $$(`.apps-page[data-page="${currentPage}"] .app-slot`).find(slot=>{const r=slot.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;})||null;}
-// While dragging, the other apps make room live: the held app's place shows where it will land.
-function previewDrag(page,position){
-  const before=appPlaces();
-  pages=RestroLayout.place(drag.original,drag.id,page,position).pages;
+function slotAt(x,y){return $$(`.apps-page[data-page="${currentPage}"] .app-slot`,track).find(slot=>{const r=slot.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;})||null;}
+// The dock place under the finger: the dock's width in five equal places, so apps sliding along never change it
+function dockAt(x,y){
+  const r=dockNav.getBoundingClientRect();
+  if(y<r.top-12||y>r.bottom||x<r.left||x>r.right)return null;
+  return Math.max(0,Math.min(DOCK_SIZE-1,Math.floor((x-r.left)/(r.width/DOCK_SIZE))));
+}
+// What the home screen looks like with the held app put down here. On the pages it takes the place and the apps after
+// it shift along; dropped on a dock app (or a dock app dropped on an app on the pages) the two swap places; in the dock
+// the apps shift along. A dock app held over an empty place on the pages stays in the dock.
+function arrange(o,id,target){
+  const next={pages:o.pages.map(page=>[...page]),dock:[...o.dock]};
+  if(!target)return next;
+  if(!o.dock.includes(id)){
+    if(target.kind==='page')next.pages=RestroLayout.place(o.pages,id,target.page,target.position).pages;
+    else{const p=next.pages.findIndex(page=>page.includes(id)),i=next.pages[p].indexOf(id);next.pages[p][i]=o.dock[target.index];next.dock[target.index]=id;}
+  }else{
+    const from=o.dock.indexOf(id);
+    if(target.kind==='dock'){next.dock.splice(from,1);next.dock.splice(target.index,0,id);}
+    else{const other=o.pages[target.page]?.[target.position];if(!other)return next;next.pages[target.page][target.position]=id;next.dock[from]=other;}
+  }
+  return next;
+}
+function previewDrag(target){
+  const before=appPlaces(),next=arrange(drag.original,drag.id,target);
+  pages=next.pages;dock=next.dock;
   renderPages();slideFrom(before);
 }
 function updateDrag(event){
-  if(!drag)return;drag.lastX=event.clientX;drag.lastY=event.clientY;drag.ghost.style.left=`${event.clientX}px`;drag.ghost.style.top=`${event.clientY}px`;
-  const target=slotAt(event.clientX,event.clientY);
-  drag.target=target&&Number(target.dataset.page)===currentPage?{page:currentPage,position:Number(target.dataset.position)}:null;
-  if(drag.target){const key=`${drag.target.page}:${drag.target.position}`;if(key!==drag.previewKey){drag.previewKey=key;previewDrag(drag.target.page,drag.target.position);}}
+  if(!drag)return;drag.lastX=event.clientX;drag.lastY=event.clientY;
+  drag.ghost.style.left=`${event.clientX-drag.offsetX}px`;drag.ghost.style.top=`${event.clientY-drag.offsetY}px`;
+  const slot=slotAt(event.clientX,event.clientY),dockIndex=slot?null:dockAt(event.clientX,event.clientY),inDock=dockIndex!=null;
+  if(inDock!==drag.inDock){drag.inDock=inDock;drag.ghost.classList.toggle('in-dock',inDock);drag.ghost.style.setProperty('--icon',`${inDock?drag.sizes.dock:drag.sizes.page}px`);}
+  drag.target=slot&&Number(slot.dataset.page)===currentPage?{kind:'page',page:currentPage,position:Number(slot.dataset.position)}:dockIndex!=null?{kind:'dock',index:dockIndex}:drag.target;
+  if(drag.target){const key=drag.target.kind==='dock'?`dock:${drag.target.index}`:`${drag.target.page}:${drag.target.position}`;if(key!==drag.previewKey){drag.previewKey=key;previewDrag(drag.target);}}
   const bounds=viewport.getBoundingClientRect();const inside=event.clientY>=bounds.top&&event.clientY<=bounds.bottom;
   const direction=inside&&event.clientX>bounds.right-46&&currentPage<pages.length-1?1:inside&&event.clientX<bounds.left+46&&currentPage>0?-1:0;
   if(direction!==drag.edgeDirection){clearTimeout(drag.edgeTimer);drag.edgeDirection=direction;if(direction)drag.edgeTimer=setTimeout(()=>{if(!drag)return;goToPage(currentPage+direction);drag.edgeDirection=0;drag.target=null;drag.previewKey='';},650);}
 }
 function endDrag(cancel=false){
   if(!drag)return;const state=drag;clearTimeout(state.edgeTimer);state.ghost.remove();$$('.drop-target,.drag-origin').forEach(node=>node.classList.remove('drop-target','drag-origin'));drag=null;
-  if(cancel){if(JSON.stringify(pages)!==JSON.stringify(state.original)){pages=state.original;renderPages();}else updatePage();return;}
-  if(JSON.stringify(pages)!==JSON.stringify(state.original)){saveLayout();renderPages();toast(`${apps[state.id].name} moved to page ${pages.findIndex(page=>page.includes(state.id))+1}`);}
-  else updatePage();
+  const changed=JSON.stringify({pages,dock})!==JSON.stringify(state.original);
+  if(cancel){if(changed){pages=state.original.pages;dock=state.original.dock;renderPages();}else updatePage();return;}
+  if(changed){
+    saveLayout();renderPages();
+    toast(dock.includes(state.id)?`${itemOf(state.id).name} moved to the dock`:`${itemOf(state.id).name} moved to page ${pages.findIndex(page=>page.includes(state.id))+1}`);
+  }else updatePage();
 }
 viewport.addEventListener('pointerdown',event=>{
   if(event.button!==0||drag||event.target.closest('.add-page-control,.page-delete-control,.app-remove-button'))return;const tile=event.target.closest('.app-tile'),slot=event.target.closest('.app-slot');gesture={id:event.pointerId,x:event.clientX,y:event.clientY,start:performance.now(),tile:tile?.dataset.id,moved:false,horizontal:false,vertical:false,pointerType:event.pointerType,lastX:event.clientX,lastY:event.clientY};
@@ -300,13 +378,29 @@ viewport.addEventListener('pointermove',event=>{
   if(gesture.horizontal){event.preventDefault();track.classList.add('no-transition');let offset=dx;if(currentPage===0&&dx>0||currentPage===pages.length-1+(arranging?1:0)&&dx<0)offset*=.2;track.style.transform=`translateX(calc(-${currentPage*100}% + ${offset}px))`;}
 });
 viewport.addEventListener('pointerup',event=>{
-  clearTimeout(holdTimer);holdTimer=null;if(drag){endDrag();const r=viewport.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)setArranging(false);return;}if(!gesture||event.pointerId!==gesture.id)return;
+  clearTimeout(holdTimer);holdTimer=null;if(drag){endDrag();const r=viewport.getBoundingClientRect();if((event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)&&dockAt(event.clientX,event.clientY)==null)setArranging(false);return;}if(!gesture||event.pointerId!==gesture.id)return;
   const state=gesture;gesture=null;const dx=event.clientX-state.x,elapsed=performance.now()-state.start;
   if(state.horizontal){const threshold=Math.min(viewport.clientWidth*.15,95);if(Math.abs(dx)>threshold||Math.abs(dx)>35&&elapsed<260)goToPage(currentPage+(dx<0?1:-1));else updatePage();}
-  else if(!state.moved&&state.tile&&!arranging)openApp(state.tile);
+  else if(!state.moved&&state.tile&&!arranging)openItem(state.tile);
 });
 viewport.addEventListener('pointercancel',()=>{clearTimeout(holdTimer);holdTimer=null;gesture=null;if(drag)endDrag(true);updatePage();});
 viewport.addEventListener('contextmenu',event=>{if(event.target.closest('.app-slot'))event.preventDefault();});
+let dockPress=null;
+dockNav.addEventListener('pointerdown',event=>{
+  const node=event.target.closest('.shortcut');if(!node||event.button!==0||drag)return;
+  const press={pointerId:event.pointerId,clientX:event.clientX,clientY:event.clientY};dockPress={id:event.pointerId,x:event.clientX,y:event.clientY};
+  clearTimeout(holdTimer);holdTimer=setTimeout(()=>{holdTimer=null;if(dockPress?.id===press.pointerId){dockPress=null;startDrag(node,press);}},arranging?120:420);
+});
+dockNav.addEventListener('pointermove',event=>{if(dockPress&&event.pointerId===dockPress.id&&Math.hypot(event.clientX-dockPress.x,event.clientY-dockPress.y)>8){clearTimeout(holdTimer);holdTimer=null;dockPress=null;}});
+const endDockPress=event=>{if(dockPress&&event.pointerId===dockPress.id){clearTimeout(holdTimer);holdTimer=null;dockPress=null;}};
+dockNav.addEventListener('pointerup',endDockPress);dockNav.addEventListener('pointercancel',endDockPress);
+dockNav.addEventListener('click',event=>{const node=event.target.closest('.shortcut');if(node&&!arranging&&!drag)openItem(node.dataset.app);});
+dockNav.addEventListener('keydown',event=>{
+  const node=event.target.closest('.shortcut');if(!node||node.dataset.app==='closeout'&&!arranging)return;
+  if(event.key.toLowerCase()==='m'){event.preventDefault();openMove(node.dataset.app);return;}
+  if(event.key==='Enter'||event.key===' '){event.preventDefault();if(arranging)openMove(node.dataset.app);else openItem(node.dataset.app);}
+});
+dockNav.addEventListener('contextmenu',event=>{if(event.target.closest('.shortcut'))event.preventDefault();});
 viewport.addEventListener('wheel',event=>{
   if(Math.abs(event.deltaX)<Math.abs(event.deltaY)&&!event.shiftKey)return;
   const delta=event.shiftKey?event.deltaY:event.deltaX;if(Math.abs(delta)<8)return;event.preventDefault();const now=performance.now();if(now-lastWheelAt>480){goToPage(currentPage+(delta>0?1:-1));lastWheelAt=now;}
@@ -315,13 +409,13 @@ viewport.addEventListener('keydown',event=>{
   if(event.target.closest('.app-remove-button'))return;
   if(event.target.closest('.app-slot.empty')&&(event.key===' '||event.key==='Enter')){event.preventDefault();setArranging(true);return;}
   const tile=event.target.closest('.app-tile');if(tile&&(event.key.toLowerCase()==='m'||event.key===' ')){event.preventDefault();openMove(tile.dataset.id);return;}
-  if(tile&&event.key==='Enter'){event.preventDefault();if(arranging)openMove(tile.dataset.id);else openApp(tile.dataset.id);return;}
+  if(tile&&event.key==='Enter'){event.preventDefault();if(arranging)openMove(tile.dataset.id);else openItem(tile.dataset.id);return;}
   if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();goToPage(currentPage+(event.key==='ArrowRight'?1:-1));}
 });
 $('#page-dots').addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();goToPage(currentPage+(event.key==='ArrowRight'?1:-1));$(`.page-dot[data-page="${currentPage}"]`)?.focus();}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('dialog[open]')){endDrag(true);setArranging(false);}});
 document.addEventListener('pointerdown',event=>{
-  if(!arranging||drag||$('dialog[open]')||event.target.closest('#apps-panel'))return;
+  if(!arranging||drag||$('dialog[open]')||event.target.closest('#apps-panel,#main-shortcuts'))return;
   clearTimeout(holdTimer);holdTimer=null;gesture=null;setArranging(false);
 },true);
 let blankPanelPress=null;
@@ -337,7 +431,16 @@ $('#apps-panel').addEventListener('pointercancel',()=>{blankPanelPress=null;});
 $$('[data-close]').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
 $$('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target!==dialog||dialog.classList.contains('settings-app')||dialog.classList.contains('counter-app')||dialog.classList.contains('floor-app')||dialog.classList.contains('customers-app'))return;const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom){dialog.close();if(arranging)setArranging(false);}}));
 $('#move-page').addEventListener('change',updateMovePositions);
-$('#move-form').addEventListener('submit',event=>{event.preventDefault();const result=moveApp(moveId,Number($('#move-page').value),Number($('#move-position').value));$('#move-dialog').close();toast(`${apps[moveId].name} moved to page ${result.page}`);});
+$('#move-form').addEventListener('submit',event=>{
+  event.preventDefault();const value=$('#move-page').value,position=Number($('#move-position').value),name=itemOf(moveId).name;
+  if(!Number.isInteger(position)||position<0)return;
+  if(value==='dock'||dock.includes(moveId)){
+    const next=arrange({pages,dock},moveId,value==='dock'?{kind:'dock',index:position}:{kind:'page',page:Number(value),position});
+    pages=next.pages;dock=next.dock;saveLayout();renderPages();$('#move-dialog').close();
+    toast(dock.includes(moveId)?`${name} moved to the dock`:`${name} moved to page ${pages.findIndex(page=>page.includes(moveId))+1}`);return;
+  }
+  const result=moveApp(moveId,Number(value),position);$('#move-dialog').close();toast(`${name} moved to page ${result.page}`);
+});
 const uppercaseRestaurantName=value=>value.trim().toLocaleUpperCase('en-IN').slice(0,48);
 let restaurantName='RESTAURANT NAME',storedRestaurantName=null;try{storedRestaurantName=localStorage.getItem('restro.restaurantName');}catch{}
 restaurantName=uppercaseRestaurantName(storedRestaurantName||'')||'RESTAURANT NAME';$('#restaurant-name').textContent=restaurantName;
@@ -498,7 +601,7 @@ renderPages();saveLayout();updateClock();setInterval(updateClock,15000);
 if(document.modelContext?.registerTool){
   const context=document.modelContext,lifecycle=new AbortController();
   const register=tool=>{try{Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}};
-  register({name:'read_app_pages',title:'Read app pages',description:'Read the current RESTRO app arrangement and selected page.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute(){return {selectedPage:currentPage+1,pages:pages.map((page,index)=>({page:index+1,apps:page.flatMap((id,position)=>id?[{id,name:apps[id].name,position:position+1}]:[])}))};}});
+  register({name:'read_app_pages',title:'Read app pages',description:'Read the current RESTRO app arrangement (the dock and the pages) and selected page.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute(){return {selectedPage:currentPage+1,dock:dock.map((id,position)=>({id,name:itemOf(id).name,position:position+1})),pages:pages.map((page,index)=>({page:index+1,apps:page.flatMap((id,position)=>id?[{id,name:itemOf(id).name,position:position+1}]:[])}))};}});
   register({name:'navigate_app_page',title:'Navigate app page',description:'Display a More Apps page; pinned dashboard sections stay fixed.',inputSchema:{type:'object',properties:{page:{type:'integer',minimum:1}},required:['page'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(!input||!Number.isInteger(input.page)||input.page<1||input.page>pages.length)throw new Error('Choose an existing app page.');goToPage(input.page-1);return {selectedPage:currentPage+1};}});
   register({name:'move_restaurant_app',title:'Move restaurant app',description:'Insert an existing app before the app at the chosen page and position; following apps keep their order.',inputSchema:{type:'object',properties:{appId:{type:'string',enum:Object.keys(apps)},page:{type:'integer',minimum:1},position:{type:'integer',minimum:1,maximum:PAGE_CAPACITY}},required:['appId','page','position'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(!input)throw new Error('Choose an app, page and position.');return moveApp(input.appId,input.page-1,input.position-1);}});
   register({name:'add_empty_app_page',title:'Add app page',description:'Add an empty More Apps page and select it.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(){return addAppPage();}});

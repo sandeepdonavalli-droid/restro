@@ -33,6 +33,11 @@ html[data-restro-theme] body .app-shell{background:var(--home-bg)}
 html[data-home-background="mirror"][data-home-theme]{--home-bg:var(--home-mirror,none) center/cover no-repeat,var(--home-mirror-base,#F3F5F8)}
 html[data-home-background="mirror"][data-home-theme="sea-breeze"]{--home-mirror-base:#E0EAEF}
 html[data-home-background="mirror"][data-home-theme="aurora"]{--home-mirror-base:#253850}
+/* The same in the previews in Settings (settings.css), for the theme and background each one shows */
+.home-preview[data-home-background="mirror"][data-home-theme]{--home-bg:var(--preview-mirror) center/cover no-repeat,var(--preview-mirror-base)}
+.home-preview[data-home-background="mirror"][data-home-theme="white"]{--preview-mirror:url("assets/home-backgrounds/white-mirror-1440x900.webp");--preview-mirror-base:#F3F5F8}
+.home-preview[data-home-background="mirror"][data-home-theme="sea-breeze"]{--preview-mirror:url("assets/home-backgrounds/sea-breeze-mirror-1440x900.webp");--preview-mirror-base:#E0EAEF}
+.home-preview[data-home-background="mirror"][data-home-theme="aurora"]{--preview-mirror:url("assets/home-backgrounds/aurora-mirror-1440x900.webp");--preview-mirror-base:#253850}
 #home{background:none;color:var(--hl-text);font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif}
 #home .workspace{height:100%;box-sizing:border-box;padding:0;display:flex;flex-direction:column;gap:0}
 #home .more-apps{flex:1;min-height:0;display:flex;flex-direction:column;padding:calc(14 * var(--hl-u)) calc(24 * var(--hl-u)) calc(16 * var(--hl-u))}
