@@ -139,10 +139,12 @@ button.ctr-history-main{cursor:pointer}
 .ctr-root .ctr-sheet-wrap{position:fixed;inset:0;padding:calc(var(--header-height) + 24px) 24px}
 
 /* ===== The Counter screen (POS Counter Handoff: 01_screens, 02_redlines, 03_specs) =====
-   The design's 1440 x 900 screen scaled to the tablet: --u is one design pixel (launcher.css --hl-u). Hairlines stay 1px.
-   It fills the screen under the top bar (the swipe bar sits in its bottom margin), on the page grey #F3F4F7, in Inter. */
+   The design's sizes as they are (its dp are the tablet's CSS pixels: --u is one design pixel, 1px on the 1280 x 800
+   tablet and larger screens), the layout fitting the tablet: the order panel as designed (475 wide), the menu taking the
+   width left. Only a screen smaller than the tablet draws it all smaller. Hairlines stay 1px. It fills the screen under
+   the top bar (the swipe bar sits in its bottom margin), on the page grey #F3F4F7, in Inter. */
 dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;color:#1C1917}
-.ctr-root{--u:var(--hl-u)}
+.ctr-root{--u:min(1px,calc(100vw / 1280),calc(100vh / 800))} /* the design's sizes as they are on the tablet (1280 x 800 and up), smaller only on a smaller screen */
 .cx-shell{height:100%;box-sizing:border-box;display:flex;gap:calc(20 * var(--u));padding:calc(18 * var(--u)) calc(20 * var(--u));background:#F3F4F7;color:#1C1917;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;font-size:calc(16 * var(--u));line-height:normal}
 .cx-shell button{font-family:inherit;-webkit-tap-highlight-color:transparent}
 .ctr-root svg.cx-i{flex:none;fill:currentColor;stroke:none}
@@ -299,7 +301,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-ci{flex:none;width:calc(64 * var(--u));height:calc(64 * var(--u));border-radius:calc(16 * var(--u));display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--cat) 10%,transparent)}
 .cx-ci img{width:calc(46 * var(--u));height:calc(46 * var(--u));filter:drop-shadow(0 calc(4 * var(--u)) calc(4 * var(--u)) rgba(0,0,0,.15));-webkit-user-drag:none}
 .cx-cat-copy{display:block;min-width:0;font-size:calc(16 * var(--u));line-height:normal}
-.cx-cat-copy b{display:block;font-size:calc(19 * var(--u));font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-cat-copy b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:calc(19 * var(--u));font-weight:700;overflow:hidden} /* a long name takes two lines on a narrower menu */
 .cx-cat-copy span{font-size:calc(13 * var(--u));color:#78716C}
 /* Inside a category: "‹ All categories" (56 tall), the category's colour bar (4 x 28), its name 22/800 and count */
 .cx-crumb{flex:none;display:flex;align-items:center;gap:calc(14 * var(--u));margin:calc(18 * var(--u)) 0 calc(16 * var(--u))}
