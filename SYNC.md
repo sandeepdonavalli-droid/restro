@@ -11,7 +11,7 @@ The code is in `sync.js`. The screens only make two calls:
 
 | Shared by all the restaurant's tablets | Stays on each tablet |
 | --- | --- |
-| Orders (`restro.counter.orders.v1`) | Theme, tile style, sounds, brightness, the Counter’s menu display style |
+| Orders (`restro.counter.orders.v1`) | Theme, sounds, brightness, the Counter’s menu display style |
 | Held tickets (`restro.counter.held.v1`) | Home screen and tile order |
 | Customers (`restro.customers.v1`) | The order being rung up |
 | Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | Who is signed in |

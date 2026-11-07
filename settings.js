@@ -162,6 +162,8 @@
       box.style.aspectRatio = `${shot.w} / ${shot.h}`;
       if (widths[i]) box.style.setProperty('--preview-scale', String(widths[i] / shot.w));
       box.replaceChildren(screen);
+      // the order list scrolled to where it is on the Counter
+      for (const list of screen.querySelectorAll('[data-scroll-top]')) list.scrollTop = Number(list.dataset.scrollTop) || 0;
     });
   }
   function clearStylePreviews() { for (const box of stylePreviews) box.replaceChildren(); }

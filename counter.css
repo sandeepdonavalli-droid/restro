@@ -156,9 +156,9 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-shell button:focus-visible,.cx-shell input:focus-visible{outline:2px solid #1E5BD6;outline-offset:2px}
 
 /* ---------- order panel: 475 wide, white, radius 28, padding 18, items 12 apart ---------- */
-.cx-order{position:relative;flex:none;width:calc(475 * var(--u));min-height:0;box-sizing:border-box;display:flex;flex-direction:column;gap:calc(12 * var(--u));padding:calc(18 * var(--u));border-radius:calc(28 * var(--u));background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(17,24,39,.07),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(12 * var(--u)) calc(32 * var(--u)) rgba(15,23,42,.10)}
+.cx-order{flex:none;width:calc(475 * var(--u));min-height:0;box-sizing:border-box;display:flex;flex-direction:column;gap:calc(12 * var(--u));padding:calc(18 * var(--u));border-radius:calc(28 * var(--u));background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(17,24,39,.07),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(12 * var(--u)) calc(32 * var(--u)) rgba(15,23,42,.10)}
 /* Context buttons: each row its own grid, columns 1.1 / 0.95 / 1.15, 10 apart; buttons 52 tall, radius 16, 15/600 */
-.cx-ctx{flex:none;display:grid;grid-template-columns:1.1fr .95fr 1.15fr;gap:calc(10 * var(--u))}
+.cx-ctx{position:relative;flex:none;display:grid;grid-template-columns:1.1fr .95fr 1.15fr;gap:calc(10 * var(--u))}
 .cx-seg .cx-b{width:100%}
 .cx-b{height:calc(52 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(8 * var(--u));border:0;border-radius:calc(16 * var(--u));display:flex;align-items:center;justify-content:center;gap:calc(8 * var(--u));font-size:calc(15 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
 .cx-b-label{min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -184,8 +184,6 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-oh span{font-size:calc(13 * var(--u));color:#78716C}
 /* The lines, 8 apart (the list scrolls when they don't fit) */
 .cx-lines{flex:1;min-height:0;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:calc(8 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
-/* More lines than fit: the scroll handle (scroll-handle.js) on the panel's right, the lines keeping clear of it */
-.cx-lines.rs-on{padding-right:12px}
 .cx-lines::-webkit-scrollbar{display:none}
 .cx-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(6 * var(--u));text-align:center;color:#78716C;font-size:calc(14 * var(--u))}
 .cx-empty strong{font-size:calc(16 * var(--u));font-weight:600;color:#57534E}
@@ -316,7 +314,8 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-rail::-webkit-scrollbar{display:none}
 .cx-rail .cx-pl{justify-content:flex-start;padding:0 calc(18 * var(--u))}
 .cx-split .cx-scroll{margin-left:calc(-16 * var(--u));padding-left:calc(16 * var(--u))}
-/* Rearranging (hold a category or an item): they jiggle; the one held follows the finger, its place left empty */
+/* Rearranging (hold a category or an item): they jiggle; the one held follows the finger, its place left empty. It is
+   the tile itself, a little larger, with nothing around it: no extra shadow, frame or square (as on the home screen). */
 .cx-shell.arranging [data-arrange]>[data-id]:not(.cx-origin){animation:cx-jiggle .26s ease-in-out infinite alternate}
 .cx-shell.arranging [data-arrange]>[data-id]:nth-child(2n):not(.cx-origin){animation-duration:.3s;animation-delay:-.15s}
 .cx-shell.arranging [data-arrange]>[data-id]:nth-child(3n):not(.cx-origin){animation-duration:.28s;animation-delay:-.08s}
@@ -325,9 +324,14 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-shell [data-arrange]>[data-id]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .cx-origin{opacity:0}
 .cx-ghost{position:fixed;z-index:60;margin:0;pointer-events:none;transform:translate(-50%,-50%) scale(1.05);animation:none;transition:none}
-.cx-ghost.cx-card,.cx-ghost.cx-cat{box-shadow:inset 0 0 0 1px rgba(17,24,39,.06),0 calc(18 * var(--u)) calc(36 * var(--u)) rgba(15,23,42,.18)}
-.cx-ghost.cx-pl:not(.on){box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(12 * var(--u)) calc(26 * var(--u)) rgba(15,23,42,.16)}
-@media (prefers-reduced-motion:reduce){.cx-shell.arranging [data-arrange]>[data-id]{animation:none}.cx-scrim,.cx-dim,.cx-pop,.cx-line.just-added .cx-row{animation:none}.cx-line.settling>.cx-row{transition:none}}
+/* The six buttons at the top of the order panel rearrange the same way (hold one); a button that can't be used (Hold,
+   with no items) can still be held and moved */
+.cx-order.arranging .cx-ctx>[data-tile]:not(.cx-origin){animation:cx-jiggle .26s ease-in-out infinite alternate}
+.cx-order.arranging .cx-ctx>[data-tile]:nth-child(2n):not(.cx-origin){animation-duration:.3s;animation-delay:-.15s}
+.cx-order.arranging .cx-ctx>[data-tile]:nth-child(3n):not(.cx-origin){animation-duration:.28s;animation-delay:-.08s}
+.cx-ctx>[data-tile]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.cx-ctx>[data-tile]>.cx-b:disabled{pointer-events:none}
+@media (prefers-reduced-motion:reduce){.cx-shell.arranging [data-arrange]>[data-id],.cx-order.arranging .cx-ctx>[data-tile]{animation:none}.cx-scrim,.cx-dim,.cx-pop,.cx-line.just-added .cx-row{animation:none}.cx-line.settling>.cx-row{transition:none}}
 
 /* ---------- the options sheet and the note editor (simple, until their designs come) ---------- */
 .cx-sheet-wrap{position:fixed;inset:0;z-index:45;display:grid;place-items:center;box-sizing:border-box;padding:calc(var(--top-banner-height) + 24px) 24px calc(var(--home-bar-height) + 24px);background:rgba(15,23,42,.45);font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;animation:cx-fade .14s ease-out}

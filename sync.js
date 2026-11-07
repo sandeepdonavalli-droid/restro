@@ -2,8 +2,8 @@
 // Sync: keeps the restaurant's data the same on every tablet of the restaurant. (SYNC.md has the details.)
 //
 // What syncs: orders, held tickets, customers, staff (PINs only as hashes) and the restaurant's details (name, profile,
-// preparation time). What stays on each tablet: its looks and layouts (theme, tile style, sounds, home screen, tile
-// order), the order being rung up, and who is signed in.
+// preparation time). What stays on each tablet: its looks and layouts (theme, sounds, home screen, tile order,
+// the Counter's menu style and button order), the order being rung up, and who is signed in.
 //
 // How:
 // - Every tablet works on its own copy (localStorage), so it never waits for a network. When a screen saves shared data

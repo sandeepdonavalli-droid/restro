@@ -68,6 +68,13 @@
     else { if (!menuOrder.items || typeof menuOrder.items !== 'object' || Array.isArray(menuOrder.items)) menuOrder.items = {}; menuOrder.items[view.catId] = ids; }
     store(ORDER_KEY, menuOrder);
   }
+  // The six buttons at the top of the order panel, in the places this tablet has them (hold one to rearrange them):
+  // Order type · Pager · Schedule / Add Customer · Modify · Hold to start with, as in the design. An order kept from
+  // before stays as it was.
+  const PANEL_KEY = 'restro.counter.panelOrder.v1';
+  const PANEL_TILES = ['type', 'pager', 'schedule', 'customer', 'modify', 'hold'];
+  let panelOrder = ordered(PANEL_TILES, load(PANEL_KEY, null));
+  let panelArranging = false, panelDrag = null, panelPress = null, panelSuppress = false;
   // The menu's display style (Settings > Counter > Menu display style): Category grid, Pills on top (the default) or
   // Vertical rail. A preference of this tablet only.
   const STYLE_KEY = 'restro.counter.menuStyle.v1';
@@ -641,13 +648,14 @@
 
   function orderPanel() {
     const t = totals(), c = order.customer, table = tableName(order.table);
-    // Two rows of three: Order type · Pager · Schedule / Add Customer (Choose table for Dine in) · Modify · Hold. Each row
-    // is a grid of its own (1.1 / 0.95 / 1.15), so a long name only takes room in its own row. Order type opens the four
-    // types in place of Order type, Pager, Add Customer and Modify, over the dimmed screen.
+    // Two rows of three, in this tablet's order (to start with: Order type · Pager · Schedule / Add Customer (Choose table
+    // for Dine in) · Modify · Hold). Each row is a grid of its own (1.1 / 0.95 / 1.15), so a long name only takes room in
+    // its own row. Order type opens the four types in the places of Order type, Pager, Add Customer and Modify, over the
+    // dimmed screen. Hold any of the six to rearrange them (below).
     const option = key => el('div', { class: 'cx-seg lift' }, ctxButton(order.type === key ? 'amber' : 'white', typeIcon[key], 20, typeLabel[key],
       { 'aria-pressed': String(order.type === key), onclick: () => pickType(key) }));
-    const typeBtn = el('div', { class: 'cx-seg' }, ctxButton(order.type ? 'amber' : 'grey unset', order.type ? typeIcon[order.type] : 'receipt_long', 20, typeLabel[order.type] || 'Order type',
-      { class: `cx-b ${order.type ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true));
+    const typeBtn = ctxButton(order.type ? 'amber' : 'grey unset', order.type ? typeIcon[order.type] : 'receipt_long', 20, typeLabel[order.type] || 'Order type',
+      { class: `cx-b ${order.type ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
     const pager = ctxButton(order.pager ? 'violet' : 'grey', 'vibration', 19, order.pager ? `Pager ${order.pager}` : 'Assign pager',
       { class: `cx-b ${order.pager ? 'violet' : 'grey'} cx-pager`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign pager', onclick: () => { sheet = 'pager'; render(); } });
     const schedule = ctxButton(order.readyAt ? 'pink' : 'grey', 'schedule', 19, order.readyAt ? whenShort(order.readyAt) : 'Schedule',
@@ -657,9 +665,12 @@
       : ctxButton('grey', c ? 'person' : 'person_add', 19, c ? c.name : 'Add Customer', { class: 'cx-b grey cx-who', 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer });
     const modify = ctxButton(order.split ? 'dark' : 'grey', 'edit', 18, 'Modify', { class: `cx-b ${order.split ? 'dark' : 'grey'} cx-modify`, role: 'switch', 'aria-checked': String(order.split), onclick: () => setSplit(!order.split) });
     const holdBtn = ctxButton('grey', 'pause_circle', 19, 'Hold', { class: 'cx-b grey cx-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket });
-    const rows = typeMenu
-      ? [el('div', { class: 'cx-ctx' }, option('dine-in'), option('takeaway'), schedule), el('div', { class: 'cx-ctx' }, option('delivery'), option('phone'), holdBtn)]
-      : [el('div', { class: 'cx-ctx' }, typeBtn, pager, schedule), el('div', { class: 'cx-ctx' }, who, modify, holdBtn)];
+    const buttons = { type: typeBtn, pager, schedule, customer: who, modify, hold: holdBtn };
+    // The four types take the places of those four buttons, wherever they are, in reading order
+    const typeSlots = panelOrder.filter(k => ['type', 'pager', 'customer', 'modify'].includes(k));
+    const cell = key => typeMenu && typeSlots.includes(key) ? option(TYPES[typeSlots.indexOf(key)])
+      : el('div', { class: 'cx-seg', 'data-tile': key }, buttons[key]);
+    const rows = [el('div', { class: 'cx-ctx' }, ...panelOrder.slice(0, 3).map(cell)), el('div', { class: 'cx-ctx' }, ...panelOrder.slice(3).map(cell))];
 
     const head = el('div', { class: 'cx-oh' },
       el('h2', { id: 'counter-title', tabindex: '-1' }, order.number ? `Order ${ticket(order.number)}` : 'New order'),
@@ -709,7 +720,7 @@
         el('button', { type: 'button', class: 'cx-save', disabled: !t.count, onclick: saveOrder }, mi('save', 20), 'Save'),
         el('button', { type: 'button', class: 'cx-pay', disabled: !t.count, 'aria-label': `Pay ${amount(t.total)}`, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, mi('payments', 22), `Pay  ${amount(t.total)}`)));
 
-    return el('aside', { class: 'cx-order', 'aria-label': 'Current order' }, ...rows, head, list, sums);
+    return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}`, 'aria-label': 'Current order' }, ...rows, head, list, sums);
   }
 
   // The menu side: the three-line menu (Print bill, Highlight order, Delete order), search, then Held · Orders · Payment
@@ -814,13 +825,21 @@
   // Where a tile is laid out (its jiggle and any slide in progress left out), so tiles passing by never change the
   // place under the finger
   const placeOf = tile => { const r = tile.parentElement.getBoundingClientRect(); return { left: r.left + tile.offsetLeft, top: r.top + tile.offsetTop, width: tile.offsetWidth, height: tile.offsetHeight }; };
+  // The tile that follows the finger: the tile itself as it is at rest (no shadow or frame of its own), kept in the same
+  // list so it looks exactly the same (it floats above everything, out of the list's layout)
+  function ghostOf(tile, r) {
+    const ghost = tile.cloneNode(true);
+    ghost.classList.add('cx-ghost'); ghost.removeAttribute('data-id'); ghost.removeAttribute('data-tile'); ghost.setAttribute('aria-hidden', 'true'); ghost.tabIndex = -1;
+    for (const node of ghost.querySelectorAll('button')) node.tabIndex = -1;
+    Object.assign(ghost.style, { width: `${r.width}px`, height: `${r.height}px`, left: `${r.left + r.width / 2}px`, top: `${r.top + r.height / 2}px` });
+    tile.parentElement.append(ghost);
+    return ghost;
+  }
   function startDrag(tile, pointerId, x, y) {
     const list = tile.parentElement; if (!list?.dataset.arrange || !tile.isConnected) return;
     setArranging(true);
-    const r = placeOf(tile), ghost = tile.cloneNode(true);
-    ghost.classList.add('cx-ghost'); ghost.removeAttribute('data-id'); ghost.setAttribute('aria-hidden', 'true'); ghost.tabIndex = -1;
-    Object.assign(ghost.style, { width: `${r.width}px`, height: `${r.height}px`, left: `${r.left + r.width / 2}px`, top: `${r.top + r.height / 2}px` });
-    root.append(ghost); tile.classList.add('cx-origin');
+    const r = placeOf(tile), ghost = ghostOf(tile, r);
+    tile.classList.add('cx-origin');
     drag = { list, tile, pointerId, ghost, ox: x - (r.left + r.width / 2), oy: y - (r.top + r.height / 2), start: [...list.children].map(n => n.dataset.id) };
     try { list.setPointerCapture(pointerId); } catch {}
   }
@@ -877,6 +896,92 @@
     suppressClick = false;
   }, true);
   root.addEventListener('contextmenu', event => { if (event.target.closest?.('[data-arrange]')) event.preventDefault(); });
+
+  // ---------- rearranging the order panel ----------
+  // Hold any of the six buttons at the top (Order type, Pager, Schedule, Add Customer, Modify, Hold), as with the menu:
+  // they jiggle and the one held follows the finger, the others making room for it as it passes over their places. Let
+  // go over the buttons to keep the new order (kept on this tablet); let go away from them to put them back. A tap
+  // anywhere else, or Back, finishes; while they jiggle, tapping one does nothing. (Not while the order types are open.)
+  const panelTiles = () => [...dialog.querySelectorAll('.cx-ctx > [data-tile]')];
+  function setPanelArranging(on) {
+    if (panelArranging === on) return;
+    if (!on && panelDrag) endPanelDrag(true);
+    panelArranging = on; dialog.querySelector('.cx-order')?.classList.toggle('arranging', on);
+  }
+  // The buttons in the given order: three in each row
+  function placePanel(order, slide) {
+    const rows = [...dialog.querySelectorAll('.cx-ctx')], tiles = new Map(panelTiles().map(t => [t.dataset.tile, t]));
+    if (rows.length !== 2 || tiles.size !== PANEL_TILES.length) return;
+    const before = slide ? new Map([...tiles].map(([k, t]) => [k, t.getBoundingClientRect()])) : null;
+    order.forEach((k, i) => { const row = rows[i < 3 ? 0 : 1], ghost = row.querySelector(':scope > .cx-ghost'); row.insertBefore(tiles.get(k), ghost); });
+    if (!slide) return;
+    // The buttons that change place slide from where they were shown to their new place
+    for (const [k, t] of tiles) {
+      if (k === panelDrag?.key) continue;
+      t.getAnimations().forEach(a => { if (a.id === 'cx-slide') a.cancel(); });
+      const a = before.get(k), b = t.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top; if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      try { const run = t.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', composite: 'add' }); run.id = 'cx-slide'; } catch {}
+    }
+  }
+  function startPanelDrag(key, pointerId, x, y) {
+    const tile = dialog.querySelector(`.cx-ctx > [data-tile="${key}"]`); if (!tile || typeMenu) return;
+    // The six places (as laid out, their jiggle left out), measured once: the buttons move between them, the places stay
+    const tiles = panelOrder.map(k => dialog.querySelector(`.cx-ctx > [data-tile="${k}"]`));
+    if (tiles.some(t => !t)) return;
+    const slots = tiles.map(t => { const p = placeOf(t); return { ...p, right: p.left + p.width, bottom: p.top + p.height }; });
+    const r = slots[panelOrder.indexOf(key)];
+    setPanelArranging(true);
+    const ghost = ghostOf(tile, r); tile.classList.add('cx-origin');
+    panelDrag = { key, tile, pointerId, ghost, slots, order: [...panelOrder], ox: x - (r.left + r.width / 2), oy: y - (r.top + r.height / 2) };
+    try { tile.closest('.cx-order').setPointerCapture(pointerId); } catch {}
+  }
+  function movePanelDrag(x, y) {
+    const d = panelDrag; d.ghost.style.left = `${x - d.ox}px`; d.ghost.style.top = `${y - d.oy}px`;
+    const i = d.slots.findIndex(s => x >= s.left && x <= s.right && y >= s.top && y <= s.bottom);
+    if (i < 0 || d.order[i] === d.key) return;
+    const next = d.order.filter(k => k !== d.key); next.splice(i, 0, d.key);
+    d.order = next; placePanel(next, true);
+  }
+  // Let go: over the buttons, the order shown is kept; away from them (or cancelled), they go back as they were.
+  function endPanelDrag(cancel) {
+    const d = panelDrag; if (!d) return; panelDrag = null;
+    d.ghost.remove(); d.tile.classList.remove('cx-origin');
+    if (!cancel && d.order.join() !== panelOrder.join()) { panelOrder = d.order; store(PANEL_KEY, panelOrder); }
+    placePanel(panelOrder, false);
+  }
+  root.addEventListener('pointerdown', event => {
+    const tile = event.target.closest?.('.cx-ctx > [data-tile]');
+    if (panelArranging && !panelDrag && !tile) setPanelArranging(false); // a tap anywhere else finishes rearranging
+    if (!tile || event.button !== 0 || panelDrag || drag || typeMenu) return;
+    panelSuppress = false;
+    clearTimeout(panelPress?.timer);
+    const p = { id: event.pointerId, x: event.clientX, y: event.clientY, key: tile.dataset.tile };
+    p.timer = setTimeout(() => { if (panelPress === p) { panelPress = null; startPanelDrag(p.key, p.id, p.x, p.y); } }, panelArranging ? 120 : 420);
+    panelPress = p;
+  });
+  root.addEventListener('pointermove', event => {
+    if (panelDrag) { if (event.pointerId === panelDrag.pointerId) { event.preventDefault(); movePanelDrag(event.clientX, event.clientY); } return; }
+    if (panelPress && event.pointerId === panelPress.id && Math.hypot(event.clientX - panelPress.x, event.clientY - panelPress.y) > 8) { clearTimeout(panelPress.timer); panelPress = null; }
+  });
+  root.addEventListener('pointerup', event => {
+    if (panelPress && event.pointerId === panelPress.id) { clearTimeout(panelPress.timer); panelPress = null; }
+    if (!panelDrag || event.pointerId !== panelDrag.pointerId) return;
+    panelSuppress = true;
+    const s = panelDrag.slots, over = event.clientX >= Math.min(...s.map(r => r.left)) && event.clientX <= Math.max(...s.map(r => r.right)) && event.clientY >= Math.min(...s.map(r => r.top)) && event.clientY <= Math.max(...s.map(r => r.bottom));
+    endPanelDrag(!over);
+  });
+  root.addEventListener('pointercancel', event => {
+    if (panelPress && event.pointerId === panelPress.id) { clearTimeout(panelPress.timer); panelPress = null; }
+    if (panelDrag && event.pointerId === panelDrag.pointerId) endPanelDrag(true);
+  });
+  root.addEventListener('touchmove', event => { if (panelDrag) event.preventDefault(); }, { passive: false });
+  // No button's action after a drag, or while they jiggle
+  root.addEventListener('click', event => {
+    if (!event.target.closest?.('.cx-ctx > [data-tile]')) return;
+    if (panelSuppress || panelArranging) { event.preventDefault(); event.stopPropagation(); }
+    panelSuppress = false;
+  }, true);
+  root.addEventListener('contextmenu', event => { if (event.target.closest?.('.cx-ctx > [data-tile]')) event.preventDefault(); });
 
   // ---------- options and notes ----------
   // An item's options sheet (its modifier groups): to add it (the required choices start on their defaults), or to change
@@ -1261,6 +1366,7 @@
 
   function render() {
     if (drag) endDrag(true, false);
+    if (panelDrag) endPanelDrag(true);
     const focusId = document.activeElement?.id;
     if (highlight && !order.lines.length) highlight = false; // the last item went: back to the usual view
     // The order type choices and the three-line menu dim the whole screen, the top banner too; what they show stays
@@ -1272,8 +1378,6 @@
     renderMenuBody();
     const lines = dialog.querySelector('.cx-lines');
     if (lines && dialog.open) { lines.scrollTop = scrollMemo.lines; scrollMemo.lines = lines.scrollTop; }
-    // The order list's scroll handle (scroll-handle.js) instead of the browser's scroll bar, when the lines need more room
-    if (lines) window.RestroScrollHandle?.attach(lines, { host: lines.parentElement, lines: 3, key: 'counter-lines' });
     // Typing carries on where it was (search, or a note)
     if (focusId === 'counter-search' || focusId === 'counter-note') { const f = dialog.querySelector(`#${focusId}`); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
   }
@@ -1286,6 +1390,7 @@
     if (sheet && sheet !== 'receipt') { sheet = null; itemSheet = null; noteKey = null; render(); return true; }
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
     if (highlight) { setHighlight(false); return true; } // a sheet opened from it closes first
+    if (panelArranging) { setPanelArranging(false); return true; }
     if (arranging) { setArranging(false); return true; }
     if (query) { query = ''; render(); return true; }
     if (category && menuStyle === 'grid') { category = null; renderMenuBody(); return true; } // inside a category: back to all of them
@@ -1305,7 +1410,11 @@
     if (dialog.open && event.target.classList?.contains('cx-lines')) scrollMemo.lines = event.target.scrollTop;
   }, true);
   // Leaving Counter ends rearranging; the order, the page and everything else stay as they were.
-  dialog.addEventListener('close', () => { if (press) { clearTimeout(press.timer); press = null; } if (drag) endDrag(true, false); arranging = false; typeMenu = false; optionsMenu = false; deleteArmed = false; });
+  dialog.addEventListener('close', () => {
+    if (press) { clearTimeout(press.timer); press = null; } if (drag) endDrag(true, false); arranging = false;
+    if (panelPress) { clearTimeout(panelPress.timer); panelPress = null; } if (panelDrag) endPanelDrag(true); panelArranging = false;
+    typeMenu = false; optionsMenu = false; deleteArmed = false;
+  });
   // Toasts must show above this full-screen app.
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;
   new MutationObserver(() => {
@@ -1359,20 +1468,22 @@
       window.dispatchEvent(new CustomEvent('restro:counter-style-changed', { detail: { id } }));
       return true;
     },
-    // A still picture of the Counter as it is now (the order on screen and the menu, as on the tablet), in a display
-    // style: for the previews in Settings. Without anything opened over it (the order types, the menu, a search,
-    // Highlight order), and the Category grid shows its categories. Nothing in it can be tapped, focused or read out.
+    // A still picture of the Counter as it is now, in a display style: for the previews in Settings. Exactly what Counter
+    // shows when it opens again (the order on screen and where its list is scrolled, the buttons and the menu in this
+    // tablet's order, the category or search it was on), in that style. What closes when Counter is left (the order
+    // types, the menu, Highlight order) isn't in it. Nothing in it can be tapped, focused or read out. The order list's
+    // place is set once the picture is on screen (data-scroll-top).
     preview(style = menuStyle) {
       if (!MENU_STYLES.some(x => x.id === style)) style = menuStyle;
-      const was = { typeMenu, optionsMenu, deleteArmed, highlight, query, category, selected };
-      typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; query = ''; selected = null;
-      if (style === 'grid') category = null;
+      const was = { typeMenu, optionsMenu, deleteArmed, highlight, panelArranging };
+      typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; panelArranging = false;
       try {
         const shell = el('div', { class: 'cx-shell', 'data-style': style }, orderPanel(), menuSide());
         shell.querySelector('.cx-area')?.replaceChildren(...menuArea(style));
         for (const node of shell.querySelectorAll('[id]')) node.removeAttribute('id');
+        shell.querySelector('.cx-lines')?.setAttribute('data-scroll-top', String(scrollMemo.lines));
         return el('div', { class: 'ctr-root cx-still', inert: true, 'aria-hidden': 'true' }, shell);
-      } finally { ({ typeMenu, optionsMenu, deleteArmed, highlight, query, category, selected } = was); }
+      } finally { ({ typeMenu, optionsMenu, deleteArmed, highlight, panelArranging } = was); }
     }
   });
 })();
