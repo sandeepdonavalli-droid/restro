@@ -557,6 +557,9 @@
   }
   // A number without asking anyone (orders moved over from an earlier version of the app): this tablet's own next one
   const nextNumber = () => ownNumber().number;
+  // The number a new order on screen will have, as far as this tablet knows (it takes nothing): shown on Counter until
+  // the order is fired and given its number. Another tablet firing first moves it on to the next one.
+  const upcomingNumber = () => nextOn(today());
 
   // ---------- tablets nearby: through the Android app (RESTRODevice.localSync) ----------
   // Pairing: the main system makes a code; the other tablets enter it once. A key made from the code (PBKDF2) seals every
@@ -841,7 +844,7 @@
   }
 
   window.RestroSync = Object.freeze({
-    wrote, removed, takeNumber, canFire, nextNumber, newId, mergeRecord, today, orderDay,
+    wrote, removed, takeNumber, canFire, nextNumber, upcomingNumber, newId, mergeRecord, today, orderDay,
     status,
     get device() { return { ...device }; },
     setDeviceName(name) { device.name = String(name || '').trim().slice(0, 30) || device.name; save(DEVICE, device); Local.start(); emitStatus(); },

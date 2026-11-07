@@ -83,6 +83,8 @@
   // Ticket numbers come from sync: one sequence a day for the whole restaurant, kept by the cloud or the main system. This
   // one is for orders moved over from an earlier version of the app; a new order gets its number as it is fired (fire()).
   const nextNumber = () => { if (window.RestroSync) return window.RestroSync.nextNumber(); const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
+  // The number a new order will have once it is saved, without taking it (shown on the Counter)
+  const upcomingNumber = () => window.RestroSync?.upcomingNumber ? window.RestroSync.upcomingNumber() : Number(load(NUM_KEY, 1001)) || 1001;
   const idOf = o => o.uid || `n${o.number}`; // an order's id everywhere (orders from before sync are known by their number)
   // A ticket number as shown: #01, #02 … #10 (numbers start again at 1 every day, so they are not ids)
   const ticket = n => `#${String(n).padStart(2, '0')}`;
@@ -672,8 +674,10 @@
       : el('div', { class: 'cx-seg', 'data-tile': key }, buttons[key]);
     const rows = [el('div', { class: 'cx-ctx' }, ...panelOrder.slice(0, 3).map(cell)), el('div', { class: 'cx-ctx' }, ...panelOrder.slice(3).map(cell))];
 
+    // The order's number: a saved order's own, and on a new order the number it will have when it is saved (Save or Pay)
+    const number = order.number || upcomingNumber();
     const head = el('div', { class: 'cx-oh' },
-      el('h2', { id: 'counter-title', tabindex: '-1' }, order.number ? `Order ${ticket(order.number)}` : 'New order'),
+      el('h2', { id: 'counter-title', tabindex: '-1' }, number ? `Order ${ticket(number)}` : 'New order'),
       el('span', {}, t.count ? plural(t.count, 'item') : 'No items'));
 
     // The order's lines: name · quantity stepper · "₹220 ea" and the line total; under them the line's modifiers (tap
