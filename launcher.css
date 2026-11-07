@@ -8,8 +8,8 @@
    Three themes, for the home screen only (Settings > Display > Theme, themes.js): White, the default (a soft grey
    gradient, a solid white top bar, solid white widget cards); Sea breeze (a light coloured wallpaper, white glass); and
    Aurora (a dark coloured wallpaper, white app names and dots, a dark top bar, light glass widgets). Layout, sizes, icons
-   and status colours are the same in all three. Every other page keeps its own look, under a light top bar (the White
-   one with White, otherwise Sea breeze's). The --home-* and --bar-* values below are each theme's (the --bar-* ones
+   and status colours are the same in all three. Every other page keeps its own look, under the theme's top bar (the
+   same bar, the same sizes): light with White and Sea breeze, dark with Aurora. The --home-* and --bar-* values below are each theme's (the --bar-* ones
    drive the top bar, status-bar.css); the theme previews in Settings use them too. */
 :root{--fu:max(.5636px,min(calc(100vw / 1920),calc(100dvh / 1000)));--hl-u:calc(1.1 * var(--fu));--bn-u:calc(1.2 * var(--fu));--hl-text:#1C1917;--hl-muted:#57534E;--hl-accent:#2563EB}
 :root,.home-preview[data-home-theme="white"]{--home-bg:linear-gradient(180deg,#F4F5F8 0%,#ECEEF2 55%,#E4E7EC 100%);--home-label:#1C1917;--home-label-shadow:0 1px 0 rgba(255,255,255,.6);--home-dot:#1C1917;--home-dot-off:rgba(28,25,23,.25);--home-icon-shadow:drop-shadow(0 calc(1 * var(--hl-u)) calc(1 * var(--hl-u)) rgba(20,20,40,.30)) drop-shadow(0 calc(6 * var(--hl-u)) calc(10 * var(--hl-u)) rgba(30,30,60,.30)) drop-shadow(0 calc(16 * var(--hl-u)) calc(26 * var(--hl-u)) rgba(30,30,60,.22));--home-indicator:#1C1917;
@@ -22,10 +22,13 @@ html[data-home-theme="aurora"],.home-preview[data-home-theme="aurora"]{--home-bg
   --home-label:#FFFFFF;--home-label-shadow:0 calc(1 * var(--hl-u)) calc(2 * var(--hl-u)) rgba(0,0,0,.55),0 0 calc(8 * var(--hl-u)) rgba(0,0,0,.25);--home-dot:#FFFFFF;--home-dot-off:rgba(255,255,255,.38);--home-icon-shadow:drop-shadow(0 calc(1 * var(--hl-u)) calc(1 * var(--hl-u)) rgba(0,0,0,.55)) drop-shadow(0 calc(8 * var(--hl-u)) calc(14 * var(--hl-u)) rgba(0,0,0,.55)) drop-shadow(0 calc(18 * var(--hl-u)) calc(30 * var(--hl-u)) rgba(0,0,0,.45));--home-indicator:#FFFFFF;
   --home-card-bg:rgba(255,255,255,.72);--home-card-blur:blur(calc(24 * var(--hl-u))) saturate(1.6);--home-card-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 0 0 1px rgba(17,24,39,.10),0 calc(2 * var(--hl-u)) calc(4 * var(--hl-u)) rgba(15,23,42,.08),0 calc(14 * var(--hl-u)) calc(34 * var(--hl-u)) rgba(15,23,42,.40);--home-tile-bg:rgba(255,255,255,.55);
   --bar-bg:rgba(4,14,20,.78);--bar-blur:blur(calc(20 * var(--bn-u))) saturate(1.4);--bar-line:rgba(255,255,255,.18);--bar-shadow:0 calc(1 * var(--bn-u)) 0 var(--bar-line),0 calc(6 * var(--bn-u)) calc(20 * var(--bn-u)) rgba(0,0,0,.45);--bar-text:#FFFFFF;--bar-muted:rgba(255,255,255,.84);--bar-mark-bg:#FFFFFF;--bar-mark-text:#111827;--bar-pill-bg:rgba(255,255,255,.14);--bar-pill-edge:rgba(255,255,255,.20);--bar-pill-text:#FFFFFF;--bar-dot:#4ADE80}
-/* An app open: its page keeps its own look under the light top bar (White's with White, otherwise Sea breeze's), and the
-   swipe bar is black on it */
+/* An app open: its page keeps its own look under the theme's top bar (White's with White, Sea breeze's with Sea breeze,
+   Aurora's dark one with Aurora), and the swipe bar is black on it */
 html[data-app-open]{--bar-bg:rgba(255,255,255,.86);--bar-blur:blur(calc(20 * var(--bn-u))) saturate(1.4);--bar-line:rgba(17,24,39,.16);--bar-shadow:0 calc(1 * var(--bn-u)) 0 var(--bar-line),0 calc(6 * var(--bn-u)) calc(18 * var(--bn-u)) rgba(17,24,39,.12);--bar-text:#1C1917;--bar-muted:#44403C;--bar-mark-bg:#1C1917;--bar-mark-text:#FFFFFF;--bar-pill-bg:#F1F3F6;--bar-pill-edge:rgba(17,24,39,.06);--bar-pill-text:#1C1917;--bar-dot:#16A34A;--home-indicator:#1C1917}
 html[data-app-open]:not([data-home-theme]),html[data-app-open][data-home-theme="white"]{--bar-bg:#FFFFFF;--bar-blur:none;--bar-line:rgba(17,24,39,.14);--bar-shadow:0 calc(1 * var(--bn-u)) 0 var(--bar-line),0 calc(2 * var(--bn-u)) calc(4 * var(--bn-u)) rgba(17,24,39,.05),0 calc(8 * var(--bn-u)) calc(22 * var(--bn-u)) rgba(17,24,39,.10);--bar-text:#1C1917;--bar-muted:#44403C;--bar-mark-bg:#1C1917;--bar-mark-text:#FFFFFF;--bar-pill-bg:#F1F3F6;--bar-pill-edge:rgba(17,24,39,.06);--bar-pill-text:#1C1917;--bar-dot:#16A34A}
+/* Aurora: the dark bar on the pages too (Home Update 3: other-page-banner-dark-aurora), its dark glass over the page's grey,
+   which is #394147 (the bar is drawn solid: nothing passes under it on a page) */
+html[data-app-open][data-home-theme="aurora"]{--bar-bg:#394147;--bar-blur:none;--bar-line:rgba(255,255,255,.18);--bar-shadow:0 calc(1 * var(--bn-u)) 0 var(--bar-line),0 calc(6 * var(--bn-u)) calc(20 * var(--bn-u)) rgba(0,0,0,.45);--bar-text:#FFFFFF;--bar-muted:rgba(255,255,255,.84);--bar-mark-bg:#FFFFFF;--bar-mark-text:#111827;--bar-pill-bg:rgba(255,255,255,.14);--bar-pill-edge:rgba(255,255,255,.20);--bar-pill-text:#FFFFFF;--bar-dot:#4ADE80}
 /* The theme's background, behind the top bar too; an open app's page is white instead (status-bar.css) */
 html[data-restro-theme] body .app-shell{background:var(--home-bg)}
 /* Home screen background, Mirror (Settings > Display): the active theme's mirror picture, covering the whole screen behind

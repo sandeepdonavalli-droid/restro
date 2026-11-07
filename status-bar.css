@@ -1,9 +1,9 @@
 /* The top bar, the same on every page of every app (Home Update 3: 05_header, banner-tokens.json, HeaderBar.kt): one line,
    48 high, 28.8 in at the sides, 14.4 between its items, a hairline along its bottom edge and a shadow under it, in the
    home theme's colours (the --bar-* values, launcher.css): solid white in White, white glass in Sea breeze, dark glass
-   with white text in Aurora; over an open app always light (White's with White, otherwise Sea breeze's). Left: the
-   restaurant's mark (the first letter of its name, 36 square, radius 10.8, 18 bold), its name (21.6 bold), then the date
-   and time (18.6 bold). Right, 14.4 apart: our status icons as the tablet reports them (Bluetooth, Wi-Fi, signal,
+   with white text in Aurora; over an open app the same bar in the same sizes (White's, Sea breeze's, or Aurora's dark
+   one, solid #394147). Left: the restaurant's mark (the first letter of its name, 36 square, radius 10.8, 18 bold), its
+   name (21.6 bold), then the date and time (18.6 bold). Right, 14.4 apart: our status icons as the tablet reports them (Bluetooth, Wi-Fi, signal,
    battery: they work as before), the Online pill (38.4 high, grey with a fine edge, a 10.8 dot: green online, grey
    "Offline") and the signed-in server's profile circle (38.4, their initials; a person outline while nobody is signed
    in). Over an app its shadow falls on the top of the app as on a plain page. Pull it down for quick controls, as before.
