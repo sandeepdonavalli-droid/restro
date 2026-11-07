@@ -27,6 +27,12 @@ html[data-app-open]{--bar-bg:rgba(255,255,255,.86);--bar-blur:blur(calc(20 * var
 html[data-app-open]:not([data-home-theme]),html[data-app-open][data-home-theme="white"]{--bar-bg:#FFFFFF;--bar-blur:none;--bar-line:rgba(17,24,39,.14);--bar-shadow:0 1px 0 var(--bar-line),0 calc(2 * var(--hl-u)) calc(4 * var(--hl-u)) rgba(17,24,39,.05),0 calc(8 * var(--hl-u)) calc(22 * var(--hl-u)) rgba(17,24,39,.10);--bar-text:#1C1917;--bar-muted:#57534E;--bar-mark-bg:#1C1917;--bar-mark-text:#FFFFFF;--bar-pill-bg:#F1F3F6;--bar-pill-text:#44403C}
 /* The theme's background, behind the top bar too; an open app's page is white instead (status-bar.css) */
 html[data-restro-theme] body .app-shell{background:var(--home-bg)}
+/* Home screen background, Mirror (Settings > Display): the active theme's mirror picture, covering the whole screen behind
+   the top bar, in place of the theme's own background (themes.js picks the size; until it shows, the picture's own
+   colour). Home screen only: the top bar, widgets, dock, icons and every other page stay as they are. */
+html[data-home-background="mirror"][data-home-theme]{--home-bg:var(--home-mirror,none) center/cover no-repeat,var(--home-mirror-base,#F3F5F8)}
+html[data-home-background="mirror"][data-home-theme="sea-breeze"]{--home-mirror-base:#E0EAEF}
+html[data-home-background="mirror"][data-home-theme="aurora"]{--home-mirror-base:#253850}
 #home{background:none;color:var(--hl-text);font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif}
 #home .workspace{height:100%;box-sizing:border-box;padding:0;display:flex;flex-direction:column;gap:0}
 #home .more-apps{flex:1;min-height:0;display:flex;flex-direction:column;padding:calc(14 * var(--hl-u)) calc(24 * var(--hl-u)) calc(16 * var(--hl-u))}

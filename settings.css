@@ -134,6 +134,12 @@ html[data-restro-theme] .settings-device-slot .device-list li{border:0;display:f
 .home-preview-icon .app-art{display:block;width:100%;height:100%}
 .home-preview-card{position:absolute;right:6%;top:22%;width:28%;height:62%;border-radius:8px;background:var(--home-card-bg);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 1px rgba(17,24,39,.08),0 4px 10px rgba(15,23,42,.16)}
 
+/* Home screen background: Default and Mirror, each as a picture of the selected theme's home screen with it (themes.js),
+   the same size as the theme cards above */
+.theme-background-label{margin:14px 0 10px 4px}
+.background-options{overflow:visible}
+.theme-preview.background-preview{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;border:1px solid #cbcfd5;border-radius:10px;background:#F3F5F8}
+
 /* Narrow screens: one column, like a phone */
 @media (max-width:1000px){.theme-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:759px){
