@@ -68,12 +68,14 @@
     else { if (!menuOrder.items || typeof menuOrder.items !== 'object' || Array.isArray(menuOrder.items)) menuOrder.items = {}; menuOrder.items[view.catId] = ids; }
     store(ORDER_KEY, menuOrder);
   }
-  // The six buttons at the top of the order panel, in the places this tablet has them (hold one to rearrange them):
-  // Order type · Pager · Schedule / Add Customer · Modify · Hold to start with, as in the design. An order kept from
-  // before stays as it was.
-  const PANEL_KEY = 'restro.counter.panelOrder.v1';
-  const PANEL_TILES = ['type', 'pager', 'schedule', 'customer', 'modify', 'hold'];
-  let panelOrder = ordered(PANEL_TILES, load(PANEL_KEY, null));
+  // The buttons at the top of the order panel, in the places this tablet has them (hold one to rearrange them), in two
+  // groups, each rearranged on its own (Counter Update 3): the context row (Order type · Add Customer or the table ·
+  // Pager · Print bill to start with) and the chips in the order header (Schedule · Modify · Hold).
+  const PANEL_GROUPS = Object.freeze({
+    ctx: Object.freeze({ key: 'restro.counter.contextOrder.v2', tiles: Object.freeze(['type', 'customer', 'pager', 'print']) }),
+    head: Object.freeze({ key: 'restro.counter.headerOrder.v2', tiles: Object.freeze(['schedule', 'modify', 'hold']) })
+  });
+  const panelOrder = { ctx: ordered(PANEL_GROUPS.ctx.tiles, load(PANEL_GROUPS.ctx.key, null)), head: ordered(PANEL_GROUPS.head.tiles, load(PANEL_GROUPS.head.key, null)) };
   let panelArranging = false, panelDrag = null, panelPress = null, panelSuppress = false;
   // The menu's display style (Settings > Counter > Menu display style): Category grid, Pills on top (the default) or
   // Vertical rail. A preference of this tablet only.
@@ -148,6 +150,7 @@
   const keyOf = line => `${line.id}@${lineType(line)}${modsKey(line.mods)}`;
   let qtyKey = null, qtyValue = '';
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, typeMenu = false, optionsMenu = false, deleteArmed = false, highlight = false;
+  let undo = null;                                      // the dish just taken off: { line, at, key, name, timer } (the Undo bar)
   let itemSheet = null;                                 // the options sheet: { id, key (the line, when changing it), mods }
   let noteKey = null, noteDraft = '';                   // the note sheet: the line, and the text typed so far
   let cashInput = '';                                   // cash typed on the payment sheet
@@ -256,11 +259,31 @@
     line.note = cleanNote(note); render();
   }
   function setQty(key, qty) {
-    order.lines = qty > 0 ? order.lines.map(l => keyOf(l) === key ? { ...l, qty } : l) : order.lines.filter(l => keyOf(l) !== key);
-    if (qty <= 0) selected = null; render();
+    if (qty <= 0) { removeLine(key); return; }
+    order.lines = order.lines.map(l => keyOf(l) === key ? { ...l, qty } : l); render();
   }
-  // Removing an item (swipe it left, or the Delete key on it) shows no message: the line just goes.
-  function removeLine(key) { setQty(key, 0); }
+  // Taking a dish off (− at 1, 0 on the number pad, a swipe, or the Delete key) happens straight away; the Undo bar above
+  // Subtotal ("Chicken biryani removed · UNDO") brings it back exactly as it was (quantity, choices, note, place) for
+  // 5 seconds. Another dish taken off replaces the bar.
+  function removeLine(key) {
+    const at = order.lines.findIndex(l => keyOf(l) === key); if (at < 0) return;
+    const line = order.lines[at];
+    clearUndo();
+    // (kept with the order it came off: another order on screen has no Undo bar)
+    undo = { order, line: JSON.parse(JSON.stringify(line)), at, key, name: items.get(line.id).name };
+    undo.timer = setTimeout(() => { undo = null; if (dialog.open) render(); }, 5000);
+    order.lines.splice(at, 1);
+    if (selected === key) selected = null;
+    render();
+  }
+  const undoShown = () => (undo && undo.order === order ? undo : null);
+  function undoRemove() {
+    const u = undoShown(); clearUndo(); if (!u) return;
+    const same = order.lines.find(l => keyOf(l) === u.key);
+    if (same) same.qty += u.line.qty; else order.lines.splice(Math.min(u.at, order.lines.length), 0, u.line);
+    tidy(); render();
+  }
+  function clearUndo() { if (undo) clearTimeout(undo.timer); undo = null; }
   // Merge lines that ended up with the same item, type and choices (both notes are kept).
   function tidy() {
     const merged = [];
@@ -284,7 +307,7 @@
     order.lines.forEach(l => { l.type = type; }); tidy();
     selected = null; render();
   }
-  // The options menu (the round button at the top of the divider): Highlight order and Delete order.
+  // The three-line menu (the blue button left of search): Highlight order and Delete order.
   function openOptions(open) {
     optionsMenu = open; deleteArmed = false; render();
     if (open) dialog.querySelector('.cx-mi:not(:disabled)')?.focus({ preventScroll: true });
@@ -308,7 +331,7 @@
     if (order.heldId) { window.RestroSync?.removed('held', order.heldId); held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     fresh(); toast(n ? `Order ${ticket(n)} deleted` : 'Order deleted');
   }
-  // Order type: the four types open in place of Order type, Pager, Add Customer and Modify, over the dimmed screen;
+  // Order type: the four types open two by two over the context row and the order header, over the dimmed screen;
   // picking one sets it (every item moves to it) and closes them. Picking the type already chosen takes it off again:
   // the button shows Order type, and the order goes as Dine in. A tap on the dimmed screen closes them unchanged.
   function openTypeMenu(open) {
@@ -644,63 +667,69 @@
   const amount = paise => `₹${(paise / 100).toLocaleString('en-IN', paise % 100 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   // A context button: its icon, its name and, on Order type, the ▾ arrow. Colour: grey (not set), amber (order type),
-  // violet (pager), pink (schedule), dark (Modify on), white (an order type to pick, over the dimmed screen).
+  // violet (pager), white (an order type to pick, over the dimmed screen); Print bill is the light blue one.
   const ctxButton = (colour, icon, size, label, props = {}, arrow = false) =>
-    el('button', { type: 'button', class: `cx-b ${colour}`, ...props }, mi(icon, size), el('span', { class: 'cx-b-label' }, label), arrow ? mi('expand_more', 18) : null);
+    el('button', { type: 'button', class: `cx-b ${colour}`, ...props }, mi(icon, size), label ? el('span', { class: 'cx-b-label' }, label) : null, arrow ? mi('expand_more', 18) : null);
+  // A chip in the order header: grey, pink (a ready time), dark (Modify on); Hold is round, an icon only.
+  const chip = (colour, icon, size, label, props = {}) =>
+    el('button', { type: 'button', class: `cx-chip ${colour}`, ...props }, mi(icon, size), label ? el('span', { class: 'cx-b-label' }, label) : null);
 
   function orderPanel() {
     const t = totals(), c = order.customer, table = tableName(order.table);
-    // Two rows of three, in this tablet's order (to start with: Order type · Pager · Schedule / Add Customer (Choose table
-    // for Dine in) · Modify · Hold). Each row is a grid of its own (1.1 / 0.95 / 1.15), so a long name only takes room in
-    // its own row. Order type opens the four types in the places of Order type, Pager, Add Customer and Modify, over the
-    // dimmed screen. Hold any of the six to rearrange them (below).
-    const option = key => el('div', { class: 'cx-seg lift' }, ctxButton(order.type === key ? 'amber' : 'white', typeIcon[key], 20, typeLabel[key],
-      { 'aria-pressed': String(order.type === key), onclick: () => pickType(key) }));
+    // Counter Update 3. The context row: Order type ▾ · Add Customer (Choose table / Table 7 for Dine in) · Pager · Print
+    // bill (an icon); then the order header: Order #1015 · Schedule · Modify · Hold ........ 24 items. Hold any of them to
+    // rearrange its group (below). Order type opens the four types, two by two, over both, over the dimmed screen.
     const typeBtn = ctxButton(order.type ? 'amber' : 'grey unset', order.type ? typeIcon[order.type] : 'receipt_long', 20, typeLabel[order.type] || 'Order type',
-      { class: `cx-b ${order.type ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
-    const pager = ctxButton(order.pager ? 'violet' : 'grey', 'vibration', 19, order.pager ? `Pager ${order.pager}` : 'Assign pager',
-      { class: `cx-b ${order.pager ? 'violet' : 'grey'} cx-pager`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign pager', onclick: () => { sheet = 'pager'; render(); } });
-    const schedule = ctxButton(order.readyAt ? 'pink' : 'grey', 'schedule', 19, order.readyAt ? whenShort(order.readyAt) : 'Schedule',
-      { class: `cx-b ${order.readyAt ? 'pink' : 'grey'} cx-sched`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule', onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } });
+      { class: `cx-b ${order.type ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': 'true', 'aria-expanded': String(typeMenu), 'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
     const who = order.type === 'dine-in'
       ? ctxButton('grey', 'table_restaurant', 19, table ? `Table ${table}` : 'Choose table', { class: 'cx-b grey cx-who', 'aria-label': table ? `Table ${table}. Tap to change the table` : 'Choose table', onclick: pickTable })
       : ctxButton('grey', c ? 'person' : 'person_add', 19, c ? c.name : 'Add Customer', { class: 'cx-b grey cx-who', 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer });
-    const modify = ctxButton(order.split ? 'dark' : 'grey', 'edit', 18, 'Modify', { class: `cx-b ${order.split ? 'dark' : 'grey'} cx-modify`, role: 'switch', 'aria-checked': String(order.split), onclick: () => setSplit(!order.split) });
-    const holdBtn = ctxButton('grey', 'pause_circle', 19, 'Hold', { class: 'cx-b grey cx-hold', disabled: !order.lines.length || Boolean(order.number), title: order.number ? 'This order is saved in Orders' : null, onclick: holdTicket });
-    const buttons = { type: typeBtn, pager, schedule, customer: who, modify, hold: holdBtn };
-    // The four types take the places of those four buttons, wherever they are, in reading order
-    const typeSlots = panelOrder.filter(k => ['type', 'pager', 'customer', 'modify'].includes(k));
-    const cell = key => typeMenu && typeSlots.includes(key) ? option(TYPES[typeSlots.indexOf(key)])
-      : el('div', { class: 'cx-seg', 'data-tile': key }, buttons[key]);
-    const rows = [el('div', { class: 'cx-ctx' }, ...panelOrder.slice(0, 3).map(cell)), el('div', { class: 'cx-ctx' }, ...panelOrder.slice(3).map(cell))];
+    const pager = ctxButton(order.pager ? 'violet' : 'grey', 'vibration', 19, order.pager ? `Pager ${order.pager}` : 'Pager',
+      { class: `cx-b ${order.pager ? 'violet' : 'grey'} sm cx-pager`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign a pager', onclick: () => { sheet = 'pager'; render(); } });
+    const print = ctxButton('print', 'print', 28, '', { class: 'cx-b print cx-print', 'aria-label': 'Print bill', title: 'Print bill', disabled: !order.lines.length, onclick: printBill });
+    const schedule = chip(order.readyAt ? 'pink' : 'grey', 'schedule', 17, order.readyAt ? whenShort(order.readyAt) : 'Schedule',
+      { class: `cx-chip ${order.readyAt ? 'pink' : 'grey'} cx-sched`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule', onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } });
+    const modify = chip(order.split ? 'dark' : 'grey', 'edit', 17, 'Modify', { class: `cx-chip ${order.split ? 'dark' : 'grey'} cx-modify`, role: 'switch', 'aria-checked': String(order.split), onclick: () => setSplit(!order.split) });
+    const holdBtn = chip('hold', 'pause_circle', 20, '', { class: 'cx-chip hold cx-hold', 'aria-label': 'Hold', title: order.number ? 'This order is saved in Orders' : 'Hold', disabled: !order.lines.length || Boolean(order.number), onclick: holdTicket });
+    const tiles = { type: typeBtn, customer: who, pager, print, schedule, modify, hold: holdBtn };
+    const group = name => panelOrder[name].map(key => el('div', { class: 'cx-seg', 'data-tile': key }, tiles[key]));
+    // The four types, two by two over the context row and the header (those step out of sight meanwhile)
+    const pick = typeMenu ? el('div', { class: 'cx-pick' }, ...TYPES.map(key => el('div', { class: 'cx-seg lift' },
+      ctxButton(order.type === key ? 'amber' : 'white', typeIcon[key], 20, typeLabel[key], { 'aria-pressed': String(order.type === key), onclick: () => pickType(key) })))) : null;
+    const row = el('div', { class: 'cx-ctx', 'data-group': 'ctx' }, ...group('ctx'));
 
     // The order's number: a saved order's own, and on a new order the number it will have when it is saved (Save or Pay)
     const number = order.number || upcomingNumber();
     const head = el('div', { class: 'cx-oh' },
-      el('h2', { id: 'counter-title', tabindex: '-1' }, number ? `Order ${ticket(number)}` : 'New order'),
-      el('span', {}, t.count ? plural(t.count, 'item') : 'No items'));
+      el('div', { class: 'cx-ohl' },
+        el('h2', { id: 'counter-title', tabindex: '-1' }, number ? `Order ${ticket(number)}` : 'New order'),
+        el('div', { class: 'cx-chips', 'data-group': 'head' }, ...group('head'))),
+      el('span', { class: 'cx-count' }, t.count ? plural(t.count, 'item') : 'No items'));
 
-    // The order's lines: name · quantity stepper · "₹220 ea" and the line total; under them the line's modifiers (tap
-    // one to change them) and its note link; the note itself under everything. With Modify on, tapping a name shows the
-    // order types to move that line to.
+    // The order's lines, one under another with a hairline between: name · − quantity + (the number in blue: tap it for the
+    // number pad) · "₹220 ea" (more than one) and the line total; under them its choices as a line of coloured text, and
+    // its note.
+    // Tap a line to select it (light blue, a blue bar on its left): its choices become pills (tap one to change them) and
+    // "Add note / Edit note" shows. − / + and the number work straight away on any line. With Modify on, the selected
+    // line also shows the order types to move it to.
     const list = el('ul', { class: 'cx-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'cx-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap an item to add it.')));
     const lineRow = line => {
-      const item = items.get(line.id), key = keyOf(line), open = order.split && selected === key, each = eachOf(line);
-      const pills = (line.mods || []).map(m => el('button', { type: 'button', class: `cx-mc ${optionOf.get(m)?.kind === 'spice' ? 'sp' : 'nn'}`, 'aria-label': `${modLabel(m)}. Tap to change the choices`, onclick: () => openItemSheet(key) }, modLabel(m)));
-      const name = order.split
-        ? el('button', { type: 'button', class: 'cx-nm-btn', 'aria-expanded': String(open), onclick: () => { selected = open ? null : key; render(); } }, item.name)
-        : el('b', {}, item.name);
-      return el('li', { class: `cx-line${open ? ' open' : ''}`, 'data-line': key, onkeydown: e => { if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest?.('button')) { e.preventDefault(); removeLine(key); } } },
-        el('div', { class: 'cx-row' },
-          el('div', { class: 'cx-nm' }, name),
+      const item = items.get(line.id), key = keyOf(line), sel = selected === key, open = order.split && sel, each = eachOf(line);
+      const mods = (line.mods || []).map(m => {
+        const kind = `cx-mc ${optionOf.get(m)?.kind === 'spice' ? 'sp' : 'nn'}`;
+        return sel ? el('button', { type: 'button', class: kind, 'aria-label': `${modLabel(m)}. Tap to change the choices`, onclick: () => openItemSheet(key) }, modLabel(m)) : el('span', { class: kind }, modLabel(m));
+      });
+      return el('li', { class: `cx-line${sel ? ' sel' : ''}${open ? ' open' : ''}`, 'data-line': key, onkeydown: e => { if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest?.('button')) { e.preventDefault(); removeLine(key); } } },
+        el('div', { class: 'cx-row', onclick: e => { if (!e.target.closest?.('.cx-stp, .cx-mcs button, .cx-an, .cx-move')) selectLine(key); } },
+          el('div', { class: 'cx-nm' }, el('button', { type: 'button', class: 'cx-nm-btn', 'aria-expanded': String(sel) }, item.name)),
           el('div', { class: 'cx-stp' },
-            el('button', { type: 'button', 'aria-label': `One less ${item.name}`, onclick: () => setQty(key, line.qty - 1) }, mi('remove', 18)),
-            el('button', { type: 'button', class: 'cx-qty', 'aria-label': `Quantity ${line.qty}. Tap to type a quantity`, onclick: () => { qtyKey = key; qtyValue = ''; sheet = 'qty'; render(); } }, String(line.qty)),
-            el('button', { type: 'button', 'aria-label': `One more ${item.name}`, onclick: () => setQty(key, line.qty + 1) }, mi('add', 18))),
-          el('div', { class: 'cx-lt' }, el('small', {}, `${rupees(each)} ea`), el('b', {}, rupees(each * line.qty))),
-          pills.length ? el('div', { class: 'cx-mcs' }, ...pills) : null,
-          el('button', { type: 'button', class: 'cx-an', 'aria-label': `${line.note ? 'Edit the note' : 'Add a note'} for ${item.name}`, onclick: () => openNoteSheet(key) }, mi('edit', 14), el('span', {}, line.note ? 'Edit note' : 'Add note')),
+            el('button', { type: 'button', class: 'cx-sb', 'aria-label': line.qty > 1 ? `One less ${item.name}` : `Remove ${item.name}`, onclick: () => setQty(key, line.qty - 1) }, mi('remove', 22)),
+            el('button', { type: 'button', class: 'cx-qty', 'aria-label': `Quantity ${line.qty}. Tap to type a quantity`, onclick: () => openQtyPad(key) }, String(line.qty)),
+            el('button', { type: 'button', class: 'cx-sb', 'aria-label': `One more ${item.name}`, onclick: () => setQty(key, line.qty + 1) }, mi('add', 22))),
+          el('div', { class: 'cx-lt' }, line.qty > 1 ? el('small', {}, `${rupees(each)} ea`) : null, el('b', {}, rupees(each * line.qty))),
+          mods.length ? el('div', { class: 'cx-mcs' }, ...mods) : null,
+          sel ? el('button', { type: 'button', class: 'cx-an', 'aria-label': `${line.note ? 'Edit the note' : 'Add a note'} for ${item.name}`, onclick: () => openNoteSheet(key) }, mi('edit', 14), el('span', {}, line.note ? 'Edit note' : 'Add note')) : null,
           line.note ? el('div', { class: 'cx-cmt' }, mi('receipt_long', 14), el('span', {}, line.note)) : null,
           open ? el('div', { class: 'cx-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
             ...TYPES.map(type => el('button', { type: 'button', role: 'radio', 'aria-checked': String(lineType(line) === type), class: lineType(line) === type ? 'on' : '', onclick: () => moveLine(key, type) }, mi(typeIcon[type], 18), typeLabel[type]))) : null));
@@ -715,20 +744,26 @@
       }
     } else order.lines.forEach(line => list.append(lineRow(line)));
 
-    // Totals: Subtotal and GST, then Total; Save and Pay at the bottom, the same size (Print bill is in the menu)
+    // Totals: Subtotal and GST (the total is on Pay); Save and Pay at the bottom, the same size, no icons. The Undo bar,
+    // while there is one, floats just above Subtotal.
+    const u = undoShown();
     const sums = el('div', { class: 'cx-tot' },
+      u ? el('div', { class: 'cx-undo', role: 'status' }, el('span', {}, el('b', {}, u.name), ' removed'), el('button', { type: 'button', onclick: undoRemove }, 'UNDO')) : null,
       el('div', { class: 'cx-r' }, el('span', {}, 'Subtotal'), el('span', {}, amount(t.subtotal))),
       el('div', { class: 'cx-r' }, el('span', {}, menu.taxLabel), el('span', {}, amount(t.tax))),
-      el('div', { class: 'cx-r big' }, el('span', {}, 'Total'), el('span', {}, amount(t.total))),
       el('div', { class: 'cx-act' },
-        el('button', { type: 'button', class: 'cx-save', disabled: !t.count, onclick: saveOrder }, mi('save', 20), 'Save'),
-        el('button', { type: 'button', class: 'cx-pay', disabled: !t.count, 'aria-label': `Pay ${amount(t.total)}`, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, mi('payments', 22), `Pay  ${amount(t.total)}`)));
+        el('button', { type: 'button', class: 'cx-save', disabled: !t.count, onclick: saveOrder }, 'Save'),
+        el('button', { type: 'button', class: 'cx-pay', disabled: !t.count, 'aria-label': `Pay ${amount(t.total)}`, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, `Pay\u00A0\u00A0${amount(t.total)}`)));
 
-    return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}`, 'aria-label': 'Current order' }, ...rows, head, list, sums);
+    return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}${typeMenu ? ' picking' : ''}`, 'aria-label': 'Current order' }, pick, row, head, list, sums);
   }
+  // Tap a line: it is selected (another one was, it isn't any more); tapping the selected one again keeps it so.
+  function selectLine(key) { if (selected === key) return; selected = key; render(); }
+  // The quantity pad, opened by tapping the blue number on any line: beside the order, level with the line
+  function openQtyPad(key) { qtyKey = key; qtyValue = ''; sheet = 'qty'; render(); }
 
-  // The menu side: the three-line menu (Print bill, Highlight order, Delete order), search, then Held · Orders · Payment
-  // history; under them the menu itself (renderMenuBody).
+  // The menu side: the three-line menu (Highlight order, Delete order; Print bill is in the context row), search, then
+  // Held · Orders · Payment history; under them the menu itself (renderMenuBody).
   function menuSide() {
     const search = el('label', { class: 'cx-sr' }, mi('search', 22), el('span', { class: 'visually-hidden' }, 'Search menu items'),
       el('input', { id: 'counter-search', type: 'search', placeholder: 'Search menu items', autocomplete: 'off', enterkeyhint: 'search', value: query,
@@ -746,17 +781,16 @@
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter', view: 'held' }); else { sheet = 'held'; render(); } } }, mi('pause_circle', 19), 'Held'),
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, mi('receipt_long', 19), 'Orders'),
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { sheet = 'payments'; render(); } }, mi('history', 19), 'Payment history'));
-    // The menu: 14 below the button, over the dimmed screen. Print bill and Highlight order need items; Delete order asks
-    // again before it deletes the order on screen.
+    // The menu: 14 below the button, over the dimmed screen. Highlight order needs items; Delete order asks again before
+    // it deletes the order on screen.
     const pop = optionsMenu ? el('div', { class: 'cx-pop', role: 'menu', 'aria-label': 'Menu' },
-      el('button', { type: 'button', role: 'menuitem', class: 'cx-mi', disabled: !order.lines.length, onclick: () => { openOptions(false); printBill(); } }, mi('print', 26), 'Print bill'),
       el('button', { type: 'button', role: 'menuitem', class: 'cx-mi', disabled: !order.lines.length, onclick: () => setHighlight(true) }, mi('swap_vert', 26), 'Highlight order'),
       el('div', { class: 'cx-sep', role: 'separator' }),
       el('button', { type: 'button', role: 'menuitem', class: `cx-mi del${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete }, mi('delete', 26),
         deleteArmed ? (order.number ? `Tap again to delete ${ticket(order.number)}` : 'Tap again to delete') : 'Delete order')) : null;
     return el('section', { class: 'cx-main', 'aria-label': 'Menu' }, top, pop, el('div', { class: 'cx-area' }),
-      // (Not while a sheet such as the quantity pad or Pay is open: the sheet dims the whole screen itself.)
-      highlight && !sheet ? el('div', { class: 'cx-dim', onclick: () => setHighlight(false) }) : null);
+      // (Not while a sheet such as Pay is open: the sheet dims the whole screen itself. The number pad leaves it as it is.)
+      highlight && (!sheet || sheet === 'qty') ? el('div', { class: 'cx-dim', onclick: () => setHighlight(false) }) : null);
   }
 
   const matches = () => {
@@ -902,22 +936,25 @@
   root.addEventListener('contextmenu', event => { if (event.target.closest?.('[data-arrange]')) event.preventDefault(); });
 
   // ---------- rearranging the order panel ----------
-  // Hold any of the six buttons at the top (Order type, Pager, Schedule, Add Customer, Modify, Hold), as with the menu:
-  // they jiggle and the one held follows the finger, the others making room for it as it passes over their places. Let
-  // go over the buttons to keep the new order (kept on this tablet); let go away from them to put them back. A tap
-  // anywhere else, or Back, finishes; while they jiggle, tapping one does nothing. (Not while the order types are open.)
-  const panelTiles = () => [...dialog.querySelectorAll('.cx-ctx > [data-tile]')];
+  // Hold any of the buttons at the top (Order type, Add Customer, Pager, Print bill in the context row; Schedule, Modify,
+  // Hold in the header), as with the menu: they all jiggle and the one held follows the finger, the others in its group
+  // making room for it as it passes over their places (each group keeps its own buttons). Let go over its group to keep
+  // the new order (kept on this tablet); let go away from it to put them back. A tap anywhere else, or Back, finishes;
+  // while they jiggle, tapping one does nothing. (Not while the order types are open.)
+  const TILE = '[data-group] > [data-tile]';
+  const panelTiles = name => [...dialog.querySelectorAll(`[data-group="${name}"] > [data-tile]`)];
   function setPanelArranging(on) {
     if (panelArranging === on) return;
     if (!on && panelDrag) endPanelDrag(true);
     panelArranging = on; dialog.querySelector('.cx-order')?.classList.toggle('arranging', on);
   }
-  // The buttons in the given order: three in each row
-  function placePanel(order, slide) {
-    const rows = [...dialog.querySelectorAll('.cx-ctx')], tiles = new Map(panelTiles().map(t => [t.dataset.tile, t]));
-    if (rows.length !== 2 || tiles.size !== PANEL_TILES.length) return;
+  // A group's buttons in the given order
+  function placePanel(name, keys, slide) {
+    const box = dialog.querySelector(`[data-group="${name}"]`), tiles = new Map(panelTiles(name).map(t => [t.dataset.tile, t]));
+    if (!box || tiles.size !== PANEL_GROUPS[name].tiles.length) return;
     const before = slide ? new Map([...tiles].map(([k, t]) => [k, t.getBoundingClientRect()])) : null;
-    order.forEach((k, i) => { const row = rows[i < 3 ? 0 : 1], ghost = row.querySelector(':scope > .cx-ghost'); row.insertBefore(tiles.get(k), ghost); });
+    const ghost = box.querySelector(':scope > .cx-ghost');
+    keys.forEach(k => box.insertBefore(tiles.get(k), ghost));
     if (!slide) return;
     // The buttons that change place slide from where they were shown to their new place
     for (const [k, t] of tiles) {
@@ -927,16 +964,16 @@
       try { const run = t.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', composite: 'add' }); run.id = 'cx-slide'; } catch {}
     }
   }
-  function startPanelDrag(key, pointerId, x, y) {
-    const tile = dialog.querySelector(`.cx-ctx > [data-tile="${key}"]`); if (!tile || typeMenu) return;
-    // The six places (as laid out, their jiggle left out), measured once: the buttons move between them, the places stay
-    const tiles = panelOrder.map(k => dialog.querySelector(`.cx-ctx > [data-tile="${k}"]`));
+  function startPanelDrag(name, key, pointerId, x, y) {
+    const tile = dialog.querySelector(`[data-group="${name}"] > [data-tile="${key}"]`); if (!tile || typeMenu) return;
+    // The group's places (as laid out, their jiggle left out), measured once: the buttons move between them, the places stay
+    const tiles = panelOrder[name].map(k => dialog.querySelector(`[data-group="${name}"] > [data-tile="${k}"]`));
     if (tiles.some(t => !t)) return;
     const slots = tiles.map(t => { const p = placeOf(t); return { ...p, right: p.left + p.width, bottom: p.top + p.height }; });
-    const r = slots[panelOrder.indexOf(key)];
+    const r = slots[panelOrder[name].indexOf(key)];
     setPanelArranging(true);
     const ghost = ghostOf(tile, r); tile.classList.add('cx-origin');
-    panelDrag = { key, tile, pointerId, ghost, slots, order: [...panelOrder], ox: x - (r.left + r.width / 2), oy: y - (r.top + r.height / 2) };
+    panelDrag = { name, key, tile, pointerId, ghost, slots, order: [...panelOrder[name]], ox: x - (r.left + r.width / 2), oy: y - (r.top + r.height / 2) };
     try { tile.closest('.cx-order').setPointerCapture(pointerId); } catch {}
   }
   function movePanelDrag(x, y) {
@@ -944,23 +981,23 @@
     const i = d.slots.findIndex(s => x >= s.left && x <= s.right && y >= s.top && y <= s.bottom);
     if (i < 0 || d.order[i] === d.key) return;
     const next = d.order.filter(k => k !== d.key); next.splice(i, 0, d.key);
-    d.order = next; placePanel(next, true);
+    d.order = next; placePanel(d.name, next, true);
   }
-  // Let go: over the buttons, the order shown is kept; away from them (or cancelled), they go back as they were.
+  // Let go: over its group, the order shown is kept; away from it (or cancelled), they go back as they were.
   function endPanelDrag(cancel) {
     const d = panelDrag; if (!d) return; panelDrag = null;
     d.ghost.remove(); d.tile.classList.remove('cx-origin');
-    if (!cancel && d.order.join() !== panelOrder.join()) { panelOrder = d.order; store(PANEL_KEY, panelOrder); }
-    placePanel(panelOrder, false);
+    if (!cancel && d.order.join() !== panelOrder[d.name].join()) { panelOrder[d.name] = d.order; store(PANEL_GROUPS[d.name].key, d.order); }
+    placePanel(d.name, panelOrder[d.name], false);
   }
   root.addEventListener('pointerdown', event => {
-    const tile = event.target.closest?.('.cx-ctx > [data-tile]');
+    const tile = event.target.closest?.(TILE);
     if (panelArranging && !panelDrag && !tile) setPanelArranging(false); // a tap anywhere else finishes rearranging
     if (!tile || event.button !== 0 || panelDrag || drag || typeMenu) return;
     panelSuppress = false;
     clearTimeout(panelPress?.timer);
-    const p = { id: event.pointerId, x: event.clientX, y: event.clientY, key: tile.dataset.tile };
-    p.timer = setTimeout(() => { if (panelPress === p) { panelPress = null; startPanelDrag(p.key, p.id, p.x, p.y); } }, panelArranging ? 120 : 420);
+    const p = { id: event.pointerId, x: event.clientX, y: event.clientY, name: tile.parentElement.dataset.group, key: tile.dataset.tile };
+    p.timer = setTimeout(() => { if (panelPress === p) { panelPress = null; startPanelDrag(p.name, p.key, p.id, p.x, p.y); } }, panelArranging ? 120 : 420);
     panelPress = p;
   });
   root.addEventListener('pointermove', event => {
@@ -981,11 +1018,11 @@
   root.addEventListener('touchmove', event => { if (panelDrag) event.preventDefault(); }, { passive: false });
   // No button's action after a drag, or while they jiggle
   root.addEventListener('click', event => {
-    if (!event.target.closest?.('.cx-ctx > [data-tile]')) return;
+    if (!event.target.closest?.(TILE)) return;
     if (panelSuppress || panelArranging) { event.preventDefault(); event.stopPropagation(); }
     panelSuppress = false;
   }, true);
-  root.addEventListener('contextmenu', event => { if (event.target.closest?.('.cx-ctx > [data-tile]')) event.preventDefault(); });
+  root.addEventListener('contextmenu', event => { if (event.target.closest?.(TILE)) event.preventDefault(); });
 
   // ---------- options and notes ----------
   // An item's options sheet (its modifier groups): to add it (the required choices start on their defaults), or to change
@@ -1174,34 +1211,36 @@
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet', role: 'dialog', 'aria-label': 'Take payment' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Take payment'), close), body));
     }
+    // The number pad for a line's quantity (Counter Update 3): a card beside the order, level with the line, the rest of
+    // the screen as it is. "<dish> · quantity", the value (the line's quantity until a key is pressed) and its price
+    // each; 1–9, ⌫, 0 and a green Done. Done sets it (0 takes the dish off, with Undo); a tap outside closes it unchanged.
     if (sheet === 'qty') {
       const line = order.lines.find(l => keyOf(l) === qtyKey);
       if (!line) { sheet = null; return null; }
-      const item = items.get(line.id);
-      const display = el('output', { class: 'ctr-pad-display', 'aria-live': 'polite' }, qtyValue || String(line.qty));
-      if (!qtyValue) display.classList.add('placeholder');
+      const item = items.get(line.id), key = keyOf(line);
+      const shut = () => { sheet = null; qtyKey = null; render(); };
+      const done = () => { const n = parseInt(qtyValue, 10); sheet = null; qtyKey = null; if (Number.isFinite(n) && n !== line.qty) setQty(key, n); else render(); };
       const press = k => {
-        if (k === 'C') qtyValue = '';
-        else if (k === '⌫') qtyValue = qtyValue.slice(0, -1);
+        if (k === 'done') { done(); return; }
+        if (k === '⌫') qtyValue = qtyValue.slice(0, -1);
         else if (qtyValue.length < 3) qtyValue = (qtyValue === '0' ? '' : qtyValue) + k;
         render();
       };
-      const setBtn = el('button', { type: 'button', class: 'primary-button ctr-complete', disabled: !qtyValue, onclick: () => { const n = parseInt(qtyValue, 10); sheet = null; qtyKey = null; setQty(keyOf(line), Number.isFinite(n) ? n : line.qty); if (n === 0) toast(`${item.name} removed`); } }, qtyValue === '0' ? 'Remove item' : 'Set quantity');
-      const pad = el('div', { class: 'ctr-pad' }, ...['1','2','3','4','5','6','7','8','9','C','0','⌫'].map(k =>
-        el('button', { type: 'button', class: `ctr-pad-key ${k === 'C' || k === '⌫' ? 'muted' : ''}`, 'aria-label': k === '⌫' ? 'Backspace' : k === 'C' ? 'Clear' : k, onclick: () => press(k) }, k)));
       setTimeout(() => {
-        const handler = e => {
-          if (sheet !== 'qty') { document.removeEventListener('keydown', handler, true); return; }
-          if (/^\d$/.test(e.key)) { e.preventDefault(); press(e.key); }
-          else if (e.key === 'Backspace') { e.preventDefault(); press('⌫'); }
-          else if (e.key === 'Enter' && qtyValue) { e.preventDefault(); dialog.querySelector('.ctr-pad-sheet .ctr-complete')?.click(); }
-        };
-        if (!dialog._padKeys) { dialog._padKeys = true; document.addEventListener('keydown', e => { if (sheet === 'qty') handler(e); }, true); }
+        if (dialog._padKeys) return; dialog._padKeys = true;
+        document.addEventListener('keydown', e => {
+          if (sheet !== 'qty' || !dialog.open) return;
+          if (/^\d$/.test(e.key)) { e.preventDefault(); dialog.querySelector(`.cx-np-keys [data-key="${e.key}"]`)?.click(); }
+          else if (e.key === 'Backspace') { e.preventDefault(); dialog.querySelector('.cx-np-keys [data-key="⌫"]')?.click(); }
+          else if (e.key === 'Enter') { e.preventDefault(); dialog.querySelector('.cx-np-keys [data-key="done"]')?.click(); }
+        }, true);
       });
-      return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
-        el('div', { class: 'ctr-sheet ctr-pad-sheet', role: 'dialog', 'aria-label': `Quantity for ${item.name}` },
-          el('div', { class: 'ctr-sheet-head' }, el('h3', {}, item.name), close),
-          display, pad, setBtn));
+      return [el('div', { class: 'cx-np-catch', onclick: shut }),
+        el('div', { class: 'cx-np', role: 'dialog', 'aria-label': `Quantity for ${item.name}`, 'data-line': key },
+          el('h4', {}, `${item.name} · quantity`),
+          el('div', { class: 'cx-np-disp' }, el('output', { 'aria-live': 'polite' }, qtyValue || String(line.qty)), el('small', {}, `${rupees(eachOf(line))} ea`)),
+          el('div', { class: 'cx-np-keys' }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'done'].map(k =>
+            el('button', { type: 'button', class: k === 'done' ? 'ok' : '', 'data-key': k, 'aria-label': k === '⌫' ? 'Backspace' : k === 'done' ? 'Done' : k, onclick: () => press(k) }, k === 'done' ? 'Done' : k))))];
     }
     // Held: only tickets put on Hold (newest first). They are cleared at the end of the day.
     if (sheet === 'held') {
@@ -1378,12 +1417,23 @@
     root.replaceChildren(
       el('div', { class: `cx-shell${highlight ? ' highlight' : ''}${arranging ? ' arranging' : ''}`, 'data-style': menuStyle }, orderPanel(), menuSide()),
       typeMenu || optionsMenu ? el('div', { class: 'cx-scrim', onclick: () => (typeMenu ? openTypeMenu(false) : openOptions(false)) }) : '',
-      sheetView() || '');
+      ...[sheetView()].flat().filter(Boolean));
     renderMenuBody();
     const lines = dialog.querySelector('.cx-lines');
     if (lines && dialog.open) { lines.scrollTop = scrollMemo.lines; scrollMemo.lines = lines.scrollTop; }
+    placeQtyPad();
     // Typing carries on where it was (search, or a note)
     if (focusId === 'counter-search' || focusId === 'counter-note') { const f = dialog.querySelector(`#${focusId}`); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
+  }
+  // The number pad: 16 to the right of the order panel, its top 30.6 below the top of the line it is for (as in the
+  // design), and always on the screen
+  function placeQtyPad() {
+    const pad = dialog.querySelector('.cx-np'), panel = dialog.querySelector('.cx-order'); if (!pad || !panel) return;
+    const line = [...dialog.querySelectorAll('.cx-line')].find(li => li.dataset.line === pad.dataset.line);
+    const p = panel.getBoundingClientRect(), u = p.width / 532, top = dialog.getBoundingClientRect().top + 12 * u;
+    const want = line ? line.getBoundingClientRect().top + 30.6 * u : top;
+    pad.style.left = `${p.right + 16 * u}px`;
+    pad.style.top = `${Math.max(top, Math.min(want, innerHeight - pad.offsetHeight - 12 * u))}px`;
   }
   function toast(message) { if (typeof window.toast === 'function') window.toast(message); else document.querySelector('#toast') && (document.querySelector('#toast').textContent = message); }
 
@@ -1396,6 +1446,7 @@
     if (highlight) { setHighlight(false); return true; } // a sheet opened from it closes first
     if (panelArranging) { setPanelArranging(false); return true; }
     if (arranging) { setArranging(false); return true; }
+    if (selected) { selected = null; render(); return true; } // a selected line goes back to a plain one
     if (query) { query = ''; render(); return true; }
     if (category && menuStyle === 'grid') { category = null; renderMenuBody(); return true; } // inside a category: back to all of them
     if (fromFloor && window.RestroFloor) { fromFloor = false; window.RestroFloor.open(); return true; } // opened from a table: Back returns to the Floor
@@ -1403,21 +1454,24 @@
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
-  // Tapping anywhere outside the open (selected) item puts it back to a plain line. The tap still does its own job.
+  // Tapping anywhere outside the selected line puts it back to a plain line (the number pad and the sheets opened from it
+  // leave it as it is). The tap still does its own job: on another line, that line is selected instead.
   dialog.addEventListener('click', event => {
     if (!selected || !dialog.open) return;
-    if (event.target.closest?.('.cx-line')?.dataset.line === selected) return;
+    if (event.target.closest?.('.cx-line')?.dataset.line === selected || event.target.closest?.('.cx-np, .cx-np-catch, .cx-sheet-wrap, .ctr-sheet-wrap')) return;
     selected = null; render();
   }, true);
   // Remember where the order list was scrolled while Counter is on screen (a hidden list reports 0, so it is ignored then).
   root.addEventListener('scroll', event => {
     if (dialog.open && event.target.classList?.contains('cx-lines')) scrollMemo.lines = event.target.scrollTop;
   }, true);
-  // Leaving Counter ends rearranging; the order, the page and everything else stay as they were.
+  // Leaving Counter ends rearranging, the selection, the number pad and the Undo bar; the order, the page and everything
+  // else stay as they were.
   dialog.addEventListener('close', () => {
     if (press) { clearTimeout(press.timer); press = null; } if (drag) endDrag(true, false); arranging = false;
     if (panelPress) { clearTimeout(panelPress.timer); panelPress = null; } if (panelDrag) endPanelDrag(true); panelArranging = false;
-    typeMenu = false; optionsMenu = false; deleteArmed = false;
+    typeMenu = false; optionsMenu = false; deleteArmed = false; selected = null; clearUndo();
+    if (sheet === 'qty') { sheet = null; qtyKey = null; }
   });
   // Toasts must show above this full-screen app.
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;
@@ -1475,19 +1529,20 @@
     // A still picture of the Counter as it is now, in a display style: for the previews in Settings. Exactly what Counter
     // shows when it opens again (the order on screen and where its list is scrolled, the buttons and the menu in this
     // tablet's order, the category or search it was on), in that style. What closes when Counter is left (the order
-    // types, the menu, Highlight order) isn't in it. Nothing in it can be tapped, focused or read out. The order list's
+    // types, the menu, Highlight order, a selected line, the Undo bar) isn't in it. Nothing in it can be tapped, focused
+    // or read out. The order list's
     // place is set once the picture is on screen (data-scroll-top).
     preview(style = menuStyle) {
       if (!MENU_STYLES.some(x => x.id === style)) style = menuStyle;
-      const was = { typeMenu, optionsMenu, deleteArmed, highlight, panelArranging };
-      typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; panelArranging = false;
+      const was = { typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo };
+      typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; panelArranging = false; selected = null; undo = null;
       try {
         const shell = el('div', { class: 'cx-shell', 'data-style': style }, orderPanel(), menuSide());
         shell.querySelector('.cx-area')?.replaceChildren(...menuArea(style));
         for (const node of shell.querySelectorAll('[id]')) node.removeAttribute('id');
         shell.querySelector('.cx-lines')?.setAttribute('data-scroll-top', String(scrollMemo.lines));
         return el('div', { class: 'ctr-root cx-still', inert: true, 'aria-hidden': 'true' }, shell);
-      } finally { ({ typeMenu, optionsMenu, deleteArmed, highlight, panelArranging } = was); }
+      } finally { ({ typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo } = was); }
     }
   });
 })();
