@@ -186,7 +186,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-scrim{position:fixed;inset:0;z-index:40;background:rgba(15,23,42,.45);animation:cx-fade .14s ease-out}
 @keyframes cx-fade{from{opacity:0}}
 /* The order header: "Order #1015" 18/700, then Schedule · Modify · Hold (chips 36 tall, 14/600; Hold round, an icon,
-   the darker grey of Save), 8 apart ........ "24 items" 13 grey */
+   the darker grey of Save, always the same: it is always there), 8 apart ........ "24 items" 13 grey */
 .cx-oh{flex:none;display:flex;align-items:center;justify-content:space-between;gap:calc(8 * var(--u));padding:calc(6 * var(--u)) calc(4 * var(--u)) 0}
 .cx-ohl{min-width:0;display:flex;align-items:center;gap:calc(8 * var(--u))}
 .cx-oh h2{flex:none;margin:0 calc(4 * var(--u)) 0 0;font-size:calc(18 * var(--u));font-weight:700;line-height:normal;white-space:nowrap}
@@ -197,7 +197,6 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-chip.pink{background:#FCE7F1;color:#9D174D;box-shadow:none}
 .cx-chip.dark{background:#4B5058;color:#FFFFFF;box-shadow:none}
 .cx-chip.hold{width:calc(36 * var(--u));padding:0;justify-content:center;background:#E2E5EA;box-shadow:inset 0 0 0 1.5px #C9CED6}
-.cx-chip:disabled{color:#A8A29E;cursor:default}
 .cx-count{flex:none;font-size:calc(13 * var(--u));color:#615C57;white-space:nowrap}
 /* The lines, edge to edge of the panel (the list scrolls when they don't fit) */
 .cx-lines{flex:1;min-height:0;margin:0 calc(-20 * var(--u));padding:0 calc(20 * var(--u));list-style:none;display:flex;flex-direction:column;overflow:auto;overscroll-behavior:contain;scrollbar-width:none}

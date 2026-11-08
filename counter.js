@@ -457,11 +457,14 @@
     toast([`Order ${ticket(entry.number)} saved`, kitchen].filter(Boolean).join(' · '));
     fresh();
   }
-  // Hold (new orders): the ticket waits in Held until the end of the day, as the customer may call or come back.
+  // Hold (always there): the order on screen waits in Held until the end of the day, as the customer may call or come
+  // back, and a new order starts. A new order's table and pager are free meanwhile; a saved order stays in Orders as it
+  // was saved and is held with its changes, keeping its table and pager (as when another order takes the screen).
   function holdTicket() {
-    if (!order.lines.length || order.number) return;
-    const freed = [usesTable(order) ? `table ${tableName(order.table)}` : '', order.pager ? `pager ${order.pager}` : ''].filter(Boolean);
-    hold(); toast(`On hold until the end of the day${freed.length ? ` · ${freed.join(' and ')} free` : ''}`); fresh();
+    if (!order.lines.length) { toast('Nothing to hold'); return; }
+    const freed = order.number ? [] : [usesTable(order) ? `table ${tableName(order.table)}` : '', order.pager ? `pager ${order.pager}` : ''].filter(Boolean);
+    const said = `${order.number ? `Order ${ticket(order.number)} on hold` : 'On hold'} until the end of the day${freed.length ? ` · ${freed.join(' and ')} free` : ''}`;
+    hold(); toast(said); fresh();
   }
   // Schedule: the time the customer wants the order ready. It is saved with Save or Pay, and goes to the kitchen
   // the preparation time before.
@@ -690,7 +693,7 @@
     const schedule = chip(order.readyAt ? 'pink' : 'grey', 'schedule', 17, order.readyAt ? whenShort(order.readyAt) : 'Schedule',
       { class: `cx-chip ${order.readyAt ? 'pink' : 'grey'} cx-sched`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule', onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } });
     const modify = chip(order.split ? 'dark' : 'grey', 'edit', 17, 'Modify', { class: `cx-chip ${order.split ? 'dark' : 'grey'} cx-modify`, role: 'switch', 'aria-checked': String(order.split), onclick: () => setSplit(!order.split) });
-    const holdBtn = chip('hold', 'pause_circle', 20, '', { class: 'cx-chip hold cx-hold', 'aria-label': 'Hold', title: order.number ? 'This order is saved in Orders' : 'Hold', disabled: !order.lines.length || Boolean(order.number), onclick: holdTicket });
+    const holdBtn = chip('hold', 'pause_circle', 20, '', { class: 'cx-chip hold cx-hold', 'aria-label': 'Hold', title: 'Hold', onclick: holdTicket });
     const tiles = { type: typeBtn, customer: who, pager, print, schedule, modify, hold: holdBtn };
     const group = name => panelOrder[name].map(key => el('div', { class: 'cx-seg', 'data-tile': key }, tiles[key]));
     // The four types, two by two over the context row and the header (those step out of sight meanwhile)
