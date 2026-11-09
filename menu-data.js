@@ -12,8 +12,13 @@ window.RestroMenu = {
   taxLabel: 'GST 5%',
   // Modifier groups. kind: 'spice' shows amber on the order line, 'other' grey. A required group takes one choice, made
   // in the dish's pop-up as it is added (it can be changed but not cleared); the others take any number, or none.
-  // price: added to the item's price (rupees), shown on the pill ("Extra gravy +₹40").
+  // price: added to the item's price (rupees), shown on the pill ("Extra gravy +₹40"). A group with mode 'set' (Counter
+  // Update 7) sets the price instead: its choice's price is the dish's price (Half ₹200 / Full ₹340), add-ons on top.
   modifierGroups: [
+    { id: 'portion', name: 'Portion', kind: 'other', required: true, mode: 'set', options: [
+      { id: 'half', label: 'Half', price: 200 },
+      { id: 'full', label: 'Full', price: 340 }
+    ] },
     { id: 'spice', name: 'Spice level', kind: 'spice', required: true, options: [
       { id: 'less-spicy', label: 'Less spicy' },
       { id: 'medium-spicy', label: 'Medium spicy' },
@@ -45,7 +50,7 @@ window.RestroMenu = {
       { id: 'chicken-lollipop', name: 'Chicken lollipop', price: 300, veg: false, code: 'ST06' },
       { id: 'fish-fry', name: 'Fish fingers', price: 320, veg: false, code: 'ST05' },
       { id: 'hara-bhara-kebab', name: 'Hara bhara kebab', price: 210, veg: true, code: 'ST08' },
-      { id: 'tandoori-chicken-half', name: 'Tandoori chicken (half)', price: 340, veg: false, code: 'ST09' },
+      { id: 'tandoori-chicken-half', name: 'Tandoori chicken', price: 200, veg: false, code: 'ST09', modifiers: ['portion', 'spice'] },
       { id: 'crispy-corn', name: 'Crispy corn', price: 180, veg: true, code: 'ST10' },
       { id: 'spring-roll', name: 'Veg spring roll', price: 170, veg: true, code: 'ST03' },
       { id: 'chicken-tikka', name: 'Chicken tikka', price: 320, veg: false, code: 'ST11' },

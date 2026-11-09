@@ -28,7 +28,7 @@
   const dayKey = when => { const d = new Date(when); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
   const paidTime = o => Date.parse(o.paidAt) || 0;
   const minutes = ms => { const m = Math.max(0, Math.round(ms / 60000)); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
-  const TYPES = { 'dine-in': 'Dine in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call' };
+  const TYPES = { 'dine-in': 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call' };
   const toast = message => { if (typeof window.toast === 'function') window.toast(message); else { const t = document.querySelector('#toast'); if (t) { t.textContent = message; t.classList.add('visible'); setTimeout(() => t.classList.remove('visible'), 2400); } } };
   const shortcutOf = id => (typeof shortcuts !== 'undefined' ? shortcuts.find(item => item.id === id) : null);
   const icon = id => { const item = shortcutOf(id); return item && typeof appIcon === 'function' ? appIcon(item) : el('span', { class: 'app-icon' }); };

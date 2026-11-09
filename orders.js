@@ -38,7 +38,7 @@
   };
 
   // The order types in Counter's words and colours.
-  const TYPES = { 'dine-in': ['Dine in', '#d4743a'], takeaway: ['Takeaway', '#c9a227'], delivery: ['Delivery', '#c4534a'], phone: ['Phone call', '#5f9a4c'] };
+  const TYPES = { 'dine-in': ['Dine-in', '#d4743a'], takeaway: ['Takeaway', '#c9a227'], delivery: ['Delivery', '#c4534a'], phone: ['Phone call', '#5f9a4c'] };
   const METHODS = { cash: 'Cash', upi: 'UPI', card: 'Card' };
   const money = paise => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const dayKey = when => { const d = new Date(when); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
@@ -145,12 +145,18 @@
         // each item with its modifiers and its note for the kitchen under it, as on the bill
         el('ul', { class: 'ord-receipt-lines' }, ...o.lines.map(l => el('li', {},
           el('span', { class: 'ord-receipt-item' }, l.name), el('span', { class: 'ord-receipt-qty' }, `× ${l.qty}`), el('span', { class: 'ord-receipt-amt' }, money(Math.round(l.price * 100) * l.qty)),
-          Array.isArray(l.mods) && l.mods.length ? el('span', { class: 'ord-receipt-mods' }, l.mods.map(m => (m.price ? `${m.label} +₹${m.price}` : m.label)).join(' · ')) : null,
+          Array.isArray(l.mods) && l.mods.length ? el('span', { class: 'ord-receipt-mods' }, l.mods.map(m => (m.price && !m.sets ? `${m.label} +₹${m.price}` : m.label)).join(' · ')) : null,
+          // (Counter Update 7: its dish discount, as on the bill: "10% off −₹26.00", "100% off · Complaint −₹180.00")
+          window.RestroBill?.pct(l.off) ? el('span', { class: 'ord-receipt-mods' }, `${l.off}% off${l.off === 100 && l.offReason ? ` · ${l.offReason}` : ''} −${money(window.RestroBill.lineOff(Math.round(l.price * 100) * l.qty, l.off))}`) : null,
           l.note ? el('span', { class: 'ord-receipt-note' }, l.note) : null))),
-        // the sums as on the bill (Counter Update 6): the discount, CGST and SGST (GST on an order from before), the round off
+        // the sums as on the bill (Counter Update 7): the discount, the service charge, packaging and delivery, CGST and
+        // SGST (GST on an order from before Update 6), the round off
         el('dl', { class: 'ord-receipt-sums' },
           el('dt', {}, 'Subtotal'), el('dd', {}, money(sub)),
           ...(pct && Number.isFinite(o.discount) ? [el('dt', {}, `Discount ${pct}%`), el('dd', {}, `−${money(o.discount)}`)] : []),
+          ...(o.servicePct && Number(o.service) ? [el('dt', {}, `Service charge ${o.servicePct}% (optional)`), el('dd', {}, money(o.service))] : []),
+          ...(Number(o.packaging) ? [el('dt', {}, 'Packaging charge'), el('dd', {}, money(o.packaging))] : []),
+          ...(Number(o.delivery) ? [el('dt', {}, 'Delivery charge'), el('dd', {}, money(o.delivery))] : []),
           ...(split ? [el('dt', {}, gst.cgst), el('dd', {}, money(o.cgst)), el('dt', {}, gst.sgst), el('dd', {}, money(o.sgst))]
             : [el('dt', {}, rate ? `GST ${rate}%` : 'GST'), el('dd', {}, money(o.tax || 0))]),
           ...(Number(o.roundOff) ? [el('dt', {}, 'Round off'), el('dd', {}, `${o.roundOff < 0 ? '−' : ''}${money(Math.abs(o.roundOff))}`)] : []),

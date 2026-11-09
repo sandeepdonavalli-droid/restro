@@ -1,4 +1,4 @@
-# RESTRO Android bridge: Wi-Fi and Bluetooth
+# RESTRO Android bridge
 
 Browsers cannot list or join Wi-Fi networks, and they show Bluetooth devices only in
 their own picker. The RESTRO Android app fills that gap by defining these optional
@@ -111,17 +111,82 @@ Counter's **Print bill** button (the printer, at the end of the order panel's to
 method present, the bill goes to it, to print on the restaurant's bill printer; without it, the browser's own printing
 opens. Return `false` (or throw) if it didn't print; Counter says so.
 
-`bill` is plain data: `{ restaurant, number, at, type, table, customer, pager, lines, subtotal, discount, taxes, tax,
-taxLabel, roundOff, total }`. `number` is the ticket (`"#05"`, or `null` for an order not saved yet), `at` the time in
-milliseconds, amounts in rupees. Each line is `{ name, qty, each, total, modifiers, note }`: print `modifiers` (e.g.
-`"Medium spicy"`, `"Extra gravy +₹40"`) and the `note` (free text for the kitchen) under their line. A custom item
-(typed in at the Counter, not on the menu) is a line like any other: its name, or `"Custom item"`.
+Print it as `25_printed-bill` (Counter Update 7), 80 mm, **black only**:
 
-The sums, in this order: Subtotal; the discount, when the order has one (`discount`: `{ label, percent, amount }`, e.g.
-`"Discount 10%"` and `396`, printed as −₹396.00; otherwise `null`); each of `taxes` (`{ label, amount }`: `"CGST 2.5%"`
-and `"SGST 2.5%"`, on what is left after the discount); `roundOff` when it isn't 0 (the total is rounded to the nearest
-rupee: −0.20 is printed "Round off −₹0.20"); then `total`, the amount to pay. (`tax` and `taxLabel` are the two taxes
-together, `"GST 5%"`, for a one-line summary.)
+- **Header:** `restaurant` (large), `address`, then `GSTIN …` · `FSSAI …` (`gstin`, `fssai`: Settings › Business
+  details; the FSSAI licence number is required on bills in India). A dashed rule, **TAX INVOICE**, then the order
+  (`number`, e.g. `"#05"`, or `null` for an order not saved yet) and the date and time (`at`, milliseconds), then
+  `type` · `Table …` (`table`) · `… guests` (`guests`, 0 for none) · `customer` · `Pager …` (`pager`), and
+  `Server: EC` (the initials of `server`).
+- **Dishes:** each of `lines`, `{ name, qty, each, total, modifiers, discount }`: `2 × Sweet lassi` and its `total`;
+  its `modifiers` under it on one line (`"Half · Medium spicy"`); its dish discount, when it has one, as an indented
+  minus line: `discount.label` and −`discount.amount` (`"10% off"` −26.00, `"100% off · Complaint"` −180.00). Dish
+  notes are for the kitchen and are not on the customer's bill. A custom item is a line like any other.
+- **Sums, in this order:** Subtotal (`subtotal`: after the dish discounts); the order discount (`discount`:
+  `{ label, percent, amount }`, `"Discount 10%"`, printed as −84.40); the service charge (`serviceCharge`:
+  `{ label, percent, amount }`, `"Service charge 5% (optional)"`); `packaging` and `delivery` (`{ label, amount }`);
+  each of `taxes` on its own line (`"CGST 2.5%"` and `"SGST 2.5%"`, with their amounts); `roundOff` when it isn't 0
+  (`"Round off −0.46"`); then **GRAND TOTAL** `total` (to the rupee). Each of these is `null` when the order hasn't
+  got it. (`tax` and `taxLabel` are the two taxes together, `"GST 5%"`.)
+- **Footer:** each of `footer` on its own line, centred: the service-charge line when there is a service charge
+  (`"Service charge is optional — ask us to remove it."`, Settings › Billing & charges), then the bill footer
+  (`"Thank you! Visit again."`, Settings › Business details).
+
+Amounts are in rupees.
+
+## The kitchen printer: `RESTRODevice.printer.printKot(slip)`
+
+Counter Update 7. **Save sends the KOT, and so does Pay**; each KOT has only the dishes the kitchen doesn't have yet
+(KOT #2 has what was added after KOT #1). After a KOT has gone, taking a dish off or reducing it prints a **VOID**
+slip, deleting the order prints **ORDER CANCELLED** (both with the reason staff picked), changing a dish's choices or
+note prints a **CHANGED** slip, and marking the order as priority prints a short **★ PRIORITY** notice. **Reprint KOT**
+(the order menu) sends the last KOT again, as it was. A scheduled order's KOT goes at its kitchen time, from the tablet
+that saved it last.
+
+Print each slip on every printer whose role is **Kitchen** or **Both**. Return `true` (or a Promise of it) when it
+printed, `false` (or throw, or reject) when it didn't: Counter then shows "Kitchen printer offline / KOT #3 not sent"
+with **Retry**, and calls `printKot` again with the same slip. Without this method (a browser) the slips are kept on the
+order only.
+
+`slip` is plain data:
+
+| Field | |
+| --- | --- |
+| `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"` or `"priority"` |
+| `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"` (`type` is the order type) |
+| `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"`, `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"` |
+| `title`, `where` | bold: `"KOT #3 · Order #1015"`, then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `order` the ticket) |
+| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway and phone orders the customer and a masked phone; on a void `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #1–#2 · 12:05 PM · By: EC"` |
+| `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT; `""` for none |
+| `lines` | `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages from the Menu app (`{ te: "…" }`), or `null` |
+| `footer` | small, at the end: `"KOT #1, #2 sent earlier · only new dishes on this KOT"`, or `"Reason: Customer changed mind"` |
+| `priority` | true when the ★ PRIORITY box is on it |
+| `printers` | Settings › Devices › Printers: `[{ id, language, copies }]` for the kitchen printers |
+
+- **Red** (modifiers, dish notes, the order note, the action box) prints red on two-colour printers (red/black ribbon or
+  two-colour thermal paper) and black on black-only printers.
+- **Language:** each printer's KOT language (`"English"`, `"Telugu"`, `"Hindi"`, `"Tamil"`, `"Kannada"`,
+  `"Malayalam"`, `"Marathi"`, `"Bengali"`, `"Gujarati"`). Anything but English is printed as an image (raster), as
+  thermal printers have no Indic fonts; a dish's name in that language comes from `names` (keyed by the language's code:
+  `te`, `hi`, `ta`, `kn`, `ml`, `mr`, `bn`, `gu`), falling back to English.
+- **Copies:** `copies` (1–3) of each slip on that printer.
+
+The page keeps every slip on its order (`kots`: `{ id, at, kind, no, lines, reason, by }`), with who did it and why
+(no manager PIN for now).
+
+## The printers: `RESTRODevice.printer.list()`
+
+Settings › Devices › Printers lists the printers the app knows (the main system's): return `[{ id, name, connection }]`
+(or a Promise of it), `connection` e.g. `"Bluetooth"`, `"Wi-Fi"`, `"USB"`. Each printer's role (Bills, Kitchen or Both),
+KOT language and copies are set there and kept in `restro.printers.v1` (`{ <id>: { role, language, copies } }`), which
+the page passes with each slip.
+
+## Messages: `RESTRODevice.recommendedTimeout(ms, hasControls)`
+
+Counter's messages go after 2 s (a confirmation) or 4 s (one with Undo); errors stay. Return Android's
+`AccessibilityManager.getRecommendedTimeoutMillis(ms, flags)` (with `FLAG_CONTENT_TEXT`, plus `FLAG_CONTENT_CONTROLS`
+when `hasControls` is true), so the "Time to take action" accessibility setting is respected. Without it the times are
+as above.
 
 ## The bill printer's paper: `RESTRODevice.printer.paperStatus()` and `subscribePaperStatus(callback)`
 
@@ -152,10 +217,19 @@ Work the level out as `PaperEstimator` does (Counter Update 5, `CounterUpdate5.k
 
 ## Back, Home and Recent apps: `RestroSystem.back()`, `.home()`, `.recents()`
 
-RESTRO has no bottom bar: a swipe bar instead (a black pill at the bottom centre), like an iPhone. Swiping up from the
-bottom edge goes Home (the app closes into its icon), swiping up and holding (or a long, slow swipe up) opens Recent apps,
-and swiping in from the left or right edge goes Back. When Android's gesture navigation is on and reaches the app first, forward it: the back gesture
-(`OnBackPressedCallback`) to `RestroSystem.back()`, Home (when RESTRO is the tablet's home app, `onNewIntent` with
-`CATEGORY_HOME`) to `RestroSystem.home()`, and Recent apps to `RestroSystem.recents()`. Each does exactly what the
-swipe does in the page. Going the other way, the page still calls `RESTRODevice.goHome()`, `goBack()` and
+RESTRO runs end to end on the 1920 × 1080 panel as the tablet's home app in lock-task (kiosk) mode: hide Android's own
+status bar and navigation bar. RESTRO draws its own navigation (Settings › Display › Navigation): **swipe** (the
+default: a black pill at the bottom centre; swipe up from the bottom edge for Home, swipe up and hold for Recent apps,
+swipe in from the left or right edge for Back) or a **navigation bar** (56 px, black: Back, Home and Recent apps, Back on
+the left or the right), with a lock button in both. When Android's gesture navigation still reaches the app first,
+forward it: the back gesture (`OnBackPressedCallback`) to `RestroSystem.back()`, Home (`onNewIntent` with
+`CATEGORY_HOME`) to `RestroSystem.home()`, and Recent apps to `RestroSystem.recents()`. Each does exactly what RESTRO's
+own navigation does. Going the other way, the page still calls `RESTRODevice.goHome()`, `goBack()` and
 `openRecentApps()` when the app provides them.
+
+## Going dark: `RESTRODevice.setScreenDark(on)`
+
+After the idle time in Settings › Display (Go dark after, 5 minutes unless changed) the screen locks and goes black;
+a double tap wakes it to the PIN pad. The black is the page's own, so it works on every device; call
+`setScreenDark(true)` to turn the backlight down to its minimum and `setScreenDark(false)` to bring it back. The power
+button still turns the display fully off (see Screen lock above).

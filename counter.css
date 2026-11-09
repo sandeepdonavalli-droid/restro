@@ -206,6 +206,9 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-chips{position:relative;flex:1;min-width:0;display:flex;align-items:center;gap:calc(8 * var(--u))}
 .cx-chips>.cx-seg{flex:none;min-width:0}
 .cx-chips>[data-tile="modify"],.cx-chips>[data-tile="hold"]{flex:1 1 0}
+/* (Update 7: never narrower than their words, as in the design: with ⚑ PRIORITY in the header Modify keeps its width and
+   Hold takes what is left) */
+.cx-chips>[data-tile="modify"],.cx-chips>[data-tile="hold"]{min-width:auto}
 .cx-chips>[data-tile="modify"]>.cx-chip,.cx-chips>[data-tile="hold"]>.cx-chip{width:100%;justify-content:center}
 .cx-chip{height:calc(36 * var(--u));max-width:100%;box-sizing:border-box;margin:0;padding:0 calc(13 * var(--u));border:0;border-radius:999px;display:inline-flex;align-items:center;gap:calc(6 * var(--u));background:#F3F4F7;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10);font-size:calc(14 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
 .cx-chip.pink{background:#FCE7F1;color:#9D174D;box-shadow:none}
@@ -285,8 +288,6 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-tstack .cx-tl{font-size:calc(14 * var(--u));line-height:calc(18.5 * var(--u))}
 .cx-tot.stack{padding-top:calc(4 * var(--u))}
 .cx-tot.stack .cx-act{margin-top:calc(-2 * var(--u))}
-.cx-tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:calc(20 * var(--u));row-gap:calc(6 * var(--u));margin-bottom:calc(6 * var(--u))}
-.cx-tgrid .cx-tl:nth-child(odd){padding-right:calc(20 * var(--u));border-right:1px solid #ECEEF2}
 .cx-tl.dsc span,.cx-tl.dsc b{color:#15803D;font-weight:700}
 .cx-act{display:grid;grid-template-columns:1fr 1fr;gap:calc(12 * var(--u))}
 .cx-save,.cx-pay{height:calc(64 * var(--u));margin:0;padding:0 calc(6 * var(--u));border:0;border-radius:calc(18 * var(--u));display:flex;align-items:center;justify-content:center;font-size:calc(19 * var(--u));font-weight:800;letter-spacing:.01em;white-space:nowrap;cursor:pointer}
@@ -296,15 +297,6 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-save:disabled,.cx-pay:disabled{opacity:.5;cursor:default}
 .cx-pay:disabled{box-shadow:none}
 .cx-save{gap:calc(10 * var(--u))} /* Update 6: the kitchen ticket (26) before Save */
-/* The Undo bar, just above Subtotal: dark #1F2937, 52 tall, radius 14; "Chicken biryani removed" 15 white, UNDO 15/800
-   light blue */
-.cx-undo{position:absolute;left:0;right:0;bottom:calc(100% + 1px + 20 * var(--u));z-index:30;height:calc(52 * var(--u));box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:calc(12 * var(--u));padding:0 calc(8 * var(--u)) 0 calc(18 * var(--u));border-radius:calc(14 * var(--u));background:#1F2937;color:#FFFFFF;font-size:calc(15 * var(--u));line-height:normal;box-shadow:0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35);animation:cx-fade .14s ease-out}
-.cx-undo>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cx-undo b{font-weight:700}
-.cx-undo button{flex:none;height:calc(44 * var(--u));margin:0;padding:0 calc(16 * var(--u));border:0;border-radius:calc(10 * var(--u));background:transparent;color:#93C5FD;font:inherit;font-size:calc(15 * var(--u));font-weight:800;letter-spacing:.04em;cursor:pointer}
-/* Highlight order: the order takes the whole left side (the context row steps aside); the menu side is dimmed */
-.cx-shell.highlight .cx-ctx{display:none}
-.cx-dim{position:absolute;inset:0 calc(-20 * var(--u));z-index:30;background:rgba(15,23,42,.45);animation:cx-fade .14s ease-out}
 
 /* ---------- menu side ---------- */
 .cx-main{position:relative;flex:1;min-width:0;min-height:0;box-sizing:border-box;display:flex;flex-direction:column;padding:calc(10 * var(--u)) 0} /* 10 from the top bar and the bottom */
@@ -318,7 +310,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-sr input{flex:1;min-width:0;height:100%;margin:0;padding:0;border:0;background:transparent;color:#1C1917;font:inherit;font-size:calc(14 * var(--u));outline:none}
 .cx-shell .cx-sr input:focus-visible{outline:none}
 .cx-sr input::placeholder{color:#615C57;opacity:1}
-.cx-sr input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:calc(18 * var(--u));height:calc(18 * var(--u));margin:0;cursor:pointer;background:#A8A29E;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'/%3E%3C/svg%3E") center/contain no-repeat}
+.cx-sr input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
 .cx-tc{flex:none;height:calc(43.33 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(15 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;gap:calc(7 * var(--u));background:#FFFFFF;color:#1C1917;font-size:calc(13.33 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:pointer}
 /* The sync button: round, white like Held; syncing #E3ECFC edged #C5D6F6, the arrows #2F6FDE turning (1 s a turn);
    synced #DCFCE7, a cloud with a tick #15803D (2 s); changes waiting #FEF3C7, the arrows #92400E and their number on an
@@ -474,7 +466,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-order.arranging [data-group]>[data-tile]:nth-child(3n):not(.cx-origin){animation-duration:.28s;animation-delay:-.08s}
 [data-group]>[data-tile]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 [data-group]>[data-tile]>:disabled{pointer-events:none}
-@media (prefers-reduced-motion:reduce){.cx-shell.arranging [data-arrange] [data-id],.cx-order.arranging [data-group]>[data-tile]{animation:none}.cx-scrim,.cx-dim,.cx-pop,.cx-line.just-added .cx-row{animation:none}.cx-line.settling>.cx-row{transition:none}}
+@media (prefers-reduced-motion:reduce){.cx-shell.arranging [data-arrange] [data-id],.cx-order.arranging [data-group]>[data-tile]{animation:none}.cx-scrim,.cx-msg,.cx-pop,.cx-line.just-added .cx-row{animation:none}.cx-line.settling>.cx-row{transition:none}}
 
 /* ---------- the pop-ups over the menu: modifiers, quantity, note (Counter Update 4) ---------- */
 /* Over the menu only, dimmed rgba(15,23,42,.38); the order beside it stays as it is (a tap there is a tap outside).
@@ -688,18 +680,177 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-qk.cx-pp .cx-key{height:calc(66 * var(--u))}
 .cx-pu.custom>.cx-done.wide{margin-top:calc(20 * var(--u))}
 
+/* ===== Counter Update 7 ===== */
+.ctr-root svg.cx-i.s12{width:calc(12 * var(--u));height:calc(12 * var(--u))}
+.ctr-root svg.cx-i.s16{width:calc(16 * var(--u));height:calc(16 * var(--u))}
+/* The table and its guest count: "Table 12 | 👥 4" (a 1.5 #D6D3D1 rule, 10 before the people, 15/700 #57534E) */
+.cx-gchip{flex:none;display:inline-flex;align-items:center;gap:calc(4 * var(--u));margin-left:calc(8 * var(--u));padding-left:calc(10 * var(--u));border-left:calc(1.5 * var(--u)) solid #D6D3D1;color:#57534E;font-weight:700}
+/* (its words are centred, so less padding shows only when they would not fit: two-digit guests on a 1280 tablet) */
+.cx-b.cx-who:has(.cx-gchip){padding:0 calc(4 * var(--u))}
+/* A priority order: "⚑ PRIORITY" after its count, 13/800 red, 6 after it */
+.cx-prio{display:inline-flex;align-items:center;gap:calc(2 * var(--u));margin-left:calc(6 * var(--u));color:#DC2626;font-size:calc(13 * var(--u));font-weight:800;letter-spacing:.04em;vertical-align:top}
+/* The order note under the header: empty, a quiet grey "✎ Add order note" line 30 tall, no box; with a note, an amber
+   strip 38 tall (#FFF9EC, #7A5212 14/600) with the note on one line and a round ✕ 30 (white, edged); a blue edge while
+   it is being changed. 4 nearer the header, and nearer the first dish. */
+.cx-onote{flex:none;display:flex;align-items:center;gap:calc(8 * var(--u));height:calc(38 * var(--u));box-sizing:border-box;margin:calc(-4 * var(--u)) 0 calc(-12 * var(--u));padding:0 calc(6 * var(--u)) 0 calc(12 * var(--u));border:0;border-radius:calc(12 * var(--u));background:#FFF9EC;color:#7A5212;font:inherit;font-size:calc(14 * var(--u));font-weight:600;line-height:normal;text-align:left}
+.cx-onote-t{flex:1;min-width:0;height:100%;margin:0;padding:0;border:0;display:flex;align-items:center;gap:calc(8 * var(--u));background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.cx-onote-t>span,.cx-onote.empty>span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-onote-t svg{color:#9A6B1F}
+.cx-nclr{flex:none;width:calc(30 * var(--u));height:calc(30 * var(--u));margin:0;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#7A5212;box-shadow:inset 0 0 0 1px rgba(154,107,31,.25);cursor:pointer}
+.cx-onote.empty{width:100%;height:calc(30 * var(--u));padding:0 calc(4 * var(--u));background:transparent;color:#78716C;font-size:calc(14.5 * var(--u));cursor:pointer}
+.cx-onote.empty svg{color:#A8A29E}
+.cx-onote.active{box-shadow:inset 0 0 0 calc(2 * var(--u)) #2F6FDE}
+/* A line's dish discount: a green tag 24 tall right after its name (12.5/800 #15803D on #DCFCE7, edged #BBF7D0), the
+   price before it struck through (12.5/600 #A8A29E), ₹0 green; a dish sold out before its KOT: SOLD OUT in its place */
+.cx-nm{display:flex;align-items:center;gap:calc(8 * var(--u))}
+.cx-nm-btn{width:auto;flex:0 1 auto;min-width:0}
+.cx-ltag{flex:none;height:calc(24 * var(--u));box-sizing:border-box;padding:0 calc(9 * var(--u));border-radius:99px;display:inline-flex;align-items:center;background:#DCFCE7;color:#15803D;font-size:calc(12.5 * var(--u));font-weight:800;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px #BBF7D0}
+.cx-ltag.out{background:#E7E5E4;color:#57534E;box-shadow:none;letter-spacing:.03em}
+.cx-lt s{font-size:calc(12.5 * var(--u));font-weight:600;color:#A8A29E}
+.cx-lt b.zero{color:#15803D}
+/* A choice that sets the price ("Half"): dark, first; on the selected line a grey pill */
+.cx-mc.por{color:#1C1917;font-weight:600}
+.cx-line.sel .cx-mc.por{background:#F1F5F9;box-shadow:inset 0 0 0 1px #CBD5E1}
+/* The note on the selected line: a round ✕ 24 at its end clears it */
+.cx-cclr{flex:none;width:calc(24 * var(--u));height:calc(24 * var(--u));margin:0 0 0 auto;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#57534E;box-shadow:inset 0 0 0 1px #DCE3EE;font-style:normal;cursor:pointer}
+.cx-cmt>span{min-width:0}
+/* Totals, one list: what is in brackets and "(optional)" #78716C 500; the service charge #44403C; Round off grey 600 */
+.cx-tl i{font-style:normal;color:#78716C;font-weight:500}
+.cx-tl.scx span,.cx-tl.scx b{color:#44403C}
+.cx-tl.ro span,.cx-tl.ro b{color:#78716C;font-weight:600}
+/* The order menu: 400 wide, rows 60 tall; a switch 52 x 30 (#D6D3D1, on #2F6FDE; its knob 24, white); tags 26 tall
+   13/800, 12 before the switch: Discount and Dish discount green, Service charge blue, PRIORITY red */
+.cx-pop{width:calc(400 * var(--u))}
+.cx-pop .cx-mi{height:calc(60 * var(--u));flex:none}
+.cx-mi-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cx-mi.tg{padding:0 calc(18 * var(--u)) 0 0;cursor:default}
+.cx-mi-a{flex:1;min-width:0;height:100%;margin:0;padding:0 0 0 calc(18 * var(--u));border:0;border-radius:inherit;display:flex;align-items:center;gap:calc(16 * var(--u));background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.cx-mi-a svg{color:#44403C}
+.cx-mi.tg.off,.cx-mi.tg.off svg{color:#C9C5C1}
+.cx-pop em{flex:none;height:calc(26 * var(--u));box-sizing:border-box;margin-left:auto;padding:0 calc(10 * var(--u));border-radius:99px;display:flex;align-items:center;font-size:calc(13 * var(--u));font-style:normal;font-weight:800;line-height:normal}
+.cx-mi-a em{margin:0 calc(12 * var(--u)) 0 0}
+.cx-dtag{background:#DCFCE7;color:#15803D}
+.cx-stag{background:#E3ECFC;color:#1E4FB8}
+.cx-ptag{background:#FEE2E2;color:#B91C1C;letter-spacing:.04em}
+.cx-sw{position:relative;flex:none;width:calc(52 * var(--u));height:calc(30 * var(--u));margin:0;padding:0;border:0;border-radius:99px;background:#D6D3D1;cursor:pointer;transition:background .2s}
+.cx-sw i{position:absolute;top:calc(3 * var(--u));left:calc(3 * var(--u));width:calc(24 * var(--u));height:calc(24 * var(--u));border-radius:99px;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}
+.cx-sw.on{background:#2F6FDE}
+.cx-sw.on i{left:calc(25 * var(--u))}
+.cx-sw:disabled{opacity:.5;cursor:default}
+/* Search: what is typed 600, dark; a round ✕ 34 (#EEF0F4) at its right once something is typed */
+.cx-sr.typed input{font-weight:600;color:#1C1917}
+.cx-sclr{flex:none;width:calc(34 * var(--u));height:calc(34 * var(--u));margin:0 0 0 auto;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#EEF0F4;color:#44403C;cursor:pointer}
+.cx-sr:not(.typed) .cx-sclr{display:none}
+/* A sold-out dish: grey #F1F1F0, its name and struck price #A8A29E, its mark faint; "⊘ SOLD OUT" 26 tall at its top
+   right (12 in), #E7E5E4 / #57534E 12.5/800; no badge; a 2 grey edge while pressed */
+.cx-card.so{background:#F1F1F0;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06)}
+.cx-card.so b,.cx-card.so span{color:#A8A29E}
+.cx-card.so span{text-decoration:line-through}
+.cx-card.so em{opacity:.35}
+.cx-card.so:active{transform:none;box-shadow:inset 0 0 0 calc(2 * var(--u)) #A8A29E}
+.cx-sot{position:absolute;top:calc(12 * var(--u));right:calc(12 * var(--u));height:calc(26 * var(--u));box-sizing:border-box;padding:0 calc(10 * var(--u));border-radius:99px;display:flex;align-items:center;gap:calc(4 * var(--u));background:#E7E5E4;color:#57534E;font-size:calc(12.5 * var(--u));font-style:italic;font-weight:800;line-height:normal;letter-spacing:.03em;white-space:nowrap}
+/* Messages: a dark bar #1F2937, 56 tall, radius 16, 16 white, at the bottom of the menu level with Save and Pay (552 in,
+   396 wide at most, 40 clear of the ‹ arrow); UNDO #93C5FD 800; an error 64 tall with a red left edge, RETRY and ✕ */
+.cx-msg{position:absolute;left:calc(552 * var(--u));bottom:calc(21.333 * var(--u));z-index:39;width:calc(396 * var(--u));height:calc(56 * var(--u));box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:calc(12 * var(--u));padding:0 calc(8 * var(--u)) 0 calc(20 * var(--u));border-radius:calc(16 * var(--u));background:#1F2937;color:#FFFFFF;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;font-size:calc(16 * var(--u));line-height:normal;box-shadow:0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35);animation:cx-fade .14s ease-out}
+.cx-msg>span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-msg b{font-weight:700}
+.cx-msg button{flex:none;height:calc(44 * var(--u));margin:0;padding:0 calc(16 * var(--u));border:0;border-radius:calc(10 * var(--u));background:transparent;color:#93C5FD;font:inherit;font-size:calc(16 * var(--u));font-weight:800;letter-spacing:.04em;cursor:pointer}
+.cx-msg button:active{background:rgba(255,255,255,.08)}
+.cx-msg.plain{padding-right:calc(20 * var(--u))}
+.cx-msg.error{bottom:calc(17.333 * var(--u));height:calc(64 * var(--u));box-shadow:inset calc(5 * var(--u)) 0 0 #EF4444,0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35)}
+.cx-msg.error button{color:#FCA5A5}
+.cx-msg.error>span{white-space:normal;line-height:1.25}
+.cx-msg.error small{font-size:calc(14 * var(--u));color:#D1D5DB}
+.cx-msg .xs{width:calc(36 * var(--u));height:calc(36 * var(--u));padding:0;display:flex;align-items:center;justify-content:center;color:#9CA3AF}
+/* The service charge pop-up, where the discount's is: the cloche on #E3ECFC (#1E4FB8); 4 quick picks; the amount it adds
+   blue; the key left of 0 is the decimal point; under the button "Optional · …" 13.5 #78716C, 12 below */
+.cx-dh.svc>i{background:#E3ECFC;color:#1E4FB8}
+.cx-dpv.svc b{color:#1E4FB8}
+.cx-dqp.c1{grid-template-columns:repeat(1,minmax(0,1fr))}
+.cx-dqp.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cx-dqp.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cx-dqp.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.cx-pu.disc.svc{padding-bottom:calc(22 * var(--u))}
+.cx-pu.svc>.cx-done.wide{margin-top:calc(16 * var(--u))}
+.cx-legal{margin:calc(12 * var(--u)) 0 0;text-align:center;font-size:calc(13.5 * var(--u));line-height:normal;color:#78716C}
+/* Dish discount. Step 1: 620 wide; "DISH DISCOUNT · STEP 1 OF 2" 13.5/800 blue, "Pick the dishes" 24/800; the dishes 56
+   tall, 8 apart (a box 26, the name 17/700, × 8 15/600 grey, the total 16/700 at the end); picked: light blue, the box
+   blue with a tick. Step 2: 600 wide; ‹ · the dish and its sum · ✕; the percentage 76 tall; keys 50 tall; at 100% the
+   reasons. Both centred on the menu; so are a void and Change server. */
+.cx-pu.dish,.cx-pu.void,.cx-pu.server{left:calc(620 * var(--u));top:50%;max-height:calc(100% - calc(23.333 * var(--u)));padding:calc(22 * var(--u)) calc(26 * var(--u));transform:translateY(-50%)}
+.cx-pu.dish.pick{width:calc(620 * var(--u))}
+.cx-pu.dish.pct,.cx-pu.void{width:calc(600 * var(--u))}
+.cx-pu.server{width:calc(560 * var(--u))}
+.cx-pu.dish.typing,.cx-pu.void.typing{top:calc(14 * var(--u));transform:none}
+.cx-pu.dish.pick>.cx-pu-head{margin-bottom:0} /* (the design's 6 under it and 12 over the list fold into 12) */
+.cx-pu.dish.pick .cx-steph b{line-height:normal}
+.cx-pu.dish.pct>.cx-pu-head{margin-bottom:calc(14 * var(--u))}
+.cx-pu.void>.cx-pu-head,.cx-pu.server>.cx-pu-head{margin-bottom:calc(16 * var(--u))}
+.cx-steph{min-width:0;display:flex;flex-direction:column}
+.cx-steph small{margin-bottom:calc(2 * var(--u));font-size:calc(13.5 * var(--u));font-weight:800;line-height:normal;letter-spacing:.03em;text-transform:uppercase;color:#2F6FDE}
+.cx-steph b{font-size:calc(24 * var(--u));font-weight:800;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-steph span{font-size:calc(15 * var(--u));font-weight:600;line-height:calc(20 * var(--u));color:#78716C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-pkl{flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:calc(8 * var(--u));margin-top:calc(12 * var(--u))}
+.cx-pkl::-webkit-scrollbar{display:none}
+.cx-pk{flex:none;width:100%;height:calc(56 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(18 * var(--u));border:0;border-radius:calc(16 * var(--u));display:flex;align-items:center;gap:calc(14 * var(--u));background:#FFFFFF;color:#1C1917;font:inherit;text-align:left;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08);cursor:pointer}
+.cx-pk b{min-width:0;font-size:calc(17 * var(--u));font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-pk small{flex:none;font-size:calc(15 * var(--u));font-weight:600;color:#78716C}
+.cx-pa{flex:none;margin-left:auto;font-size:calc(16 * var(--u));font-weight:700;color:#44403C}
+.cx-cb{flex:none;width:calc(26 * var(--u));height:calc(26 * var(--u));box-sizing:border-box;border-radius:calc(8 * var(--u));display:flex;align-items:center;justify-content:center;color:#FFFFFF;box-shadow:inset 0 0 0 calc(2 * var(--u)) #C9C5C1}
+.cx-pk.on{background:#E3ECFC;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2}
+.cx-pk.on .cx-cb{background:#2F6FDE;box-shadow:none}
+.cx-pu.dish.pick>.cx-done.wide{margin-top:calc(16 * var(--u))}
+.cx-dd.sm{height:calc(76 * var(--u));font-size:calc(46 * var(--u))}
+.cx-dd.sm small{font-size:calc(29 * var(--u))}
+.cx-dd.sm i{height:calc(40 * var(--u))}
+.cx-pu.dish .cx-dqp{margin-bottom:calc(12 * var(--u))}
+.cx-qk.cx-dk.sm{gap:calc(10 * var(--u));margin-bottom:calc(16 * var(--u))}
+.cx-qk.cx-dk.sm .cx-key{height:calc(50 * var(--u));font-size:calc(23 * var(--u))}
+.cx-qk.cx-dk.sm .cx-key.fn{font-size:calc(23 * var(--u))}
+.cx-pu.dish.pct>.cx-done.wide{margin-top:0}
+/* The reasons: chips 50 tall (16.5/700), the one picked light blue; Other… grey 600 (it opens the keyboard) */
+.cx-lab3{margin:0 0 calc(10 * var(--u));font-size:calc(15 * var(--u));font-weight:700;line-height:normal;color:#57534E}
+.cx-rsn{display:flex;flex-wrap:wrap;gap:calc(10 * var(--u));margin-bottom:calc(16 * var(--u))}
+.cx-pu.void .cx-rsn{margin-bottom:calc(22 * var(--u))}
+.cx-rsn>button{height:calc(50 * var(--u));margin:0;padding:0 calc(18 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font:inherit;font-size:calc(16.5 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 1px 2px rgba(15,23,42,.06);cursor:pointer}
+.cx-rsn>button.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2}
+.cx-rsn>button.oth{color:#615C57;font-weight:600}
+.cx-rsn>button.oth.on{color:#1E4FB8}
+.cx-rsn-other{flex:1 1 100%;margin-top:calc(4 * var(--u))}
+/* A void: the red ⊖ on #FEE2E2; what will print in a red box (#FEF2F2, #991B1B 15/600); the red button #DC2626 64
+   tall, grey #E7E5E4 until a reason is picked */
+.cx-dh.void>i{background:#FEE2E2;color:#DC2626}
+.cx-vinfo{display:flex;align-items:flex-start;gap:calc(12 * var(--u));margin:0 0 calc(18 * var(--u));padding:calc(14 * var(--u)) calc(16 * var(--u));border-radius:calc(16 * var(--u));background:#FEF2F2;color:#991B1B;font-size:calc(15 * var(--u));font-weight:600;line-height:1.4}
+.cx-vinfo svg{margin-top:calc(1 * var(--u));color:#DC2626}
+.cx-btnr{flex:none;width:100%;height:calc(64 * var(--u));margin:0;padding:0;border:0;border-radius:calc(18 * var(--u));display:flex;align-items:center;justify-content:center;background:#DC2626;color:#FFFFFF;font:inherit;font-size:calc(19 * var(--u));font-weight:800;line-height:normal;cursor:pointer}
+.cx-btnr.off{background:#E7E5E4;color:#A8A29E;cursor:default}
+/* Change server: the staff as rows, their initials in a light blue circle */
+.cx-av{flex:none;width:calc(36 * var(--u));height:calc(36 * var(--u));border-radius:99px;display:flex;align-items:center;justify-content:center;background:#E3ECFC;color:#1E4FB8;font-size:calc(14 * var(--u));font-weight:800}
+/* The order note pop-up's title: the note on #FFF1D6 (#9A6B1F), "Order note", then the order 17/600 grey */
+.cx-on-head{gap:calc(12 * var(--u))}
+.cx-on-head>i{flex:none;width:calc(40 * var(--u));height:calc(40 * var(--u));border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFF1D6;color:#9A6B1F}
+.cx-on-head>span{flex:none;font-size:calc(17 * var(--u));font-weight:600;color:#78716C;white-space:nowrap}
+/* A custom item's name and note: a ✕ 24 while they have words */
+.cx-fclr{flex:none;align-self:center;width:calc(24 * var(--u));height:calc(24 * var(--u));margin:0 0 0 calc(8 * var(--u));padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#57534E;box-shadow:inset 0 0 0 1px #DCE3EE;cursor:pointer}
+.cx-fclr[hidden]{display:none}
+
 /* ---------- Print bill (a browser's printing; the Android app prints it itself) ---------- */
 #print-bill{display:none}
+/* Counter Update 7 (25_printed-bill): 80 mm, black only; the name 24/900, address and GSTIN · FSSAI small, dashed rules,
+   TAX INVOICE, dish discounts as minus lines, CGST and SGST each on a line, GRAND TOTAL 22/900, the footer small */
 @media print{
   body>*:not(#print-bill){display:none!important}
   #print-bill{display:block!important;width:72mm;margin:0 auto;color:#000;font:12px/1.35 Inter,Roboto,Arial,sans-serif}
-  #print-bill h1{margin:0 0 4px;font-size:16px;text-align:center}
-  #print-bill p{margin:0 0 2px;text-align:center}
-  #print-bill table{width:100%;margin-top:8px;border-collapse:collapse}
-  #print-bill td{padding:1px 0;vertical-align:top}
-  #print-bill td:last-child{text-align:right;white-space:nowrap}
-  #print-bill tr.sub td{padding-left:10px;font-size:11px}
-  #print-bill tr.note td{font-style:italic;font-synthesis:style}
-  #print-bill table.sums{border-top:1px dashed #000}
-  #print-bill tr.total td{font-weight:700;font-size:14px;border-top:1px solid #000}
+  #print-bill h1{margin:0;font-size:18px;font-weight:900;text-align:center}
+  #print-bill p{margin:0;text-align:center}
+  #print-bill .small{font-size:10px}
+  #print-bill .b{font-weight:800}
+  #print-bill hr{margin:6px 0;border:0;border-top:1.5px dashed #000}
+  #print-bill table{width:100%;border-collapse:collapse}
+  #print-bill td{padding:2px 0;vertical-align:top}
+  #print-bill td:last-child{padding-left:8px;text-align:right;white-space:nowrap}
+  #print-bill .mod,#print-bill tr.sub td{font-size:11px}
+  #print-bill .mod{padding-left:16px}
+  #print-bill table.gt td{padding-top:4px;font-size:16px;font-weight:900}
 }
+

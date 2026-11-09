@@ -55,7 +55,9 @@
     business: { key: 'restro.business.v1' },
     kitchen: { key: 'restro.kitchen.v1' },
     printers: { key: 'restro.printers.v1' },
-    security: { key: 'restro.security.v1' }
+    security: { key: 'restro.security.v1' },
+    // (Counter Update 7: what is sold out, set in the Menu app, shown live on every Counter)
+    availability: { key: 'restro.menu.availability.v1' }
   };
   const NAMES = [...Object.keys(COLLECTIONS), 'settings'];
   const TICKET_KEY = 'restro.counter.ticket.v2'; // { day, next }: after the highest number this tablet has given or seen today

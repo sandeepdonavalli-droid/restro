@@ -20,7 +20,8 @@
   // keeps the choices made for it (option ids), in the menu's order; required groups (spice level) have one choice.
   const groups = new Map((menu.modifierGroups || []).map(g => [g.id, g]));
   const optionOf = new Map();
-  for (const g of groups.values()) for (const o of g.options) optionOf.set(o.id, { ...o, group: g.id, kind: g.kind === 'spice' ? 'spice' : 'other', price: Number(o.price) || 0 });
+  // (mode 'set', Counter Update 7: a choice that sets the dish's price, Half ₹200 / Full ₹340; 'add' adds to it)
+  for (const g of groups.values()) for (const o of g.options) optionOf.set(o.id, { ...o, group: g.id, kind: g.kind === 'spice' ? 'spice' : 'other', mode: g.mode === 'set' ? 'set' : 'add', price: Number(o.price) || 0 });
   const groupsOf = id => { const list = items.get(id)?.modifiers ?? categoryOf.get(id)?.modifiers; return (Array.isArray(list) ? list : []).map(g => groups.get(g)).filter(Boolean); };
   const cleanMods = (id, mods) => {
     const picked = new Set((Array.isArray(mods) ? mods : []).map(m => (typeof m === 'string' ? m : m?.id)));
@@ -41,9 +42,20 @@
   const newCustomId = () => { let id; do id = `cu-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`; while (items.has(id)); return id; };
   // A line's dish: the menu's, or a custom item's as if it were one
   const itemOf = line => (line.custom ? { id: line.id, name: line.custom.name || 'Custom item', price: line.custom.price, veg: line.custom.veg, custom: true } : items.get(line.id));
-  // One of a line's item with its add-ons (rupees), and a choice as it shows on its pill ("Extra gravy +₹40")
-  const eachOf = line => itemOf(line).price + (line.mods || []).reduce((sum, m) => sum + (optionOf.get(m)?.price || 0), 0);
-  const modLabel = id => { const o = optionOf.get(id); return o ? (o.price ? `${o.label} +₹${o.price.toLocaleString('en-IN')}` : o.label) : id; };
+  // One of a line's item with its add-ons (rupees), and a choice as it shows on its pill ("Extra gravy +₹40"). A choice
+  // that sets the price (Update 7: "Half") is the dish's price; add-ons still go on top.
+  const eachOf = line => {
+    let base = itemOf(line).price, add = 0;
+    for (const m of line.mods || []) { const o = optionOf.get(m); if (!o) continue; if (o.mode === 'set') base = o.price; else add += o.price; }
+    return base + add;
+  };
+  const modLabel = id => { const o = optionOf.get(id); return o ? (o.price && o.mode !== 'set' ? `${o.label} +₹${o.price.toLocaleString('en-IN')}` : o.label) : id; };
+  // A dish whose price is set by a choice shows its prices on its tile: "₹200 · ₹340"
+  const setGroupOf = id => groupsOf(id).find(g => g.mode === 'set') || null;
+  // Sold out (Update 7): set in the Menu app (to be renamed Availability), shared with every tablet through sync
+  // (restro.menu.availability.v1: { soldOut: { <item id>: true } }). A custom item is never sold out.
+  const AVAIL_KEY = 'restro.menu.availability.v1';
+  const soldOut = id => { try { return JSON.parse(localStorage.getItem(AVAIL_KEY) || 'null')?.soldOut?.[id] === true; } catch { return false; } };
 
   // ---------- storage ----------
   const load = (key, fallback) => { try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return v ?? fallback; } catch { return fallback; } };
@@ -111,7 +123,13 @@
   // A new order starts with no order type. Dine in can have a table (picked on the Floor); every other order a customer.
   // Any order can have a pager, and a ready-by time (Schedule). number: set once the order is saved (Save or Pay).
   // discountPct: a discount on the order (Update 6), a percentage of the subtotal (1–100), or null.
-  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null, lines: [] });
+  // Update 7: servicePct, the service charge (dine-in only, never automatic: 0.1 to the owner's maximum), or null;
+  // priority (for the kitchen only); note, the order note; guests, the guest count (asked in the Dining app), or 0;
+  // server / serverId: the server, when changed with Change server (otherwise whoever saves it first); merged: the saved
+  // orders whose dishes Merge tables brought onto it (they go when it is saved). A line can have off, its dish discount
+  // (1–100%; 100 complimentary, with offReason), and kit: what the kitchen has of it ([{ n, mods, note }]).
+  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null,
+    servicePct: null, priority: false, note: '', guests: 0, server: null, serverId: null, merged: [], lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
@@ -141,24 +159,45 @@
     return back;
   }
   const cleanTime = t => Number.isFinite(t) && t > 0 ? t : null;
+  const cleanGuests = n => (Number.isInteger(n) && n >= 1 && n <= 99 ? n : 0);
+  const cleanReason = r => (typeof r === 'string' ? r.replace(/\s+/g, ' ').trim().slice(0, 80) : '');
+  // What the kitchen has of a line (Update 7): parts of it as they were sent, [{ n, mods, note }]
+  const cleanKit = (id, kit) => (Array.isArray(kit) ? kit : []).filter(k => k && Number.isInteger(k.n) && k.n > 0).map(k => ({ n: k.n, mods: cleanMods(id, k.mods), note: cleanNote(k.note) }));
+  const sentOf = line => (line.kit || []).reduce((n, k) => n + k.n, 0);
   // An order read back from storage (the draft, Held or Orders), keeping only what is valid.
   const restoreOrder = o => {
     const type = TYPES.includes(o.type) ? o.type : null;
     return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
       pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
-      discountPct: window.RestroBill.pct(o.discountPct),
+      discountPct: window.RestroBill.pct(o.discountPct), servicePct: window.RestroBill.rate(o.servicePct), priority: o.priority === true, note: cleanNote(o.note), guests: cleanGuests(o.guests),
+      server: typeof o.server === 'string' && o.server ? o.server.slice(0, 60) : null, serverId: typeof o.serverId === 'string' ? o.serverId : null,
+      merged: (Array.isArray(o.merged) ? o.merged : []).filter(u => typeof u === 'string').slice(0, 20),
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && (items.has(l.id) || (typeof l.id === 'string' && cleanCustom(l.custom))) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
         .map(l => {
-          const custom = items.has(l.id) ? null : cleanCustom(l.custom);
-          return { id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type, mods: custom ? [] : cleanMods(l.id, l.mods), note: cleanNote(l.note), ...(custom ? { custom } : {}) };
+          const custom = items.has(l.id) ? null : cleanCustom(l.custom), off = window.RestroBill.pct(l.off), kit = cleanKit(l.id, l.kit);
+          return { id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type, mods: custom ? [] : cleanMods(l.id, l.mods), note: cleanNote(l.note), ...(custom ? { custom } : {}),
+            ...(off ? { off, ...(off === 100 && cleanReason(l.offReason) ? { offReason: cleanReason(l.offReason) } : {}) } : {}), ...(kit.length ? { kit } : {}) };
         }) };
   };
+  // The kitchen side of a line (Update 7): the dish as the kitchen knows it (its type and choices; not its discount), and
+  // the dish itself
+  const kitchenKey = (id, type, mods) => `${id}@${type}${modsKey(mods)}`;
+  // A saved order on screen: what the kitchen already has of each of its lines (from its `sent`), as it was sent
+  function withKitchen(r, saved) {
+    const left = { ...(saved?.sent && typeof saved.sent === 'object' ? saved.sent : {}) };
+    for (const l of r.lines) {
+      delete l.kit;
+      const k = kitchenKey(l.id, typeOf(r, l), l.mods), n = Math.min(l.qty, Math.max(0, Number(left[k]) || 0));
+      if (n > 0) { l.kit = [{ n, mods: [...l.mods], note: l.note || '' }]; left[k] -= n; }
+    }
+    return r;
+  }
   // A saved order put on screen: its pager shows only while the order still has it. One that came back (docked, or
   // handed to another order) is no longer the order's: the pager slot is empty, so whatever pager is there when the
   // order is saved again is its pager (the same one handed back, another one, or none: then it keeps the number of the
   // one it had, for the record).
-  const onScreen = saved => { const r = restoreOrder(saved); if (r.pager && !holdsPager(saved)) { r.pager = 0; r.pagerAt = null; } return r; };
+  const onScreen = saved => { const r = withKitchen(restoreOrder(saved), saved); if (r.pager && !holdsPager(saved)) { r.pager = 0; r.pagerAt = null; } return r; };
   // An order with no type chosen goes as Dine in, with no table: a table chosen earlier is set aside (as when the type
   // changes to Takeaway) and comes back if Dine in is chosen again.
   const DEFAULT_TYPE = 'dine-in';
@@ -167,18 +206,21 @@
   const typeOf = (o, line) => (o.split ? line.type || o.type : o.type) || DEFAULT_TYPE;
   const lineType = line => typeOf(order, line);
   // What a saved order looks like, to tell whether the copy on screen has changes not saved yet.
-  const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.readyAt || 0, o.discountPct || 0, o.lines.map(l => [l.id, l.qty, typeOf(o, l), modsKey(l.mods), l.note || ''])]);
+  const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.readyAt || 0, o.discountPct || 0, o.servicePct || 0, o.priority === true, o.note || '', o.guests || 0, o.serverId || o.server || '',
+    o.lines.map(l => [l.id, l.qty, typeOf(o, l), modsKey(l.mods), l.note || '', l.off || 0, l.offReason || ''])]);
   // (A line whose choices are being changed in its pop-up is "edit": it stays a line of its own until the pop-up closes,
-  // even when its choices match another line's; then they are merged.)
-  const keyOf = line => `${line.id}@${lineType(line)}${modsKey(line.mods)}${line.edit ? '!edit' : ''}`;
-  let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, typeMenu = false, optionsMenu = false, deleteArmed = false, highlight = false;
-  let undo = null;                                      // the dish just taken off: { line, at, key, name, timer } (the Undo bar)
+  // even when its choices match another line's; then they are merged. A dish discount makes a line of its own too.)
+  const offKey = line => (line.off ? `%${line.off}` : '');
+  const keyOf = line => `${line.id}@${lineType(line)}${modsKey(line.mods)}${offKey(line)}${line.edit ? '!edit' : ''}`;
+  let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, typeMenu = false, optionsMenu = false, deleteArmed = false;
   // The pop-ups over the menu (Counter Update 4); sheet says which one is open ('mods', 'qty', 'note')
   let modPop = null;                                    // modifiers: { key (the line), added (opened as the dish was added), tried (closing was tried with a required group empty), note (Update 6: { draft }, the note being typed in it) }
   let qtyPop = null;                                    // quantity: { key, value (typed so far) }
   let notePop = null;                                   // note: { key, draft, back (return to the modifier pop-up), typing (the note line has the keyboard) }
-  const POPS = ['mods', 'qty', 'note', 'custom', 'discount']; // (the pop-ups; customPop, a custom item's, and discPop, the
-                                                        // discount's (Update 6), are with their code below)
+                                                        // (Update 7: key null for the order note)
+  const POPS = ['mods', 'qty', 'note', 'custom', 'discount', 'service', 'dish', 'void', 'server']; // (the pop-ups; customPop, a custom
+                                                        // item's, discPop, the discount's (Update 6), and Update 7's service
+                                                        // charge, dish discount, void and Change server ones are with their code below)
   let cashInput = '';                                   // cash typed on the payment sheet
   let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
@@ -203,12 +245,16 @@
   })();
 
   // ---------- money (all maths in paise) ----------
-  // Counter Update 6 (bill.js): subtotal, less the discount (if any); CGST and SGST on what is left; the total to pay
-  // rounded to the nearest rupee (the round off is on the bill). (tax: CGST and SGST together.)
+  // Counter Update 7 (bill.js): each line less its dish discount (the subtotal), less the order discount; the service
+  // charge (dine-in) on what is left; the packaging and delivery charges (Settings › Billing & charges); CGST and SGST on
+  // all of that; the total to pay rounded to the nearest rupee (the round off is on the bill). (tax: CGST and SGST.)
   const GST = window.RestroBill.labels(menu.taxRate);
+  const billing = () => window.RestroPrefs?.get('billing') || {};
+  const packagingOf = id => Number(items.get(id)?.packaging) || 0; // (a dish's own, from the Menu app)
   const totalsOf = o => {
-    const subtotal = o.lines.reduce((sum, line) => sum + eachOf(line) * 100 * line.qty, 0);
-    return { ...window.RestroBill.totals(subtotal, o.discountPct, menu.taxRate), count: o.lines.reduce((n, l) => n + l.qty, 0) };
+    const type = o.type || DEFAULT_TYPE, lines = o.lines.map(l => ({ id: l.id, each: eachOf(l) * 100, qty: l.qty, off: l.off }));
+    const charges = window.RestroBill.charges(type, lines, billing(), packagingOf);
+    return { ...window.RestroBill.order({ lines, type, discountPct: o.discountPct, servicePct: o.servicePct, ...charges }, menu.taxRate), count: o.lines.reduce((n, l) => n + l.qty, 0) };
   };
   const totals = () => totalsOf(order);
   // Earlier versions kept saved and scheduled orders in Held / Scheduled: they move to Orders (not paid).
@@ -267,6 +313,8 @@
   // groups) comes on as a line of its own, selected, with its modifier pop-up open over the menu: a required group
   // (spice level) starts with nothing chosen, and each choice shows on the order at once.
   function add(id) {
+    // (a sold-out dish (Update 7) adds nothing: "Fish fingers is sold out")
+    if (soldOut(id)) { say({ b: items.get(id)?.name || 'This dish', t: ' is sold out' }); return; }
     if (!groupsOf(id).length) { addLine(id, []); return; }
     const line = { id, qty: 1, type: order.type, mods: [], note: '', edit: true };
     order.lines.push(line);
@@ -286,47 +334,54 @@
     const line = order.lines.find(l => keyOf(l) === key); if (!line) return;
     line.note = cleanNote(note); render();
   }
+  // A quantity typed or stepped. Below what the kitchen already has of the line (Update 7: it went on a KOT), the void
+  // pop-up asks why first ("Reduce Chicken noodles 8 → 7?"); dishes not sent yet change freely.
   function setQty(key, qty) {
+    const line = lineOf(key); if (!line) return;
+    if (qty < sentOf(line)) { openVoid(key, Math.max(0, qty)); return; }
     if (qty <= 0) { removeLine(key); return; }
-    order.lines = order.lines.map(l => keyOf(l) === key ? { ...l, qty } : l); render();
+    line.qty = qty; render();
   }
-  // Taking a dish off (− at 1, 0 on the number pad, a swipe, or the Delete key) happens straight away; the Undo bar above
-  // Subtotal ("Chicken biryani removed · UNDO") brings it back exactly as it was (quantity, choices, note, place) for
-  // 5 seconds. Another dish taken off replaces the bar.
-  function removeLine(key) {
+  // Taking a dish off (− at 1, 0 on the number pad, a swipe, or the Delete key) happens straight away; the Undo message
+  // (Update 7: "Chicken biryani removed · UNDO", 4 s) brings it back exactly as it was (quantity, choices, note, place).
+  // A dish the kitchen already has asks why first (the void pop-up), and then there is no Undo: the VOID slip printed.
+  function removeLine(key, voided = false) {
     const at = order.lines.findIndex(l => keyOf(l) === key); if (at < 0) return;
     const line = order.lines[at];
-    clearUndo();
-    // (kept with the order it came off: another order on screen has no Undo bar)
-    undo = { order, line: JSON.parse(JSON.stringify(line)), at, key, name: itemOf(line).name };
-    undo.timer = setTimeout(() => { undo = null; if (dialog.open) render(); }, 5000);
+    if (!voided && sentOf(line)) { openVoid(key, 0); return; }
+    const was = JSON.parse(JSON.stringify(line)), target = order;
     order.lines.splice(at, 1);
     if (selected === key) selected = null;
     render();
+    if (voided) return;
+    say({ b: itemOf(line).name, t: ' removed', undo: () => {
+      if (order !== target) return; // (another order took the screen meanwhile)
+      const same = order.lines.find(l => keyOf(l) === key);
+      if (same) same.qty += was.qty; else order.lines.splice(Math.min(at, order.lines.length), 0, was);
+      tidy(); render();
+    } });
   }
-  const undoShown = () => (undo && undo.order === order ? undo : null);
-  function undoRemove() {
-    const u = undoShown(); clearUndo(); if (!u) return;
-    const same = order.lines.find(l => keyOf(l) === u.key);
-    if (same) same.qty += u.line.qty; else order.lines.splice(Math.min(u.at, order.lines.length), 0, u.line);
-    tidy(); render();
-  }
-  function clearUndo() { if (undo) clearTimeout(undo.timer); undo = null; }
-  // Merge lines that ended up with the same item, type and choices (both notes are kept).
+  // Merge lines that ended up with the same item, type, choices and dish discount (both notes are kept, and what the
+  // kitchen has of each).
   function tidy() {
     const merged = [];
     for (const line of order.lines) {
       if (line.edit) { merged.push(line); continue; } // (its modifier pop-up is open: a line of its own until it closes)
-      const type = lineType(line), mods = line.mods || [], same = merged.find(m => !m.edit && m.id === line.id && m.type === type && modsKey(m.mods) === modsKey(mods));
-      if (!same) { merged.push({ id: line.id, qty: line.qty, type, mods: [...mods], note: line.note || '', ...(line.custom ? { custom: line.custom } : {}) }); continue; }
+      const type = lineType(line), mods = line.mods || [], same = merged.find(m => !m.edit && m.id === line.id && m.type === type && modsKey(m.mods) === modsKey(mods) && (m.off || 0) === (line.off || 0));
+      if (!same) {
+        merged.push({ id: line.id, qty: line.qty, type, mods: [...mods], note: line.note || '', ...(line.custom ? { custom: line.custom } : {}),
+          ...(line.off ? { off: line.off, ...(line.offReason ? { offReason: line.offReason } : {}) } : {}), ...(line.kit?.length ? { kit: line.kit.map(k => ({ ...k, mods: [...k.mods] })) } : {}) });
+        continue;
+      }
       same.qty += line.qty;
       if (line.note && line.note !== same.note) same.note = cleanNote(same.note ? `${same.note} · ${line.note}` : line.note);
+      if (line.kit?.length) same.kit = [...(same.kit || []), ...line.kit.map(k => ({ ...k, mods: [...k.mods] }))];
     }
     order.lines = merged;
   }
   function moveLine(key, type) {
     const line = order.lines.find(l => keyOf(l) === key); if (!line) return;
-    line.type = type; tidy(); selected = `${line.id}@${type}${modsKey(line.mods)}`; render();
+    line.type = type; tidy(); selected = `${line.id}@${type}${modsKey(line.mods)}${offKey(line)}`; render();
   }
   // Changing the order type puts every item on the new type, with Modify on or off (with Modify on, items can then be
   // moved to other types again). The same item on two types becomes one line. No type (null) means the default, Dine in.
@@ -336,17 +391,40 @@
     order.lines.forEach(l => { l.type = type; }); tidy();
     selected = null; render();
   }
-  // The three-line menu (the blue button left of search): Apply discount, Remove discount (Update 6), Highlight order and
-  // Delete order.
+  // The order menu (☰, the blue button left of search; Counter Update 7), its rows by order type (the ones that don't
+  // apply are not there): Kitchen: Reprint KOT · Mark as priority / Remove priority; Bill: Discount · Dish discount ·
+  // Service charge (dine-in, when the owner allows it), each with a switch; Table (dine-in): Move table · Merge tables ·
+  // Change server; then Delete order.
   function openOptions(open) {
     optionsMenu = open; deleteArmed = false; render();
     if (open) dialog.querySelector('.cx-mi:not(:disabled)')?.focus({ preventScroll: true });
   }
-  // Discount (Update 6): a percentage of the subtotal, 1 to 100. Apply discount opens its pop-up (with the discount the
-  // order has, to change it); Remove discount takes it off at once (it does nothing until there is one).
+  const closeMenu = () => { optionsMenu = false; deleteArmed = false; };
+  // The switches: off → on opens the pop-up with the preset (Done turns it on, ✕ leaves it off); the row's name while on
+  // opens the pop-up to change it; on → off takes it off at once, with Undo.
+  function switchOff(what) {
+    closeMenu();
+    const target = order;
+    if (what === 'discount') {
+      const was = order.discountPct; order.discountPct = null; render();
+      say({ b: 'Discount', t: ' removed', undo: () => { if (order === target) { order.discountPct = was; render(); } } });
+    } else if (what === 'service') {
+      const was = order.servicePct; order.servicePct = null; render();
+      say({ b: 'Service charge', t: ' removed', undo: () => { if (order === target) { order.servicePct = was; render(); } } });
+    } else if (what === 'dish') {
+      const was = order.lines.map(l => [l, l.off, l.offReason]);
+      order.lines.forEach(l => { delete l.off; delete l.offReason; }); tidy(); selected = null; render();
+      say({ b: 'Dish discounts', t: ' removed', undo: () => {
+        if (order !== target) return;
+        for (const [l, off, reason] of was) if (order.lines.includes(l)) { if (off) l.off = off; if (reason) l.offReason = reason; }
+        tidy(); render();
+      } });
+    }
+  }
+  // Discount (Update 6): a percentage of the subtotal, 1 to 100, quick picks from Settings › Billing & charges. Its pop-up
+  // opens with the discount the order has, to change it, or empty.
   let discPop = null; // { value: the digits typed }
-  function openDiscount() { optionsMenu = false; deleteArmed = false; discPop = { value: order.discountPct ? String(order.discountPct) : '' }; selected = null; sheet = 'discount'; render(); }
-  function removeDiscount() { if (!order.discountPct) return; order.discountPct = null; optionsMenu = false; deleteArmed = false; render(); }
+  function openDiscount() { closeMenu(); discPop = { value: order.discountPct ? String(order.discountPct) : '' }; selected = null; sheet = 'discount'; render(); }
   const discOf = p => { const n = Number(p.value); return p.value !== '' && Number.isInteger(n) && n >= 1 && n <= 100 ? n : null; };
   // The number pad: up to 100 (a key that would go over it does nothing); a quick pick sets its value
   function pressDisc(k) {
@@ -357,25 +435,141 @@
   }
   function applyDiscount() { const n = discPop && discOf(discPop); if (!n) return; order.discountPct = n; sheet = null; discPop = null; render(); }
   function cancelDiscount() { sheet = null; discPop = null; render(); }
-  // Highlight order: the order takes the whole left side, top to bottom, to go through and edit its items; the menu side
-  // is dimmed. A tap on the dimmed side or Back ends it, and so does the last item going.
-  function setHighlight(on) {
-    highlight = on; optionsMenu = false; deleteArmed = false;
-    if (on) scrollMemo.lines = 0; // the order shows from its first item
-    render();
-    if (!on) dialog.querySelector('.cx-mb')?.focus({ preventScroll: true });
+  // Service charge (Update 7): dine-in only, never automatic (the customer agrees to it). Its pop-up opens with the
+  // owner's preset (5%), or the order's rate to change it; quick picks 2.5 / 5 / 7.5 / 10; a decimal point; at most the
+  // owner's maximum (10%). It is charged on what is left after the discounts, with GST on top.
+  let servicePop = null; // { value: what is typed, '7.5' }
+  const serviceSet = () => billing().serviceCharge || {};
+  const serviceMax = () => window.RestroBill.rate(serviceSet().max) || 10;
+  const serviceAllowed = () => serviceSet().on === true;
+  function openService() {
+    closeMenu();
+    const preset = order.servicePct || window.RestroBill.rate(serviceSet().rate) || 5;
+    servicePop = { value: String(Math.min(preset, serviceMax())) }; selected = null; sheet = 'service'; render();
   }
+  const serviceOf = p => { const n = Number(p.value); return p.value !== '' && /^\d{1,2}(\.\d)?$/.test(p.value) && n > 0 && n <= serviceMax() ? n : null; };
+  function pressService(k) {
+    const p = servicePop; if (!p) return;
+    const v = p.value;
+    let next = k === 'clear' ? '' : k === 'back' ? v.slice(0, -1) : k === '.' ? (v.includes('.') ? v : `${v || '0'}.`) : v === '0' ? k : v + k;
+    if (!/^\d{0,2}(\.\d?)?$/.test(next)) return;            // (up to 2 digits, one after the point)
+    if (next !== '' && Number(next) > serviceMax()) return; // (a key that would go over the maximum does nothing)
+    p.value = next; render();
+  }
+  function applyService() { const n = servicePop && serviceOf(servicePop); if (!n) return; order.servicePct = n; sheet = null; servicePop = null; render(); }
+  function cancelService() { sheet = null; servicePop = null; render(); }
+  // Dish discount (Update 7), in two steps: pick the dishes (every line, each with a box; more than one can be picked and
+  // they all get the same percentage) · then the percentage (quick picks 10 / 20 / 50 / 100, the number pad; at 100%, a
+  // reason is needed). 0% (or Clear) takes a picked dish's discount off. The same discount on several lines is one
+  // line's worth each: a line keeps its own.
+  let dishPop = null; // { step: 1 | 2, picked: [line keys], value, reason, other (the reason typed after Other…), typing }
+  const dishPicks = () => billing().dishDiscount?.picks?.length ? billing().dishDiscount.picks : [10, 20, 50, 100];
+  const dishReasons = () => { const r = billing().dishDiscount?.reasons; return Array.isArray(r) && r.length ? r : ['Staff meal', 'Complaint', 'Owner’s guest', 'Regular customer', 'Birthday', 'Other']; };
+  function openDish() {
+    closeMenu();
+    const picked = order.lines.filter(l => l.off).map(keyOf);
+    dishPop = { step: 1, picked, value: '', reason: '', other: '', typing: false }; selected = null; sheet = 'dish'; render();
+  }
+  function dishNext() {
+    const p = dishPop; if (!p || !p.picked.length) return;
+    const lines = p.picked.map(lineOf).filter(Boolean), offs = [...new Set(lines.map(l => l.off || 0))];
+    p.step = 2; p.value = offs.length === 1 && offs[0] ? String(offs[0]) : '';
+    const reasons = [...new Set(lines.map(l => l.offReason || ''))];
+    p.reason = reasons.length === 1 ? reasons[0] : ''; p.other = '';
+    if (p.reason && !dishReasons().some(r => r === p.reason)) { p.other = p.reason; p.reason = 'Other'; }
+    render();
+  }
+  const dishValue = p => { const n = Number(p.value); return p.value !== '' && Number.isInteger(n) && n >= 0 && n <= 100 ? n : null; };
+  function pressDish(k) {
+    const p = dishPop; if (!p || p.step !== 2) return;
+    const v = p.value, next = k === 'clear' ? '' : k === 'back' ? v.slice(0, -1) : v === '0' ? k : v + k;
+    if (next !== '' && Number(next) > 100) return;
+    p.value = next; render();
+  }
+  const dishReason = p => (p.reason === 'Other' || p.reason === 'Other…' ? cleanReason(p.other) : cleanReason(p.reason));
+  function applyDish() {
+    const p = dishPop; if (!p) return;
+    const n = dishValue(p); if (n == null) return;
+    const reason = n === 100 ? dishReason(p) : '';
+    if (n === 100 && !reason) return;
+    for (const key of p.picked) {
+      const line = lineOf(key); if (!line) continue;
+      if (n > 0) { line.off = n; if (reason) line.offReason = reason; else delete line.offReason; } else { delete line.off; delete line.offReason; }
+    }
+    tidy(); sheet = null; dishPop = null; selected = null; render();
+  }
+  function cancelDish() { sheet = null; dishPop = null; render(); }
+  // Mark as priority (kitchen only): KOTs print with the ★ PRIORITY band, and the order header says ⚑ PRIORITY. Turned on
+  // after a KOT has gone, a short priority notice goes to the kitchen.
+  function togglePriority() {
+    closeMenu();
+    order.priority = !order.priority; render();
+    if (!order.priority) return;
+    const saved = savedOf(loadOrders());
+    if (saved && Array.isArray(saved.kots) && saved.kots.some(k => (k.kind || 'kot') === 'kot')) {
+      const list = loadOrders(), rec = savedOf(list);
+      rec.priority = true;
+      const slip = kitchenSlip(rec, { kind: 'priority', at: Date.now(), lines: [] });
+      rec.kots = [...rec.kots, { id: newKotId(), at: slip.at, kind: 'priority', by: staffName() }].slice(-60);
+      storeOrders(list); keepOpened(rec);
+      printSlip(slip, () => say('Order marked as priority · kitchen notified'));
+    } else say('Order marked as priority');
+  }
+  // Reprint KOT: the order's KOTs as they were, to the kitchen printer again (no options, no "duplicate").
+  function reprintKot() {
+    closeMenu(); render();
+    const saved = savedOf(loadOrders()), kots = (saved?.kots || []).filter(k => (k.kind || 'kot') === 'kot');
+    if (!kots.length) { say('No KOT yet · Save sends the first one'); return; }
+    const last = kots[kots.length - 1];
+    printSlip(kitchenSlip(saved, last), () => say({ b: 'KOT reprinted', t: ' · sent to Kitchen printer' }));
+  }
+  // Move table: the Dining app, to pick the table the order moves to. Merge tables: pick a table whose open order comes
+  // onto this one (its dishes, as the kitchen has them; that order goes when this one is saved). Change server: who
+  // serves the order.
+  function moveTable() { closeMenu(); render(); pickTable(); }
+  function mergeTables() {
+    closeMenu(); render();
+    window.RestroFloor?.open({ pick: true, current: null, onPick: table => {
+      const mine = o => (order.uid ? idOf(o) === order.uid : order.number ? o.number === order.number : false);
+      const other = loadOrders().find(o => !o.paidAt && o.table === table.id && usesTable(o) && !mine(o));
+      if (!other) { render(); say(`Table ${tableName(table.id)} has no open order`); return; }
+      if (order.merged.includes(idOf(other))) { render(); return; }
+      const r = onScreen(other);
+      for (const l of r.lines) { l.type = order.split ? typeOf(r, l) : order.type || DEFAULT_TYPE; order.lines.push(l); }
+      order.merged = [...order.merged, idOf(other)];
+      if (!order.type) order.type = 'dine-in';
+      order.guests = cleanGuests((order.guests || 0) + (r.guests || 0)) || order.guests;
+      if (r.note && r.note !== order.note) order.note = cleanNote(order.note ? `${order.note} · ${r.note}` : r.note);
+      tidy(); render();
+      say({ b: `Order ${ticket(other.number)}`, t: ` (table ${tableName(table.id)}) merged · Save to keep it` });
+    } });
+  }
+  let serverPop = null; // { } while Change server is open
+  function openServer() {
+    closeMenu();
+    if (!window.RestroStaff?.list().length) { render(); say('No staff accounts yet · add them in Staff'); return; }
+    serverPop = {}; sheet = 'server'; render();
+  }
+  function pickServer(person) { order.server = person.name; order.serverId = person.id; sheet = null; serverPop = null; render(); say({ b: person.name, t: ' is serving this order' }); }
   // Anything on screen to delete: items, a type, a table, a customer, a pager, a ready time, Modify, a discount, or a
   // saved order.
-  const hasOrder = () => Boolean(order.lines.length || order.number || order.type || order.table || order.customer || order.pager || order.readyAt || order.split || order.discountPct);
+  const hasOrder = () => Boolean(order.lines.length || order.number || order.type || order.table || order.customer || order.pager || order.readyAt || order.split || order.discountPct || order.servicePct || order.note);
   // Delete order: the first tap asks again (Tap again to delete, until the menu closes); the second deletes the order
-  // on screen. A saved order (opened from Orders, not paid) comes off Orders too.
+  // on screen. A saved order (opened from Orders, not paid) comes off Orders too. Once a KOT has gone (Update 7), the
+  // void pop-up asks why first, and the kitchen gets ORDER CANCELLED (VOID ALL).
   function tapDelete() {
+    const saved = savedOf(loadOrders());
+    if (saved && Object.values(saved.sent || {}).some(n => n > 0)) { closeMenu(); openVoid(null, 0); return; }
     if (!deleteArmed) { deleteArmed = true; render(); dialog.querySelector('.cx-mi.del')?.focus({ preventScroll: true }); return; }
+    const n = order.number;
+    dropSaved();
+    fresh(); toast(n ? `Order ${ticket(n)} deleted` : 'Order deleted');
+  }
+  // The saved order on screen (and its held copy) comes off Orders and Held
+  function dropSaved() {
     const n = order.number;
     if (n) { const list = loadOrders(), gone = o => (order.uid ? idOf(o) === order.uid : o.number === n) && !o.paidAt; list.filter(gone).forEach(o => window.RestroSync?.removed('orders', idOf(o))); storeOrders(list.filter(o => !gone(o))); }
     if (order.heldId) { window.RestroSync?.removed('held', order.heldId); held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
-    fresh(); toast(n ? `Order ${ticket(n)} deleted` : 'Order deleted');
   }
   // Order type: the four types open two by two over the context row and the order header, over the dimmed screen;
   // picking one sets it (every item moves to it) and closes them. Picking the type already chosen takes it off again:
@@ -412,22 +606,70 @@
     if (!order.lines.length || (order.number && signature(order) === baseline)) return false;
     return hold();
   }
-  const fresh = () => { order = blankOrder(); baseline = null; opened = null; selected = null; sheet = null; modPop = null; qtyPop = null; notePop = null; discPop = null; typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; scheduleDraft = null; render(); };
-  // Sends the items not sent yet to the kitchen, as one kitchen ticket. There is no kitchen screen or printer yet,
-  // so the ticket is recorded on the order. Returns how many items went.
+  const fresh = () => { order = blankOrder(); baseline = null; opened = null; selected = null; sheet = null; modPop = null; qtyPop = null; notePop = null; discPop = null; typeMenu = false; optionsMenu = false; deleteArmed = false; scheduleDraft = null; servicePop = null; dishPop = null; voidPop = null; serverPop = null; render(); };
+  // ---------- the kitchen (Counter Update 7) ----------
+  // Save sends the KOT, and so does Pay: only the dishes the kitchen doesn't have yet (KOT #2 has only what was added
+  // after KOT #1). A dish the kitchen has whose choices or note changed goes on a CHANGED slip; one taken off or reduced
+  // goes on a VOID slip (with its reason, at once: the void pop-up); a deleted order on ORDER CANCELLED. Each slip is kept
+  // on the order (kots: { id, at, kind: 'kot' | 'changed' | 'void' | 'cancel' | 'priority', no, lines, reason, by }) and
+  // printed on the kitchen printer by the RESTRO Android app (printSlip). sent: how many of each dish (its kitchen key)
+  // the kitchen has.
+  const staffName = () => window.RestroStaff?.current?.name || null;
+  const initialsOf = name => (typeof name === 'string' && name.trim() ? name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() : '');
+  const newKotId = () => window.RestroSync?.newId?.('k') || `k${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const kotsOf = o => (Array.isArray(o?.kots) ? o.kots : []).filter(k => k && (k.kind || 'kot') === 'kot');
+  // The number of the KOT a dish (kitchen key) last went on
+  const kotOfKey = (o, key) => { const k = [...kotsOf(o)].reverse().find(t => (t.lines || []).some(l => kitchenKey(l.id, l.type, l.mods) === key)); return k ? k.no || kotsOf(o).indexOf(k) + 1 : null; };
+  // A line's choices as kept on a saved order and its slips (with their names, for the bill and the kitchen)
+  const modObjs = mods => (mods || []).map(m => ({ id: m, label: optionOf.get(m)?.label || m, kind: optionOf.get(m)?.kind || 'other', price: optionOf.get(m)?.price || 0, ...(optionOf.get(m)?.mode === 'set' ? { sets: true } : {}) }));
+  const thisDevice = () => window.RestroSync?.status?.()?.device?.id || null;
+  // Sends the dishes the kitchen doesn't have yet as one KOT (numbered #1, #2 … on the order). Returns the KOT, or null.
   function sendToKitchen(entry, now = Date.now()) {
     if (!entry.sent || typeof entry.sent !== 'object') entry.sent = {};
-    const lines = [];
+    const groups = new Map();
     for (const l of entry.lines) {
-      const key = `${l.id}@${l.type}${modsKey(l.mods)}`, n = l.qty - (Number(entry.sent[key]) || 0); if (n <= 0) continue;
-      lines.push({ id: l.id, name: l.name, qty: n, type: l.type, ...(l.custom ? { custom: true, ...(l.custom.veg != null ? { veg: l.custom.veg } : {}) } : {}), ...(l.mods?.length ? { mods: l.mods } : {}), ...(l.note ? { note: l.note } : {}) }); entry.sent[key] = l.qty;
+      const k = kitchenKey(l.id, l.type, l.mods), g = groups.get(k);
+      if (g) { g.qty += l.qty; if (l.note && !g.notes.includes(l.note)) g.notes.push(l.note); } else groups.set(k, { l, qty: l.qty, notes: l.note ? [l.note] : [] });
     }
-    if (!lines.length) return 0;
-    entry.sentAt = entry.sentAt || now; entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), { at: now, lines }].slice(-30);
-    return lines.reduce((n, l) => n + l.qty, 0);
+    const lines = [];
+    for (const [k, g] of groups) {
+      const n = g.qty - (Number(entry.sent[k]) || 0); if (n <= 0) continue;
+      const l = g.l;
+      lines.push({ id: l.id, name: l.name, qty: n, type: l.type, ...(l.custom ? { custom: true, ...(l.custom.veg != null ? { veg: l.custom.veg } : {}) } : {}), ...(l.mods?.length ? { mods: l.mods } : {}), ...(g.notes.length ? { note: g.notes.join(' · ') } : {}) });
+      entry.sent[k] = g.qty;
+    }
+    if (!lines.length) return null;
+    const kot = { id: newKotId(), at: now, kind: 'kot', no: kotsOf(entry).length + 1, lines, ...(entry.priority ? { priority: true } : {}), by: staffName() };
+    entry.sentAt = entry.sentAt || now; entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), kot].slice(-60);
+    return kot;
+  }
+  // The dishes on screen the kitchen has, whose choices or note changed since (a CHANGED slip): the kitchen's count moves
+  // from the dish as it was to the dish as it is.
+  function changedSlip(entry, o, now) {
+    const lines = [];
+    for (const l of o.lines) for (const k of l.kit || []) {
+      const n = Math.min(k.n, l.qty);
+      if (n <= 0 || (modsKey(k.mods) === modsKey(l.mods) && (k.note || '') === (l.note || ''))) continue;
+      const type = typeOf(o, l), from = kitchenKey(l.id, type, k.mods), to = kitchenKey(l.id, type, l.mods);
+      lines.push({ id: l.id, name: itemOf(l).name, qty: n, type, ...(l.mods.length ? { mods: modObjs(l.mods) } : {}), ...(l.note ? { note: l.note } : {}),
+        was: { mods: modObjs(k.mods), note: k.note || '', kot: kotOfKey(entry, from) } });
+      if (from !== to) { entry.sent[from] = (Number(entry.sent[from]) || 0) - n; if (entry.sent[from] <= 0) delete entry.sent[from]; entry.sent[to] = (Number(entry.sent[to]) || 0) + n; }
+    }
+    if (!lines.length) return null;
+    const slip = { id: newKotId(), at: now, kind: 'changed', lines, by: staffName() };
+    entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), slip].slice(-60);
+    return slip;
   }
   // The saved order (not paid yet) the order on screen carries on, if any
   const savedOf = list => (order.uid ? list.find(o => idOf(o) === order.uid && !o.paidAt) : order.number ? list.find(o => o.number === order.number && !o.paidAt) : null);
+  // A saved order's sums from its own lines (as sync.js works them out): after a void is written to it
+  function recordSums(rec) {
+    const type = rec.type || DEFAULT_TYPE, lines = rec.lines.map(l => ({ id: l.id, each: Math.round(l.price * 100), qty: l.qty, off: l.off }));
+    const charges = window.RestroBill.charges(type, lines, billing(), packagingOf);
+    return { ...window.RestroBill.order({ lines, type, discountPct: rec.discountPct, servicePct: rec.servicePct, ...charges }, menu.taxRate), count: rec.lines.reduce((n, l) => n + l.qty, 0) };
+  }
+  // The saved order changed here without Save (a void, a priority notice): the order on screen carries on from it
+  function keepOpened(rec) { opened = JSON.stringify(rec); baseline = signature(onScreen(rec)); }
   // Saves the order on screen in Orders (Save, or Pay with the payment) and sends it to the kitchen, unless it is
   // scheduled for later: then it goes at its ready time minus the preparation time. Saving again sends only what was added.
   // A new order takes `given` ({ day, number }, given as it was fired).
@@ -445,15 +687,20 @@
       ? { pager: onScreenPager, pagerAt: order.pagerAt || prev?.pagerAt || (prev ? createdOf(prev) : now), ...(untouched && prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) }
       : record ? { pager: prev.pager, ...(prev.pagerAt ? { pagerAt: prev.pagerAt } : {}), ...(prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) } : { pager: 0 };
     let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, ...pagerFields, readyAt: order.readyAt || null,
-      // each line's price is one with its add-ons; its choices (with their names, for the bill and the kitchen) and note; a
-      // custom item keeps what was typed for it (Counter Update 5), so the order opens again with it
+      // each line's price is one with its add-ons (a choice that sets the price: that price); its choices and note; its
+      // dish discount (Update 7); a custom item keeps what was typed for it (Counter Update 5), so the order opens again
+      // with it
       lines: order.lines.map(l => ({ id: l.id, name: itemOf(l).name, price: eachOf(l), qty: l.qty, type: lineType(l), ...(l.custom ? { custom: { ...l.custom } } : {}),
-        ...(l.mods?.length ? { mods: l.mods.map(m => ({ id: m, label: optionOf.get(m)?.label || m, kind: optionOf.get(m)?.kind || 'other', price: optionOf.get(m)?.price || 0 })) } : {}),
-        ...(l.note ? { note: l.note } : {}) })), ...totals(),
+        ...(l.mods?.length ? { mods: modObjs(l.mods) } : {}), ...(l.note ? { note: l.note } : {}),
+        ...(l.off ? { off: l.off, ...(l.offReason ? { offReason: l.offReason } : {}) } : {}) })), ...totals(),
+      // Update 7: the order note (on every KOT), priority (kitchen only), the guest count
+      ...(order.note ? { note: order.note } : {}), ...(order.priority ? { priority: true } : {}), ...(order.guests ? { guests: order.guests } : {}),
       createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? prev.day : given?.day || window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
-      // the server: whoever was signed in when the order was first saved (staff sign-in)
-      server: prev && prev.server ? prev.server : window.RestroStaff?.current?.name || null, serverId: prev && prev.serverId ? prev.serverId : window.RestroStaff?.current?.id || null,
+      // the server: as changed with Change server (Update 7), otherwise whoever was signed in when it was first saved
+      server: order.server || (prev && prev.server) || staffName(), serverId: order.serverId || (prev && prev.serverId) || window.RestroStaff?.current?.id || null,
+      // (the tablet that saved it last sends its KOT at the kitchen time, when it is scheduled)
+      ...(thisDevice() ? { savedOn: thisDevice() } : {}),
       // kept from the kitchen screen: the kitchen's "complete" (until more items go to the kitchen)
       ...(prev?.kitchenDoneAt ? { kitchenDoneAt: prev.kitchenDoneAt } : {}),
       // an order this tablet had from before it joined the others keeps its own number until the main system settles it
@@ -462,30 +709,49 @@
     if (prev && opened && window.RestroSync && JSON.stringify(prev) !== opened) entry = window.RestroSync.mergeRecord('orders', JSON.parse(opened), entry, prev);
     // (a pager handed out here is out, even if the one it replaced came back on another tablet meanwhile)
     if (entry.pagerBackAt && !pagerFields.pagerBackAt && entry.pager === pagerFields.pager && (entry.pagerAt || 0) === (pagerFields.pagerAt || 0)) delete entry.pagerBackAt;
-    const sentNow = !entry.readyAt || kitchenTime(entry) <= now ? sendToKitchen(entry, now) : 0;
-    if (sentNow) delete entry.kitchenDoneAt; // more for the kitchen: not complete any more
+    // Merge tables (Update 7): the orders whose dishes came onto this one go; what their kitchen had, this one has
+    const gone = list.filter(o => !o.paidAt && order.merged.includes(idOf(o)) && idOf(o) !== entry.uid);
+    for (const o of gone) {
+      if (!entry.sent || typeof entry.sent !== 'object') entry.sent = {};
+      for (const [k, n] of Object.entries(o.sent && typeof o.sent === 'object' ? o.sent : {})) if (n > 0) entry.sent[k] = (Number(entry.sent[k]) || 0) + n;
+      entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), ...(Array.isArray(o.kots) ? o.kots.map(k => ({ ...k, from: o.number })) : [])].slice(-60);
+      if (!entry.sentAt && o.sentAt) entry.sentAt = o.sentAt;
+      window.RestroSync?.removed('orders', idOf(o));
+    }
+    if (!entry.sent || typeof entry.sent !== 'object') entry.sent = {};
+    const goesNow = !entry.readyAt || kitchenTime(entry) <= now;
+    const changed = goesNow ? changedSlip(entry, order, now) : null;
+    const kot = goesNow ? sendToKitchen(entry, now) : null;
+    if (kot) delete entry.kitchenDoneAt; // more for the kitchen: not complete any more
     // A pager handed out or given up here: every other order that had that number is back from it (a pager can only be
     // handed out once it is back), each keeping when it came back for the record (the one that had it till now: now)
-    const others = list.filter(o => idOf(o) !== entry.uid);
+    const others = list.filter(o => idOf(o) !== entry.uid && !gone.includes(o));
     if (!untouched && !record) {
       const back = pagersBack(list), numbers = new Set([cleanPager(prev?.pager), cleanPager(entry.pager)].filter(Boolean));
       for (const o of others) if (numbers.has(cleanPager(o.pager)) && !o.pagerBackAt) o.pagerBackAt = back.get(idOf(o)) || now;
     }
     storeOrders([entry, ...others]);
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
-    return { entry, sentNow, isNew: !prev };
+    // The kitchen printer: the CHANGED slip, then the KOT
+    if (changed) printSlip(kitchenSlip(entry, changed));
+    if (kot) printSlip(kitchenSlip(entry, kot));
+    return { entry, kot, sentNow: kot ? kot.lines.reduce((n, l) => n + l.qty, 0) : 0, isNew: !prev };
   }
   // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
   // main system or the cloud, as a new order takes its number from them, so no two orders share one. Otherwise it says
-  // so and the order stays on screen. Returns what upsertOrder does, or null.
+  // so and the order stays on screen. Returns what upsertOrder does, or null. A dish that sold out before its KOT went
+  // (Update 7) stops it: "Fish fingers is now sold out · remove it to send KOT".
   let firing = false;
   const cantFire = pay => {
     const st = window.RestroSync?.status();
     return `${!st?.cloud.setUp ? 'Can’t reach the main system' : st.paired ? 'No connection' : 'No internet'} · ${pay ? 'payment not taken' : 'order not saved'}`;
   };
+  const blockingSoldOut = () => order.lines.find(l => !l.custom && soldOut(l.id) && l.qty > sentOf(l)) || null;
   async function fire(pay) {
     const sync = window.RestroSync, target = order;
     if (firing || !order.lines.length) return null;
+    const out = blockingSoldOut();
+    if (out) { say({ kind: 'error', b: `${itemOf(out).name} is now sold out`, sub: 'Remove it to send KOT' }); return null; }
     if (sync && !sync.canFire()) { toast(cantFire(pay)); return null; }
     let given = null;
     if (sync && !savedOf(loadOrders())) {
@@ -496,13 +762,13 @@
     }
     return upsertOrder(pay, given);
   }
-  // Save: the order goes to Orders (not paid yet) and to the kitchen; a new order starts.
+  // Save: the order goes to Orders (not paid yet) and its KOT to the kitchen; a new order starts.
   async function saveOrder() {
     const done = await fire(null); if (!done) return;
-    const { entry, sentNow, isNew } = done;
-    const kitchen = sentNow ? (isNew ? 'sent to kitchen' : `${sentNow} more item${sentNow === 1 ? '' : 's'} sent to kitchen`) : entry.readyAt && !entry.sentAt ? `kitchen at ${whenShort(kitchenTime(entry))}` : '';
-    toast([`Order ${ticket(entry.number)} saved`, kitchen].filter(Boolean).join(' · '));
+    const { entry, kot } = done;
+    const kitchen = kot ? `KOT #${kot.no} sent` : entry.readyAt && !entry.sentAt ? `kitchen at ${whenShort(kitchenTime(entry))}` : '';
     fresh();
+    say({ b: `Order ${ticket(entry.number)} saved`, t: kitchen ? ` · ${kitchen}` : '' });
   }
   // Hold (always there): the order on screen waits in Held until the end of the day, as the customer may call or come
   // back, and a new order starts. A new order's table and pager are free meanwhile; a saved order stays in Orders as it
@@ -555,8 +821,16 @@
     if (heldChanged) { held = keep; store(HELD_KEY, held); }
     const list = loadOrders(); let sent = 0;
     // the ticket carries its kitchen time, so tablets sending the same scheduled order make the same ticket (sync keeps one)
-    for (const o of list) if (cleanTime(o.readyAt) && kitchenTime(o) <= now && sendToKitchen(o, kitchenTime(o))) { announceKitchen(o); sent++; }
+    const printing = [];
+    for (const o of list) {
+      if (!(cleanTime(o.readyAt) && kitchenTime(o) <= now)) continue;
+      const kot = sendToKitchen(o, kitchenTime(o)); if (!kot) continue;
+      announceKitchen(o); sent++;
+      // (printed by the tablet that saved it last, or this one when there is only one: Update 7)
+      if (!window.RestroSync || !o.savedOn || o.savedOn === thisDevice()) printing.push([o, kot]);
+    }
     if (sent) storeOrders(list);
+    for (const [o, kot] of printing) printSlip(kitchenSlip(o, kot));
     if (dialog.open && (heldChanged || (sent && sheet === 'orders'))) render();
   }
   function announceKitchen(o) {
@@ -585,8 +859,10 @@
     const names = e.detail?.collections || [];
     if (names.includes('held')) { held = load(HELD_KEY, []); if (!Array.isArray(held)) held = []; if (order.heldId && !order.number && !held.some(h => h.heldId === order.heldId)) order.heldId = null; }
     if (names.includes('orders') && (order.uid || order.number)) followOpenOrder();
-    if (dialog.open && (names.includes('held') || names.includes('orders'))) render();
+    // (settings: what is sold out, the charges; Update 7)
+    if (dialog.open && (names.includes('held') || names.includes('orders') || names.includes('settings'))) render();
   });
+  window.addEventListener('restro:prefs-changed', e => { if (dialog.open && ['billing', 'kitchen'].includes(e.detail?.name)) render(); });
   // An order this tablet had from before it joined the others, whose number another order that day has: it was given the
   // next free number.
   window.addEventListener('restro:orders-renumbered', e => {
@@ -608,8 +884,8 @@
       return;
     }
     const n = order.number, was = opened ? restoreOrder(JSON.parse(opened)) : null;
-    const before = new Map((was ? was.lines : []).map(l => [`${l.id}@${typeOf(was, l)}${modsKey(l.mods)}`, l.qty]));
-    const added = unsaved ? order.lines.map(l => ({ ...l, qty: l.qty - (before.get(keyOf(l)) || 0) })).filter(l => l.qty > 0) : [];
+    const before = new Map((was ? was.lines : []).map(l => [`${l.id}@${typeOf(was, l)}${modsKey(l.mods)}${offKey(l)}`, l.qty]));
+    const added = unsaved ? order.lines.map(l => { const { kit, ...rest } = l; return { ...rest, qty: l.qty - (before.get(keyOf(l)) || 0) }; }).filter(l => l.qty > 0) : [];
     const how = stored ? 'paid' : 'deleted';
     if (added.length) {
       order = { ...order, number: null, uid: null, heldId: null, lines: added }; baseline = null; opened = null; selected = null;
@@ -641,12 +917,212 @@
     window.dispatchEvent(new CustomEvent('restro:order-paid', { detail: entry }));
   }
 
+  // ---------- messages (Counter Update 7) ----------
+  // One place, one look: a dark bar at the bottom of the menu, level with Save and Pay, left of the page arrows (never over
+  // the order, the dishes, the totals or Pay). Confirmations go after 2 s ("KOT sent"), Undo after 4 s ("Chicken biryani
+  // removed · UNDO"), errors stay until Retry or ✕ ("Kitchen printer offline / KOT #3 not sent", a red left edge). One at
+  // a time: a new one takes the old one's place. Its time stops while a finger is on it, and follows Android's
+  // accessibility "Time to take action" (RESTRODevice.recommendedTimeout, ANDROID-BRIDGE.md).
+  let msg = null; // { kind: 'confirm' | 'undo' | 'error', b (bold), t, sub (an error's second line), undo, retry, left, timer, since }
+  const BASE_MS = { confirm: 2000, undo: 4000 };
+  function timeFor(kind) {
+    const ms = BASE_MS[kind];
+    try { const r = Number(window.RESTRODevice?.recommendedTimeout?.(ms, kind === 'undo')); if (Number.isFinite(r) && r >= ms) return r; } catch {}
+    return ms;
+  }
+  function say(m) {
+    if (typeof m === 'string') m = { t: m };
+    if (msg) clearTimeout(msg.timer);
+    if (!dialog.open) { msg = null; if (typeof window.toast === 'function') window.toast(`${m.b || ''}${m.t || ''}${m.sub ? ` · ${m.sub}` : ''}`); return; }
+    const kind = m.kind || (m.undo ? 'undo' : m.retry ? 'error' : 'confirm');
+    msg = { ...m, kind, left: kind === 'error' ? null : timeFor(kind) };
+    runMsg(); paintMsg();
+  }
+  function runMsg() {
+    const m = msg; if (!m || m.left == null || m.held) return;
+    clearTimeout(m.timer); m.since = Date.now();
+    m.timer = setTimeout(() => { if (msg === m) { msg = null; paintMsg(); } }, m.left);
+  }
+  function holdMsg(on) {
+    const m = msg; if (!m || m.left == null) return;
+    if (on && !m.held) { clearTimeout(m.timer); m.left = Math.max(400, m.left - (Date.now() - m.since)); m.held = true; }
+    else if (!on && m.held) { m.held = false; runMsg(); }
+  }
+  function dropMsg() { if (msg) clearTimeout(msg.timer); msg = null; paintMsg(); }
+  function msgView() {
+    const m = msg; if (!m) return null;
+    const act = fn => () => { dropMsg(); fn(); };
+    const hold = () => holdMsg(true), let_go = () => holdMsg(false);
+    return el('div', { class: `cx-msg ${m.kind}${m.kind === 'confirm' ? ' plain' : ''}`, role: m.kind === 'error' ? 'alert' : 'status',
+      onpointerdown: hold, onpointerup: let_go, onpointercancel: let_go, onpointerleave: let_go },
+      el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || '', m.sub ? [el('br'), el('small', {}, m.sub)] : null),
+      m.undo ? el('button', { type: 'button', onclick: act(m.undo) }, 'UNDO') : null,
+      m.retry ? el('button', { type: 'button', onclick: act(m.retry) }, 'RETRY') : null,
+      m.kind === 'error' ? el('button', { type: 'button', class: 'xs', 'aria-label': 'Dismiss', onclick: dropMsg }, mi('close', 22)) : null);
+  }
+  // (drawn on its own, so a message never redraws the screen; kept clear of the ‹ page arrow, 40 from it)
+  function paintMsg() {
+    root.querySelector('.cx-msg')?.remove();
+    const node = msgView(); if (!node) return;
+    root.append(node);
+    const arrow = dialog.querySelector('.cx-parr'), u = uPx();
+    if (arrow && arrow.offsetParent) {
+      const room = arrow.getBoundingClientRect().left - 40 / 1.2 * u - node.getBoundingClientRect().left;
+      if (room > 0 && room < 396 * u) node.style.width = `${room}px`;
+    }
+  }
+
+  // ---------- the kitchen printer (Update 7) ----------
+  // Each slip as the kitchen printer prints it (26_kot-slips-v2): the order type on a black band; the action, when there
+  // is one, in a red box (★ PRIORITY, VOID, CHANGED, ORDER CANCELLED); KOT # · Order #, then the table, the pager or the
+  // pickup time, bold; guests · time · server (or the customer, or "By:") small; the order note in a red box; then each
+  // dish: quantity × name, its choices one per line right-aligned in red, its note last in red italics; a small footer.
+  // The RESTRO Android app prints it (RESTRODevice.printer.printKot) on the printers whose role is Kitchen or Both, in
+  // each one's KOT language (anything but English as an image) and copies (Settings › Devices › Printers).
+  const BAND = { 'dine-in': 'DINE-IN', takeaway: 'TAKEAWAY', delivery: 'DELIVERY', phone: 'PHONE ORDER' };
+  const maskPhone = m => (m && m.length >= 4 ? `${m.slice(0, 2)}${'x'.repeat(Math.max(0, m.length - 4))}${m.slice(-2)}` : '');
+  const labelOf = m => (typeof m === 'string' ? optionOf.get(m)?.label || m : m?.label || m?.id || '');
+  // What changed on a dish (a CHANGED slip): "Medium spicy → Less spicy", "+ No onion", "− Less oil", "+ Note: …"
+  function changesOf(l) {
+    const was = l.was?.mods || [], now = l.mods || [], out = [];
+    const groupOf = m => optionOf.get(typeof m === 'string' ? m : m?.id)?.group || null;
+    const ids = list => list.map(m => (typeof m === 'string' ? m : m?.id));
+    const before = ids(was), after = ids(now), done = new Set();
+    for (const m of before) {
+      if (after.includes(m)) continue;
+      const g = groupOf(m), swap = g && (groups.get(g)?.required || groups.get(g)?.single) ? after.find(x => groupOf(x) === g && !before.includes(x)) : null;
+      if (swap) { out.push(`${labelOf(m)} → ${labelOf(swap)}`); done.add(swap); } else out.push(`− ${labelOf(m)}`);
+    }
+    for (const m of after) if (!before.includes(m) && !done.has(m)) out.push(`+ ${labelOf(m)}`);
+    const n0 = l.was?.note || '', n1 = l.note || '';
+    if (n0 !== n1) out.push(n1 ? `+ Note: ${n1}` : '− Note');
+    return out;
+  }
+  function kitchenSlip(o, k) {
+    const kind = k.kind || 'kot', type = o.type || DEFAULT_TYPE, no = k.no || null, nos = kotsOf(o).map(x => x.no).filter(Boolean);
+    const action = kind === 'void' ? 'VOID' : kind === 'changed' ? 'CHANGED' : kind === 'cancel' ? 'ORDER CANCELLED' : kind === 'priority' || k.priority || o.priority ? '★ PRIORITY' : null;
+    const where = usesTable(o) ? `Table ${tableName(o.table)}` : cleanPager(o.pager) ? `Pager ${o.pager}` : type === 'phone' && o.readyAt ? `Pickup ${timeOf(o.readyAt)}` : '';
+    const at = timeOf(k.at || Date.now()), by = initialsOf(k.by || staffName()), server = initialsOf(o.server);
+    const kotNo = kind === 'void' || kind === 'changed' ? k.lines?.[0]?.kot || k.lines?.[0]?.was?.kot || null : no;
+    const who = o.customer ? [o.customer.name, maskPhone(o.customer.mobile)].filter(Boolean).join(' · ') : '';
+    const info = kind === 'cancel' ? [`VOID ALL${nos.length ? ` · KOT #${nos[0]}${nos.length > 1 ? `–#${nos[nos.length - 1]}` : ''}` : ''}`, at, by ? `By: ${by}` : '']
+      : kind === 'void' || kind === 'changed' ? [at, by ? `By: ${by}` : '']
+      : type === 'dine-in' ? [o.guests ? plural(o.guests, 'guest') : '', at, server ? `Server: ${server}` : '']
+      : [who, at, server];
+    const earlier = nos.filter(n => n < (no || 0));
+    return {
+      kind, type, band: BAND[type], action, kot: kotNo, order: ticket(o.number), title: kind === 'cancel' ? `Order ${ticket(o.number)}${where ? ` · ${where}` : ''}` : `${kotNo ? `KOT #${kotNo} · ` : ''}Order ${ticket(o.number)}`,
+      where: kind === 'cancel' ? '' : where, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(), priority: Boolean(action === '★ PRIORITY'),
+      note: (kind === 'kot' || kind === 'priority') && o.note ? o.note : '',
+      lines: (k.lines || []).map(l => ({ qty: l.qty, name: l.name, names: items.get(l.id)?.names || null, mods: kind === 'changed' ? changesOf(l) : (l.mods || []).map(labelOf), note: l.note || '' })),
+      footer: kind === 'kot' && earlier.length ? `KOT ${earlier.map(n => `#${n}`).join(', ')} sent earlier · only new dishes on this KOT` : kind === 'priority' ? 'Priority · cook this order first' : k.reason ? `Reason: ${k.reason}` : '',
+      reason: k.reason || '', by: k.by || null,
+      // the kitchen printers (Settings › Devices › Printers): KOT language and copies
+      printers: Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'kitchen' || p.role === 'both')).map(([id, p]) => ({ id, language: p.language || 'English', copies: p.copies || 1 }))
+    };
+  }
+  // A slip to the kitchen printer; a printer that doesn't answer is an error with Retry ("Kitchen printer offline /
+  // KOT #3 not sent"). Without the app (a browser) there is no kitchen printer: the slip is kept on the order only.
+  function printSlip(slip, ok) {
+    const printer = window.RESTRODevice?.printer;
+    if (typeof printer?.printKot !== 'function') { ok?.(); return; }
+    const what = slip.kind === 'kot' ? `KOT #${slip.kot}` : slip.kind === 'void' ? 'VOID slip' : slip.kind === 'changed' ? 'CHANGED slip' : slip.kind === 'cancel' ? 'ORDER CANCELLED slip' : 'Priority notice';
+    const fail = () => say({ kind: 'error', b: 'Kitchen printer offline', sub: `${what} not sent`, retry: () => printSlip(slip, ok) });
+    try { Promise.resolve(printer.printKot(slip)).then(r => (r === false ? fail() : ok?.()), fail); } catch { fail(); }
+  }
+
+  // ---------- voids (Update 7) ----------
+  // After a KOT has gone, taking a dish off or below what the kitchen has, or deleting the order, asks why first (a
+  // reason is needed: Settings › Kitchen's list, Other… types one). Then it happens at once and for good: the VOID slip
+  // (ORDER CANCELLED for the whole order) prints in the kitchen, the saved order changes straight away, and there is no
+  // Undo. Who did it and why are kept on the order. (No manager PIN for now.)
+  let voidPop = null; // { key (the line; null: the whole order), to (the quantity it goes to), reason, other, typing }
+  const kitchenPrefs = () => window.RestroPrefs?.get('kitchen') || {};
+  const reasonsFor = whole => {
+    const list = whole ? kitchenPrefs().cancelReasons : kitchenPrefs().voidReasons;
+    return Array.isArray(list) && list.length ? list : whole ? ['Customer left', 'Duplicate order', 'Payment issue', 'Kitchen can’t make it', 'Other'] : ['Customer changed mind', 'Ordered by mistake', 'Taking too long', 'Quality issue', 'Item unavailable', 'Other'];
+  };
+  const isOther = r => /^other/i.test(r || '');
+  function openVoid(key, to) {
+    if (key != null && !lineOf(key)) return;
+    voidPop = { key, to, reason: '', other: '', typing: false }; modPop = null; qtyPop = null; notePop = null; optionsMenu = false; deleteArmed = false;
+    if (key != null) selected = key;
+    sheet = 'void'; render();
+  }
+  function cancelVoid() { dialog.querySelector('#counter-reason')?.blur(); sheet = null; voidPop = null; render(); }
+  const voidReason = p => (isOther(p.reason) ? cleanReason(p.other) : cleanReason(p.reason));
+  function confirmVoid() {
+    const p = voidPop; if (!p) return;
+    const reason = voidReason(p); if (!reason) return;
+    dialog.querySelector('#counter-reason')?.blur();
+    const list = loadOrders(), rec = savedOf(list), now = Date.now(), by = staffName();
+    if (p.key == null) {
+      // The whole order: ORDER CANCELLED (VOID ALL), everything the kitchen has, with minus quantities
+      const lines = [];
+      if (rec) for (const [k, n] of Object.entries(rec.sent || {})) {
+        if (!(n > 0)) continue;
+        const l = rec.lines.find(x => kitchenKey(x.id, x.type, x.mods) === k) || [...kotsOf(rec)].reverse().flatMap(x => x.lines || []).find(x => kitchenKey(x.id, x.type, x.mods) === k);
+        if (l) lines.push({ id: l.id, name: l.name, qty: -n, type: l.type, ...(l.mods?.length ? { mods: l.mods } : {}) });
+      }
+      const slip = { id: newKotId(), at: now, kind: 'cancel', lines, reason, by };
+      if (rec) { rec.kots = [...(rec.kots || []), slip]; keepCancelled(rec, slip); printSlip(kitchenSlip(rec, slip)); }
+      const n = order.number;
+      dropSaved(); fresh();
+      say({ b: n ? `Order ${ticket(n)} deleted` : 'Order deleted', t: ' · VOID sent to kitchen' });
+      return;
+    }
+    const line = lineOf(p.key); if (!line) { cancelVoid(); return; }
+    const type = lineType(line), n = sentOf(line) - Math.max(0, p.to);
+    // What goes: taken off what the kitchen has of the line, its last parts first
+    const parts = [];
+    let left = n;
+    for (let i = (line.kit || []).length - 1; i >= 0 && left > 0; i--) {
+      const k = line.kit[i], t = Math.min(k.n, left);
+      k.n -= t; left -= t; parts.push({ n: t, mods: [...k.mods], note: k.note });
+      if (!k.n) line.kit.splice(i, 1);
+    }
+    if (line.kit && !line.kit.length) delete line.kit;
+    // the saved order: the dishes come off it, and off what the kitchen has; the VOID slip is kept on it
+    const slipLines = parts.map(part => ({ id: line.id, name: itemOf(line).name, qty: -part.n, type, ...(part.mods.length ? { mods: modObjs(part.mods) } : {}), kot: rec ? kotOfKey(rec, kitchenKey(line.id, type, part.mods)) : null }));
+    const slip = { id: newKotId(), at: now, kind: 'void', lines: slipLines, reason, by };
+    if (rec) {
+      if (!rec.sent || typeof rec.sent !== 'object') rec.sent = {};
+      for (const part of parts) {
+        const k = kitchenKey(line.id, type, part.mods);
+        rec.sent[k] = (Number(rec.sent[k]) || 0) - part.n; if (rec.sent[k] <= 0) delete rec.sent[k];
+        let take = part.n;
+        for (const rl of rec.lines) if (take > 0 && kitchenKey(rl.id, rl.type, rl.mods) === k) { const t = Math.min(rl.qty, take); rl.qty -= t; take -= t; }
+      }
+      rec.lines = rec.lines.filter(rl => rl.qty > 0);
+      rec.kots = [...(Array.isArray(rec.kots) ? rec.kots : []), slip].slice(-60);
+      Object.assign(rec, recordSums(rec)); rec.savedAt = now;
+      storeOrders(list); keepOpened(rec);
+      printSlip(kitchenSlip(rec, slip));
+    }
+    // the order on screen
+    sheet = null; voidPop = null;
+    if (p.to <= 0) removeLine(p.key, true); else { line.qty = p.to; render(); }
+    say({ b: 'VOID', t: ` sent to kitchen · ${n} × ${itemOf(line).name}` });
+  }
+  // An order deleted after its KOT went is kept on this tablet for the record (who, when, why, what the kitchen had), until
+  // the backend keeps it (the latest 200).
+  const CANCELLED_KEY = 'restro.counter.cancelled.v1';
+  function keepCancelled(rec, slip) {
+    try {
+      const list = JSON.parse(localStorage.getItem(CANCELLED_KEY) || '[]');
+      list.unshift({ uid: idOf(rec), number: rec.number, day: rec.day || null, at: slip.at, reason: slip.reason, by: slip.by, type: rec.type, table: rec.table || '', total: rec.total, lines: rec.lines.map(l => ({ id: l.id, name: l.name, qty: l.qty, price: l.price })) });
+      localStorage.setItem(CANCELLED_KEY, JSON.stringify(list.slice(0, 200)));
+    } catch {}
+  }
+
   // ---------- rendering ----------
-  const typeLabel = { 'dine-in': 'Dine in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call' };
+  const typeLabel = { 'dine-in': 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call' };
   const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
   function pickTable() {
-    window.RestroFloor?.open({ pick: true, current: order.table, onPick: table => {
+    window.RestroFloor?.open({ pick: true, current: order.table, guests: order.guests, onPick: table => {
       order.table = table.id;
+      // (Update 7: the guest count, asked in the Dining app the first time the table is picked for the order)
+      if (cleanGuests(table.guests)) order.guests = table.guests;
       if (!order.type) { order.type = 'dine-in'; order.lines.forEach(l => { l.type = l.type || 'dine-in'; }); tidy(); } // a table means Dine in
       render();
     } });
@@ -665,6 +1141,9 @@
   const sumsOf = o => {
     const sub = Number.isFinite(o.subtotal) ? o.subtotal : 0, pct = window.RestroBill.pct(o.discountPct), split = Number.isFinite(o.cgst) && Number.isFinite(o.sgst);
     return [['Subtotal', money(sub)], ...(pct && Number.isFinite(o.discount) ? [[`Discount ${pct}%`, `−${money(o.discount)}`]] : []),
+      // (Update 7: the service charge, packaging and delivery)
+      ...(o.servicePct && Number(o.service) ? [[`Service charge ${o.servicePct}% (optional)`, money(o.service)]] : []),
+      ...(Number(o.packaging) ? [['Packaging charge', money(o.packaging)]] : []), ...(Number(o.delivery) ? [['Delivery charge', money(o.delivery)]] : []),
       ...(split ? [[GST.cgst, money(o.cgst)], [GST.sgst, money(o.sgst)]] : [[menu.taxLabel, money(o.tax || 0)]]),
       ...(Number(o.roundOff) ? [['Round off', `${o.roundOff < 0 ? '−' : ''}${money(Math.abs(o.roundOff))}`]] : [])];
   };
@@ -725,6 +1204,18 @@
     remove_discount: '<path d="M537-132 291-388q-5-5-8-12.5t-3-15.5v-24q0-17 11.5-28.5T320-480h100q53 0 91.5-34.5T558-600H280q-17 0-28.5-11.5T240-640q0-17 11.5-28.5T280-680h266q-17-35-50.5-57.5T420-760H280q-17 0-28.5-11.5T240-800q0-17 11.5-28.5T280-840h400q17 0 28.5 11.5T720-800q0 17-11.5 28.5T680-760h-90q14 17 25 37t17 43h48q17 0 28.5 11.5T720-640q0 17-11.5 28.5T680-600h-41q-8 85-70 142.5T420-400h-29l204 212q18 19 7.5 43.5T566-120q-8 0-15.5-3t-13.5-9Z"/><path d="M150-830 L810-170" stroke="#ffffff" stroke-width="130" stroke-linecap="round" fill="none"/><path d="M150-830 L810-170" stroke="currentColor" stroke-width="70" stroke-linecap="round" fill="none"/>',
     close: 'M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z',
     person: 'M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-240v-32q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v32q0 33-23.5 56.5T720-160H240q-33 0-56.5-23.5T160-240Z',
+    // Counter Update 7 (Material Symbols Rounded, as in the design)
+    group: 'M38-254q0-35 18-63.5t50-42.5q73-32 131.5-46T358-420q62 0 120 14t131 46q32 14 50.5 42.5T678-254v34q0 25-17.5 42.5T618-160H98q-25 0-42.5-17.5T38-220v-34Zm686 94q5-15 9.5-29.5T738-220v-34q0-63-29-101.5T622-420q69 8 130 22t99 34q33 19 52 47t19 63v34q0 25-17.5 42.5T862-160H724ZM358-481q-66 0-108-42t-42-108q0-66 42-108t108-42q66 0 108 42t42 108q0 66-42 108t-108 42Zm360-150q0 66-42 108t-108 42q-11 0-24.5-1.5T519-488q24-25 36.5-61.5T568-631q0-45-12.5-79.5T519-774q11-3 24.5-5t24.5-2q66 0 108 42t42 108Z',
+    flag: 'M260-429v279q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63-8.5-8.62-8.5-21.37v-620q0-12.75 8.63-21.38Q217.25-800 230-800h289q10.5 0 18.75 6.5T548-776l14 62h208q12.75 0 21.38 8.62Q800-696.75 800-684v310q0 12.75-8.62 21.37Q782.75-344 770-344H568q-10.5 0-18.75-6T539-367l-14-62H260Z',
+    note_alt: 'm560-200 200-200H600q-17 0-28.5 11.5T560-360v160Zm-360 80q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v367q0 16-6 30.5T817-337L623-143q-11 11-25.5 17t-30.5 6H200Zm120-280h120q17 0 28.5-11.5T480-440q0-17-11.5-28.5T440-480H320q-17 0-28.5 11.5T280-440q0 17 11.5 28.5T320-400Zm0-160h320q17 0 28.5-11.5T680-600q0-17-11.5-28.5T640-640H320q-17 0-28.5 11.5T280-600q0 17 11.5 28.5T320-560Z',
+    edit_note: 'M200-400q-17 0-28.5-11.5T160-440q0-17 11.5-28.5T200-480h200q17 0 28.5 11.5T440-440q0 17-11.5 28.5T400-400H200Zm0-160q-17 0-28.5-11.5T160-600q0-17 11.5-28.5T200-640h360q17 0 28.5 11.5T600-600q0 17-11.5 28.5T560-560H200Zm0-160q-17 0-28.5-11.5T160-760q0-17 11.5-28.5T200-800h360q17 0 28.5 11.5T600-760q0 17-11.5 28.5T560-720H200Zm320 520v-66q0-8 3-15.5t9-13.5l209-208q9-9 20-13t22-4q12 0 23 4.5t20 13.5l37 37q8 9 12.5 20t4.5 22q0 11-4 22.5T863-380L655-172q-6 6-13.5 9t-15.5 3h-66q-17 0-28.5-11.5T520-200Zm263-184 37-39-37-37-38 38 38 38ZM580-220h38l121-122-18-19-19-18-122 121v38Zm0 0v-38l122-121 37 37-121 122h-38Z',
+    block: 'M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-60q61.01 0 117.51-20.5Q654-181 699-220L220-699q-38 46-59 102.17T140-480q0 142.37 98.81 241.19Q337.63-140 480-140Zm259-121q37-45 59-101.49 22-56.5 22-117.51 0-142.38-98.81-241.19T480-820q-60.66 0-116.83 21T261-739l478 478Z',
+    sell: 'M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Z',
+    room_service: 'M110-200q-13 0-21.5-8.5T80-230q0-13 8.5-21.5T110-260h740q13 0 21.5 8.5T880-230q0 13-8.5 21.5T850-200H110Zm0-120v-17q0-155 88.5-250T420-710v-30q0-26 17-43t43-17q26 0 43 17t17 43v30q133 28 221.5 123T850-337v17H110Z',
+    move_table: 'm194-323 100 100q9 9 9 21.16t-8.61 21Q285-172 272.9-172q-12.1 0-20.9-9L101-332q-5-5-7-10.13-2-5.14-2-11Q92-359 94-364q2-5 7-10l151-151q9-9 21-9t21.39 9q8.61 9 8.61 21t-9 21L194-383h286q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H194Zm572-254H480q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h286L666-737q-9-9-9-21.16t8.61-21Q675-788 687.1-788q12.1 0 20.9 9l151 151q5 5 7 10.13 2 5.14 2 11 0 5.87-2 10.87-2 5-7 10L708-435q-9 9-21 9t-21.39-9q-8.61-9-8.61-21t9-21l100-100Z',
+    merge: 'M480-344 277-141q-9 9-21 9t-21-9q-9-9-9-21t9-21l175-175q24-24 32-44t8-59v-265l-69 69q-9 9-21 9t-21-9q-9-9-9-21t9-21l120-120q9-9 21-9t21 9l120 120q9 9 9 21t-9 21q-9 9-21 9t-21-9l-69-69v265q0 39 8 59t32 44l175 175q9 9 9 21t-9 21q-9 9-21 9t-21-9L480-344Z',
+    badge: 'M232-247h239v-14q0-18-9-32t-23-19q-32-11-50-14.5t-35-3.5q-19 0-40.5 4.5T265-312q-15 5-24 19t-9 32v14Zm361-67h120q10.83 0 17.92-7.12 7.08-7.11 7.08-18 0-10.88-7.08-17.88-7.09-7-17.92-7H593q-10.83 0-17.92 7.12-7.08 7.11-7.08 18 0 10.88 7.08 17.88 7.09 7 17.92 7Zm-239-50q22.5 0 38.25-15.75T408-418q0-22.5-15.75-38.25T354-472q-22.5 0-38.25 15.75T300-418q0 22.5 15.75 38.25T354-364Zm239-63h120q10.83 0 17.92-7.12 7.08-7.11 7.08-18 0-10.88-7.08-17.88-7.09-7-17.92-7H593q-10.83 0-17.92 7.12-7.08 7.11-7.08 18 0 10.88 7.08 17.88 7.09 7 17.92 7ZM140-80q-24 0-42-18t-18-42v-480q0-24 18-42t42-18h250v-140q0-24 18-42t42.41-18h59.18Q534-880 552-862q18 18 18 42v140h250q24 0 42 18t18 42v480q0 24-18 42t-42 18H140Zm310-510h60v-230h-60v230Z',
+    do_not_disturb_on: 'M310-453h340q12.75 0 21.38-8.68 8.62-8.67 8.62-21.5 0-12.82-8.62-21.32-8.63-8.5-21.38-8.5H310q-12.75 0-21.37 8.68-8.63 8.67-8.63 21.5 0 12.82 8.63 21.32 8.62 8.5 21.37 8.5ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Z',
     table_restaurant: 'M672-520H289l-11 80h404l-10-80ZM166-205l43-315h-89q-20 0-31.5-16T82-571l57-200q4-13 14-21t24-8h606q14 0 24 8t14 21l57 200q5 19-6.5 35T840-520h-88l42 315q2 18-9.5 31.5T755-160q-15 0-26.5-9.5T715-194l-22-166H267l-22 166q-2 15-13.5 24.5T205-160q-18 0-29.5-13.5T166-205Z'
   };
   const mi = (name, size) => {
@@ -738,8 +1229,8 @@
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   // A context button: its icon, its name and, on Order type, the ▾ arrow. Colour: grey (not set), amber (order type),
   // violet (pager), white (an order type to pick, over the dimmed screen); Print bill is the light blue one.
-  const ctxButton = (colour, icon, size, label, props = {}, arrow = false) =>
-    el('button', { type: 'button', class: `cx-b ${colour}`, ...props }, mi(icon, size), label ? el('span', { class: 'cx-b-label' }, label) : null, arrow ? mi('expand_more', 18) : null);
+  const ctxButton = (colour, icon, size, label, props = {}, arrow = false, extra = null) =>
+    el('button', { type: 'button', class: `cx-b ${colour}`, ...props }, mi(icon, size), label ? el('span', { class: 'cx-b-label' }, label) : null, extra, arrow ? mi('expand_more', 18) : null);
   // A chip in the order header: grey, pink (a ready time), dark (Modify on); Hold the darker grey.
   const chip = (colour, icon, size, label, props = {}) =>
     el('button', { type: 'button', class: `cx-chip ${colour}`, ...props }, mi(icon, size), label ? el('span', { class: 'cx-b-label' }, label) : null);
@@ -753,7 +1244,8 @@
     const typeBtn = ctxButton(order.type ? 'amber' : 'grey unset', order.type ? typeIcon[order.type] : 'receipt_long', 20, typeLabel[order.type] || 'Order type',
       { class: `cx-b ${order.type ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': 'true', 'aria-expanded': String(typeMenu), 'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
     const who = order.type === 'dine-in'
-      ? ctxButton('grey', 'table_restaurant', 19, table ? `Table ${table}` : 'Choose table', { class: 'cx-b grey cx-who', 'aria-label': table ? `Table ${table}. Tap to change the table` : 'Choose table', onclick: pickTable })
+      ? ctxButton('grey', 'table_restaurant', 19, table ? `Table ${table}` : 'Choose table', { class: 'cx-b grey cx-who', 'aria-label': table ? `Table ${table}${order.guests ? `, ${plural(order.guests, 'guest')}` : ''}. Tap to change the table` : 'Choose table', onclick: pickTable },
+        false, table && order.guests ? el('span', { class: 'cx-gchip', 'aria-hidden': 'true' }, mi('group', 18), String(order.guests)) : null)
       : ctxButton('grey', c ? 'person' : 'person_add', 19, c ? c.name : 'Add Customer', { class: 'cx-b grey cx-who', 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer });
     const pager = ctxButton(order.pager ? 'violet' : 'grey', 'vibration', 19, order.pager ? `Pager ${order.pager}` : 'Pager',
       { class: `cx-b ${order.pager ? 'violet' : 'grey'} sm cx-pager`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign a pager', onclick: () => { sheet = 'pager'; render(); } });
@@ -775,7 +1267,9 @@
       el('div', { class: 'cx-ohl' },
         el('div', { class: 'cx-onum' },
           el('h2', { id: 'counter-title', tabindex: '-1' }, number ? `Order ${ticket(number)}` : 'New order'),
-          el('small', { class: 'cx-count' }, t.count ? plural(t.count, 'item') : 'No items')),
+          el('small', { class: 'cx-count' }, t.count ? plural(t.count, 'item') : 'No items',
+            // Update 7: a priority order says so after its count: ⚑ PRIORITY (red)
+            order.priority ? el('span', { class: 'cx-prio' }, mi('flag', 12), 'PRIORITY') : null)),
         el('div', { class: 'cx-chips', 'data-group': 'head' }, ...group('head'))));
 
     // The order's lines, one under another with a hairline between: name · − quantity + (the number in blue: tap it for the
@@ -789,24 +1283,33 @@
     if (!order.lines.length) list.append(el('li', { class: 'cx-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap an item to add it.')));
     const lineRow = line => {
       const item = itemOf(line), key = keyOf(line), sel = selected === key, open = order.split && sel, each = eachOf(line);
+      // (Update 7: a choice that sets the price, "Half", first and dark)
       const mods = (line.mods || []).map(m => {
-        const kind = `cx-mc ${optionOf.get(m)?.kind === 'spice' ? 'sp' : 'nn'}`;
+        const o = optionOf.get(m), kind = `cx-mc ${o?.mode === 'set' ? 'por' : o?.kind === 'spice' ? 'sp' : 'nn'}`;
         return sel ? el('button', { type: 'button', class: kind, 'aria-label': `${modLabel(m)}. Tap to change the choices`, onclick: () => openMods(key) }, modLabel(m)) : el('span', { class: kind }, modLabel(m));
       });
+      // Update 7: its dish discount, a green tag after its name ("10% off"), the price struck through before the new one
+      // (₹0 green); a dish that sold out before its KOT went, a SOLD OUT tag in the same place
+      const gross = each * line.qty * 100, net = gross - window.RestroBill.lineOff(gross, line.off);
+      const out = !line.custom && soldOut(line.id) && line.qty > sentOf(line);
+      const tag = out ? el('span', { class: 'cx-ltag out' }, 'SOLD OUT') : line.off ? el('span', { class: 'cx-ltag' }, `${line.off}% off`) : null;
       return el('li', { class: `cx-line${sel ? ' sel' : ''}${open ? ' open' : ''}`, 'data-line': key, onkeydown: e => { if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest?.('button')) { e.preventDefault(); removeLine(key); } } },
         el('div', { class: 'cx-row', onclick: e => { if (!e.target.closest?.('.cx-stp, .cx-mcs button, .cx-an, .cx-move')) selectLine(key); } },
-          el('div', { class: 'cx-nm' }, el('button', { type: 'button', class: 'cx-nm-btn', 'aria-expanded': String(sel) }, item.name, line.custom ? el('span', { class: 'cx-ctag' }, 'CUSTOM') : null)),
+          el('div', { class: 'cx-nm' }, el('button', { type: 'button', class: 'cx-nm-btn', 'aria-expanded': String(sel) }, item.name, line.custom ? el('span', { class: 'cx-ctag' }, 'CUSTOM') : null), tag),
           el('div', { class: 'cx-stp' },
             el('button', { type: 'button', class: 'cx-sb', 'aria-label': line.qty > 1 ? `One less ${item.name}` : `Remove ${item.name}`, onclick: () => setQty(key, line.qty - 1) }, mi('remove', 22)),
             el('button', { type: 'button', class: 'cx-qty', 'aria-label': `Quantity ${line.qty}. Tap to type a quantity`, onclick: () => openQty(key) }, String(line.qty)),
             el('button', { type: 'button', class: 'cx-sb', 'aria-label': `One more ${item.name}`, onclick: () => setQty(key, line.qty + 1) }, mi('add', 22))),
-          el('div', { class: 'cx-lt' }, line.qty > 1 ? el('small', {}, `${rupees(each)} ea`) : null, el('b', {}, rupees(each * line.qty))),
+          el('div', { class: 'cx-lt' }, line.off ? el('s', {}, rupees(each * line.qty)) : line.qty > 1 ? el('small', {}, `${rupees(each)} ea`) : null,
+            el('b', { class: line.off && !net ? 'zero' : null }, amount(net))),
           mods.length ? el('div', { class: 'cx-mcs' }, ...mods)
             // a dish with choices but none made (its pop-up closed with ×): on the selected line, a grey "Select
             // modifier" pill where its choices would be, opening its pop-up
             : sel && groupsOf(line.id).length ? el('div', { class: 'cx-mcs' }, el('button', { type: 'button', class: 'cx-mc pick', 'aria-label': `Select modifier for ${item.name}`, onclick: () => openMods(key) }, 'Select modifier')) : null,
           sel ? el('button', { type: 'button', class: 'cx-an', 'aria-label': `${line.note ? 'Edit the note' : 'Add a note'} for ${item.name}`, onclick: () => openNote(key) }, mi('edit', 14), el('span', {}, line.note ? 'Edit note' : 'Add note')) : null,
-          line.note ? el('div', { class: 'cx-cmt' }, mi('receipt_long', 14), el('span', {}, line.note)) : null,
+          line.note ? el('div', { class: 'cx-cmt' }, mi('receipt_long', 14), el('span', {}, line.note),
+            // (Update 7: on the selected line, a round ✕ clears the note, with Undo)
+            sel ? el('button', { type: 'button', class: 'cx-cclr', 'aria-label': `Clear the note for ${item.name}`, onclick: () => clearLineNote(key) }, mi('close', 16)) : null) : null,
           open ? el('div', { class: 'cx-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
             ...TYPES.map(type => el('button', { type: 'button', role: 'radio', 'aria-checked': String(lineType(line) === type), class: lineType(line) === type ? 'on' : '', onclick: () => moveLine(key, type) }, mi(typeIcon[type], 18), typeLabel[type]))) : null));
     };
@@ -820,38 +1323,53 @@
       }
     } else order.lines.forEach(line => list.append(lineRow(line)));
 
-    // Totals (Update 6; the total is on Pay): Subtotal, CGST 2.5% and SGST 2.5%, three small lines in the space two took
-    // before; with a discount, two by two: Subtotal | Discount 10% −₹396 (green) / CGST | SGST. Save (with the kitchen
-    // ticket before it: it sends the order to the kitchen) and Pay at the bottom, the same size. The Undo bar, while there
-    // is one, floats just above the totals.
-    const u = undoShown(), sum = (label, value, cls) => el('div', { class: `cx-tl${cls ? ` ${cls}` : ''}` }, el('span', {}, label), el('b', {}, value));
-    const sums = el('div', { class: `cx-tot${t.discountPct ? '' : ' stack'}` },
-      u ? el('div', { class: 'cx-undo', role: 'status' }, el('span', {}, el('b', {}, u.name), ' removed'), el('button', { type: 'button', onclick: undoRemove }, 'UNDO')) : null,
-      t.discountPct
-        ? el('div', { class: 'cx-tgrid' }, sum('Subtotal', amount(t.subtotal)), sum(`Discount ${t.discountPct}%`, `−${amount(t.discount)}`, 'dsc'), sum(GST.cgst, amount(t.cgst)), sum(GST.sgst, amount(t.sgst)))
-        : el('div', { class: 'cx-tstack' }, sum('Subtotal', amount(t.subtotal)), sum(GST.cgst, amount(t.cgst)), sum(GST.sgst, amount(t.sgst))),
+    // Totals (Update 7): one list, top to bottom in the order they are worked out: Subtotal · Discount 10% (green) ·
+    // Service charge 5% (optional) · Packaging charge · Delivery charge · GST 5% (CGST 2.5% ₹x + SGST 2.5% ₹x) · Round
+    // off (grey); each only when there is one (Subtotal and GST always). The total is on Pay. Save and Pay at the bottom,
+    // the same size.
+    const sum = (label, value, cls) => el('div', { class: `cx-tl${cls ? ` ${cls}` : ''}` }, el('span', {}, ...[label].flat()), el('b', {}, value));
+    const sums = el('div', { class: 'cx-tot stack' },
+      el('div', { class: 'cx-tstack' },
+        sum('Subtotal', amount(t.subtotal)),
+        t.discountPct ? sum(`Discount ${t.discountPct}%`, `−${amount(t.discount)}`, 'dsc') : null,
+        t.servicePct ? sum([`Service charge ${t.servicePct}% `, el('i', {}, '(optional)')], amount(t.service), 'scx') : null,
+        t.packaging ? sum('Packaging charge', amount(t.packaging)) : null,
+        t.delivery ? sum('Delivery charge', amount(t.delivery)) : null,
+        sum([`${GST.gst} `, el('i', { 'data-short': `(CGST ${amount(t.cgst)} + SGST ${amount(t.sgst)})` }, `(${GST.cgst} ${amount(t.cgst)} + ${GST.sgst} ${amount(t.sgst)})`)], amount(t.tax), 'gst'),
+        t.roundOff ? sum('Round off', `${t.roundOff < 0 ? '−' : '+'}${amount(Math.abs(t.roundOff))}`, 'ro') : null),
       el('div', { class: 'cx-act' },
         el('button', { type: 'button', class: 'cx-save', disabled: !t.count, onclick: saveOrder }, mi('receipt_long', 26), 'Save'),
         el('button', { type: 'button', class: 'cx-pay', disabled: !t.count, 'aria-label': `Pay ${amount(t.total)}`, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, `Pay\u00A0\u00A0${amount(t.total)}`)));
 
-    return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}${typeMenu ? ' picking' : ''}`, 'aria-label': 'Current order' }, pick, row, head, list, sums);
+    // The order note (Update 7): a line of its own under the header. Empty: "✎ Add order note", grey, no box; with a note:
+    // an amber strip with the note on one line (… when long) and a round ✕ that clears it (with Undo). A tap opens the
+    // note pop-up (the strip has a blue edge meanwhile).
+    const onote = order.note
+      ? el('div', { class: `cx-onote${sheet === 'note' && notePop?.key === null ? ' active' : ''}` },
+          el('button', { type: 'button', class: 'cx-onote-t', 'aria-label': `Order note: ${order.note}. Tap to change it`, onclick: () => openNote(null) }, mi('note_alt', 18), el('span', {}, order.note)),
+          el('button', { type: 'button', class: 'cx-nclr', 'aria-label': 'Clear the order note', onclick: clearOrderNote }, mi('close', 18)))
+      : el('button', { type: 'button', class: `cx-onote empty${sheet === 'note' && notePop?.key === null ? ' active' : ''}`, onclick: () => openNote(null) }, mi('edit_note', 20), el('span', {}, 'Add order note'));
+    return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}${typeMenu ? ' picking' : ''}`, 'aria-label': 'Current order' }, pick, row, head, onote, list, sums);
   }
   // Tap a line: it is selected (another one was, it isn't any more); tapping the selected one again keeps it so.
   function selectLine(key) { if (selected === key) return; selected = key; render(); }
 
-  // The menu side: the three-line menu (Highlight order, Delete order; Print bill is in the context row), search, then
+  // The menu side: the order menu (☰; Print bill is in the context row), search, then
   // Held · Orders · Payment history and the sync button (Update 5: these 52 tall, centred on the 62.4 menu button); under
   // them the menu itself (renderMenuBody).
   function menuSide() {
-    const search = el('label', { class: 'cx-sr' }, mi('search', 20), el('span', { class: 'visually-hidden' }, 'Search menu items'),
-      el('input', { id: 'counter-search', type: 'search', placeholder: 'Search menu items', autocomplete: 'off', enterkeyhint: 'search', value: query,
-        oninput: e => { query = e.target.value; renderMenuBody(); },
-        onkeydown: e => {
-          if (e.key !== 'Enter') return;
-          const code = query.trim().toUpperCase(), byCode = [...items.values()].find(i => i.code === code), found = matches();
-          const pick = byCode || (found.length === 1 ? found[0] : null);
-          if (pick) { e.preventDefault(); query = ''; add(pick.id); if (sheet !== 'mods') dialog.querySelector('#counter-search')?.focus(); }
-        } }));
+    // Search: what is typed (600, dark) filters the menu as it is typed; Update 7: a round ✕ at its right once something
+    // is typed clears it and brings back the categories.
+    const field = el('input', { id: 'counter-search', type: 'search', placeholder: 'Search menu items', autocomplete: 'off', enterkeyhint: 'search', value: query,
+      oninput: e => { query = e.target.value; search.classList.toggle('typed', Boolean(query)); renderMenuBody(); },
+      onkeydown: e => {
+        if (e.key !== 'Enter') return;
+        const code = query.trim().toUpperCase(), byCode = [...items.values()].find(i => i.code === code), found = matches();
+        const pick = byCode || (found.length === 1 ? found[0] : null);
+        if (pick) { e.preventDefault(); query = ''; add(pick.id); if (sheet !== 'mods') dialog.querySelector('#counter-search')?.focus(); }
+      } });
+    const search = el('label', { class: `cx-sr${query ? ' typed' : ''}` }, mi('search', 20), el('span', { class: 'visually-hidden' }, 'Search menu items'), field,
+      el('button', { type: 'button', class: 'cx-sclr', 'aria-label': 'Clear the search', onpointerdown: e => e.preventDefault(), onclick: e => { e.preventDefault(); query = ''; field.value = ''; search.classList.remove('typed'); renderMenuBody(); } }, mi('close', 20)));
     const top = el('div', { class: 'cx-tb' },
       el('button', { type: 'button', class: `cx-mb${optionsMenu ? ' lifted' : ''}`, 'aria-label': 'Menu', title: 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': String(optionsMenu), onclick: () => openOptions(!optionsMenu) }, mi('menu', 22)),
       search,
@@ -860,21 +1378,31 @@
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, mi('receipt_long', 17), 'Orders'),
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { sheet = 'payments'; render(); } }, mi('history', 17), 'Payment history'),
       syncButton());
-    // The menu: 14 below the button, over the dimmed screen. Apply discount; Remove discount, grey until the order has a
-    // discount, then with it in a green tag ("10%"); Highlight order needs items; Delete order asks again before it
-    // deletes the order on screen.
-    const pop = optionsMenu ? el('div', { class: 'cx-pop', role: 'menu', 'aria-label': 'Menu' },
-      el('button', { type: 'button', role: 'menuitem', class: 'cx-mi', onclick: openDiscount }, mi('percent', 26), 'Apply discount'),
-      el('button', { type: 'button', role: 'menuitem', class: `cx-mi${order.discountPct ? '' : ' off'}`, disabled: !order.discountPct, onclick: removeDiscount }, mi('remove_discount', 26), 'Remove discount',
-        order.discountPct ? el('em', { class: 'cx-dtag' }, `${order.discountPct}%`) : null),
-      el('div', { class: 'cx-sep', role: 'separator' }),
-      el('button', { type: 'button', role: 'menuitem', class: 'cx-mi', disabled: !order.lines.length, onclick: () => setHighlight(true) }, mi('swap_vert', 26), 'Highlight order'),
-      el('div', { class: 'cx-sep', role: 'separator' }),
+    return el('section', { class: 'cx-main', 'aria-label': 'Menu' }, top, optionsMenu ? orderMenu() : null, el('div', { class: 'cx-area' }));
+  }
+  // The order menu (Update 7): 400 wide, 14 below the button, over the dimmed screen; rows 60 tall in groups with a
+  // hairline between. Rows that don't apply to the order type aren't there (takeaway, delivery and phone: no service
+  // charge, no table rows). A switch row: its name opens the pop-up (to change what is on), the switch turns it on (the
+  // pop-up) or off (at once, with Undo); when on, its tag: Discount "10%" and Dish discount "2 dishes" green, Service
+  // charge "5%" blue. Priority on: Remove priority with a red PRIORITY tag.
+  function orderMenu() {
+    const dine = (order.type || DEFAULT_TYPE) === 'dine-in', sep = () => el('div', { class: 'cx-sep', role: 'separator' });
+    const row = (icon, label, onclick, props = {}, tag = null) => el('button', { type: 'button', role: 'menuitem', class: 'cx-mi', onclick, ...props }, mi(icon, 26), el('span', { class: 'cx-mi-t' }, label), tag);
+    const swRow = (icon, label, on, tag, tagCls, open, off, disabled = false) => el('div', { class: `cx-mi tg${disabled ? ' off' : ''}` },
+      el('button', { type: 'button', role: 'menuitem', class: 'cx-mi-a', disabled, onclick: open }, mi(icon, 26), el('span', { class: 'cx-mi-t' }, label), on && tag ? el('em', { class: tagCls }, tag) : null),
+      el('button', { type: 'button', role: 'switch', class: `cx-sw${on ? ' on' : ''}`, 'aria-checked': String(on), 'aria-label': label, disabled, onclick: on ? off : open }, el('i')));
+    const dished = order.lines.filter(l => l.off).length;
+    return el('div', { class: 'cx-pop', role: 'menu', 'aria-label': 'Order menu' },
+      row('receipt_long', 'Reprint KOT', reprintKot),
+      order.priority ? row('flag', 'Remove priority', togglePriority, {}, el('em', { class: 'cx-ptag' }, 'PRIORITY')) : row('flag', 'Mark as priority', togglePriority),
+      sep(),
+      swRow('percent', 'Discount', Boolean(order.discountPct), `${order.discountPct}%`, 'cx-dtag', openDiscount, () => switchOff('discount')),
+      swRow('sell', 'Dish discount', dished > 0, `${dished} ${dished === 1 ? 'dish' : 'dishes'}`, 'cx-dtag', openDish, () => switchOff('dish'), !order.lines.length && !dished),
+      dine && (serviceAllowed() || order.servicePct) ? swRow('room_service', 'Service charge', Boolean(order.servicePct), `${order.servicePct}%`, 'cx-stag', openService, () => switchOff('service')) : null,
+      ...(dine ? [sep(), row('move_table', 'Move table', moveTable), row('merge', 'Merge tables', mergeTables), row('badge', 'Change server', openServer)] : []),
+      sep(),
       el('button', { type: 'button', role: 'menuitem', class: `cx-mi del${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete }, mi('delete', 26),
-        deleteArmed ? (order.number ? `Tap again to delete ${ticket(order.number)}` : 'Tap again to delete') : 'Delete order')) : null;
-    return el('section', { class: 'cx-main', 'aria-label': 'Menu' }, top, pop, el('div', { class: 'cx-area' }),
-      // (Not while a sheet such as Pay or a pop-up is open: it dims the screen or the menu itself.)
-      highlight && !sheet ? el('div', { class: 'cx-dim', onclick: () => setHighlight(false) }) : null);
+        el('span', { class: 'cx-mi-t' }, deleteArmed ? (order.number ? `Tap again to delete ${ticket(order.number)}` : 'Tap again to delete') : 'Delete order')));
   }
 
   // The sync button (Counter Update 5), last on the bar: a tap syncs with the main system or the cloud straight away
@@ -925,13 +1453,18 @@
   // rearrange. A dish on the order has a light blue badge at its top right with how many the order has (the tile itself
   // stays white): a tap on the badge opens the quantity pop-up of its line, or, with several lines (other choices), shows
   // them on the order.
+  // Update 7: a dish whose price a choice sets shows both prices ("₹200 · ₹340"). A sold-out dish is grey (#F1F1F0, its
+  // name and struck price #A8A29E, its mark faint) with "⊘ SOLD OUT" at its top right and no badge; a tap adds nothing
+  // (a grey edge while pressed) and says "Fish fingers is sold out".
   const itemCard = item => {
-    const n = inOrder(item.id), lines = n ? order.lines.filter(l => l.id === item.id).length : 0;
-    return el('div', { class: 'cx-cell', 'data-id': item.id },
-      el('button', { type: 'button', class: 'cx-card', onclick: () => add(item.id),
-        'aria-label': `Add ${item.name}, ${rupees(item.price)}${item.veg === false ? ', non-veg' : item.veg ? ', veg' : ''}${n ? `, ${n} on the order` : ''}` },
-        item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name), el('span', {}, rupees(item.price))),
-      n ? el('button', { type: 'button', class: 'cx-qb', onclick: () => tapBadge(item.id),
+    const n = inOrder(item.id), lines = n ? order.lines.filter(l => l.id === item.id).length : 0, out = soldOut(item.id), set = setGroupOf(item.id);
+    const price = set ? set.options.map(o => rupees(Number(o.price) || 0)).join(' · ') : rupees(item.price);
+    return el('div', { class: `cx-cell${out ? ' so' : ''}`, 'data-id': item.id },
+      el('button', { type: 'button', class: `cx-card${out ? ' so' : ''}`, onclick: () => add(item.id),
+        'aria-label': out ? `${item.name}, sold out` : `Add ${item.name}, ${price}${item.veg === false ? ', non-veg' : item.veg ? ', veg' : ''}${n ? `, ${n} on the order` : ''}` },
+        item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name), el('span', {}, price),
+        out ? el('i', { class: 'cx-sot', 'aria-hidden': 'true' }, mi('block', 14), 'SOLD OUT') : null),
+      n && !out ? el('button', { type: 'button', class: 'cx-qb', onclick: () => tapBadge(item.id),
         'aria-label': lines > 1 ? `${item.name}: ${n} on the order, on ${lines} lines. Tap to show them` : `${item.name}: ${n} on the order. Tap to type a quantity` }, el('span', {}, String(n))) : null);
   };
   // The badge: one line, its quantity pop-up; several, the order scrolls to them and they flash (no pop-up)
@@ -1448,6 +1981,8 @@
   // Its quantity, at once too; − at 1 takes the dish off (with Undo), as on the order, and the pop-up goes with it.
   function stepMods(d) {
     const line = modLine(); if (!line) return;
+    // (below what the kitchen has, Update 7: the pop-up closes and the void pop-up asks why)
+    if (d < 0 && line.qty + d < sentOf(line)) { const to = line.qty + d; if (closeMods() === false) return; const k = order.lines.includes(line) ? keyOf(line) : null; if (k) openVoid(k, Math.max(0, to)); return; }
     if (line.qty + d < 1) { removeLine(modPop.key); return; }
     line.qty = Math.min(999, line.qty + d); render();
   }
@@ -1506,23 +2041,43 @@
   // Note: "Add note / Edit note" on the selected line, or the note line in the modifier pop-up (Done goes back there).
   // The keyboard comes up only when the note line is tapped; quick notes are added without it. Saved on Done; ✕ leaves
   // the note as it was.
+  // (Update 7: key null is the order note: the line under the order header opens it)
   function openNote(key, back = false) {
+    if (key === null) { closeMenu(); notePop = { key: null, draft: order.note || '', back: false, typing: false }; qtyPop = null; modPop = null; selected = null; sheet = 'note'; render(); return; }
     const line = lineOf(key); if (!line) return;
     notePop = { key, draft: line.note || '', back, typing: false }; qtyPop = null; sheet = 'note'; render();
   }
   function doneNote() {
     const p = notePop; if (!p) return;
     notePop = null; sheet = p.back && modPop ? 'mods' : null;
+    if (p.key === null) { order.note = cleanNote(p.draft); render(); return; }
     setNote(p.key, p.draft);
+  }
+  // A note cleared in one tap (Update 7): the order note's ✕, a selected line's ✕; Undo brings it back
+  function clearOrderNote() {
+    const was = order.note, target = order; if (!was) return;
+    order.note = ''; render();
+    say({ b: 'Order note', t: ' cleared', undo: () => { if (order === target) { order.note = was; render(); } } });
+  }
+  function clearLineNote(key) {
+    const line = lineOf(key); if (!line?.note) return;
+    const was = line.note; line.note = ''; render();
+    say({ b: 'Note', t: ` cleared · ${itemOf(line).name}`, undo: () => { if (order.lines.includes(line)) { line.note = was; render(); } } });
   }
   function cancelNote() {
     const p = notePop; if (!p) return;
     notePop = null; sheet = p.back && modPop ? 'mods' : null; render();
   }
-  // A quick note goes on the end of the note (after a comma), or comes out again when it is already there.
+  // A quick note goes on the end of the note (after a comma), or comes out again when it is already there. (A quick note
+  // with a comma in it, "No onion, no garlic", counts as one.)
   const noteParts = note => note.split(',').map(s => s.trim()).filter(Boolean);
-  const hasQuick = (note, chip) => noteParts(note).some(s => s.toLowerCase() === chip.toLowerCase());
-  const toggleQuick = (note, chip) => (hasQuick(note, chip) ? noteParts(note).filter(s => s.toLowerCase() !== chip.toLowerCase()) : [...noteParts(note), chip]).join(', ');
+  const runOf = (parts, chip) => {
+    const c = noteParts(chip).map(x => x.toLowerCase());
+    for (let i = 0; c.length && i + c.length <= parts.length; i++) if (c.every((x, j) => parts[i + j].toLowerCase() === x)) return [i, c.length];
+    return null;
+  };
+  const hasQuick = (note, chip) => Boolean(runOf(noteParts(note), chip));
+  const toggleQuick = (note, chip) => { const parts = noteParts(note), at = runOf(parts, chip); if (at) parts.splice(at[0], at[1]); else parts.push(...noteParts(chip)); return parts.join(', '); };
   // The quick notes for a dish: the notes this restaurant uses most for it, worked out by the backend from the notes
   // saved on its orders and published as a list per dish; the tablet only shows them, kept on the device so they work
   // offline (restro.quickNotes.v1: { lists: { <item id>: [...] }, defaults: [...] }, each note its words, or
@@ -1534,12 +2089,16 @@
   const QUICK_KEY = 'restro.quickNotes.v1', QUICK_ADDED_KEY = 'restro.quickNotes.added.v1', QUICK_NEW_MS = 15 * 864e5;
   const QUICK_START = ['Less spicy', 'Extra spicy', 'Less oil', 'Less salt', 'No onion', 'No garlic', 'Pack separately', 'Serve first',
     'Extra gravy', 'Allergy: nuts', 'Jain', 'Kids portion', 'Well done', 'No ice', 'Less sugar'];
+  // (Update 7: the order note's quick notes, for the whole order, from the same engine: the list "@order", or orderDefaults)
+  const ORDER_QUICK = '@order';
+  const ORDER_QUICK_START = ['Birthday celebration', 'Serve all together', 'Starters first', 'Kids at the table', 'Anniversary', 'Bring extra plates', 'Senior citizens',
+    'Jain food', 'Allergy: nuts', 'Pack leftovers', 'No onion, no garlic', 'Serve slowly', 'Business meeting', 'Extra spoons', 'High chair needed'];
   const quickText = t => (typeof t === 'string' ? t.replace(/\s+/g, ' ').trim().slice(0, 200) : '');
   function quickNotesFor(id) {
-    const kept = load(QUICK_KEY, null), source = kept && typeof kept === 'object' ? (kept.lists?.[id] ?? kept.defaults) : null;
+    const whole = id === ORDER_QUICK, kept = load(QUICK_KEY, null), source = kept && typeof kept === 'object' ? (kept.lists?.[id] ?? (whole ? kept.orderDefaults : kept.defaults)) : null;
     const published = (Array.isArray(source) ? source : []).map(x => (typeof x === 'string' ? { text: quickText(x), at: 0 }
       : x && typeof x === 'object' ? { text: quickText(x.text), pinned: x.pinned === true, at: Number(x.addedAt) || 0 } : null)).filter(x => x?.text);
-    const base = published.length ? published : QUICK_START.map(text => ({ text, at: 0 }));
+    const base = published.length ? published : (whole ? ORDER_QUICK_START : QUICK_START).map(text => ({ text, at: 0 }));
     const kept2 = load(QUICK_ADDED_KEY, null), mine = (kept2 && typeof kept2 === 'object' && Array.isArray(kept2[id]) ? kept2[id] : [])
       .map(x => ({ text: quickText(x?.text), at: Number(x?.at) || 0 })).filter(x => x.text);
     const now = Date.now(), fresh = x => x.at > 0 && x.at <= now + 60000 && now - x.at < QUICK_NEW_MS;
@@ -1659,18 +2218,33 @@
   window.addEventListener('restro:device-ready', watchPaper);
   watchPaper();
 
-  // The bill for the order on screen: each item with its modifiers and note under it, then the sums (Update 6: the
-  // discount, CGST and SGST, the round off). The RESTRO Android app prints it on the restaurant's printer
-  // (RESTRODevice.printer.printBill, ANDROID-BRIDGE.md); in a browser it goes to the browser's printing.
+  // The bill for the order on screen (25_printed-bill, Counter Update 7): the restaurant's name, address, GSTIN and FSSAI
+  // number (Settings › Business details); TAX INVOICE; the order number, date and time; the order type, table and guests;
+  // the server; each dish with its choices under it and its dish discount as a minus line ("10% off −26.00", "100% off ·
+  // Complaint −180.00"); Subtotal, Discount, Service charge (optional), Packaging, Delivery, CGST and SGST each on its own
+  // line, Round off, GRAND TOTAL; the service-charge line (when there is one) and the bill footer. Black only. The RESTRO
+  // Android app prints it on the restaurant's bill printer (RESTRODevice.printer.printBill, ANDROID-BRIDGE.md); in a
+  // browser it goes to the browser's printing.
   function billOf(o = order) {
-    const t = totalsOf(o), shop = (localStorage.getItem('restro.restaurantName') || '').trim();
+    const t = totalsOf(o), shop = (localStorage.getItem('restro.restaurantName') || '').trim(), biz = window.RestroPrefs?.get('business') || {}, sc = billing().serviceCharge || {};
+    const type = o.type || DEFAULT_TYPE;
     return {
-      restaurant: shop && shop !== 'RESTAURANT NAME' ? shop : '', number: o.number ? ticket(o.number) : null, at: Date.now(),
-      type: typeLabel[o.type || DEFAULT_TYPE], table: usesTable(o) ? tableName(o.table) : '', customer: o.customer ? o.customer.name : '', pager: cleanPager(o.pager) || null,
-      lines: o.lines.map(l => ({ name: itemOf(l).name, qty: l.qty, each: eachOf(l), total: eachOf(l) * l.qty, modifiers: (l.mods || []).map(modLabel), note: l.note || '' })),
+      restaurant: shop && shop !== 'RESTAURANT NAME' ? shop : '', address: biz.address || '', gstin: biz.gstin || '', fssai: biz.fssai || '',
+      number: o.number ? ticket(o.number) : null, at: Date.now(),
+      type: typeLabel[type], table: usesTable(o) ? tableName(o.table) : '', guests: o.guests || 0, customer: o.customer ? o.customer.name : '', pager: cleanPager(o.pager) || null,
+      server: o.server || staffName() || '',
+      lines: o.lines.map(l => {
+        const each = eachOf(l), gross = each * l.qty * 100, off = window.RestroBill.lineOff(gross, l.off);
+        return { name: itemOf(l).name, qty: l.qty, each, total: each * l.qty, modifiers: (l.mods || []).map(modLabel), note: l.note || '',
+          ...(l.off ? { discount: { percent: l.off, reason: l.off === 100 ? l.offReason || '' : '', amount: off / 100, label: `${l.off}% off${l.off === 100 && l.offReason ? ` · ${l.offReason}` : ''}` } } : {}) };
+      }),
       subtotal: t.subtotal / 100, discount: t.discountPct ? { label: `Discount ${t.discountPct}%`, percent: t.discountPct, amount: t.discount / 100 } : null,
+      // (the bill label from Settings, "Service charge (optional)", with the rate: "Service charge 5% (optional)")
+      serviceCharge: t.servicePct ? { label: !sc.label ? `Service charge ${t.servicePct}% (optional)` : /service charge/i.test(sc.label) ? sc.label.replace(/service charge/i, m => `${m} ${t.servicePct}%`) : `${sc.label} ${t.servicePct}%`, percent: t.servicePct, amount: t.service / 100 } : null,
+      packaging: t.packaging ? { label: 'Packaging charge', amount: t.packaging / 100 } : null, delivery: t.delivery ? { label: 'Delivery charge', amount: t.delivery / 100 } : null,
       taxes: [{ label: GST.cgst, amount: t.cgst / 100 }, { label: GST.sgst, amount: t.sgst / 100 }], tax: t.tax / 100, taxLabel: menu.taxLabel,
-      roundOff: t.roundOff / 100, total: t.total / 100
+      roundOff: t.roundOff / 100, total: t.total / 100,
+      footer: [t.servicePct ? sc.footer || 'Service charge is optional — ask us to remove it.' : '', biz.footer || ''].filter(Boolean)
     };
   }
   function printBill() {
@@ -1682,21 +2256,30 @@
     }
     let page = document.querySelector('#print-bill');
     if (!page) { page = el('div', { id: 'print-bill', 'aria-hidden': 'true' }); document.body.append(page); }
-    const r = n => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    page.replaceChildren(
+    const r = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), minus = n => `−${r(n)}`;
+    const row = (label, value, cls) => el('tr', cls ? { class: cls } : {}, el('td', {}, ...[label].flat()), el('td', {}, value));
+    const when = new Date(bill.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    page.replaceChildren(...[
       bill.restaurant ? el('h1', {}, bill.restaurant) : null,
-      el('p', {}, [bill.number ? `Order ${bill.number}` : 'Bill', new Date(bill.at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })].join(' · ')),
-      el('p', {}, [bill.type, bill.table ? `Table ${bill.table}` : '', bill.customer, bill.pager ? `Pager ${bill.pager}` : ''].filter(Boolean).join(' · ')),
-      el('table', {}, ...bill.lines.map(l => el('tbody', {},
-        el('tr', {}, el('td', {}, `${l.qty} × ${l.name}`), el('td', {}, r(l.total))),
-        ...l.modifiers.map(m => el('tr', { class: 'sub' }, el('td', { colspan: '2' }, m))),
-        l.note ? el('tr', { class: 'sub note' }, el('td', { colspan: '2' }, l.note)) : null))),
-      el('table', { class: 'sums' }, el('tbody', {},
-        el('tr', {}, el('td', {}, 'Subtotal'), el('td', {}, r(bill.subtotal))),
-        bill.discount ? el('tr', {}, el('td', {}, bill.discount.label), el('td', {}, `−${r(bill.discount.amount)}`)) : null,
-        ...bill.taxes.map(x => el('tr', {}, el('td', {}, x.label), el('td', {}, r(x.amount)))),
-        bill.roundOff ? el('tr', {}, el('td', {}, 'Round off'), el('td', {}, `${bill.roundOff < 0 ? '−' : ''}${r(Math.abs(bill.roundOff))}`)) : null,
-        el('tr', { class: 'total' }, el('td', {}, 'Total'), el('td', {}, r(bill.total))))));
+      bill.address || bill.gstin || bill.fssai ? el('p', { class: 'small' }, bill.address, bill.address && (bill.gstin || bill.fssai) ? el('br') : null, [bill.gstin ? `GSTIN ${bill.gstin}` : '', bill.fssai ? `FSSAI ${bill.fssai}` : ''].filter(Boolean).join(' · ')) : null,
+      el('hr'), el('p', { class: 'b' }, 'TAX INVOICE'),
+      el('table', { class: 'small' }, el('tbody', {}, row(bill.number ? `Order ${bill.number}` : 'Bill', when),
+        row([bill.type, bill.table ? `Table ${bill.table}` : '', bill.guests ? plural(bill.guests, 'guest') : '', bill.customer, bill.pager ? `Pager ${bill.pager}` : ''].filter(Boolean).join(' · '), bill.server ? `Server: ${initialsOf(bill.server)}` : ''))),
+      el('hr'),
+      el('table', {}, el('tbody', {}, ...bill.lines.flatMap(l => [
+        row([`${l.qty} × ${l.name}`, l.modifiers.length ? el('div', { class: 'mod' }, l.modifiers.join(' · ')) : null], r(l.total)),
+        l.discount ? row(`  ${l.discount.label}`, minus(l.discount.amount), 'sub') : null].filter(Boolean)))),
+      el('hr'),
+      el('table', {}, el('tbody', {}, row('Subtotal', r(bill.subtotal)),
+        bill.discount ? row(bill.discount.label, minus(bill.discount.amount)) : null,
+        bill.serviceCharge ? row(bill.serviceCharge.label, r(bill.serviceCharge.amount)) : null,
+        bill.packaging ? row(bill.packaging.label, r(bill.packaging.amount)) : null,
+        bill.delivery ? row(bill.delivery.label, r(bill.delivery.amount)) : null,
+        ...bill.taxes.map(x => row(x.label, r(x.amount))),
+        bill.roundOff ? row('Round off', `${bill.roundOff < 0 ? '−' : '+'}${r(Math.abs(bill.roundOff))}`) : null)),
+      el('hr'),
+      el('table', { class: 'gt' }, el('tbody', {}, row('GRAND TOTAL', `₹${bill.total.toLocaleString('en-IN')}`))),
+      bill.footer.length ? [el('hr'), el('p', { class: 'small' }, ...bill.footer.flatMap((f, i) => (i ? [el('br'), f] : [f])))] : null].flat().filter(Boolean));
     try { window.print(); } catch { toast('Printing isn’t available here'); }
   }
 
@@ -1761,14 +2344,28 @@
       card);
     if (kind === 'custom') return layer(customCard(hold));
     if (kind === 'discount') return layer(discountCard(hold), cancelDiscount);
+    // Update 7: the service charge, the dish discount, a void (a tap outside does nothing: it needs a reason, or ✕) and
+    // Change server; the order note
+    if (kind === 'service') return layer(serviceCard(hold), cancelService);
+    if (kind === 'dish') return layer(dishCard(hold), () => {});
+    if (kind === 'void') return layer(voidCard(hold), () => {});
+    if (kind === 'server') return layer(serverCard(hold), () => { sheet = null; serverPop = null; render(); });
+    const done = (fn, wide) => el('button', { type: 'button', class: `cx-done${wide ? ' wide' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: fn }, 'Done');
+    if (kind === 'note' && notePop.key === null) {
+      // "Order note · Order #1015 · Table 12", the whole order's quick notes (no + Add), Clear note, Done
+      const where = [order.number || upcomingNumber() ? `Order ${ticket(order.number || upcomingNumber())}` : '', usesTable(order) ? `Table ${tableName(order.table)}` : order.customer?.name || ''].filter(Boolean).join(' · ');
+      const head = el('div', { class: 'cx-pu-head' },
+        el('div', { class: 'cx-pu-dish cx-on-head' }, el('i', { 'aria-hidden': 'true' }, mi('note_alt', 22)), el('b', {}, 'Order note'), where ? el('span', {}, where) : null),
+        closeX(cancelNote, hold));
+      return layer(noteCard({ quickId: ORDER_QUICK, adds: false, name: 'the order' }, head, done, hold), () => {});
+    }
     const key = kind === 'mods' ? modPop.key : kind === 'qty' ? qtyPop.key : notePop.key, line = lineOf(key), item = itemOf(line);
     // (a tap outside while the note is typed in the modifier pop-up does nothing, as on the note pop-up)
     const outside = kind === 'mods' ? () => { if (!modPop?.note) closeMods(); } : kind === 'qty' ? cancelQty : () => {};
     const dish = el('div', { class: 'cx-pu-dish' }, item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name));
     if (kind === 'mods' && modPop.note) return layer(modsNoteCard(line, item, dish, hold), outside);
     const head = el('div', { class: 'cx-pu-head' }, dish, closeX(kind === 'mods' ? cancelMods : kind === 'qty' ? cancelQty : cancelNote, hold));
-    const done = (fn, wide) => el('button', { type: 'button', class: `cx-done${wide ? ' wide' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: fn }, 'Done');
-    return layer(kind === 'mods' ? modsCard(line, item, head, done) : kind === 'qty' ? qtyCard(line, item, head, done) : noteCard(line, item, head, done, hold), outside);
+    return layer(kind === 'mods' ? modsCard(line, item, head, done) : kind === 'qty' ? qtyCard(line, item, head, done) : noteCard({ quickId: line.id, adds: !line.custom, name: item.name }, head, done, hold), outside);
   }
   const closeX = (fn, hold) => el('button', { type: 'button', class: 'cx-x', 'aria-label': 'Close without changes', title: 'Close', onpointerdown: hold, onmousedown: hold, onclick: fn }, mi('close', 26));
   // Modifiers: each group (title, "Required · pick 1" or "Optional") with its choices as tiles, 1–3 choices a third of
@@ -1785,13 +2382,13 @@
       return el('section', { class: 'cx-mg', role: single ? 'radiogroup' : 'group', 'aria-label': g.name },
         el('div', { class: 'cx-mg-head' },
           el('b', {}, g.name),
-          el('span', { class: `cx-badge ${err ? 'err' : g.required ? 'req' : 'opt'}` }, g.required ? 'Required · pick 1' : 'Optional'),
+          el('span', { class: `cx-badge ${err ? 'err' : g.required ? 'req' : 'opt'}` }, g.required ? `Required · pick 1${g.mode === 'set' ? ' · sets the price' : ''}` : 'Optional'),
           err ? el('span', { class: 'cx-mg-err', role: 'alert' }, `Choose a ${g.name.toLowerCase()} to continue`) : null),
         el('div', { class: `cx-mg-opts c${g.options.length <= 3 ? 3 : 4}` }, ...g.options.map(o => {
           const on = line.mods.includes(o.id);
           return el('button', { type: 'button', role: single ? 'radio' : 'checkbox', 'aria-checked': String(on), class: `cx-mo${on ? ' on' : err ? ' err' : ''}`, onclick: () => pickOption(g, o) },
             on ? mi('check', 20) : null,
-            el('span', { class: 'cx-mo-t' }, el('span', {}, o.label), o.price ? el('small', {}, `+₹${o.price.toLocaleString('en-IN')}`) : null));
+            el('span', { class: 'cx-mo-t' }, el('span', {}, o.label), o.price ? el('small', {}, `${g.mode === 'set' ? '' : '+'}₹${o.price.toLocaleString('en-IN')}`) : null));
         })));
     };
     return el('div', { class: 'cx-pu mods', role: 'dialog', 'aria-label': `${item.name}: choices` },
@@ -1808,8 +2405,9 @@
         done(() => { closeMods(); })));
   }
   // The number pad (quantity, a custom item's price): 1–9, Clear, 0, ⌫
-  const numberKeys = (press, cls = '') => el('div', { class: `cx-qk${cls}` }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back'].map(k =>
-    el('button', { type: 'button', class: `cx-key${k === 'clear' || k === 'back' ? ' fn' : ''}`, 'data-key': k, 'aria-label': k === 'clear' ? 'Clear' : k === 'back' ? 'Backspace' : k, onclick: () => press(k) },
+  // (Update 7: the service charge's has a decimal point where Clear is)
+  const numberKeys = (press, cls = '', left = 'clear') => el('div', { class: `cx-qk${cls}` }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9', left, '0', 'back'].map(k =>
+    el('button', { type: 'button', class: `cx-key${k === 'clear' || k === 'back' || k === '.' ? ' fn' : ''}${k === '.' ? ' dot' : ''}`, 'data-key': k, 'aria-label': k === 'clear' ? 'Clear' : k === 'back' ? 'Backspace' : k === '.' ? 'Decimal point' : k, onclick: () => press(k) },
       k === 'back' ? mi('backspace', 28) : k === 'clear' ? 'Clear' : k)));
   // Quantity: the value typed (blue, with a blinking blue cursor; empty until a key is pressed) · 1–9, Clear, 0, ⌫ · Done
   function qtyCard(line, item, head, done) {
@@ -1830,10 +2428,116 @@
       el('div', { class: 'cx-pu-head' }, el('div', { class: 'cx-dh' }, el('i', { 'aria-hidden': 'true' }, mi('percent', 22)), el('b', {}, 'Apply discount')), closeX(cancelDiscount, hold)),
       el('div', { class: 'cx-dd', role: 'status', 'aria-label': n ? `Discount ${n}%` : 'Type the discount' }, p.value ? el('span', {}, p.value) : null, el('small', {}, '%'), el('i', { 'aria-hidden': 'true' })),
       el('p', { class: 'cx-dpv' }, `On subtotal ${amount(t.subtotal)}`, n ? [' · saves ', el('b', {}, amount(saves))] : null),
-      el('div', { class: 'cx-dqp', role: 'group', 'aria-label': 'Quick picks' }, ...[5, 10, 15, 20, 25].map(q =>
+      el('div', { class: 'cx-dqp', role: 'group', 'aria-label': 'Quick picks' }, ...(billing().orderDiscount?.picks?.length ? billing().orderDiscount.picks : [5, 10, 15, 20, 25]).slice(0, 5).map(q =>
         el('button', { type: 'button', class: n === q ? 'on' : null, 'aria-pressed': String(n === q), onclick: () => { discPop.value = String(q); render(); } }, `${q}%`))),
       numberKeys(pressDisc, ' cx-dk'),
       el('button', { type: 'button', class: 'cx-done wide', disabled: !n, onclick: applyDiscount }, n ? `Apply ${n}% discount` : 'Apply discount'));
+  }
+  // Service charge (Update 7), where the discount pop-up is: the blue cloche with "Service charge", ✕ · the rate (blue,
+  // its cursor blinking) · "On ₹3,564 after discount · adds ₹178.20" · 2.5% 5% 7.5% 10% · the number pad with a decimal
+  // point · "Add 5% service charge" · "Optional · add only if the customer agrees · max 10% (set by owner)".
+  function serviceCard(hold) {
+    const p = servicePop, n = serviceOf(p), t = totals(), base = t.subtotal - t.discount, max = serviceMax();
+    const adds = n ? totalsOf({ ...order, servicePct: n }).service : 0;
+    const picks = (serviceSet().picks?.length ? serviceSet().picks : [2.5, 5, 7.5, 10]).filter(q => q > 0 && q <= max).slice(0, 4);
+    return el('div', { class: 'cx-pu disc svc', role: 'dialog', 'aria-label': 'Service charge' },
+      el('div', { class: 'cx-pu-head' }, el('div', { class: 'cx-dh svc' }, el('i', { 'aria-hidden': 'true' }, mi('room_service', 22)), el('b', {}, 'Service charge')), closeX(cancelService, hold)),
+      el('div', { class: 'cx-dd', role: 'status', 'aria-label': n ? `Service charge ${n}%` : 'Type the service charge' }, p.value ? el('span', {}, p.value) : null, el('small', {}, '%'), el('i', { 'aria-hidden': 'true' })),
+      el('p', { class: 'cx-dpv svc' }, t.discount ? `On ${amount(base)} after discount` : `On subtotal ${amount(base)}`, n ? [' · adds ', el('b', {}, amount(adds))] : null),
+      el('div', { class: `cx-dqp c${Math.max(1, picks.length)}`, role: 'group', 'aria-label': 'Quick picks' }, ...picks.map(q =>
+        el('button', { type: 'button', class: n === q ? 'on' : null, 'aria-pressed': String(n === q), onclick: () => { servicePop.value = String(q); render(); } }, `${q}%`))),
+      numberKeys(pressService, ' cx-dk', '.'),
+      el('button', { type: 'button', class: 'cx-done wide', disabled: !n, onclick: applyService }, n ? `Add ${n}% service charge` : 'Add service charge'),
+      el('p', { class: 'cx-legal' }, `Optional · add only if the customer agrees · max ${max}% (set by owner)`));
+  }
+  // Dish discount (Update 7). Step 1, "Pick the dishes": every line, a box, its quantity (× 8) and its total; "Next ·
+  // 1 dish". Step 2: ‹, the dish (or how many), its quantity × price = total, ✕ · the percentage · "₹180 → ₹0 · 100% off"
+  // · 10% 20% 50% 100% · the number pad · at 100% only, "Reason (asked only at 100%)" and the reasons (one needed) ·
+  // "Apply 100% off".
+  function dishCard(hold) {
+    const p = dishPop, press = fn => ({ type: 'button', onpointerdown: hold, onmousedown: hold, onclick: fn });
+    if (p.step === 1) {
+      const names = new Map(); for (const l of order.lines) names.set(itemOf(l).name, (names.get(itemOf(l).name) || 0) + 1);
+      return el('div', { class: 'cx-pu dish pick', role: 'dialog', 'aria-label': 'Dish discount, step 1 of 2: pick the dishes' },
+        el('div', { class: 'cx-pu-head' }, el('div', { class: 'cx-steph' }, el('small', {}, 'Dish discount · Step 1 of 2'), el('b', {}, 'Pick the dishes')), closeX(cancelDish, hold)),
+        el('div', { class: 'cx-pkl', role: 'group', 'aria-label': 'Dishes' }, ...order.lines.map(l => {
+          const k = keyOf(l), on = p.picked.includes(k), name = itemOf(l).name;
+          const more = [l.qty > 1 ? `× ${l.qty}` : '', names.get(name) > 1 ? l.mods.map(modLabel).join(', ') : '', l.off ? `${l.off}% off now` : ''].filter(Boolean).join(' · ');
+          return el('button', { ...press(() => { p.picked = on ? p.picked.filter(x => x !== k) : [...p.picked, k]; render(); }), class: `cx-pk${on ? ' on' : ''}`, role: 'checkbox', 'aria-checked': String(on) },
+            el('span', { class: 'cx-cb', 'aria-hidden': 'true' }, on ? mi('check', 18) : null), el('b', {}, name), el('small', {}, more), el('span', { class: 'cx-pa' }, rupees(eachOf(l) * l.qty)));
+        })),
+        el('button', { ...press(dishNext), class: 'cx-done wide', disabled: !p.picked.length }, p.picked.length ? `Next · ${p.picked.length} ${p.picked.length === 1 ? 'dish' : 'dishes'}` : 'Next'));
+    }
+    const lines = p.picked.map(lineOf).filter(Boolean), one = lines.length === 1 ? lines[0] : null, n = dishValue(p);
+    const gross = lines.reduce((sum, l) => sum + eachOf(l) * l.qty * 100, 0), off = n ? lines.reduce((sum, l) => sum + window.RestroBill.lineOff(eachOf(l) * l.qty * 100, n), 0) : 0;
+    const removing = !n, had = lines.some(l => l.off), needReason = n === 100, reason = dishReason(p);
+    const reasons = needReason ? reasonChips(dishReasons(), p, 'counter-dish-reason', 'Reason') : null;
+    const ok = removing ? had : !needReason || Boolean(reason);
+    const card = el('div', { class: `cx-pu dish pct${p.typing ? ' typing' : ''}`, role: 'dialog', 'aria-label': 'Dish discount, step 2 of 2' },
+      el('div', { class: 'cx-pu-head' },
+        el('div', { class: 'cx-pu-lead' }, el('button', { ...press(() => { p.step = 1; p.typing = false; render(); }), class: 'cx-x', 'aria-label': 'Back to the dishes', title: 'Back' }, mi('chevron_left', 28)),
+          el('div', { class: 'cx-steph' }, el('small', {}, 'Dish discount · Step 2 of 2'), el('b', {}, one ? itemOf(one).name : `${lines.length} dishes`),
+            el('span', {}, one ? `${one.qty} × ${rupees(eachOf(one))} = ${rupees(eachOf(one) * one.qty)}` : `${lines.map(l => itemOf(l).name).join(', ')} · ${amount(gross)}`))),
+        closeX(cancelDish, hold)),
+      el('div', { class: 'cx-dd sm', role: 'status', 'aria-label': n != null ? `${n}% off` : 'Type the percentage' }, p.value ? el('span', {}, p.value) : null, el('small', {}, '%'), el('i', { 'aria-hidden': 'true' })),
+      el('p', { class: 'cx-dpv' }, amount(gross), n ? [' → ', el('b', {}, `${amount(gross - off)} · ${n}% off`)] : n === 0 ? ' · no discount' : null),
+      el('div', { class: 'cx-dqp c4', role: 'group', 'aria-label': 'Quick picks' }, ...dishPicks().slice(0, 4).map(q =>
+        el('button', { ...press(() => { p.value = String(q); render(); }), class: n === q ? 'on' : null, 'aria-pressed': String(n === q) }, `${q}%`))),
+      numberKeys(pressDish, ' cx-dk sm'),
+      reasons ? el('div', { class: 'cx-lab3' }, 'Reason (asked only at 100%)') : null, reasons,
+      el('button', { ...press(applyDish), class: 'cx-done wide', disabled: !ok }, removing ? 'Remove dish discount' : `Apply ${n}% off`));
+    return card;
+  }
+  // The reasons, as chips (one at a time, light blue when picked); Other… opens the keyboard for one typed in
+  function reasonChips(list, p, id, label) {
+    const wrap = el('div', { class: 'cx-rsn', role: 'radiogroup', 'aria-label': label });
+    for (const r of list) {
+      const other = isOther(r), on = other ? isOther(p.reason) : p.reason === r;
+      wrap.append(el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), class: `${on ? 'on' : ''}${other ? ' oth' : ''}`.trim() || null,
+        onpointerdown: e => e.preventDefault(), onclick: () => { p.reason = r; p.typing = other; render(); if (other) dialog.querySelector(`#${id}`)?.focus(); } }, other ? 'Other…' : r));
+    }
+    if (isOther(p.reason)) {
+      const tf = textField({ id, value: p.other, hint: 'Type the reason', max: 80, label: 'Reason' });
+      const line = el('span', { class: `cx-nf-line${p.other ? '' : ' empty'}` }, mi('edit', 20), tf.box);
+      tf.input.addEventListener('input', () => { p.other = tf.input.value; line.classList.toggle('empty', !tf.input.value); const btn = wrap.closest('.cx-pu')?.querySelector('.cx-done.wide, .cx-btnr'); if (btn) { const ok = Boolean(cleanReason(p.other)); btn.disabled = !ok; btn.classList.toggle('off', !ok); } });
+      tf.input.addEventListener('focus', () => { p.typing = true; wrap.closest('.cx-pu')?.classList.add('typing'); line.classList.add('on'); });
+      tf.input.addEventListener('blur', () => { p.typing = false; wrap.closest('.cx-pu')?.classList.remove('typing'); line.classList.remove('on'); });
+      tf.input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tf.input.blur(); } });
+      wrap.append(el('label', { class: 'cx-nf cx-rsn-other' }, line));
+    }
+    return wrap;
+  }
+  // A void (Update 7): the red ⊖ with "Remove Chicken biryani?" / "Reduce Chicken noodles 8 → 7?" / "Delete order
+  // #1015?" and what the kitchen has ("Already sent to the kitchen · KOT #2") · a red box saying what will print · "Why?
+  // (required)" and the reasons · the red button, grey until a reason is picked. ✕ changes nothing.
+  function voidCard(hold) {
+    const p = voidPop, whole = p.key == null, line = whole ? null : lineOf(p.key), rec = savedOf(loadOrders());
+    const name = line ? itemOf(line).name : '', n = line ? sentOf(line) - Math.max(0, p.to) : 0, kots = kotsOf(rec);
+    const kotNo = line && rec ? kotOfKey(rec, kitchenKey(line.id, lineType(line), (line.kit || [])[line.kit.length - 1]?.mods || line.mods)) : null;
+    const title = whole ? `Delete order ${ticket(order.number)}?` : p.to <= 0 ? `Remove ${name}?` : `Reduce ${name} ${line.qty} → ${p.to}?`;
+    const sub = whole ? `${kots.length} KOT${kots.length === 1 ? '' : 's'} already sent to the kitchen` : `Already sent to the kitchen${kotNo ? ` · KOT #${kotNo}` : ''}`;
+    const reason = voidReason(p);
+    return el('div', { class: `cx-pu void${p.typing ? ' typing' : ''}`, role: 'dialog', 'aria-label': title },
+      el('div', { class: 'cx-pu-head' },
+        el('div', { class: 'cx-dh void' }, el('i', { 'aria-hidden': 'true' }, mi('do_not_disturb_on', 22)), el('div', { class: 'cx-steph' }, el('b', {}, title), el('span', {}, sub))),
+        closeX(cancelVoid, hold)),
+      el('div', { class: 'cx-vinfo' }, mi('receipt_long', 22), el('span', {}, 'A ', el('b', {}, 'VOID'), ' slip for ',
+        whole ? ['the ', el('b', {}, `whole order (${plural(totals().count, 'item')})`), ' will print in the kitchen. This can’t be undone.'] : [el('b', {}, `${n} × ${name}`), ' will print in the kitchen.'])),
+      el('div', { class: 'cx-lab3' }, 'Why? (required)'),
+      reasonChips(reasonsFor(whole), p, 'counter-reason', 'Why'),
+      el('button', { type: 'button', class: `cx-btnr${reason ? '' : ' off'}`, disabled: !reason, onpointerdown: hold, onmousedown: hold, onclick: confirmVoid },
+        whole ? 'Delete order & send void' : p.to <= 0 ? 'Remove & send void' : 'Reduce & send void'));
+  }
+  // Change server: the restaurant's staff (Staff app), the one serving it light blue
+  function serverCard(hold) {
+    const current = order.serverId || (order.server ? null : window.RestroStaff?.current?.id), people = window.RestroStaff?.list() || [];
+    return el('div', { class: 'cx-pu server', role: 'dialog', 'aria-label': 'Change server' },
+      el('div', { class: 'cx-pu-head' }, el('div', { class: 'cx-dh' }, el('i', { 'aria-hidden': 'true' }, mi('badge', 22)), el('b', {}, 'Change server')), closeX(() => { sheet = null; serverPop = null; render(); }, hold)),
+      el('div', { class: 'cx-pkl', role: 'radiogroup', 'aria-label': 'Staff' }, ...people.map(person => {
+        const on = current ? person.id === current : person.name === order.server;
+        return el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), class: `cx-pk${on ? ' on' : ''}`, onclick: () => pickServer(person) },
+          el('span', { class: 'cx-av', 'aria-hidden': 'true' }, initialsOf(person.name)), el('b', {}, person.name), el('small', {}, window.RestroStaff.roles?.find?.(r => r.id === person.role)?.name || ''));
+      })));
   }
   // A line typed on (Update 5): the note (the note pop-up, a custom item's) and a custom item's name. With nothing on it
   // its grey hint shows ("Type special instructions here"), after the cursor while it has the keyboard. The cursor is
@@ -1878,8 +2582,8 @@
   // grey otherwise; a tap keeps them as quick notes of the dish) and 14 notes (light blue while their words are in the
   // note; a tap adds them, or takes them out; pinned ones with a pin, new ones with NEW) · Clear note ........ Done.
   // (A custom item has no + Add: it isn't a dish of the menu.)
-  function noteCard(line, item, head, done, hold) {
-    const p = notePop, notes = quickNotesFor(line.id), adds = !line.custom, shown = notes.slice(0, adds ? 14 : 15);
+  function noteCard(ctx, head, done, hold) {
+    const p = notePop, notes = quickNotesFor(ctx.quickId), adds = ctx.adds, shown = notes.slice(0, adds ? 14 : 15), line = { id: ctx.quickId }, item = { name: ctx.name };
     const known = new Set(notes.map(n => n.text.toLowerCase()));
     const fresh = () => noteParts(p.draft).filter(s => !known.has(s.toLowerCase()));
     const tf = textField({ id: 'counter-note', value: p.draft, hint: NOTE_HINT, max: 200, label: `Note for ${item.name}` }), field = tf.input;
@@ -1970,9 +2674,12 @@
     const p = customPop, c = categoryById.get(p.cat);
     const press = fn => ({ type: 'button', onpointerdown: hold, onmousedown: hold, onclick: fn });
     const name = textField({ id: 'counter-custom-name', value: p.name, hint: 'Custom item', max: 60, label: 'Item name, optional' });
-    const nameLine = el('span', { class: 'cx-nf-line' }, name.box);
     const note = textField({ id: 'counter-custom-note', value: p.note, hint: NOTE_HINT, max: 200, label: 'Note, optional' });
-    const noteLine = el('span', { class: 'cx-nl-line' }, mi('edit', 20), note.box);
+    // (Update 7: a ✕ in the name and the note while they have words clears them in one tap)
+    const clearer = (tf, field) => el('button', { ...press(() => { p[field] = ''; tf.input.value = ''; paint(); if (p.field === field) tf.input.focus(); }), class: 'cx-fclr', 'aria-label': field === 'name' ? 'Clear the item name' : 'Clear the note', hidden: !p[field] }, mi('close', 16));
+    const nameClr = clearer(name, 'name'), noteClr = clearer(note, 'note');
+    const nameLine = el('span', { class: 'cx-nf-line' }, name.box, nameClr);
+    const noteLine = el('span', { class: 'cx-nl-line' }, mi('edit', 20), note.box, noteClr);
     const veg = el('button', { ...press(() => { p.veg = p.veg === true ? null : true; paint(); }), class: 'cx-vn veg' }, el('em', { 'aria-hidden': 'true' }), 'Veg');
     const non = el('button', { ...press(() => { p.veg = p.veg === false ? null : false; paint(); }), class: 'cx-vn non' }, el('em', { 'aria-hidden': 'true' }), 'Non-veg');
     const priceText = el('span', { class: 'cx-pf-v' }), priceCur = el('i', { class: 'cx-cur', 'aria-hidden': 'true' });
@@ -1997,7 +2704,7 @@
       pad, button);
     // The name and the note take the keyboard when tapped; Enter, or the keyboard put away, sets them.
     for (const [tf, line, field] of [[name, nameLine, 'name'], [note, noteLine, 'note']]) {
-      tf.input.addEventListener('input', () => { p[field] = tf.input.value; line.classList.toggle('empty', !tf.input.value); });
+      tf.input.addEventListener('input', () => { p[field] = tf.input.value; line.classList.toggle('empty', !tf.input.value); (field === 'name' ? nameClr : noteClr).hidden = !tf.input.value; });
       tf.input.addEventListener('focus', () => { if (customPop !== p || p.field === field) return; p.field = field; paint(); });
       tf.input.addEventListener('blur', () => { if (customPop === p && p.field === field && tf.input.isConnected) customSet(); });
       tf.input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); customSet(); } });
@@ -2009,6 +2716,7 @@
         if (document.activeElement !== tf.input && tf.input.value !== text) tf.input.value = text;
         line.classList.toggle('empty', !text); line.classList.toggle('on', p.field === field); tf.place();
       }
+      nameClr.hidden = !p.name; noteClr.hidden = !p.note;
       veg.classList.toggle('on', p.veg === true); veg.setAttribute('aria-pressed', String(p.veg === true));
       non.classList.toggle('on', p.veg === false); non.setAttribute('aria-pressed', String(p.veg === false));
       const typed = p.price !== '';
@@ -2040,10 +2748,18 @@
     if (modPop && !modLine()) { modPop = null; if (sheet === 'mods') sheet = null; }
     if (!modPop) order.lines.filter(l => l.edit).forEach(settle);
     if (sheet === 'qty' && !(qtyPop && lineOf(qtyPop.key))) { sheet = null; qtyPop = null; }
-    if (sheet === 'note' && !(notePop && lineOf(notePop.key))) { sheet = null; notePop = null; }
+    if (sheet === 'note' && !(notePop && (notePop.key === null || lineOf(notePop.key)))) { sheet = null; notePop = null; }
     if (sheet === 'custom' && !customPop) sheet = null;
     if (sheet === 'discount' && !discPop) sheet = null;
+    if (sheet === 'service' && !servicePop) sheet = null;
+    if (sheet === 'dish' && !(dishPop && (dishPop.step === 1 || dishPop.picked.some(lineOf)))) { sheet = null; dishPop = null; }
+    if (sheet === 'void' && !(voidPop && (voidPop.key == null || lineOf(voidPop.key)))) { sheet = null; voidPop = null; }
+    if (sheet === 'server' && !serverPop) sheet = null;
     if (sheet !== 'discount') discPop = null;
+    if (sheet !== 'service') servicePop = null;
+    if (sheet !== 'dish') dishPop = null;
+    if (sheet !== 'void') voidPop = null;
+    if (sheet !== 'server') serverPop = null;
     if (sheet !== 'qty') qtyPop = null;
     if (sheet !== 'note') notePop = null;
     if (sheet !== 'custom') { customPop = null; paintCustom = null; }
@@ -2055,7 +2771,8 @@
     const close = el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': 'Close', onclick: () => { sheet = null; render(); } }, svg(ICON.close));
     let body;
     // The pop-ups over the menu (Counter Update 4): modifiers, quantity, note; a custom item (Update 5)
-    if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop) || (sheet === 'custom' && customPop) || (sheet === 'discount' && discPop)) return popView();
+    if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop) || (sheet === 'custom' && customPop) || (sheet === 'discount' && discPop)
+      || (sheet === 'service' && servicePop) || (sheet === 'dish' && dishPop) || (sheet === 'void' && voidPop) || (sheet === 'server' && serverPop)) return popView();
 
     if (sheet === 'pay') {
       const options = cashOptions(t.total);
@@ -2257,27 +2974,39 @@
     syncPops();
     const focusId = document.activeElement?.id;
     // (a pop-up drawn again keeps where its groups, or its row of quick notes, were scrolled)
-    const popScroll = [dialog.querySelector('.cx-pu-groups')?.scrollTop || 0, dialog.querySelector('.cx-qn')?.scrollLeft || 0];
-    if (highlight && !order.lines.length) highlight = false; // the last item went: back to the usual view
-    // The order type choices and the three-line menu dim the whole screen, the top banner too; what they show stays
-    // above the dimming.
+    const popScroll = [dialog.querySelector('.cx-pu-groups')?.scrollTop || 0, dialog.querySelector('.cx-qn')?.scrollLeft || 0, dialog.querySelector('.cx-pkl')?.scrollTop || 0];
+    // The order type choices and the order menu dim the whole screen, the top banner too; what they show stays above the
+    // dimming.
     root.replaceChildren(
       // (under a pop-up the order is seen as it is, but taps there are taps outside the pop-up, keys too)
-      el('div', { class: `cx-shell${highlight ? ' highlight' : ''}${arranging ? ' arranging' : ''}`, 'data-style': menuStyle, inert: POPS.includes(sheet) }, orderPanel(), menuSide()),
+      el('div', { class: `cx-shell${arranging ? ' arranging' : ''}`, 'data-style': menuStyle, inert: POPS.includes(sheet) }, orderPanel(), menuSide()),
       typeMenu || optionsMenu ? el('div', { class: 'cx-scrim', onclick: () => (typeMenu ? openTypeMenu(false) : openOptions(false)) }) : '',
       ...[sheetView()].flat().filter(Boolean));
     renderMenuBody();
+    fitGst();
+    paintMsg();
     const lines = dialog.querySelector('.cx-lines');
     if (lines && dialog.open) { lines.scrollTop = scrollMemo.lines; scrollMemo.lines = lines.scrollTop; }
     placePop();
     const groupsEl = dialog.querySelector('.cx-pu-groups'), quickEl = dialog.querySelector('.cx-qn');
     if (groupsEl) groupsEl.scrollTop = popScroll[0];
     if (quickEl) quickEl.scrollLeft = popScroll[1];
-    // Typing carries on where it was (search, a note, or a custom item's name or note while it is the one being typed in)
-    const typingOn = focusId === 'counter-search' || focusId === 'counter-note' || (customPop && focusId === `counter-custom-${customPop.field}`);
+    const pickEl = dialog.querySelector('.cx-pkl'); if (pickEl) pickEl.scrollTop = popScroll[2];
+    // Typing carries on where it was (search, a note, a reason, or a custom item's name or note while it is the one being
+    // typed in)
+    const typingOn = focusId === 'counter-search' || focusId === 'counter-note' || focusId === 'counter-reason' || focusId === 'counter-dish-reason' || (customPop && focusId === `counter-custom-${customPop.field}`);
     if (typingOn) { const f = dialog.querySelector(`#${focusId}`); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
   }
-  function toast(message) { if (typeof window.toast === 'function') window.toast(message); else document.querySelector('#toast') && (document.querySelector('#toast').textContent = message); }
+  // Messages on the Counter go in its message bar (Update 7); with the Counter not on screen, the system's toast
+  function toast(message) { if (dialog.open) { say(message); return; } if (typeof window.toast === 'function') window.toast(message); else document.querySelector('#toast') && (document.querySelector('#toast').textContent = message); }
+  // GST on one line (Update 7): "GST 5% (CGST 2.5% ₹x + SGST 2.5% ₹x)"; when it doesn't fit (very large bills), without
+  // the percentages in the brackets: "GST 5% (CGST ₹x + SGST ₹x)". Never on two lines.
+  function fitGst() {
+    const row = dialog.querySelector('.cx-tl.gst'), label = row?.querySelector('span'), inner = label?.querySelector('i'), value = row?.querySelector('b');
+    if (!row || !inner) return;
+    const room = row.clientWidth - value.offsetWidth - parseFloat(getComputedStyle(row).columnGap || 0);
+    if (label.scrollWidth > room && inner.dataset.short) inner.textContent = inner.dataset.short;
+  }
 
   function goBack() {
     if (!dialog.open) return false;
@@ -2288,15 +3017,20 @@
     if (sheet === 'mods') { if (modPop?.note) setModsNote(); else closeMods(); return true; } // (the note typed in it: back to the choices)
     if (sheet === 'qty') { cancelQty(); return true; }
     if (sheet === 'discount') { cancelDiscount(); return true; }
+    // (Update 7: the service charge, the dish discount (step 2 goes back to step 1) and a void close changing nothing;
+    // a reason being typed puts the keyboard away first)
+    if (sheet === 'service') { cancelService(); return true; }
+    if (sheet === 'dish') { if (dishPop?.typing) dialog.querySelector('#counter-dish-reason')?.blur(); else if (dishPop?.step === 2) { dishPop.step = 1; render(); } else cancelDish(); return true; }
+    if (sheet === 'void') { if (voidPop?.typing) dialog.querySelector('#counter-reason')?.blur(); else cancelVoid(); return true; }
     if (sheet === 'note') { if (notePop?.typing) dialog.querySelector('#counter-note')?.blur(); else doneNote(); return true; }
     // the custom item: what is being typed in is set first; then it closes, adding nothing (as ✕)
     if (sheet === 'custom') { if (customPop?.field) customSet(); else closeCustom(); return true; }
     if (sheet && sheet !== 'receipt') { sheet = null; render(); return true; }
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
-    if (highlight) { setHighlight(false); return true; } // a sheet opened from it closes first
     if (panelArranging) { setPanelArranging(false); return true; }
     if (arranging) { setArranging(false); return true; }
     if (selected) { selected = null; render(); return true; } // a selected line goes back to a plain one
+    if (msg?.kind === 'error') { dropMsg(); return true; } // (an error message stays until Retry or ✕: Back is ✕ too)
     if (query) { query = ''; render(); return true; }
     if (category && menuStyle === 'grid') { category = null; renderMenuBody(); return true; } // inside a category: back to all of them
     if (fromFloor && window.RestroFloor) { fromFloor = false; window.RestroFloor.open(); return true; } // opened from a table: Back returns to the Floor
@@ -2315,14 +3049,17 @@
   root.addEventListener('scroll', event => {
     if (dialog.open && event.target.classList?.contains('cx-lines')) scrollMemo.lines = event.target.scrollTop;
   }, true);
-  // Leaving Counter ends rearranging, the selection, the quantity and discount pop-ups and the Undo bar; the order, the page and
-  // everything else (an open modifier, note or custom item pop-up too, with its line selected) stay as they were.
+  // Leaving Counter ends rearranging, the selection, the number pop-ups and the message; the order, the page and
+  // everything else (an open modifier, note, custom item, dish discount or void pop-up too, with its line selected) stay
+  // as they were.
   dialog.addEventListener('close', () => {
     if (press) { clearTimeout(press.timer); press = null; } if (drag) endDrag(true, false); arranging = false;
     if (panelPress) { clearTimeout(panelPress.timer); panelPress = null; } if (panelDrag) endPanelDrag(true); panelArranging = false;
-    typeMenu = false; optionsMenu = false; deleteArmed = false; clearUndo();
-    if (sheet !== 'mods' && sheet !== 'note') selected = null;
-    if (sheet === 'qty' || sheet === 'discount') { sheet = null; qtyPop = null; discPop = null; }
+    typeMenu = false; optionsMenu = false; deleteArmed = false; if (msg) clearTimeout(msg.timer); msg = null;
+    if (sheet !== 'mods' && sheet !== 'note' && sheet !== 'void') selected = null;
+    if (sheet === 'qty' || sheet === 'discount' || sheet === 'service' || sheet === 'server') { sheet = null; qtyPop = null; discPop = null; servicePop = null; serverPop = null; }
+    if (dishPop) dishPop.typing = false;
+    if (voidPop) voidPop.typing = false;
     if (notePop) notePop.typing = false;
     if (customPop) { tidyCustom(customPop, customPop.field); customPop.field = null; }
   });
@@ -2330,9 +3067,10 @@
   // Done, Apply or Set price (Esc is Back)
   document.addEventListener('keydown', event => {
     if (!dialog.open) return;
-    const pad = sheet === 'qty' ? { press: pressQty, enter: doneQty } : sheet === 'discount' ? { press: pressDisc, enter: applyDiscount } : sheet === 'custom' && customPop?.field === 'price' ? { press: pressPrice, enter: customSet } : null;
+    const pad = sheet === 'qty' ? { press: pressQty, enter: doneQty } : sheet === 'discount' ? { press: pressDisc, enter: applyDiscount } : sheet === 'custom' && customPop?.field === 'price' ? { press: pressPrice, enter: customSet }
+      : sheet === 'service' ? { press: pressService, enter: applyService } : sheet === 'dish' && dishPop?.step === 2 && !dishPop.typing ? { press: pressDish, enter: applyDish } : null;
     if (!pad) return;
-    if (/^\d$/.test(event.key)) { event.preventDefault(); pad.press(event.key); }
+    if (/^\d$/.test(event.key) || (event.key === '.' && sheet === 'service')) { event.preventDefault(); pad.press(event.key); }
     else if (event.key === 'Backspace') { event.preventDefault(); pad.press('back'); }
     else if (event.key === 'Enter') { event.preventDefault(); pad.enter(); }
   }, true);
@@ -2356,7 +3094,7 @@
 
   // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
   // (It opens on the view of the pills, or the part of the rail, with the selected category.)
-  function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; pillView = null; railScroll = null; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
+  function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; pillView = null; railScroll = null; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
   window.RestroCounter = Object.freeze({
     open() { fromFloor = false; fromOrders = false; openCounter(); },
     // Back from an app Counter opened (Orders): Counter as it was, where it came from unchanged.
@@ -2391,6 +3129,14 @@
       return used;
     },
     get order() { return JSON.parse(JSON.stringify(order)); },
+    // The order on screen for the lock screen (Navigation & Lock Update 1): "Order #1015" and "Dine-in · Table 12 ·
+    // 24 items · ₹4,158"; null with nothing on it
+    openSummary() {
+      if (!order.lines.length) return null;
+      const t = totals(), n = order.number || upcomingNumber(), type = order.type || DEFAULT_TYPE;
+      return { title: n ? `Order ${ticket(n)}` : 'An order',
+        line: [typeLabel[type], usesTable(order) ? `Table ${tableName(order.table)}` : order.customer?.name || '', plural(t.count, 'item'), amount(t.total)].filter(Boolean).join(' · ') };
+    },
     // Settings > Counter > Tiles per row (Update 6): 4 or 3
     get tilesPerRow() { return tilesPerRow; },
     setTilesPerRow(n) {
@@ -2413,15 +3159,15 @@
     // A still picture of the Counter as it is now, in a display style: for the previews in Settings. Exactly what Counter
     // shows when it opens again (the order on screen and where its list is scrolled, the buttons and the menu in this
     // tablet's order, the category or search it was on), in that style. What closes when Counter is left (the order
-    // types, the menu, Highlight order, a selected line, the Undo bar) isn't in it. Nothing in it can be tapped, focused
+    // types, the menu, a selected line, the message) isn't in it. Nothing in it can be tapped, focused
     // or read out. The order list's
     // place is set once the picture is on screen (data-scroll-top).
     // (perRow (Update 6): the picture with 4 or 3 tiles a row, for Tiles per row's own cards; the Counter's own otherwise)
     preview(style = menuStyle, perRow = tilesPerRow) {
       if (!MENU_STYLES.some(x => x.id === style)) style = menuStyle;
       if (perRow !== 3 && perRow !== 4) perRow = tilesPerRow;
-      const was = { typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo, tilesPerRow };
-      typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; panelArranging = false; selected = null; undo = null; tilesPerRow = perRow;
+      const was = { typeMenu, optionsMenu, deleteArmed, panelArranging, selected, tilesPerRow };
+      typeMenu = false; optionsMenu = false; deleteArmed = false; panelArranging = false; selected = null; tilesPerRow = perRow;
       try {
         const shell = el('div', { class: 'cx-shell', 'data-style': style }, orderPanel(), menuSide());
         shell.querySelector('.cx-area')?.replaceChildren(...menuArea(style, style === menuStyle && perRow === was.tilesPerRow).filter(Boolean));
@@ -2435,7 +3181,7 @@
           rail.parentElement.querySelector('.cx-rarr.up').hidden = !railEdges.up; rail.parentElement.querySelector('.cx-rarr.dn').hidden = !railEdges.down;
         }
         return el('div', { class: 'ctr-root cx-still', inert: true, 'aria-hidden': 'true' }, shell);
-      } finally { ({ typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo, tilesPerRow } = was); }
+      } finally { ({ typeMenu, optionsMenu, deleteArmed, panelArranging, selected, tilesPerRow } = was); }
     }
   });
 })();
