@@ -5,10 +5,23 @@
   const home=document.querySelector('#home');
   const lock=document.querySelector('#screen-lock-dialog');
   const recents=document.querySelector('#recents-dialog');
+  const darkScreen=document.querySelector('#screen-dark');
+  const root=document.documentElement;
   // Recent apps sits last in the page: above every open window, and the pictures of them it holds come after the
   // windows themselves
   document.body.append(recents);
   const recentList=document.querySelector('#recent-apps-list');
+  const closeAll=document.querySelector('#recents-close-all');
+
+  // ---------- Settings › Display › Navigation (Navigation & Lock Update 1): swipe gestures (the default) or the
+  // navigation bar, never both; with the bar, Back on the left or the right (Home always in the middle) ----------
+  let navMode='swipe';
+  function applyNav(){
+    const n=window.RestroPrefs?.get('navigation')||{mode:'swipe',order:'back-left'};
+    navMode=n.mode;root.dataset.nav=n.mode;root.dataset.navOrder=n.order;
+  }
+  applyNav();
+  const barMode=()=>navMode==='bar';
   const recentApps=new Map();
   const dialogs=[...document.querySelectorAll('dialog')];
   const navigation=[...bar.querySelectorAll('.system-control')];
@@ -53,11 +66,20 @@
   const time=ms=>reduceMotion.matches?0:ms;
   const settled=animations=>Promise.all(animations.map(animation=>animation.finished.catch(()=>{})));
 
+  // The lock screen's left side (A1): the time (11:16 with a smaller AM), the day and date, the order still open on the
+  // Counter (it waits there) and who locked it, how long ago (employees.js sets who)
   function syncLock(){
-    const clock=document.querySelector('#clock .clock-text');
-    document.querySelector('#lock-clock').textContent=clock.textContent;
-    document.querySelector('#lock-clock').dateTime=document.querySelector('#clock').dateTime;
+    const clock=document.querySelector('#clock .clock-text'),out=document.querySelector('#lock-clock');
+    const [hm,ampm]=String(clock.textContent||'').trim().split(/\s+/);
+    out.replaceChildren(hm||'',...(ampm?[Object.assign(document.createElement('small'),{textContent:ampm.toUpperCase()})]:[]));
+    out.dateTime=document.querySelector('#clock').dateTime;
+    const d=new Date();
+    document.querySelector('#lock-date').textContent=`${d.toLocaleDateString('en-GB',{weekday:'long'})}, ${d.getDate()} ${d.toLocaleDateString('en-GB',{month:'long'})}`;
     document.querySelector('#lock-restaurant').textContent=document.querySelector('#restaurant-name').textContent;
+    const open=window.RestroCounter?.openSummary?.();
+    document.querySelector('#lock-order').hidden=!open;
+    if(open){document.querySelector('#lock-order-title').textContent=`${open.title} is still open`;document.querySelector('#lock-order-line').textContent=open.line;}
+    window.RestroLockScreen?.paintBy?.();
   }
 
   // ---------- Recent apps: which apps, and a picture of each as it was left ----------
@@ -182,6 +204,8 @@
   // ---------- The open windows, moved as one ----------
   function grabWindow(){
     const els=openStack();if(!els.length)return null;
+    // (the navigation bar stays at the bottom of the screen while the window flies: out of it first)
+    if(barMode())shell.append(bar);
     const main=[...els].reverse().find(dialog=>dialog.matches(fullApps))||els.at(-1);
     const box={x:main.offsetLeft,y:main.offsetTop,w:main.offsetWidth,h:main.offsetHeight};
     const cx=box.x+box.w/2,cy=box.y+box.h/2;
@@ -320,119 +344,95 @@
     homeReached();
   }
 
-  // ---------- Recent apps, iPhone style: the apps as cards side by side, the newest on the right, each with its icon
-  // and name above it. Slide left and right through them, swipe a card up to close that app, tap a card to open it,
-  // tap anywhere else (or swipe up from the bottom) for the home screen. ----------
-  function metrics(){
-    const area=appArea(),k=.48,cw=area.w*k,ch=area.h*k;
-    return {area,k,cw,ch,cx:innerWidth/2+cw*.1,cy:area.y+area.h/2+Math.round(area.h*.02),W:innerWidth,radius:Math.round(Math.max(14,cw*.032))};
-  }
-  // u: how far a card is from the one in front (0), older ones to the left, tucked under the newer
-  function xAt(u,m){
-    if(u<=0)return m.cx-u*m.cw*1.06;
-    let x=m.cx,left=u;
-    for(const step of [.55,.32,.2,.14,.1,.08,.06]){const d=Math.min(1,left);x-=d*step*m.cw;left-=d;if(left<=0)return x;}
-    return x-left*.05*m.cw;
-  }
+  // ---------- Recent apps (Navigation & Lock Update 1, N5): only our apps, as cards in a row over the screen (darkened
+  // and blurred), the app that was open first and outlined in blue, each with its icon and name over the last screen it
+  // showed (or its icon). Tap a card to open the app, swipe a card up to close it, Close all for none; a tap beside the
+  // cards (or a swipe up from the bottom edge) goes Home. ----------
   function recentIcon(recent){
     return recent.shortcutId?artNode(shortcuts.find(item=>item.id===recent.shortcutId).art):recent.insightId?artNode({symbol:recent.symbol}):recent.appId?artNode(apps[recent.appId].art)
       :recent.control==='pager-hub'?artNode(shortcuts.find(item=>item.id==='pager-hub').art)
       :document.querySelector(`[data-control="${recent.control}"] .quick-control-icon`)?.cloneNode(true)||document.createElement('span');
   }
-  function buildCard(key,entry){
-    const item=document.createElement('div');item.className='switcher-item';item.setAttribute('role','listitem');
-    const inner=document.createElement('div');inner.className='switcher-inner';
-    const label=document.createElement('div');label.className='switcher-label';label.setAttribute('aria-hidden','true');
-    const icon=recentIcon(entry);icon.classList.add('switcher-label-icon');icon.setAttribute('aria-hidden','true');
-    const name=document.createElement('span');name.textContent=entry.name;label.append(icon,name);
-    const card=document.createElement('div');card.className='switcher-card';card.tabIndex=-1;card.setAttribute('role','button');card.setAttribute('aria-label',`${entry.name}. Swipe up to close.`);
-    inner.append(label,card);item.append(inner);
-    return {key,entry,item,inner,label,card,drawn:false,lift:0,x:0};
+  const CARD={w:560,h:386,head:56};
+  function buildCard(key,entry,now){
+    const card=document.createElement('button');card.type='button';card.className=`switcher-card${now?' now':''}`;card.setAttribute('role','listitem');
+    card.setAttribute('aria-label',`${entry.name}${now?', open now':''}. Tap to open, swipe up to close.`);card.tabIndex=-1;
+    const head=document.createElement('span');head.className='switcher-head';
+    const icon=recentIcon(entry);icon.classList.add('switcher-icon');icon.setAttribute('aria-hidden','true');
+    const name=document.createElement('span');name.textContent=entry.name;head.append(icon,name);
+    const body=document.createElement('span');body.className='switcher-body';
+    card.append(head,body);
+    return {key,entry,card,body,drawn:false};
   }
+  // The card's picture: the app as it was left (pictures, above) under a copy of the top bar, the whole screen scaled to
+  // cover the card from its top left; with none, the app's icon on grey
   function draw(it){
     it.drawn=true;
-    const shot=pictures.get(it.key);
-    if(!shot){const blank=document.createElement('div');blank.className='switcher-blank';const icon=recentIcon(it.entry);icon.classList.add('switcher-blank-icon');icon.setAttribute('aria-hidden','true');blank.append(icon);it.card.append(blank);return;}
-    const screen=document.createElement('div');screen.className='switcher-screen';screen.inert=true;screen.setAttribute('aria-hidden','true');
-    const k=sw.m.cw/shot.area.w;
-    Object.assign(screen.style,{width:`${shot.vw}px`,height:`${shot.vh}px`,transform:`scale(${k}) translate(${-shot.area.x}px,${-shot.area.y}px)`});
-    screen.append(...shot.parts);it.card.append(screen);
+    const shot=pictures.get(it.key),fu=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fu'))||innerWidth/1920;
+    if(!shot){const blank=document.createElement('span');blank.className='switcher-blank';const icon=recentIcon(it.entry);icon.classList.add('switcher-blank-icon');icon.setAttribute('aria-hidden','true');blank.append(icon);it.body.append(blank);return;}
+    const screen=document.createElement('span');screen.className='switcher-screen';screen.inert=true;screen.setAttribute('aria-hidden','true');
+    const k=Math.max(CARD.w*fu/shot.vw,(CARD.h-CARD.head)*fu/shot.vh);
+    Object.assign(screen.style,{width:`${shot.vw}px`,height:`${shot.vh}px`,transform:`scale(${k})`});
+    const banner=document.querySelector('#top-banner')?.cloneNode(true);
+    if(banner){for(const part of [banner,...banner.querySelectorAll('*')])for(const name of ['id','autofocus','name','title','aria-live'])part.removeAttribute(name);Object.assign(banner.style,{position:'absolute',left:'0',top:'0',width:`${shot.vw}px`});}
+    screen.append(...shot.parts.map(part=>part.cloneNode(true)),...(banner?[banner]:[]));it.body.append(screen);
     for(const node of screen.querySelectorAll('[data-snap-scroll]')){const [top,left]=node.dataset.snapScroll.split(' ').map(Number);node.scrollTop=top;node.scrollLeft=left;}
   }
-  function layout(){
-    const {m,items}=sw;
-    items.forEach((it,i)=>{
-      const u=i-sw.s;it.x=xAt(u,m);
-      it.item.style.transform=`translate3d(${(it.x-m.cw/2).toFixed(2)}px,${(m.cy-m.ch/2+it.lift).toFixed(2)}px,0)`;
-      it.item.style.zIndex=String(items.length-i);
-      it.label.style.opacity=String(Math.max(0,Math.min(1,2.3-u)));
-      if(!it.drawn&&u<3.5&&u>-2.5)draw(it);
-    });
-  }
-  function sizeCards(m){
-    recentList.style.setProperty('--card-w',`${m.cw}px`);recentList.style.setProperty('--card-h',`${m.ch}px`);recentList.style.setProperty('--card-radius',`${m.radius}px`);
-  }
-  // Shows the cards. With a window (the app that was open), its card starts where the window is and settles into
-  // place in front; the others come in from the left. A preview shows them while the finger is still down.
+  // Shows Recent apps: the app open now first (`top`, outlined), then the others, newest first
   function openSwitcher(w,preview){
-    const m=metrics(),list=[...recentApps].reverse();
-    const top=w?[...w.els].reverse().map(recentOf).find(Boolean):null;
+    const list=[...recentApps].reverse();
+    const top=w?[...w.els].reverse().map(recentOf).find(Boolean):[...openStack()].reverse().map(recentOf).find(Boolean)||null;
     if(top){const i=list.findIndex(([key])=>key===top[0]);if(i>0)list.unshift(...list.splice(i,1));}
-    recentList.replaceChildren();recentList.style.transform='';sizeCards(m);
-    sw={m,items:[],s:0,preview,busy:false,closing:false,current:top&&list[0]?.[0]===top[0]?top[0]:null};
-    for(const [key,entry] of list){const it=buildCard(key,entry);sw.items.push(it);recentList.append(it.item);}
+    recentList.replaceChildren();
+    sw={items:[],preview,busy:false,closing:false,current:top&&list[0]?.[0]===top[0]?top[0]:null};
+    for(const [key,entry] of list){const it=buildCard(key,entry,key===sw.current);sw.items.push(it);recentList.append(it.card);}
     if(!sw.items.length){const message=document.createElement('p');message.className='recent-apps-empty';message.textContent='No recent apps';recentList.append(message);}
-    layout();
+    closeAll.hidden=!sw.items.length;
+    for(const it of sw.items)draw(it);
+    recentList.scrollLeft=0;
     recents.classList.remove('keys');
     if(preview)recents.show();else recents.showModal();
-    const D=time(400),a=m.area,acx=a.x+a.w/2,acy=a.y+a.h/2;
-    sw.items.forEach((it,i)=>{
-      if(i===0&&w&&sw.current){
-        const scale=w.s/m.k,dx=w.cx+w.tx-(w.cx-acx)*w.s-it.x,dy=w.cy+w.ty-(w.cy-acy)*w.s-m.cy;
-        it.inner.animate([{transform:`translate(${dx}px,${dy}px) scale(${scale})`},{transform:'none'}],{duration:D,easing:spring()});
-        it.label.animate([{opacity:0},{opacity:0,offset:.45},{opacity:1}],{duration:D});
-      }else it.inner.animate([{transform:`translateX(${-m.W*.45}px)`,opacity:0},{transform:'none',opacity:1}],{duration:D+40,delay:time(Math.min(i,4)*24),easing:spring(),fill:'backwards'});
-    });
-    if(w)for(const el of w.els)el.classList.add('sys-hidden');
+    const D=time(320);
+    recents.querySelector('.switcher-scrim').animate([{opacity:0},{opacity:1}],{duration:D,easing:'ease-out'});
+    for(const node of [recents.querySelector('.switcher-title'),closeAll,recents.querySelector('.switcher-hint')])node.animate([{opacity:0},{opacity:1}],{duration:D,easing:'ease-out'});
+    sw.items.forEach((it,i)=>it.card.animate([{transform:'translateY(40px) scale(.96)',opacity:0},{transform:'none',opacity:1}],{duration:D+60,delay:time(Math.min(i,4)*30),easing:spring(),fill:'backwards'}));
   }
-  function focusCard(){
+  function focusCard(i=0){
     if(!sw||sw.preview)return;
-    const i=Math.max(0,Math.min(sw.items.length-1,Math.round(sw.s)));
-    sw.items.forEach((it,j)=>{it.card.tabIndex=j===i?0:-1;});
-    (sw.items[i]?.card||recentList).focus({preventScroll:true});
+    const it=sw.items[Math.max(0,Math.min(sw.items.length-1,i))];
+    sw.items.forEach(x=>{x.card.tabIndex=x===it?0:-1;});
+    (it?.card||closeAll).focus({preventScroll:true});
+    it?.card.scrollIntoView({block:'nearest',inline:'nearest'});
   }
-  // From the preview to Recent apps proper, once the finger lifts: the windows behind the cards close
-  function enterSwitcher(w){
+  // From the preview (swipe up and hold) to Recent apps proper, once the finger lifts
+  function enterSwitcher(){
     if(!sw)return;
     if(!recents.matches(':modal')){recents.close();recents.showModal();}
     sw.preview=false;
-    if(w)putAway(w);
     endDrag(true);setArranging(false);positionBar();focusCard();
   }
-  function closeSwitcher(){
+  // Away from Recent apps: back to the app that was open (`back`), or Home
+  function closeSwitcher(back=false){
     if(!sw||sw.closing)return;
-    sw.closing=true;cancelAnimationFrame(glide);
-    const D=time(260);
-    for(const it of sw.items)it.inner.animate([{transform:'none',opacity:1},{transform:'scale(.86)',opacity:0}],{duration:D,easing:'cubic-bezier(.4,0,.6,1)',fill:'forwards'});
-    const runs=settleHome(time(380),spring());
-    setTimeout(()=>{if(recents.open)recents.close();},D);
-    return settled(runs);
+    sw.closing=true;
+    const D=time(220);
+    const runs=[recents.animate([{opacity:1},{opacity:0}],{duration:D,easing:'ease-in',fill:'forwards'})];
+    return settled(runs).then(()=>{
+      if(recents.open)recents.close();
+      for(const run of recents.getAnimations())run.cancel();
+      if(!back&&openStack().length){keepAll();quietly(()=>{for(const dialog of openStack())dialog.close();});homeReached();}
+      else if(!back)homeReached();
+      else positionBar();
+    });
   }
-  function clearSwitcher(){
-    cancelAnimationFrame(glide);recentList.replaceChildren();recentList.style.transform='';sw=null;
-    if(!gesture&&!flight&&!veil.getAnimations().length&&!home.getAnimations().length){home.style.transform='';veil.style.opacity='0';motion(false);}
-  }
+  function clearSwitcher(){recentList.replaceChildren();sw=null;}
   recents.addEventListener('close',()=>{if(!recents.open)clearSwitcher();});
   function openCard(it){
     if(!sw||sw.busy||sw.closing)return;
-    sw.busy=true;cancelAnimationFrame(glide);
-    const m=sw.m,a=m.area,D=time(380),ease=spring();
-    it.item.style.zIndex='99';
-    const scale=a.w/m.cw,dx=a.x+a.w/2-it.x,dy=a.y+a.h/2-m.cy;
-    const runs=[it.inner.animate([{transform:'none'},{transform:`translate(${dx}px,${dy}px) scale(${scale})`}],{duration:D,easing:ease,fill:'forwards'}),
-      it.card.animate([{borderRadius:`${m.radius}px`},{borderRadius:'0px'}],{duration:D,easing:ease,fill:'forwards'}),
-      it.label.animate([{opacity:getComputedStyle(it.label).opacity},{opacity:0}],{duration:D*.4,fill:'forwards'})];
-    settled(runs).then(()=>{if(recents.open)recents.close();openRecent(it.entry);});
+    sw.busy=true;
+    if(it.key===sw.current){closeSwitcher(true);return;}
+    const entry=it.entry;
+    closeSwitcher(true).then(()=>openRecent(entry));
   }
   function openRecent(recent){
     if(recent.shortcutId==='register')window.RestroCounter?.open();
@@ -443,35 +443,31 @@
     else if(recent.control==='pager-hub')window.RestroPagerHub?.open();
     else document.querySelector(`[data-control="${recent.control}"]`)?.click();
   }
-  // Swiped up: the card goes off the top and the others close the gap
+  // Closing an app: its card goes up and away, and its windows close if it is the one open
+  function forget(it){
+    recentApps.delete(it.key);pictures.delete(it.key);
+    if(it.key===sw?.current){quietly(()=>{for(const dialog of openStack())dialog.close();});sw.current=null;positionBar();}
+  }
   function removeCard(it){
     if(!sw||sw.busy||sw.closing)return;
-    sw.busy=true;cancelAnimationFrame(glide);
-    const m=sw.m,i=sw.items.indexOf(it);
-    const run=it.item.animate([{transform:it.item.style.transform},{transform:`translate3d(${(it.x-m.cw/2).toFixed(2)}px,${(-m.ch-60).toFixed(2)}px,0)`}],{duration:time(240),easing:'cubic-bezier(.3,.5,.4,1)',fill:'forwards'});
+    sw.busy=true;
+    const from=it.card.style.transform||'none';
+    const run=it.card.animate([{transform:from,opacity:1},{transform:`translateY(${-CARD.h*1.2}px)`,opacity:0}],{duration:time(220),easing:'cubic-bezier(.3,.5,.4,1)',fill:'forwards'});
     settled([run]).then(()=>{
       if(!sw)return;
-      it.item.remove();sw.items.splice(i,1);recentApps.delete(it.key);pictures.delete(it.key);
-      sw.busy=false;
+      const i=sw.items.indexOf(it),was=new Map(sw.items.map(x=>[x,x.card.getBoundingClientRect().left]));
+      it.card.remove();sw.items.splice(i,1);forget(it);sw.busy=false;
       if(!sw.items.length){closeSwitcher();return;}
-      const was=new Map(sw.items.map(x=>[x,x.x]));
-      if(i<Math.round(sw.s))sw.s-=1;
-      sw.s=Math.max(0,Math.min(sw.items.length-1,Math.round(sw.s)));
-      layout();
-      for(const x of sw.items){const shift=was.get(x)-x.x;if(Math.abs(shift)>.5)x.inner.animate([{transform:`translateX(${shift}px)`},{transform:'none'}],{duration:time(340),easing:spring()});}
-      focusCard();
+      for(const x of sw.items){const shift=was.get(x)-x.card.getBoundingClientRect().left;if(Math.abs(shift)>.5)x.card.animate([{transform:`translateX(${shift}px)`},{transform:'none'}],{duration:time(300),easing:spring()});}
+      focusCard(i);
     });
   }
-  // Sliding: the cards follow the finger and glide on to the nearest one when it lifts
-  let glide=0;
-  const slideStep=()=>sw.m.cw*.55;
-  function rubber(s){const hi=Math.max(0,sw.items.length-1);return s<0?s*.3:s>hi?hi+(s-hi)*.3:s;}
-  function glideTo(target){
-    cancelAnimationFrame(glide);
-    const from=sw.s,start=performance.now(),D=time(360);
-    const step=now=>{if(!sw)return;const t=D?Math.min(1,(now-start)/D):1,e=1-Math.pow(1-t,3);sw.s=from+(target-from)*e;layout();if(t<1)glide=requestAnimationFrame(step);else{sw.s=target;layout();focusCard();}};
-    glide=requestAnimationFrame(step);
-  }
+  closeAll.addEventListener('click',()=>{
+    if(!sw||sw.busy||sw.closing)return;
+    sw.busy=true;
+    const runs=sw.items.map((it,i)=>it.card.animate([{transform:'none',opacity:1},{transform:`translateY(${-CARD.h*1.2}px)`,opacity:0}],{duration:time(220),delay:time(i*30),easing:'cubic-bezier(.3,.5,.4,1)',fill:'forwards'}));
+    settled(runs).then(()=>{if(!sw)return;for(const it of sw.items)forget(it);sw.items=[];sw.busy=false;closeSwitcher();});
+  });
   // The finger's speed over its last moments (px/ms); with few moves to go by, from the one before
   function velocity(samples){
     const last=samples.at(-1);let i=samples.length-1;
@@ -481,63 +477,61 @@
     return dt>0?{x:(last.x-first.x)/dt,y:(last.y-first.y)/dt}:{x:0,y:0};
   }
   {
+    // A finger on the cards: sideways slides them (a touch scrolls the row itself; a mouse drags it), up lifts a card
+    // to close it; a tap opens it, a tap beside them goes Home
     let touch=null;
-    recentList.addEventListener('pointerdown',event=>{
-      if(!sw||sw.preview||sw.closing||touch||(event.pointerType==='mouse'&&event.button!==0))return;
-      cancelAnimationFrame(glide);
+    recents.addEventListener('pointerdown',event=>{
+      if(!sw||sw.preview||sw.closing||touch||(event.pointerType==='mouse'&&event.button!==0)||event.target.closest('.switcher-close-all'))return;
       const now=performance.now();
-      touch={id:event.pointerId,x:event.clientX,y:event.clientY,s:sw.s,it:sw.items.find(it=>it.item.contains(event.target))||null,mode:null,samples:[{t:now,x:event.clientX,y:event.clientY}]};
-      recentList.setPointerCapture(event.pointerId);
+      touch={id:event.pointerId,type:event.pointerType,x:event.clientX,y:event.clientY,left:recentList.scrollLeft,it:sw.items.find(it=>it.card.contains(event.target))||null,mode:null,samples:[{t:now,x:event.clientX,y:event.clientY}]};
     });
-    recentList.addEventListener('pointermove',event=>{
+    recents.addEventListener('pointermove',event=>{
       if(!touch||event.pointerId!==touch.id||!sw)return;
       const now=performance.now();touch.samples.push({t:now,x:event.clientX,y:event.clientY});while(touch.samples.length>3&&now-touch.samples[0].t>200)touch.samples.shift();
       const dx=event.clientX-touch.x,dy=event.clientY-touch.y;
       if(!touch.mode){
         if(Math.hypot(dx,dy)<8)return;
         touch.mode=Math.abs(dy)>Math.abs(dx)?(dy<0&&touch.it&&!sw.busy?'clear':'none'):'slide';
+        if(touch.mode==='clear'||touch.type==='mouse')try{recents.setPointerCapture(event.pointerId);}catch{}
       }
-      if(touch.mode==='slide'){sw.s=rubber(touch.s+dx/slideStep());layout();}
-      else if(touch.mode==='clear'){touch.it.lift=dy<0?dy:dy*.2;layout();}
+      if(touch.mode==='slide'&&touch.type==='mouse')recentList.scrollLeft=touch.left-dx;
+      else if(touch.mode==='clear'){touch.it.card.style.transform=`translateY(${dy<0?dy:dy*.2}px)`;}
     });
     const end=(event,cancelled)=>{
       if(!touch||event.pointerId!==touch.id)return;
       const t=touch;touch=null;if(!sw)return;
       const v=velocity(t.samples),dy=event.clientY-t.y;
-      if(t.mode==='slide'){const hi=sw.items.length-1;glideTo(Math.max(0,Math.min(hi,Math.round(sw.s+v.x*220/slideStep()))));}
-      else if(t.mode==='clear'){
-        if(!cancelled&&(dy<-sw.m.ch*.28||v.y<-.6&&dy<-24))removeCard(t.it);
-        else{const it=t.it,from=it.lift;it.lift=0;layout();it.inner.animate([{transform:`translateY(${from}px)`},{transform:'none'}],{duration:time(300),easing:spring()});}
-      }else if(!t.mode&&!cancelled){if(t.it)openCard(t.it);else closeSwitcher();}
+      if(t.mode==='clear'){
+        if(!cancelled&&(dy<-CARD.h*.3||v.y<-.6&&dy<-24))removeCard(t.it);
+        else{const from=t.it.card.style.transform;t.it.card.style.transform='';t.it.card.animate([{transform:from||'none'},{transform:'none'}],{duration:time(280),easing:spring()});}
+        swallowClick();
+      }else if(t.mode==='slide')swallowClick();
+      else if(!t.mode&&!cancelled&&!t.it&&!event.target.closest('.switcher-close-all'))closeSwitcher();
     };
-    recentList.addEventListener('pointerup',event=>end(event,false));
-    recentList.addEventListener('pointercancel',event=>end(event,true));
-    let wheelRest=0;
-    recentList.addEventListener('wheel',event=>{
-      if(!sw||sw.preview||sw.closing)return;
-      event.preventDefault();cancelAnimationFrame(glide);
-      const d=Math.abs(event.deltaX)>Math.abs(event.deltaY)?-event.deltaX:event.deltaY;
-      sw.s=rubber(sw.s+d/slideStep());layout();
-      clearTimeout(wheelRest);wheelRest=setTimeout(()=>{if(sw)glideTo(Math.max(0,Math.min(sw.items.length-1,Math.round(sw.s))));},140);
-    },{passive:false});
+    // (a card's own click opens it; one that ended a swipe doesn't)
+    const swallowClick=()=>{const swallow=e=>{e.stopPropagation();e.preventDefault();};recents.addEventListener('click',swallow,{capture:true,once:true});setTimeout(()=>recents.removeEventListener('click',swallow,{capture:true}),0);};
+    recents.addEventListener('pointerup',event=>end(event,false));
+    recents.addEventListener('pointercancel',event=>end(event,true));
+    recentList.addEventListener('click',event=>{const it=sw?.items.find(x=>x.card.contains(event.target));if(it)openCard(it);});
     recents.addEventListener('keydown',event=>{
       recents.classList.add('keys');
       if(!sw||sw.preview||sw.closing||!sw.items.length)return;
-      const i=Math.max(0,Math.min(sw.items.length-1,Math.round(sw.s))),it=sw.items[i];
-      if(event.key==='ArrowLeft'){event.preventDefault();glideTo(Math.min(sw.items.length-1,i+1));}
-      else if(event.key==='ArrowRight'){event.preventDefault();glideTo(Math.max(0,i-1));}
-      else if(event.key==='Enter'||event.key===' '){event.preventDefault();openCard(it);}
-      else if(event.key==='Delete'||event.key==='Backspace'||event.key==='ArrowUp'){event.preventDefault();removeCard(it);}
+      const i=Math.max(0,sw.items.findIndex(x=>x.card===document.activeElement)),it=sw.items[i];
+      if(event.key==='ArrowRight'){event.preventDefault();focusCard(i+1);}
+      else if(event.key==='ArrowLeft'){event.preventDefault();focusCard(i-1);}
+      else if((event.key==='Delete'||event.key==='Backspace'||event.key==='ArrowUp')&&document.activeElement===it.card){event.preventDefault();removeCard(it);}
     });
     recents.addEventListener('pointerdown',()=>recents.classList.remove('keys'),true);
-    // Escape: the home screen, like a tap beside the cards
-    recents.addEventListener('cancel',event=>{event.preventDefault();if(sw&&!sw.preview)closeSwitcher();});
-    addEventListener('resize',()=>{if(!sw)return;sw.m=metrics();sizeCards(sw.m);for(const it of sw.items){it.card.replaceChildren();it.drawn=false;}layout();});
+    // Escape: back to the app that was open
+    recents.addEventListener('cancel',event=>{event.preventDefault();if(sw&&!sw.preview)closeSwitcher(Boolean(sw.current));});
   }
 
   async function goBack(){
     if(locked||flight||gesture)return;
-    if(recents.open){closeSwitcher();return;}
+    if(recents.open){closeSwitcher(Boolean(sw?.current));return;}
+    // Back closes the keyboard first (a field being typed in), then a pop-up, then goes to the screen before, then Home
+    const typing=document.activeElement;
+    if(typing&&typing!==document.body&&(typing.matches?.('textarea,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit])')||typing.isContentEditable)&&!typing.closest('#settings-search')){typing.blur();return;}
     const opened=dialogs.filter(dialog=>dialog.open).at(-1);
     if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='orders-dialog'&&window.RestroOrders?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;if(opened.id==='employees-dialog'&&window.RestroEmployees?.goBack())return;opened.close();return;}
     if(arranging){endDrag(true);setArranging(false);return;}
@@ -548,13 +542,10 @@
   async function showRecents(){
     if(locked||flight||gesture)return;
     if(await nativeAction('openRecentApps'))return;
-    if(recents.open){closeSwitcher();return;}
-    homeBehind();
-    const w=grabWindow();
-    if(w)keepAll();
-    showVeil(time(260));
-    openSwitcher(w,false);
-    enterSwitcher(w);
+    if(recents.open){closeSwitcher(Boolean(sw?.current));return;}
+    keepAll();
+    openSwitcher(null,false);
+    enterSwitcher();
   }
   document.querySelector('#system-back').addEventListener('click',goBack);
   document.querySelector('#system-home').addEventListener('click',goHome);
@@ -568,7 +559,7 @@
   // nothing. In Recent apps, a swipe up from the strip goes to the home screen. ----------
   const HOME_TRAVEL=48,armTravel=()=>Math.max(64,innerHeight*.1),longTravel=()=>innerHeight*.45;
   bar.addEventListener('pointerdown',event=>{
-    if(locked||flight||gesture||event.target.closest('.android-controls')||(event.pointerType==='mouse'&&event.button!==0))return;
+    if(barMode()||locked||flight||gesture||event.target.closest('.android-controls,.system-lock')||(event.pointerType==='mouse'&&event.button!==0))return;
     event.preventDefault();motion(true);
     const now=performance.now();
     gesture={id:event.pointerId,x:event.clientX,y:event.clientY,dx:0,dy:0,travel:0,samples:[{t:now,x:event.clientX,y:event.clientY}],
@@ -582,16 +573,19 @@
     g.win=grabWindow();
     g.target=g.win?targetFor(g.win.els):null;
   }
+  // Held: the app goes back to its place and Recent apps comes over it (N5)
   function arm(g){
     if(g.armed||gesture!==g)return;
     g.armed=true;clearTimeout(g.still);
-    keepAll();showVeil(time(220));
+    if(g.win){const w=g.win;for(const el of w.els)el.animate([{transform:el.style.transform||'none'},{transform:'none'}],{duration:time(240),easing:spring()});releaseWindow(w);}
+    settleHome(time(240),spring());
+    keepAll();
     openSwitcher(g.win,true);
   }
   function disarm(g){
     g.armed=false;g.anchor=null;g.slowSince=0;
     if(recents.open)recents.close();
-    if(g.win){for(const el of g.win.els)el.classList.remove('sys-hidden');dragWindow(g.win,g.dx,g.dy);}
+    if(g.win){g.win=grabWindow();g.target=g.win?targetFor(g.win.els):null;if(g.win)dragWindow(g.win,g.dx,g.dy);}
   }
   function watchForPause(g,x,y,now){
     if(g.armed)return;
@@ -611,7 +605,7 @@
     g.dx=event.clientX-g.x;g.dy=Math.min(0,event.clientY-g.y);g.travel=-g.dy;
     if(!g.begun){if(g.travel<6)return;begin(g);}
     if(g.mode==='switcher'){recentList.style.transform=`translateY(${(g.dy*.25).toFixed(1)}px)`;return;}
-    if(g.armed){if(g.travel<40)disarm(g);return;}
+    if(g.armed)return;
     if(g.win)dragWindow(g.win,g.dx,g.dy);
     const p=Math.min(1,g.travel/160);veil.style.opacity=p.toFixed(3);zoomHome(p);
     watchForPause(g,event.clientX,event.clientY,now);
@@ -619,18 +613,7 @@
   async function swipeHome(g,v){
     const f=flight={w:g.win,target:g.target,switcher:g.armed,home:true};
     if(g.armed&&sw){
-      // The app's card (the window it came from) flies home; the other cards slide away
-      const cur=sw.current?sw.items[0]:null,m=sw.m;
-      for(const it of sw.items)if(it!==cur)it.inner.animate([{opacity:1},{transform:`translateX(${-m.W*.3}px)`,opacity:0}],{duration:time(220),easing:'ease-in',fill:'forwards'});
-      if(cur&&g.target){
-        for(const run of cur.inner.getAnimations())run.finish();
-        cur.label.style.opacity='0';
-        const box={x:cur.x-m.cw/2,y:m.cy-m.ch/2,w:m.cw,h:m.ch};
-        await flyHome({els:[cur.inner],boxes:[box],main:null,box,cx:cur.x,cy:m.cy,tx:0,ty:0,s:1},g.target,{x:v.x*.5,y:v.y*.5});
-      }else await settled(settleHome(time(300),spring()));
-      if(f.stopped)return;
-      if(g.win){keepAll();putAway(g.win);}
-      if(recents.open)recents.close();
+      flight=null;await closeSwitcher();return;
     }else if(g.win){
       await flyHome(g.win,g.target,{x:v.x*.8,y:v.y*.72});
       if(f.stopped)return;
@@ -664,8 +647,8 @@
       return;
     }
     if(cancelled){if(g.armed)disarm(g);settleBack(g);return;}
-    if(g.armed&&!flick){enterSwitcher(g.win);return;}
-    if(!g.armed&&!flick&&g.travel>=longTravel()&&-v.y<.45){gesture=g;arm(g);gesture=null;enterSwitcher(g.win);return;}
+    if(g.armed&&!flick){enterSwitcher();return;}
+    if(!g.armed&&!flick&&g.travel>=longTravel()&&-v.y<.45){gesture=g;arm(g);gesture=null;enterSwitcher();return;}
     if(flick||g.travel>=HOME_TRAVEL){swipeHome(g,v);return;}
     settleBack(g);
   }
@@ -686,7 +669,7 @@
   }
   document.addEventListener('pointerdown',event=>{
     edge=null;
-    if(locked||gesture||flight||recents.open||!event.isPrimary||(event.pointerType==='mouse'&&event.button!==0)||!topView()||event.target.closest?.('.home-bar'))return;
+    if(barMode()||locked||gesture||flight||recents.open||!event.isPrimary||(event.pointerType==='mouse'&&event.button!==0)||!topView()||event.target.closest?.('.home-bar'))return;
     const side=event.clientX<=EDGE?1:event.clientX>=innerWidth-EDGE?-1:0;
     if(side)edge={id:event.pointerId,x:event.clientX,y:event.clientY,side,going:false};
   },true);
@@ -714,29 +697,75 @@
   document.addEventListener('pointerup',event=>endEdge(event,false),true);
   document.addEventListener('pointercancel',event=>endEdge(event,true),true);
   window.addEventListener('restro:app-uninstalled',event=>{recentApps.delete(event.detail.id);pictures.delete(event.detail.id);if(recents.open&&sw){const it=sw.items.find(x=>x.key===event.detail.id);if(it)removeCard(it);}});
-  // The screen is locked with the tablet's own button (no lock button on the bar): the Android app reports it with
-  // restro:device-locked. A lock still on from before is ended with Unlock, or when the tablet reports it was unlocked.
-  // Once staff accounts exist, only a PIN ends a lock (staff sign-in, employees.js): Unlock and the tablet's own unlock
-  // are then left to it.
+  // ---------- Lock, go dark, wake (Navigation & Lock Update 1) ----------
+  // The lock button (at the far right of the navigation bar, or the round one at the bottom right in swipe mode) locks
+  // at once, with no "are you sure?". So does the tablet's own power button (restro:device-locked, from the Android
+  // app), and Auto-lock after the time without a tap set in Settings › Staff & security. Go dark (Settings › Display ›
+  // Navigation): the screen turns black and locks together; a double tap wakes it to the PIN pad (a single tap does
+  // nothing, and the waking taps never count as PIN digits). Whatever was open stays as it was under the lock: the same
+  // app, page, order and pop-up are there after signing in. Once staff accounts exist only a PIN ends a lock (staff
+  // sign-in, employees.js); before that, Unlock does.
   let pinRequired=false;
   function lockScreen(){
     if(locked)return;
+    if(recents.open)closeSwitcher(true);
     locked=true;try{sessionStorage.setItem('restro.screenLocked','true');}catch{}
+    root.toggleAttribute('data-locked',true);
     syncLock();for(const button of navigation)button.disabled=true;
     if(!lock.open)lock.showModal();positionBar();
     window.dispatchEvent(new CustomEvent('restro:screen-locked'));
   }
   function unlock(){
     locked=false;try{sessionStorage.removeItem('restro.screenLocked');}catch{}
-    for(const button of navigation)button.disabled=false;lock.close();positionBar();shell.focus({preventScroll:true});
+    root.toggleAttribute('data-locked',false);wake();
+    for(const button of navigation)button.disabled=false;lock.close();positionBar();
+    const top=openStack().at(-1);(top||shell).focus?.({preventScroll:true});
     window.dispatchEvent(new CustomEvent('restro:screen-unlocked'));
   }
+  document.querySelector('#system-lock').addEventListener('click',lockScreen);
+  // Go dark: our own black screen over everything (inside the lock screen, which is over everything), the backlight at
+  // its minimum where the RESTRO Android app lets us (RESTRODevice.setScreenDark). The power button still turns the
+  // display fully off.
+  let dark=false,darkTaps=[];
+  function goDark(){
+    if(dark)return;
+    lockScreen();dark=true;darkTaps=[];
+    darkScreen.classList.add('on');
+    try{window.RESTRODevice?.setScreenDark?.(true);}catch{}
+  }
+  function wake(){
+    if(!dark)return;
+    dark=false;
+    darkScreen.classList.remove('on');
+    try{window.RESTRODevice?.setScreenDark?.(false);}catch{}
+    lastInput=Date.now();
+    lock.querySelector('#screen-lock-title')?.focus({preventScroll:true});
+  }
+  // Two taps close together (in time and place) wake it; each tap stays on the black screen, so nothing under it is
+  // pressed
+  darkScreen.addEventListener('pointerdown',event=>{
+    event.preventDefault();
+    const now=performance.now();darkTaps=darkTaps.filter(t=>now-t.t<450&&Math.hypot(t.x-event.clientX,t.y-event.clientY)<80);
+    darkTaps.push({t:now,x:event.clientX,y:event.clientY});
+    if(darkTaps.length>=2){darkTaps=[];setTimeout(wake,0);}
+  });
+  for(const type of ['click','pointerup','contextmenu'])darkScreen.addEventListener(type,event=>{event.preventDefault();event.stopPropagation();});
+  // Idle: how long since the last tap or key, checked every few seconds (Auto-lock, then Go dark)
+  let lastInput=Date.now();
+  for(const type of ['pointerdown','keydown','wheel'])addEventListener(type,()=>{if(!dark)lastInput=Date.now();},{capture:true,passive:true});
+  setInterval(()=>{
+    const idle=Date.now()-lastInput,prefs=window.RestroPrefs;if(!prefs)return;
+    const after=prefs.get('security').autoLock,darkAfter=prefs.get('screen').goDark;
+    if(darkAfter&&idle>=darkAfter*60000&&!dark)goDark();
+    else if(after&&idle>=after*60000&&!locked)lockScreen();
+  },5000);
+  window.addEventListener('restro:prefs-changed',event=>{if(event.detail?.name==='navigation')applyNav();});
   document.querySelector('#screen-unlock').addEventListener('click',()=>{if(!pinRequired)unlock();});
   lock.addEventListener('cancel',event=>event.preventDefault());
   window.addEventListener('restro:device-unlocked',()=>{if(locked&&!pinRequired)unlock();});
   window.addEventListener('restro:device-locked',lockScreen);
-  window.RestroScreenLock=Object.freeze({lock:lockScreen,unlock,requirePin(on){pinRequired=Boolean(on);},get locked(){return locked;}});
+  window.RestroScreenLock=Object.freeze({lock:lockScreen,unlock,goDark,wake,requirePin(on){pinRequired=Boolean(on);},get locked(){return locked;},get dark(){return dark;}});
   new MutationObserver(()=>{if(locked)syncLock();}).observe(document.querySelector('#clock'),{childList:true,subtree:true,characterData:true});
-  if(locked){syncLock();for(const button of navigation)button.disabled=true;lock.showModal();}
+  if(locked){root.toggleAttribute('data-locked',true);syncLock();for(const button of navigation)button.disabled=true;lock.showModal();}
   positionBar();
 })();

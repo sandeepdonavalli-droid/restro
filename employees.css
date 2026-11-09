@@ -17,19 +17,6 @@
 .cust-root .emp-pin input[type=text]{position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;background:transparent;color:transparent;caret-color:transparent;opacity:0;font-size:16px;cursor:pointer}
 .emp-pin:focus-within span.next{border-color:var(--palette-accent);box-shadow:0 0 0 1px var(--palette-accent)}
 
-/* Signing in on the lock screen, once staff accounts exist: the clock, "Enter your PIN", four dots and a number pad in
-   the tiles' look. The restaurant's name is in the bottom right corner, so it is not repeated here. */
-.screen-lock-dialog.pin-mode #lock-restaurant,.screen-lock-dialog.pin-mode #screen-unlock,.screen-lock-dialog:not(.pin-mode) .pin-panel{display:none}
-.screen-lock-dialog.pin-mode .lock-screen-symbol{stroke:currentColor}
-#screen-lock-title:focus{outline:none}
-.pin-panel{display:flex;flex-direction:column;align-items:center;gap:22px}
-.pin-dots{display:flex;gap:16px}
-.pin-dots i{width:14px;height:14px;border:2px solid currentColor;border-radius:50%;box-sizing:border-box}
-.pin-dots i.on{background:currentColor}
-.pin-dots.wrong{animation:pin-shake .4s ease}
-@keyframes pin-shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
-.pin-pad{display:grid;grid-template-columns:repeat(3,96px);gap:12px}
-.pin-pad .ctr-pad-key{display:grid;place-items:center;width:96px;height:64px;min-height:64px;padding:0;border-radius:14px;font-size:26px;font-weight:600}
-.pin-pad .ctr-pad-key svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-@media (max-height:620px){.pin-pad{grid-template-columns:repeat(3,84px);gap:8px}.pin-pad .ctr-pad-key{width:84px;height:52px;min-height:52px;font-size:22px}}
-@media (prefers-reduced-motion:reduce){.pin-dots.wrong{animation:none}}
+/* Signing in on the lock screen: the PIN pad (Navigation & Lock Update 1) is styled with the lock screen in
+   system-navigation.css */
+

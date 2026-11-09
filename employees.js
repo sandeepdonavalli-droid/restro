@@ -150,27 +150,38 @@
     goBack() { if (!dialog.open || !form || !Staff.hasAccounts()) return false; closeForm(); return true; }
   });
 
-  // ---------- signing in with a PIN (on the lock screen) ----------
+  // ---------- signing in with a PIN (on the lock screen, Navigation & Lock Update 1: A1-A3) ----------
+  // An Android-style PIN pad: "Enter PIN", 4 dots over large digits with no key boxes, Clear · 0 · ⌫ at the bottom and no
+  // OK button: it signs in on the 4th digit. A wrong PIN turns the dots red with "Wrong PIN — try again" and clears them
+  // after 0.8 s; after 5 wrong tries in a row the pad pauses for 30 seconds. Whoever signs in becomes the person on the
+  // tablet (their initials at the top right), and everything from then on is recorded under them.
   const lock = document.querySelector('#screen-lock-dialog');
   const lockTitle = lock?.querySelector('#screen-lock-title');
   const Screen = window.RestroScreenLock;
-  let entry = '', checking = false, wrong = 0, waitUntil = 0, waitTimer = null, sayTimer = null;
+  let entry = '', checking = false, wrong = 0, waitUntil = 0, waitTimer = null, wrongTimer = null;
   const dots = el('div', { class: 'pin-dots', 'aria-hidden': 'true' }, [0, 1, 2, 3].map(() => el('i')));
-  const key = (label, value, extra = {}) => el('button', { type: 'button', class: 'ctr-pad-key', onclick: () => press(value), ...extra }, label);
+  const msg = el('p', { class: 'pin-msg', role: 'status', 'aria-live': 'polite' });
+  const BACKSPACE = 'M360-200q-20 0-37.5-9T294-234L153-434q-15-21-15-46t15-46l141-200q11-16 28.5-25t37.5-9h400q33 0 56.5 23.5T840-680v400q0 33-23.5 56.5T760-200H360Zm200-224 76 76q11 11 28 11t28-11q11-11 11-28t-11-28l-76-76 76-76q11-11 11-28t-11-28q-11-11-28-11t-28 11l-76 76-76-76q-11-11-28-11t-28 11q-11 11-11 28t11 28l76 76-76 76q-11 11-11 28t11 28q11 11 28 11t28-11l76-76Z';
+  const del = () => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 -960 960 960'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = `<path d="${BACKSPACE}"/>`; return s; };
+  // (the pressed look shows for a moment even on a quick tap)
+  const key = (label, value, extra = {}) => {
+    const b = el('button', { type: 'button', class: `pin-key${value === 'clear' || value === 'del' ? ' tx' : ''}`, onclick: () => press(value), ...extra }, typeof label === 'string' ? el('span', {}, label) : label);
+    b.addEventListener('pointerdown', () => { b.classList.add('press'); });
+    for (const t of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(t, () => setTimeout(() => b.classList.remove('press'), 90));
+    return b;
+  };
   const pad = el('div', { class: 'pin-pad', role: 'group', 'aria-label': 'PIN' },
-    [...'123456789'].map(d => key(d, d)), el('span', { class: 'pin-blank', 'aria-hidden': 'true' }), key('0', '0'), key(svg(ICON.del), 'del', { 'aria-label': 'Delete' }));
-  const panel = el('div', { class: 'pin-panel' }, dots, pad);
+    [...'123456789'].map(d => key(d, d)), key('Clear', 'clear', { 'aria-label': 'Clear' }), key('0', '0'), key(del(), 'del', { 'aria-label': 'Delete' }));
+  const panel = el('div', { class: 'pin-panel' }, dots, msg, pad, el('p', { class: 'pin-forgot' }, 'Forgot PIN? Ask a manager'));
   lockTitle?.after(panel);
 
   const paintDots = () => [...dots.children].forEach((d, i) => d.classList.toggle('on', i < entry.length));
-  function say(text, ms) {
-    clearTimeout(sayTimer);
-    if (lockTitle) lockTitle.textContent = text;
-    if (ms) sayTimer = setTimeout(() => { if (Date.now() >= waitUntil) say('Enter your PIN'); }, ms);
-  }
+  function say(text, waitLook = false) { msg.textContent = text; msg.classList.toggle('wait', waitLook); }
+  const paused = () => Date.now() < waitUntil;
   function press(value) {
-    if (checking || Date.now() < waitUntil || !lock.classList.contains('pin-mode')) return;
+    if (checking || paused() || dots.classList.contains('wrong') || !lock.classList.contains('pin-mode')) return;
     if (value === 'del') entry = entry.slice(0, -1);
+    else if (value === 'clear') entry = '';
     else if (entry.length < 4) entry += value;
     paintDots();
     if (entry.length === 4) check();
@@ -178,21 +189,23 @@
   async function check() {
     checking = true;
     const person = await Staff.verify(entry);
-    checking = false; entry = ''; paintDots();
-    if (person) { wrong = 0; say('Enter your PIN'); Staff.signIn(person.id); Screen?.unlock(); return; }
-    dots.classList.remove('wrong'); void dots.offsetWidth; dots.classList.add('wrong');
-    if (++wrong < 5) { say('Wrong PIN. Try again.', 2000); return; }
-    wrong = 0; pause(Date.now() + 30000);
+    checking = false;
+    if (person) { entry = ''; paintDots(); wrong = 0; say(''); Staff.signIn(person.id); Screen?.unlock(); return; }
+    dots.classList.add('wrong');
+    if (++wrong >= 5) { wrong = 0; pause(Date.now() + 30000); } else say('Wrong PIN — try again');
+    clearTimeout(wrongTimer);
+    wrongTimer = setTimeout(() => { dots.classList.remove('wrong'); entry = ''; paintDots(); if (!paused()) say(''); }, 800);
   }
   // The pause after five wrong PINs, kept for the session so reopening the page doesn't skip it
   const WAIT = 'restro.staff.wait.v1';
   function pause(until) {
     waitUntil = until; clearInterval(waitTimer);
     try { sessionStorage.setItem(WAIT, String(until)); } catch {}
+    for (const b of pad.querySelectorAll('button')) b.disabled = true;
     const tick = () => {
       const left = Math.ceil((waitUntil - Date.now()) / 1000);
-      if (left <= 0) { clearInterval(waitTimer); waitUntil = 0; try { sessionStorage.removeItem(WAIT); } catch {} say('Enter your PIN'); }
-      else say(`Too many tries. Try again in ${left} s.`);
+      if (left <= 0) { clearInterval(waitTimer); waitUntil = 0; try { sessionStorage.removeItem(WAIT); } catch {} for (const b of pad.querySelectorAll('button')) b.disabled = false; say(''); }
+      else say(`Too many tries · try again in ${left} s`, true);
     };
     tick(); waitTimer = setInterval(tick, 1000);
   }
@@ -201,7 +214,23 @@
     if (!lock.classList.contains('pin-mode')) return;
     if (/^\d$/.test(e.key)) { e.preventDefault(); press(e.key); }
     else if (e.key === 'Backspace') { e.preventDefault(); press('del'); }
+    else if (e.key === 'Delete' || e.key === 'Escape') { e.preventDefault(); press('clear'); }
   });
+
+  // "Locked by Eswar C. (EC) · 2 min ago": who was signed in when it locked, and how long ago (kept for the session)
+  const BY = 'restro.lockedBy.v1';
+  let lockedBy = null;
+  try { const saved = JSON.parse(sessionStorage.getItem(BY) || 'null'); if (saved && typeof saved.name === 'string' && Number.isFinite(saved.at)) lockedBy = saved; } catch {}
+  const shortName = name => { const w = name.trim().split(/\s+/).filter(Boolean); return w.length > 1 ? `${w[0]} ${Array.from(w.at(-1))[0].toLocaleUpperCase('en-IN')}.` : w[0] || ''; };
+  function paintBy() {
+    const out = document.querySelector('#lock-by'); if (!out) return;
+    out.hidden = !lockedBy;
+    if (!lockedBy) return;
+    const min = Math.floor((Date.now() - lockedBy.at) / 60000);
+    out.textContent = `Locked by ${shortName(lockedBy.name)} (${initials(lockedBy.name)}) · ${min < 1 ? 'just now' : `${min} min ago`}`;
+  }
+  setInterval(() => { if (Screen?.locked) paintBy(); }, 30000);
+  window.RestroLockScreen = Object.freeze({ paintBy });
 
   // Accounts exist: only a PIN ends a lock, and the lock screen shows the pad instead of Unlock.
   function syncLockMode() {
@@ -210,7 +239,7 @@
     if (!lock) return;
     lock.classList.toggle('pin-mode', on);
     if (!lockTitle) return;
-    if (Date.now() >= waitUntil) lockTitle.textContent = on ? 'Enter your PIN' : 'Screen locked';
+    lockTitle.textContent = on ? 'Enter PIN' : 'Screen locked';
     // The lock screen opens with "Enter your PIN" focused (read out, and no key looks pressed); digits typed on a
     // keyboard work too.
     lockTitle.toggleAttribute('autofocus', on);
@@ -231,7 +260,11 @@
   window.addEventListener('restro:staff-changed', () => { syncLockMode(); if (dialog.open && !form) render(); });
   // Locking signs the person out; whatever was open waits under the lock for the next person (Employees closes).
   window.addEventListener('restro:screen-locked', () => {
-    entry = ''; paintDots();
+    entry = ''; paintDots(); dots.classList.remove('wrong'); if (!paused()) say('');
+    const me = Staff.current;
+    lockedBy = me ? { name: me.name, at: Date.now() } : null;
+    try { if (lockedBy) sessionStorage.setItem(BY, JSON.stringify(lockedBy)); else sessionStorage.removeItem(BY); } catch {}
+    paintBy();
     if (Staff.hasAccounts()) { Staff.signOut(); if (dialog.open) close(); }
   });
 

@@ -40,14 +40,11 @@ html[data-restro-theme] .quick-brightness output{color:var(--palette-text)}
 html[data-restro-theme] .quick-brightness input{accent-color:var(--palette-accent)}
 html[data-restro-theme] .connection-summary .icon{color:var(--palette-accent-ink)}
 html[data-restro-theme] .device-state{color:var(--palette-accent-ink)}
-html[data-restro-theme] .screen-lock-dialog{background:radial-gradient(ellipse at 38% 45%,var(--palette-bg-top),var(--palette-bg-end));color:var(--palette-text)}
-html[data-restro-theme] .screen-lock-dialog::backdrop{background:var(--palette-bg-end)}
-html[data-restro-theme] .lock-screen-symbol{stroke:var(--palette-accent-ink)}
-html[data-restro-theme] .lock-screen-content h2,html[data-restro-theme] .recent-apps-empty{color:var(--palette-muted)}
+html[data-restro-theme] .recent-apps-empty{color:var(--palette-muted)}
 html[data-restro-theme] .toast{background:var(--palette-bar);border-color:var(--palette-bar-line);color:#f3f0e9}
 html[data-restro-theme] .battery-percentage{fill:#fff}
 html[data-restro-theme] .muted,html[data-restro-theme] .report-summary span,html[data-restro-theme] .chart-column span,html[data-restro-theme] .page-empty{color:var(--palette-muted)}
-html[data-restro-theme] .report-summary strong,html[data-restro-theme] .recent-app-card span,html[data-restro-theme] .lock-screen-content #lock-clock,html[data-restro-theme] .lock-screen-content #lock-restaurant{color:var(--palette-text)}
+html[data-restro-theme] .report-summary strong,html[data-restro-theme] .recent-app-card span{color:var(--palette-text)}
 html[data-restro-theme] .sales-chart,html[data-restro-theme] .camera-preview{background:var(--palette-panel);border-color:var(--palette-line)}
 html[data-restro-theme] .chart-bar{background:linear-gradient(0deg,var(--palette-accent),var(--palette-accent-top))}
 html[data-restro-theme] .chart-column:nth-child(even) .chart-bar{background:linear-gradient(0deg,var(--palette-edge),var(--palette-accent-top))}

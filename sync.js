@@ -33,11 +33,12 @@
   // ---------- what syncs ----------
   // An order's line is known by its item, its order type and its choices (modifiers): the same item with other choices
   // is a line of its own (counter.js). A saved order keeps its choices as { id, label, ... }; the one on screen as ids.
-  const lineKey = l => `${l.id}@${l.type || ''}${Array.isArray(l.mods) && l.mods.length ? `#${l.mods.map(m => (typeof m === 'string' ? m : m?.id)).join('+')}` : ''}`;
+  // (Counter Update 7: a dish discount makes a line of its own too, "%10")
+  const lineKey = l => `${l.id}@${l.type || ''}${Array.isArray(l.mods) && l.mods.length ? `#${l.mods.map(m => (typeof m === 'string' ? m : m?.id)).join('+')}` : ''}${Number.isInteger(l.off) && l.off > 0 ? `%${l.off}` : ''}`;
   // Collections: a list of records under one key, `id` naming a record, with the rules for merging two versions.
   const COLLECTIONS = {
     orders: { key: 'restro.counter.orders.v1', id: o => (typeof o?.uid === 'string' ? o.uid : Number.isFinite(o?.number) ? `n${o.number}` : null),
-      rules: { keyed: { lines: lineKey, kots: k => String(k.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'] } },
+      rules: { keyed: { lines: lineKey, kots: k => String(k.id || k.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'] } },
     held: { key: 'restro.counter.held.v1', id: h => (typeof h?.heldId === 'string' ? h.heldId : null), keep: h => !(Number.isFinite(h.holdUntil) && h.holdUntil <= Date.now()),
       rules: { keyed: { lines: lineKey }, additive: { lines: 'qty' } } },
     customers: { key: 'restro.customers.v1', id: c => (typeof c?.id === 'string' ? c.id : null) },
@@ -48,7 +49,13 @@
   const VALUES = {
     restaurantName: { key: 'restro.restaurantName', raw: true, placeholder: 'RESTAURANT NAME' },
     profile: { key: 'restro.profile.v1' },
-    prepMinutes: { key: 'restro.counter.prepMinutes.v1' }
+    prepMinutes: { key: 'restro.counter.prepMinutes.v1' },
+    // (Update Pack 9 Nov 2026, prefs.js: Billing & charges, Business details, Kitchen, the printers, Staff & security)
+    billing: { key: 'restro.billing.v1' },
+    business: { key: 'restro.business.v1' },
+    kitchen: { key: 'restro.kitchen.v1' },
+    printers: { key: 'restro.printers.v1' },
+    security: { key: 'restro.security.v1' }
   };
   const NAMES = [...Object.keys(COLLECTIONS), 'settings'];
   const TICKET_KEY = 'restro.counter.ticket.v2'; // { day, next }: after the highest number this tablet has given or seen today
@@ -279,18 +286,36 @@
   // tickets (both sides' tickets are kept, and the same ticket made on two tablets counts once).
   function finish(name, doc) {
     if (name !== 'orders' || !isObj(doc) || !Array.isArray(doc.lines) || !doc.lines.every(l => Number.isFinite(l?.price) && Number.isFinite(l?.qty))) return doc;
-    const subtotal = doc.lines.reduce((s, l) => s + Math.round(l.price * 100) * l.qty, 0);
     const rate = window.RestroMenu?.taxRate ?? (doc.subtotal ? doc.tax / doc.subtotal : 0);
-    // (Counter Update 6, bill.js: the order's discount off the subtotal, CGST and SGST, the total to the nearest rupee)
-    const sums = window.RestroBill ? window.RestroBill.totals(subtotal, doc.discountPct, rate) : { subtotal, tax: Math.round(subtotal * rate), total: subtotal + Math.round(subtotal * rate) };
+    // (bill.js, Counter Update 7: dish discounts, the order discount, the service charge, packaging and delivery, CGST
+    // and SGST, the total to the nearest rupee)
+    const lines = doc.lines.map(l => ({ each: Math.round(l.price * 100), qty: l.qty, off: l.off }));
+    const sums = window.RestroBill ? window.RestroBill.order({ lines, type: doc.type, discountPct: doc.discountPct, servicePct: doc.servicePct, packaging: doc.packaging, delivery: doc.delivery }, rate)
+      : (() => { const subtotal = lines.reduce((s, l) => s + l.each * l.qty, 0); return { subtotal, tax: Math.round(subtotal * rate), total: subtotal + Math.round(subtotal * rate) }; })();
     const out = { ...doc, ...sums, count: doc.lines.reduce((n, l) => n + l.qty, 0) };
-    if (Array.isArray(doc.kots)) {
-      const sent = { ...(isObj(doc.sent) ? doc.sent : {}) }, fromTickets = {};
-      for (const k of doc.kots) for (const l of Array.isArray(k?.lines) ? k.lines : []) if (Number.isFinite(l?.qty)) fromTickets[lineKey(l)] = (fromTickets[lineKey(l)] || 0) + l.qty;
-      for (const [key, n] of Object.entries(fromTickets)) sent[key] = Math.max(Number(sent[key]) || 0, n);
-      out.sent = sent;
-    }
+    if (Array.isArray(doc.kots) && doc.kots.length) out.sent = sentFrom(doc.kots, doc.sent);
     return out;
+  }
+  // What the kitchen has of each line, from the order's kitchen tickets (Counter Update 7): a KOT adds its dishes, a
+  // void takes them off (its quantities are negative), a changed slip moves them from the line they were (`was`) to the
+  // line they are now, and a cancelled order takes everything off. Orders saved before tickets were kept keep theirs.
+  function sentFrom(kots, before) {
+    const sent = {};
+    let counted = false;
+    for (const k of [...kots].filter(isObj).sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0))) {
+      const kind = k.kind || 'kot';
+      if (kind === 'cancel') { for (const key of Object.keys(sent)) delete sent[key]; counted = true; continue; }
+      if (kind !== 'kot' && kind !== 'void' && kind !== 'changed') continue;
+      for (const l of Array.isArray(k.lines) ? k.lines : []) {
+        if (!Number.isFinite(l?.qty)) continue;
+        counted = true;
+        if (kind === 'changed') { const was = isObj(l.was) ? lineKey({ ...l, mods: l.was.mods, off: l.was.off }) : null; if (was && was !== lineKey(l)) { sent[was] = (sent[was] || 0) - Math.abs(l.qty); sent[lineKey(l)] = (sent[lineKey(l)] || 0) + Math.abs(l.qty); } continue; }
+        sent[lineKey(l)] = (sent[lineKey(l)] || 0) + l.qty;
+      }
+    }
+    if (!counted) return isObj(before) ? { ...before } : {};
+    for (const key of Object.keys(sent)) if (!(sent[key] > 0)) delete sent[key];
+    return sent;
   }
   // Without a version both started from (the same record made on two tablets before they met), the newer whole record
   // wins: quantities can't be added up without knowing what both started from.

@@ -504,12 +504,19 @@ window.RestroProfile=(()=>{
     },
     save(values){profile=values;try{localStorage.setItem(KEY,JSON.stringify(profile));}catch{}window.RestroSync?.wrote(KEY);this.fill();},
     // Changed on another tablet (sync.js): read again, and refill the form unless it is being edited
-    reload(){loadProfile();if(!$('#restaurant-form').contains(document.activeElement))this.fill();}
+    reload(){loadProfile();if(!$('#profile-form').contains(document.activeElement))this.fill();}
   };
 })();
 $('#profile-mobile').addEventListener('input',event=>{const input=event.target,clean=input.value.replace(/[^\d ]/g,'');if(clean!==input.value)input.value=clean;$('#profile-mobile-error').hidden=true;});
 $('#profile-email').addEventListener('input',()=>{$('#profile-email-error').hidden=true;});
-$('#restaurant-form').addEventListener('submit',event=>{event.preventDefault();const value=uppercaseRestaurantName($('#restaurant-input').value);if(!value){$('#restaurant-input').setCustomValidity('Enter a restaurant name.');$('#restaurant-input').reportValidity();return;}const contact=window.RestroProfile.read();if(!contact)return;restaurantName=value;$('#restaurant-input').setCustomValidity('');$('#restaurant-name').textContent=restaurantName;try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}window.RestroSync?.wrote('restro.restaurantName');window.RestroProfile.save(contact);window.dispatchEvent(new CustomEvent('restro:restaurant-renamed',{detail:{name:restaurantName}}));toast('Profile saved');alignBannerText();});
+// My Profile: the owner's email and mobile number. (The restaurant's name is in Business details, with what else prints
+// on the bill: settings.js saves it through RestroRestaurantName.)
+$('#profile-form').addEventListener('submit',event=>{event.preventDefault();const contact=window.RestroProfile.read();if(!contact)return;window.RestroProfile.save(contact);toast('Profile saved');});
+window.RestroRestaurantName=Object.freeze({
+  get value(){return restaurantName;},
+  // Saves the name typed in Business details; false (after saying so on the field) when it is empty
+  save(typed){const value=uppercaseRestaurantName(typed);const input=$('#restaurant-input');if(!value){input.setCustomValidity('Enter a restaurant name.');input.reportValidity();return false;}input.setCustomValidity('');if(value!==restaurantName){restaurantName=value;$('#restaurant-name').textContent=restaurantName;try{localStorage.setItem('restro.restaurantName',restaurantName);}catch{}window.RestroSync?.wrote('restro.restaurantName');window.dispatchEvent(new CustomEvent('restro:restaurant-renamed',{detail:{name:restaurantName}}));alignBannerText();}return true;}
+});
 $('#restaurant-input').addEventListener('input',event=>{
   const input=event.target,start=input.selectionStart,end=input.selectionEnd,value=input.value;
   input.setCustomValidity('');input.value=value.toLocaleUpperCase('en-IN');

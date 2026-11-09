@@ -11,27 +11,28 @@
   <link rel="stylesheet" href="styles.css?v=27">
   <link rel="stylesheet" href="quality-layout.css?v=4">
   <link rel="stylesheet" href="device-controls.css?v=3">
-  <link rel="stylesheet" href="system-navigation.css?v=12">
-  <link rel="stylesheet" href="themes.css?v=2">
-  <link rel="stylesheet" href="settings.css?v=17">
+  <link rel="stylesheet" href="system-navigation.css?v=14">
+  <link rel="stylesheet" href="themes.css?v=3">
+  <link rel="stylesheet" href="settings.css?v=18">
   <link rel="stylesheet" href="counter.css?v=126">
   <link rel="stylesheet" href="floor.css?v=18">
   <link rel="stylesheet" href="customers.css?v=16">
-  <link rel="stylesheet" href="employees.css?v=1">
+  <link rel="stylesheet" href="employees.css?v=2">
   <link rel="stylesheet" href="orders.css?v=37">
   <link rel="stylesheet" href="app-widget-controls.css?v=6">
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=2">
   <link rel="stylesheet" href="connectivity-status.css?v=2">
-  <link rel="stylesheet" href="status-bar.css?v=21">
+  <link rel="stylesheet" href="status-bar.css?v=22">
   <link rel="stylesheet" href="launcher.css?v=11">
   <script src="theme-data.js?v=3"></script>
   <script src="theme-artwork.js?v=7"></script>
   <script src="themes.js?v=8"></script>
   <script src="app-layout.js?v=4" defer></script>
-  <script src="bill.js?v=1" defer></script>
-  <script src="sync.js?v=9" defer></script>
-  <script src="app.js?v=40" defer></script>
+  <script src="prefs.js?v=1" defer></script>
+  <script src="bill.js?v=2" defer></script>
+  <script src="sync.js?v=10" defer></script>
+  <script src="app.js?v=41" defer></script>
   <script src="home-widgets.js?v=5" defer></script>
   <script src="connectivity-status.js?v=4" defer></script>
   <script src="wifi.js?v=3" defer></script>
@@ -44,12 +45,12 @@
   <script src="floor.js?v=3" defer></script>
   <script src="customers.js?v=3" defer></script>
   <script src="orders.js?v=20" defer></script>
-  <script src="settings.js?v=13" defer></script>
+  <script src="settings.js?v=14" defer></script>
   <script src="battery-status.js?v=2" defer></script>
   <script src="notifications.js?v=1" defer></script>
-  <script src="system-navigation.js?v=17" defer></script>
+  <script src="system-navigation.js?v=18" defer></script>
   <script src="staff.js?v=2" defer></script>
-  <script src="employees.js?v=4" defer></script>
+  <script src="employees.js?v=5" defer></script>
 </head>
 <body>
   <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
@@ -65,6 +66,31 @@
     <symbol id="phone" viewBox="0 0 24 24"><path d="m5 3-2 3c0 8 7 15 15 15l3-2-5-5-3 2a12 12 0 0 1-5-5l2-3-5-5Z"/></symbol>
     <symbol id="hardware" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 5h8v5H8zM8 14h1m3 0h1m3 0h1M8 17h1m3 0h1m3 0h1M8 20h1m3 0h1m3 0h1"/></symbol>
     <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="ms-person" viewBox="0 -960 960 960"><path d="M480-481q-66 0-108-42t-42-108q0-66 42-108t108-42q66 0 108 42t42 108q0 66-42 108t-108 42ZM160-220v-34q0-38 19-65t49-41q67-30 128.5-45T480-420q62 0 123 15.5T731-360q31 14 50 41t19 65v34q0 25-17.5 42.5T740-160H220q-25 0-42.5-17.5T160-220Z"/></symbol>
+    <symbol id="ms-storefront" viewBox="0 -960 960 960"><path d="M179-120q-24 0-42-18t-18-42v-339q-28-24-37-59t2-70l43-135q8-27 28-42t46-15h553q28 0 49 15.5t29 41.5l44 135q11 35 1.5 70T840-519v339q0 24-18 42t-42 18H179Zm391-430q29 0 49-19t16-46l-25-165H510v165q0 26 17 45.5t43 19.5Zm-187 0q28 0 47.5-19t19.5-46v-165H350l-25 165q-4 26 14 45.5t44 19.5Zm-182 0q24 0 41.5-16.5T263-607l26-173H189l-46 146q-10 31 8 57.5t50 26.5Zm557 0q32 0 50.5-26t8.5-58l-46-146H671l26 173q3 24 20.5 40.5T758-550Z"/></symbol>
+    <symbol id="ms-receipt-long" viewBox="0 -960 960 960"><path d="M222-80q-43.75 0-74.37-30.63Q117-141.25 117-185v-95q0-12.75 8.63-21.38Q134.25-310 147-310h97v-552q0-5.25 4.5-7.13Q253-871 257-867l36 36q4.64 5 10.82 5 6.18 0 11.18-5l38-38q4.64-5 10.82-5 6.18 0 11.18 5l37 38q4.64 5 10.82 5 6.18 0 11.18-5l38-38q4.64-5 10.82-5 6.18 0 11.18 5l38 38q4.64 5 10.82 5 6.18 0 11.18-5l38-38q4.64-5 10.82-5 6.18 0 11.18 5l38 38q4.64 5 10.82 5 6.18 0 11.18-5l38-38q4.64-5 10.82-5 6.18 0 11.18 5l38 38q4.64 5 10.82 5 6.18 0 11.18-5l36-36q4-4 8.5-2.13 4.5 1.88 4.5 7.13v677q0 43.75-30.62 74.37Q781.75-80 738-80H222Zm514.5-60q19.5 0 31.5-12.5t12-32.5v-611H307v536h360q12.75 0 21.38 8.62Q697-242.75 697-230v45q0 20 10 32.5t29.5 12.5ZM390-702h180q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H390q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5Zm0 134h180q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H390q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5Zm303-74q-12 0-21-9t-9-21q0-12 9-21t21-9q12 0 21 9t9 21q0 12-9 21t-21 9Zm0 129q-12 0-21-9t-9-21q0-12 9-21t21-9q12 0 21 9t9 21q0 12-9 21t-21 9Z"/></symbol>
+    <symbol id="ms-point-of-sale" viewBox="0 -960 960 960"><path d="M260-630q-25 0-42.5-17.5T200-690v-130q0-25 17.5-42.5T260-880h440q25 0 42.5 17.5T760-820v130q0 25-17.5 42.5T700-630H260Zm30-60h380q13 0 21.5-8.5T700-720v-70q0-13-8.5-21.5T670-820H290q-13 0-21.5 8.5T260-790v70q0 13 8.5 21.5T290-690ZM140-80q-25 0-42.5-17.5T80-140v-70h800v70q0 25-17.5 42.5T820-80H140ZM80-240l145-324q8-16 22.5-26t31.5-10h402q17 0 31.5 10t22.5 26l145 324H80Zm260-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm120 160h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm120 160h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Z"/></symbol>
+    <symbol id="ms-currency-rupee" viewBox="0 -960 960 960"><path d="M555-129 299.2-393.83Q294-399 292-404.5t-2-12.17v-20q0-14.16 9.49-23.75Q308.98-470 323-470h97q57 0 100-37t50-103H270q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h295q-13-48-53.57-79T420-780H270q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h420q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H566q23 20 39 51t23 59h62q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5h-60q-8 91-67.36 145.5Q503.29-410 420-410h-52l231 240q14 14 5.98 32t-27.87 18q-6.11 0-11.61-2-5.5-2-10.5-7Z"/></symbol>
+    <symbol id="ms-skillet" viewBox="0 -960 960 960"><path d="M200-160q-51 0-85.5-34.5T80-280v-169q0-13 9-22t22-9h549q0-32 16-58.5t45-36.5l161-54q12-4 23 1.5t15 17.5q4 12-1.5 23T901-572l-161 53q-11 4-15.5 15.5T720-480v200q0 50-34.5 85T600-160H200Zm-60-532q-21-31-30.5-58.5T101-810q0-13 8.5-21.5T131-840q11 0 19 8.5t8 20.5q1 26 10 48.5t31 53.5q21 31 31 58.5t8 61.5q-1 12-10 20.5t-22 8.5q-11 0-18.5-8.5T180-589q0-26-9.5-49T140-692Zm170 0q-21-31-31-58.5t-9-59.5q0-13 9-21.5t22-8.5q11 0 19 8.5t8 20.5q1 26 10 48.5t31 53.5q21 31 30.5 58.5T407-589q-1 12-9.5 20.5T376-560q-11 0-18.5-8.5T350-589q0-26-9.5-49T310-692Zm170 0q-21-31-31-58.5t-9-59.5q0-13 9-21.5t22-8.5q11 0 19 8.5t8 20.5q1 26 10 48.5t31 53.5q21 31 30.5 58.5T577-589q-1 12-9.5 20.5T546-560q-11 0-18.5-8.5T520-589q0-26-9.5-49T480-692Z"/></symbol>
+    <symbol id="ms-shield-person" viewBox="0 -960 960 960"><path d="M480.17-450Q537-450 577-490.17t40-97Q617-644 576.83-684t-97-40Q423-724 383-683.83t-40 97Q343-530 383.17-490t97 40ZM480-143q60-20 108-59.5t83-90.5q-44.67-21.02-92.97-32.01Q529.72-336 479.86-336t-98.07 10.99Q333.58-314.02 289-293q35 51 83 90.5T480-143Zm0 59q-5.32 0-9.88-1-4.56-1-9.12-3-139-47-220-168.5t-81-266.61V-719q0-19.26 10.88-34.66Q181.75-769.07 199-776l260-97q11-4 21-4t21 4l260 97q17.25 6.93 28.13 22.34Q800-738.26 800-719v195.89Q800-378 719-256.5T499-88q-4.56 2-9.12 3T480-84Z"/></symbol>
+    <symbol id="ms-wifi" viewBox="0 -960 960 960"><path d="M480-127q-36 0-63-27t-27-63q0-36 27-63t63-27q36 0 63 27t27 63q0 36-27 63t-63 27Zm0-433q78 0 146 27.5T757-451q14 12 15 30.5T759-388q-14 14-32 13t-33-13q-53-44-106.5-63T480-470q-54 0-107.5 19T266-388q-15 12-33 13t-32-13q-14-14-13-32.5t15-30.5q63-54 131-81.5T480-560Zm0-240q128 0 241.5 48.5T926-622q14 13 15.5 31.5T929-558q-14 14-33.5 13.5T861-558q-83-70-178-111t-203-41q-108 0-203 41T99-558q-15 13-34 13.5T32-558q-14-14-13-32.5T34-622q91-81 204.5-129.5T480-800Z"/></symbol>
+    <symbol id="ms-language" viewBox="0 -960 960 960"><path d="M480-80q-84 0-157-31.5T196-197q-54-54-85-127.5T80-482q0-84 31-156.5T196-765q54-54 127-84.5T480-880q84 0 157 30.5T764-765q54 54 85 126.5T880-482q0 84-31 157.5T764-197q-54 54-127 85.5T480-80Zm0-58q35-36 58.5-82.5T577-331H384q14 60 37.5 108t58.5 85Zm-85-12q-25-38-43-82t-30-99H172q38 71 88 111.5T395-150Zm171-1q72-23 129.5-69T788-331H639q-13 54-30.5 98T566-151ZM152-391h159q-3-27-3.5-48.5T307-482q0-25 1-44.5t4-43.5H152q-7 24-9.5 43t-2.5 45q0 26 2.5 46.5T152-391Zm221 0h215q4-31 5-50.5t1-40.5q0-20-1-38.5t-5-49.5H373q-4 31-5 49.5t-1 38.5q0 21 1 40.5t5 50.5Zm275 0h160q7-24 9.5-44.5T820-482q0-26-2.5-45t-9.5-43H649q3 35 4 53.5t1 34.5q0 22-1.5 41.5T648-391Zm-10-239h150q-33-69-90.5-115T565-810q25 37 42.5 80T638-630Zm-254 0h194q-11-53-37-102.5T480-820q-32 27-54 71t-42 119Zm-212 0h151q11-54 28-96.5t43-82.5q-75 19-131 64t-91 115Z"/></symbol>
+    <symbol id="ms-bluetooth" viewBox="0 -960 960 960"><path d="M450-136v-272L277-235q-9 9-21 9t-21-9q-9-9-9-21t9-21l203-203-203-203q-9-9-9-21t9-21q9-9 21-9t21 9l173 173v-272q0-14 9.5-22t20.5-8q5 0 10.5 2t10.5 7l172 172q5 5 7 10t2 11q0 6-2 11t-7 10L522-480l151 151q5 5 7 10t2 11q0 6-2 11t-7 10L501-115q-5 5-10.5 7t-10.5 2q-11 0-20.5-8t-9.5-22Zm60-416 100-100-100-98v198Zm0 342 100-98-100-100v198Z"/></symbol>
+    <symbol id="ms-devices" viewBox="0 -960 960 960"><path d="M125-160q-18.75 0-31.87-13.18Q80-186.35 80-205.18 80-224 93.13-237q13.12-13 31.87-13h35v-490q0-24.75 17.63-42.38Q195.25-800 220-800h590q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H220v490h195q18.75 0 31.88 13.18 13.12 13.17 13.12 32Q460-186 446.88-173q-13.13 13-31.88 13H125Zm425 0q-12.75 0-21.37-8.63Q520-177.25 520-190v-460q0-12.75 8.63-21.38Q537.25-680 550-680h300q12.75 0 21.38 8.62Q880-662.75 880-650v460q0 12.75-8.62 21.37Q862.75-160 850-160H550Z"/></symbol>
+    <symbol id="ms-brightness-6" viewBox="0 -960 960 960"><path d="M346.16-160H220q-24.75 0-42.37-17.63Q160-195.25 160-220v-125.59L68-438q-9-9-13-19.81-4-10.82-4-22Q51-491 55-502q4-11 13-20l92-92.41V-740q0-24.75 17.63-42.38Q195.25-800 220-800h125.59L438-892q9-9 20.5-13t22.7-4q11.19 0 22.02 4.7 10.82 4.69 19.78 13.3l91 91h126q24.75 0 42.38 17.62Q800-764.75 800-740v125.59L892-522q9 9 13 19.81 4 10.82 4 22 0 11.19-4 22.19-4 11-13 20l-92 92.41V-220q0 24.75-17.62 42.37Q764.75-160 740-160H614l-91 90q-8.96 8.13-19.78 12.57Q492.39-53 481.2-53q-11.2 0-22.16-4.43Q448.07-61.87 439-70l-92.84-90ZM481-286q81 0 138-57.05 57-57.06 57-138Q676-562 618.96-619 561.92-676 481-676v390Z"/></symbol>
+    <symbol id="ms-volume-up" viewBox="0 -960 960 960"><path d="M780-481q0-94-52.5-169T590-759q-12-5-17-16t0-22q5-12 17.5-16.5t25.5.5q101 41 162.5 131T840-481q0 111-61.5 201T616-149q-13 5-25.5.5T573-165q-5-11 0-22t17-16q85-34 137.5-109T780-481ZM280-360H150q-13 0-21.5-8.5T120-390v-180q0-13 8.5-21.5T150-600h130l149-149q14-14 32.5-6.5T480-728v496q0 20-18.5 27.5T429-211L280-360Zm380-120q0 52-26 94t-73 64q-8 4-14.5-1t-6.5-13v-289q0-8 6.5-13t14.5-1q47 22 73 65t26 94Z"/></symbol>
+    <symbol id="ms-print" viewBox="0 -960 960 960"><path d="M302-120q-24.75 0-42.37-17.63Q242-155.25 242-180v-116H140q-24.75 0-42.37-17.63Q80-331.25 80-356v-186q0-45.05 30.5-75.53Q141-648 186-648h588q45.05 0 75.53 30.47Q880-587.05 880-542v186q0 24.75-17.62 42.37Q844.75-296 820-296H718v116q0 24.75-17.62 42.37Q682.75-120 658-120H302Zm416-558H242v-102q0-24.75 17.63-42.38Q277.25-840 302-840h356q24.75 0 42.38 17.62Q718-804.75 718-780v102Zm21 185q12 0 21-9t9-21q0-12-9-21t-21-9q-12 0-21 9t-9 21q0 12 9 21t21 9ZM302-180h356v-192H302v192Z"/></symbol>
+    <symbol id="ms-swipe-up" viewBox="0 -960 960 960"><path d="M190-839q-8 32-14 65t-6 67q0 63 18.5 123T242-472q5 8 5.5 16.5T241-440q-6 6-15 4.5t-14-9.5q-40-58-61-124.5T130-707q0-32 4-64t12-64l-60 59q-6 6-14 6t-14-6q-6-6-6-14t6-14l91-91q9-9 21-9t21 9l91 91q6 6 6 14t-6 14q-6 6-14 6t-14-6l-64-63Zm456 713q-20 8-42 7t-42-11L318-243q-10-5-14.5-14.5T302-278v-2q5-19 19-31t34-14l99-8-117-320q-5-12 .5-22.5T355-691q12-5 23 .5t16 17.5l99 272 63-23-51-141q-5-12 .5-22.5T523-603q12-5 22.5.5T561-585l51 141 62-23-37-103q-5-12 .5-23t17.5-16q12-5 22.5.5T693-591l38 104 63-23-11-28q-5-12 .5-23t17.5-16q12-5 23 .5t16 17.5l61 169q23 63-4.5 122.5T806-185l-160 59Z"/></symbol>
+    <symbol id="ms-chevron-right" viewBox="0 -960 960 960"><path d="M530-481 353-658q-9-9-8.5-21t9.5-21q9-9 21.5-9t21.5 9l198 198q5 5 7 10t2 11q0 6-2 11t-7 10L396-261q-9 9-21 8.5t-21-9.5q-9-9-9-21.5t9-21.5l176-176Z"/></symbol>
+    <symbol id="ms-dark-mode" viewBox="0 -960 960 960"><path d="M480-120q-150 0-255-105T120-480q0-135 79.5-229T408-830q20-5 34-1t22 15q8 10 7.5 25t-8.5 35q-9 23-14 47t-5 49q0 90 63 153t153 63q25 0 48.5-4.5T754-461q22-8 38-7t26 9q10 8 13 23t-2 36q-27 121-121 200.5T480-120Z"/></symbol>
+    <symbol id="ms-lock" viewBox="0 -960 960 960"><path d="M220-80q-24.75 0-42.37-17.63Q160-115.25 160-140v-434q0-24.75 17.63-42.38Q195.25-634 220-634h70v-96q0-78.85 55.61-134.42Q401.21-920 480.11-920q78.89 0 134.39 55.58Q670-808.85 670-730v96h70q24.75 0 42.38 17.62Q800-598.75 800-574v434q0 24.75-17.62 42.37Q764.75-80 740-80H220Zm260.17-200q31.83 0 54.33-22.03T557-355q0-30-22.67-54.5t-54.5-24.5q-31.83 0-54.33 24.5t-22.5 55q0 30.5 22.67 52.5t54.5 22ZM350-634h260v-96q0-54.17-37.88-92.08-37.88-37.92-92-37.92T388-822.08q-38 37.91-38 92.08v96Z"/></symbol>
+    <symbol id="ms-add" viewBox="0 -960 960 960"><path d="M450-450H230q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h220v-220q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v220h220q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H510v220q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63-8.5-8.62-8.5-21.37v-220Z"/></symbol>
+    <symbol id="ms-close" viewBox="0 -960 960 960"><path d="M480-438 270-228q-9 9-21 9t-21-9q-9-9-9-21t9-21l210-210-210-210q-9-9-9-21t9-21q9-9 21-9t21 9l210 210 210-210q9-9 21-9t21 9q9 9 9 21t-9 21L522-480l210 210q9 9 9 21t-9 21q-9 9-21 9t-21-9L480-438Z"/></symbol>
+    <symbol id="ms-check" viewBox="0 -960 960 960"><path d="m378-332 363-363q9.27-9 21.64-9 12.36 0 21.36 9.05 9 9.06 9 21.5 0 12.45-9 21.45L399-267q-9 9-21 9t-21-9L175-449q-9-9.07-8.5-21.53.5-12.47 9.55-21.47 9.06-9 21.5-9 12.45 0 21.45 9l159 160Z"/></symbol>
+    <symbol id="nav-back" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2,6.6 L4.8,11 L9.2,15.4"/><path d="M5,11 H14.4 A4.6,4.6 0 0 1 14.4,20.2 H11.4"/></g></symbol>
+    <symbol id="nav-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5,11.2 L12,4.6 L19.5,11.2 V18.4 A1.6,1.6 0 0 1 17.9,20 H14.6 V15.4 A2.6,2.6 0 0 0 9.4,15.4 V20 H6.1 A1.6,1.6 0 0 1 4.5,18.4 Z"/></g></symbol>
+    <symbol id="nav-recent" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2,7.2 H8.8 A2.2,2.2 0 0 1 11,9.4 V15.6 A2.2,2.2 0 0 1 8.8,17.8 H4.2 A2.2,2.2 0 0 1 2,15.6 V9.4 A2.2,2.2 0 0 1 4.2,7.2 Z" opacity=".5"/><path d="M15.2,7.2 H19.8 A2.2,2.2 0 0 1 22,9.4 V15.6 A2.2,2.2 0 0 1 19.8,17.8 H15.2 A2.2,2.2 0 0 1 13,15.6 V9.4 A2.2,2.2 0 0 1 15.2,7.2 Z" opacity=".5"/><path d="M9,4.6 H15 A2.4,2.4 0 0 1 17.4,7 V17 A2.4,2.4 0 0 1 15,19.4 H9 A2.4,2.4 0 0 1 6.6,17 V7 A2.4,2.4 0 0 1 9,4.6 Z" style="fill:var(--nav-icon-under,#000)"/></g></symbol>
+    <symbol id="nav-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.6,10.4 H16.4 A2.6,2.6 0 0 1 19,13 V17.8 A2.6,2.6 0 0 1 16.4,20.4 H7.6 A2.6,2.6 0 0 1 5,17.8 V13 A2.6,2.6 0 0 1 7.6,10.4 Z"/><path d="M8.2,10.4 V7.8 A3.8,3.8 0 0 1 15.8,7.8 V10.4"/><path d="M12,14.4 V16.6"/></g></symbol>
   </svg>
   <div class="app-shell">
     <!-- The top bar (Home Update 3, shared by every app): one line. Left: the restaurant's mark, its name, the date and time. Right:
@@ -111,27 +137,50 @@
         <nav id="main-shortcuts" class="main-shortcuts" aria-label="Main apps"></nav>
       </section>
     </main>
-    <!-- No bottom bar: a swipe bar (system-navigation.css/js), like an iPhone. Swipe up from the bottom edge and the app
-         closes into its icon (Home); swipe up and hold, or a long slow swipe, for Recent apps; swipe in from the left or
-         right edge for Back. Back, Home and Recent apps stay as buttons for the keyboard and screen readers, out of sight
-         until focused. -->
+    <!-- Navigation & Lock Update 1: how staff move between screens and apps (Settings › Display › Navigation), the same in
+         every app. Swipe gestures (the default): swipe up from the bottom edge for Home, up and hold for Recent apps, in from
+         the left or right edge for Back, with the handle at the bottom centre and the round lock button at the bottom right.
+         Or the navigation bar: 56 tall, black in every theme, Back · Home · Recent apps in the centre (Home always in the
+         middle, Back on the left or the right) with our own Set C icons, and the lock button at its far right; swipes are
+         then off (system-navigation.js). -->
     <nav id="system-navigation" class="home-bar" aria-label="System navigation">
       <div class="android-controls">
-        <button id="system-back" type="button" class="system-control" aria-label="Back" title="Back"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 4 5 12l12 8Z"/></svg></button>
-        <button id="system-home" type="button" class="system-control" aria-label="Home" title="Home"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></button>
-        <button id="system-recents" type="button" class="system-control" aria-label="Recent apps" title="Recent apps"><svg class="system-glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx=".8"/></svg></button>
+        <button id="system-back" type="button" class="system-control" aria-label="Back" title="Back"><svg class="system-glyph" aria-hidden="true"><use href="#nav-back"/></svg></button>
+        <button id="system-home" type="button" class="system-control" aria-label="Home" title="Home"><svg class="system-glyph" aria-hidden="true"><use href="#nav-home"/></svg></button>
+        <button id="system-recents" type="button" class="system-control" aria-label="Recent apps" title="Recent apps"><svg class="system-glyph" aria-hidden="true"><use href="#nav-recent"/></svg></button>
       </div>
+      <button id="system-lock" type="button" class="system-lock" aria-label="Lock the screen" title="Lock"><svg class="system-glyph" aria-hidden="true"><use href="#nav-lock"/></svg></button>
       <span class="home-indicator" aria-hidden="true"></span>
       <span class="back-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg></span>
     </nav>
   </div>
   <dialog id="recents-dialog" class="app-switcher" aria-labelledby="recents-title">
-    <h2 id="recents-title" class="visually-hidden">Recent apps</h2>
+    <div class="switcher-scrim" aria-hidden="true"></div>
+    <h2 id="recents-title" class="switcher-title">Recent apps</h2>
+    <button id="recents-close-all" type="button" class="switcher-close-all">Close all</button>
     <div id="recent-apps-list" class="switcher-track" role="list"></div>
+    <p class="switcher-hint">Tap an app to open it · swipe a card up to close it · only our apps appear here</p>
   </dialog>
   <dialog id="screen-lock-dialog" class="screen-lock-dialog" aria-labelledby="screen-lock-title">
-    <div class="lock-screen-content"><svg class="lock-screen-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><time id="lock-clock"></time><p id="lock-restaurant"></p><h2 id="screen-lock-title">Screen locked</h2><button id="screen-unlock" type="button" class="primary-button">Unlock</button></div>
+    <div class="lock-screen-content">
+      <div class="lock-left">
+        <span class="lock-chip"><svg class="lock-chip-icon" aria-hidden="true"><use href="#nav-lock"/></svg>Locked</span>
+        <time id="lock-clock" class="lock-time"></time>
+        <p id="lock-date" class="lock-date"></p>
+        <div id="lock-order" class="lock-order" hidden><img src="assets/app-icons/counter.webp" alt=""><div><b id="lock-order-title"></b><span id="lock-order-line"></span><span>It’ll be right where you left it after you sign in.</span></div></div>
+        <p id="lock-by" class="lock-by" hidden></p>
+        <p id="lock-restaurant" class="visually-hidden"></p>
+      </div>
+      <div class="lock-right">
+        <h2 id="screen-lock-title">Screen locked</h2>
+        <button id="screen-unlock" type="button" class="lock-unlock">Unlock</button>
+      </div>
+    </div>
+    <!-- Go dark (Navigation & Lock Update 1): a black screen over everything, the lock screen behind it; a double tap
+         wakes it to the PIN pad (a single tap does nothing) -->
+    <div id="screen-dark" class="screen-dark" aria-hidden="true"></div>
   </dialog>
+
   <dialog id="counter-dialog" class="counter-app" aria-labelledby="counter-title"></dialog>
   <dialog id="floor-dialog" class="floor-app" aria-labelledby="floor-title"></dialog>
   <dialog id="orders-dialog" class="orders-app" aria-labelledby="orders-title"></dialog>
@@ -143,93 +192,118 @@
         <div class="settings-nav-top"><button class="settings-back-round" type="button" data-close aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><h2 id="settings-title" tabindex="-1" autofocus>Settings</h2></div>
         <label class="settings-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.4-4.4"/></svg><span class="visually-hidden">Search settings</span><input id="settings-search" type="search" placeholder="Search settings" autocomplete="off" enterkeyhint="search"></label>
         <ul class="settings-list">
-          <li><button class="settings-row" type="button" data-page="restaurant" data-keywords="my profile restaurant name banner title shop business email mail mobile phone number contact"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg></span><span class="settings-row-copy"><strong>My Profile</strong></span></button></li>
-          <li><button class="settings-row" type="button" data-page="orders" data-keywords="orders counter kitchen preparation prep time schedule scheduled pre-order preorder ready minutes"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9.5 8h5M9.5 12h5"/></svg></span><span class="settings-row-copy"><strong>Orders</strong><span id="settings-orders-summary">Preparation time 30 min</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="counter" data-keywords="counter menu display style layout categories category grid pills on top vertical rail items cards billing tiles per row"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="7" height="15" rx="2"/><path d="M13.5 5h7M13.5 9.5h7M13.5 14h7M13.5 18.5h4"/></svg></span><span class="settings-row-copy"><strong>Counter</strong><span id="settings-counter-summary">Menu: Pills on top</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a16 16 0 0 1 20 0M5.5 12a11 11 0 0 1 13 0M9 15.5a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary">Managed by this device</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary">Checking connection…</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="bluetooth" data-keywords="bluetooth connected devices pair scan printer scanner headset"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10-5 4.5V2.5L17 7 7 17"/></svg></span><span class="settings-row-copy"><strong>Bluetooth</strong><span id="settings-bluetooth-summary">Not connected</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="sync" data-keywords="devices sync tablets main system printers pairing pair code cloud offline share other tablets"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="10" height="14" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v12"/><path d="M7.5 17.5h1"/></svg></span><span class="settings-row-copy"><strong>Devices &amp; sync</strong><span id="settings-sync-summary">This tablet only</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="display" data-keywords="display brightness screen dim light theme themes appearance style colour color look battery percentage"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></span><span class="settings-row-copy"><strong>Display</strong><span id="settings-display-summary">Brightness 100%</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="sound" data-keywords="sound volume audio mute speaker touch sounds beep"><span class="settings-row-icon"><svg class="volume-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path class="volume-wave" d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/><path class="volume-mute" d="m16 9.5 5 5m0-5-5 5"/></svg></span><span class="settings-row-copy"><strong>Sound</strong><span id="settings-sound-summary">Volume 70%</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="restaurant" data-keywords="my profile email mail mobile phone number contact owner"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-person"/></svg></span><span class="settings-row-copy"><strong>My Profile</strong><span id="settings-profile-summary">Email and mobile number</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="business" data-keywords="business details restaurant name banner title shop address gstin gst number fssai licence license food bill footer printed"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-storefront"/></svg></span><span class="settings-row-copy"><strong>Business details</strong><span id="settings-business-summary">Printed on the bill</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="orders" data-keywords="orders counter kitchen preparation prep time schedule scheduled pre-order preorder ready minutes"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-receipt-long"/></svg></span><span class="settings-row-copy"><strong>Orders</strong><span id="settings-orders-summary">Preparation time 30 min</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="counter" data-keywords="counter menu display style layout categories category grid pills on top vertical rail items cards billing tiles per row"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-point-of-sale"/></svg></span><span class="settings-row-copy"><strong>Counter</strong><span id="settings-counter-summary">Menu: Pills on top</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="billing" data-keywords="billing charges service charge tip discount dish discount complimentary free packaging parcel delivery rounding round off gst cgst sgst tax quick picks"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-currency-rupee"/></svg></span><span class="settings-row-copy"><strong>Billing &amp; charges</strong><span id="settings-billing-summary">Service charge off</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="kitchen" data-keywords="kitchen kot void reasons cancel cancelled order reasons delete"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-skillet"/></svg></span><span class="settings-row-copy"><strong>Kitchen</strong><span id="settings-kitchen-summary">Void and cancel reasons</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="security" data-keywords="staff security lock auto-lock idle pin password sign in manager"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-shield-person"/></svg></span><span class="settings-row-copy"><strong>Staff &amp; security</strong><span id="settings-security-summary">Auto-lock after 5 min</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-wifi"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary">Managed by this device</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-language"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary">Checking connection…</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="bluetooth" data-keywords="bluetooth connected devices pair scan printer scanner headset"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-bluetooth"/></svg></span><span class="settings-row-copy"><strong>Bluetooth</strong><span id="settings-bluetooth-summary">Not connected</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="sync" data-keywords="devices sync tablets main system printers printer kot language copies role kitchen bills pairing pair code cloud offline share other tablets"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-devices"/></svg></span><span class="settings-row-copy"><strong>Devices &amp; sync</strong><span id="settings-sync-summary">This tablet only</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="display" data-keywords="display brightness screen dim light theme themes appearance style colour color look battery percentage navigation bar swipe gestures buttons back home recent apps go dark sleep screen off"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-brightness-6"/></svg></span><span class="settings-row-copy"><strong>Display</strong><span id="settings-display-summary">Brightness 100%</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="sound" data-keywords="sound volume audio mute speaker touch sounds beep"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-volume-up"/></svg></span><span class="settings-row-copy"><strong>Sound</strong><span id="settings-sound-summary">Volume 70%</span></span></button></li>
         </ul>
         <p id="settings-no-results" class="settings-no-results" hidden>No settings match your search.</p>
       </nav>
       <section class="settings-detail" aria-labelledby="settings-page-title">
-        <header class="settings-detail-top"><button id="settings-back" class="settings-icon-button" type="button" aria-label="Back to settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg></button><h3 id="settings-page-title">My Profile</h3></header>
         <div class="settings-pages">
+          <header class="settings-detail-top"><button id="settings-back" class="settings-icon-button" type="button" aria-label="Back to settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg></button><div class="st-head"><p id="settings-crumb" class="st-crumb">Settings</p><h3 id="settings-page-title">My Profile</h3></div></header>
           <section class="settings-page" data-page="restaurant" data-title="My Profile">
-            <form id="restaurant-form" class="settings-group">
-              <div class="settings-item settings-field"><label for="restaurant-input">Restaurant name</label><input id="restaurant-input" name="restaurant" maxlength="48" required autocomplete="organization"></div>
-              <div class="settings-item settings-field"><label for="profile-email">Email</label><input id="profile-email" name="email" type="email" maxlength="120" autocomplete="email" inputmode="email" placeholder="name@example.com"><p id="profile-email-error" class="field-error" role="alert" hidden></p></div>
-              <div class="settings-item settings-field"><label for="profile-mobile">Mobile number</label><div class="phone-field"><label class="visually-hidden" for="profile-country">Country code</label><select id="profile-country" name="country" class="phone-country" autocomplete="tel-country-code"></select><input id="profile-mobile" name="mobile" type="tel" maxlength="16" autocomplete="tel-national" inputmode="numeric" placeholder="98765 43210" aria-describedby="profile-mobile-hint"></div><p id="profile-mobile-hint" class="field-note">10-digit mobile number</p><p id="profile-mobile-error" class="field-error" role="alert" hidden></p></div>
-              <div class="settings-item settings-actions"><button class="primary-button" type="submit">Save changes</button></div>
+            <form id="profile-form" class="st-card" novalidate>
+              <p class="st-lab">Contact</p><p class="st-sub">How RESTRO reaches the restaurant’s owner.</p>
+              <div class="st-field"><label for="profile-email">Email</label><input id="profile-email" name="email" type="email" maxlength="120" autocomplete="email" inputmode="email" placeholder="name@example.com"><p id="profile-email-error" class="field-error" role="alert" hidden></p></div>
+              <div class="st-field"><label for="profile-mobile">Mobile number</label><div class="phone-field"><label class="visually-hidden" for="profile-country">Country code</label><select id="profile-country" name="country" class="phone-country" autocomplete="tel-country-code"></select><input id="profile-mobile" name="mobile" type="tel" maxlength="16" autocomplete="tel-national" inputmode="numeric" placeholder="98765 43210" aria-describedby="profile-mobile-hint"></div><p id="profile-mobile-hint" class="field-note">10-digit mobile number</p><p id="profile-mobile-error" class="field-error" role="alert" hidden></p></div>
+              <div class="st-actions"><button class="st-primary" type="submit">Save changes</button></div>
+            </form>
+          </section>
+          <section class="settings-page" data-page="business" data-title="Business details" hidden>
+            <form id="business-form" class="st-card" novalidate>
+              <p class="st-lab">Printed on the bill</p><p class="st-sub">At the top and bottom of every customer bill.</p>
+              <div class="st-field"><label for="restaurant-input">Restaurant name</label><input id="restaurant-input" name="restaurant" maxlength="48" required autocomplete="organization"></div>
+              <div class="st-field"><label for="business-address">Address</label><textarea id="business-address" name="address" rows="2" maxlength="160" autocomplete="street-address" placeholder="Door no., street, area, city"></textarea></div>
+              <div class="st-two">
+                <div class="st-field"><label for="business-gstin">GSTIN</label><input id="business-gstin" name="gstin" maxlength="15" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="15 characters" aria-describedby="business-gstin-error"><p id="business-gstin-error" class="field-error" role="alert" hidden></p></div>
+                <div class="st-field"><label for="business-fssai">FSSAI licence number</label><input id="business-fssai" name="fssai" maxlength="14" inputmode="numeric" autocomplete="off" placeholder="14 digits" aria-describedby="business-fssai-note business-fssai-error"><p id="business-fssai-note" class="field-note">Must be printed on every bill in India.</p><p id="business-fssai-error" class="field-error" role="alert" hidden></p></div>
+              </div>
+              <div class="st-field"><label for="business-footer">Bill footer</label><input id="business-footer" name="footer" maxlength="80" autocomplete="off" placeholder="Thank you! Visit again."></div>
+              <div class="st-actions"><button class="st-primary" type="submit">Save changes</button></div>
             </form>
           </section>
           <section class="settings-page" data-page="orders" data-title="Orders" hidden>
-            <div class="settings-group">
-              <div class="settings-item settings-status"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></svg></span><span class="settings-row-copy"><strong id="settings-prep-label">Preparation time</strong><span>A scheduled order goes to the kitchen this long before it is due</span></span>
+            <div class="st-card st-rowcard">
+              <div class="st-row"><span class="st-row-copy"><strong id="settings-prep-label">Preparation time</strong><span>A scheduled order goes to the kitchen this long before it is due.</span></span>
                 <div class="settings-stepper" role="group" aria-labelledby="settings-prep-label"><button id="settings-prep-down" class="settings-step" type="button" aria-label="5 minutes less"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><output id="settings-prep-value" aria-live="polite">30 min</output><button id="settings-prep-up" class="settings-step" type="button" aria-label="5 minutes more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
             </div>
           </section>
+          <section class="settings-page" data-page="counter" data-title="Counter" hidden>
+            <div class="st-card"><p class="st-lab">Menu display style</p><p class="st-sub">How the menu shows on the Counter. Tap one to use it.</p>
+              <div id="counter-style-options" class="theme-options counter-styles" role="radiogroup" aria-label="Menu display style"></div></div>
+            <div class="st-card"><p class="st-lab">Tiles per row</p><p class="st-sub">How many dishes in each row of the menu.</p>
+              <div id="settings-tiles-per-row" class="theme-options counter-styles tiles-options" role="radiogroup" aria-label="Tiles per row"></div></div>
+          </section>
+          <section class="settings-page" data-page="billing" data-title="Billing &amp; charges" hidden><div id="settings-billing" class="st-built"></div></section>
+          <section class="settings-page" data-page="kitchen" data-title="Kitchen" hidden><div id="settings-kitchen" class="st-built"></div></section>
+          <section class="settings-page" data-page="security" data-title="Staff &amp; security" hidden><div id="settings-security" class="st-built"></div></section>
           <section class="settings-page" data-page="wifi" data-title="Wi-Fi" hidden>
-            <div id="settings-wifi-slot" class="settings-group settings-device-slot"></div>
+            <div id="settings-wifi-slot" class="st-card settings-device-slot"></div>
           </section>
           <section class="settings-page" data-page="network" data-title="Network &amp; internet" hidden>
-            <div class="settings-group">
-              <div class="settings-item settings-status"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span><span class="settings-row-copy"><strong>Internet</strong><span id="settings-internet-status">Checking connection…</span></span><button id="settings-internet-check" class="bt-action" type="button">Check now</button></div>
-              <div class="settings-item settings-status"><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 16.5h.01M11 16.5h.01M8 13l-1.5-6M16 13l1.5-6"/></svg></span><span class="settings-row-copy"><strong>Connected through</strong><span id="settings-network-type">Not reported by this browser</span></span></div>
-              <div id="settings-mobile-row" class="settings-item settings-status" hidden><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-4M10 20v-8M15 20V8M20 20V4"/></svg></span><span class="settings-row-copy"><strong>Mobile network</strong><span id="settings-mobile-status">Not connected</span></span></div>
+            <div class="st-card st-rowcard">
+              <div class="st-row"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-language"/></svg></span><span class="st-row-copy"><strong>Internet</strong><span id="settings-internet-status">Checking connection…</span></span><button id="settings-internet-check" class="st-secondary" type="button">Check now</button></div>
+              <div class="st-row"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-wifi"/></svg></span><span class="st-row-copy"><strong>Connected through</strong><span id="settings-network-type">Not reported by this browser</span></span></div>
+              <div id="settings-mobile-row" class="st-row" hidden><span class="settings-row-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20v-4M10 20v-8M15 20V8M20 20V4"/></svg></span><span class="st-row-copy"><strong>Mobile network</strong><span id="settings-mobile-status">Not connected</span></span></div>
             </div>
-            <p class="settings-footnote">RESTRO checks the internet every 30 seconds and whenever the connection changes.</p>
+            <p class="st-foot">RESTRO checks the internet every 30 seconds and whenever the connection changes.</p>
           </section>
           <section class="settings-page" data-page="bluetooth" data-title="Bluetooth" hidden>
-            <div id="settings-bluetooth-slot" class="settings-group settings-device-slot"></div>
+            <div id="settings-bluetooth-slot" class="st-card settings-device-slot"></div>
           </section>
           <section class="settings-page" data-page="sync" data-title="Devices &amp; sync" hidden>
-            <div class="settings-group">
-              <div class="settings-item settings-field"><label for="sync-name">This tablet’s name</label><input id="sync-name" maxlength="30" autocomplete="off"></div>
-              <label class="settings-item settings-switch-row" for="sync-main"><span class="settings-row-copy"><strong>Main system</strong><span>The printers are connected to this tablet. The other tablets sync through it, with or without the internet.</span></span><input id="sync-main" class="settings-switch" type="checkbox" role="switch"></label>
-              <div id="sync-code-row" class="settings-item settings-status" hidden><span class="settings-row-copy"><strong>Pairing code</strong><span>Enter it once on each of the restaurant’s other tablets</span></span><output id="sync-code" class="sync-code"></output></div>
-              <form id="sync-pair-row" class="settings-item settings-field" hidden><label for="sync-pair-code">Pairing code from the main system</label><div class="sync-pair"><input id="sync-pair-code" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC-234"><button class="primary-button" type="submit">Pair</button></div><p id="sync-pair-note" class="field-note" role="status"></p></form>
+            <div class="st-card">
+              <p class="st-lab">This tablet</p><p class="st-sub">Its name, and whether the printers are connected to it.</p>
+              <div class="st-field"><label for="sync-name">This tablet’s name</label><input id="sync-name" maxlength="30" autocomplete="off"></div>
+              <div class="st-rows">
+                <label class="st-row" for="sync-main"><span class="st-row-copy"><strong>Main system</strong><span>The printers are connected to this tablet. The other tablets sync through it, with or without the internet.</span></span><input id="sync-main" class="st-switch" type="checkbox" role="switch"></label>
+                <div id="sync-code-row" class="st-row" hidden><span class="st-row-copy"><strong>Pairing code</strong><span>Enter it once on each of the restaurant’s other tablets.</span></span><output id="sync-code" class="sync-code"></output></div>
+              </div>
+              <form id="sync-pair-row" class="st-field" hidden><label for="sync-pair-code">Pairing code from the main system</label><div class="sync-pair"><input id="sync-pair-code" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC-234"><button class="st-primary" type="submit">Pair</button></div><p id="sync-pair-note" class="field-note" role="status"></p></form>
             </div>
-            <p class="settings-group-label">Status</p>
-            <div class="settings-group">
-              <div class="settings-item settings-status"><span class="settings-row-copy"><strong>Tablets nearby</strong><span id="sync-local-status">Starts in the RESTRO Android app</span></span></div>
-              <div class="settings-item settings-status"><span class="settings-row-copy"><strong>Cloud</strong><span id="sync-cloud-status">Not set up yet</span></span></div>
+            <div class="st-card st-rowcard"><p class="st-lab">Status</p>
+              <div class="st-row"><span class="st-row-copy"><strong>Tablets nearby</strong><span id="sync-local-status">Starts in the RESTRO Android app</span></span></div>
+              <div class="st-row"><span class="st-row-copy"><strong>Cloud</strong><span id="sync-cloud-status">Not set up yet</span></span></div>
             </div>
-            <p class="settings-footnote">Orders, held tickets, customers, staff and the restaurant’s details are shared by all of the restaurant’s tablets. Each tablet keeps its own theme, sounds and layouts.</p>
+            <div id="settings-printers" class="st-card st-rowcard"></div>
+            <p class="st-foot">Orders, held tickets, customers, staff and the restaurant’s details are shared by all of the restaurant’s tablets. Each tablet keeps its own theme, sounds, navigation and layouts.</p>
           </section>
-          <section class="settings-page" data-page="counter" data-title="Counter" hidden>
-            <p class="settings-group-label">Menu display style</p>
-            <div id="counter-style-options" class="theme-options counter-styles" role="radiogroup" aria-label="Menu display style"></div>
-            <p class="settings-group-label">Tiles per row</p>
-            <div id="settings-tiles-per-row" class="theme-options counter-styles" role="radiogroup" aria-label="Tiles per row"></div>
-          </section>
+          <section class="settings-page" data-page="printer" data-title="Printer" data-parent="sync" hidden><div id="settings-printer" class="st-built"></div></section>
           <section class="settings-page" data-page="display" data-title="Display" hidden>
-            <div class="settings-group">
-              <div class="settings-item settings-slider-row"><span class="settings-row-copy"><strong id="settings-brightness-label">Brightness</strong><span id="settings-brightness-value">100%</span></span><input id="settings-brightness-range" type="range" min="20" max="100" step="1" value="100" aria-labelledby="settings-brightness-label"></div>
+            <div class="st-card st-rowcard">
+              <div class="st-row st-slider"><span class="st-row-copy"><strong id="settings-brightness-label">Brightness</strong><span id="settings-brightness-value">100%</span></span><input id="settings-brightness-range" type="range" min="20" max="100" step="1" value="100" aria-labelledby="settings-brightness-label"></div>
+              <button class="st-row st-link" type="button" data-open="navigation"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-swipe-up"/></svg></span><span class="st-row-copy"><strong>Navigation</strong><span id="settings-navigation-summary">Swipe gestures · Go dark after 5 min</span></span><svg class="ms st-chev" aria-hidden="true"><use href="#ms-chevron-right"/></svg></button>
             </div>
-            <p class="settings-footnote">Brightness is also in quick controls. Pull down from the top banner.</p>
-            <p class="settings-group-label">Battery</p>
-            <div id="settings-battery-styles" class="settings-group battery-styles" role="radiogroup" aria-label="Battery"></div>
-            <p class="settings-group-label">Theme</p>
-            <div id="settings-themes" class="settings-themes">
-            <p class="theme-description">Choose a look for the home screen, then tap Apply theme.</p>
-            <div id="theme-options" class="theme-options" role="radiogroup" aria-label="Home screen themes"></div>
-            <p class="settings-group-label theme-background-label">Home screen background</p>
-            <div id="home-background-options" class="theme-options background-options" role="radiogroup" aria-label="Home screen background"></div>
-            <div class="theme-apply-row"><div><strong id="theme-selection-name">White</strong><p id="theme-apply-status" class="field-note" role="status" aria-live="polite">Current theme</p></div><button id="theme-apply" class="primary-button" type="button" disabled>Apply theme</button></div>
+            <p class="st-foot">Brightness is also in quick controls. Pull down from the top banner.</p>
+            <div class="st-card"><p class="st-lab">Battery</p><p class="st-sub">How the battery shows in the top bar.</p>
+              <div id="settings-battery-styles" class="battery-styles st-opts" role="radiogroup" aria-label="Battery"></div></div>
+            <div id="settings-themes" class="st-card settings-themes">
+              <p class="st-lab">Theme</p><p class="st-sub theme-description">Choose a look for the home screen, then tap Apply theme.</p>
+              <div id="theme-options" class="theme-options" role="radiogroup" aria-label="Home screen themes"></div>
+              <p class="st-lab theme-background-label">Home screen background</p>
+              <div id="home-background-options" class="theme-options background-options" role="radiogroup" aria-label="Home screen background"></div>
+              <div class="theme-apply-row"><div><strong id="theme-selection-name">White</strong><p id="theme-apply-status" class="field-note" role="status" aria-live="polite">Current theme</p></div><button id="theme-apply" class="st-primary" type="button" disabled>Apply theme</button></div>
             </div>
           </section>
+          <section class="settings-page" data-page="navigation" data-title="Navigation" data-parent="display" hidden><div id="settings-navigation" class="st-built"></div></section>
           <section class="settings-page" data-page="sound" data-title="Sound" hidden>
-            <div class="settings-group">
-              <div class="settings-item settings-slider-row"><span class="settings-row-copy"><strong id="settings-volume-label">Volume</strong><span id="settings-volume-value">70%</span></span><div class="settings-slider-line"><svg class="volume-glyph slider-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path class="volume-wave" d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/><path class="volume-mute" d="m16 9.5 5 5m0-5-5 5"/></svg><input id="settings-volume-range" type="range" min="0" max="100" step="1" value="70" aria-labelledby="settings-volume-label"></div></div>
-              <label class="settings-item settings-switch-row" for="settings-touch-sounds"><span class="settings-row-copy"><strong>Touch sounds</strong><span>A soft click when you tap buttons and switches</span></span><input id="settings-touch-sounds" class="settings-switch" type="checkbox" role="switch"></label>
+            <div class="st-card st-rowcard">
+              <div class="st-row st-slider"><span class="st-row-copy"><strong id="settings-volume-label">Volume</strong><span id="settings-volume-value">70%</span></span><div class="settings-slider-line"><svg class="volume-glyph slider-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path class="volume-wave" d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/><path class="volume-mute" d="m16 9.5 5 5m0-5-5 5"/></svg><input id="settings-volume-range" type="range" min="0" max="100" step="1" value="70" aria-labelledby="settings-volume-label"></div></div>
+              <label class="st-row" for="settings-touch-sounds"><span class="st-row-copy"><strong>Touch sounds</strong><span>A soft click when you tap buttons and switches.</span></span><input id="settings-touch-sounds" class="st-switch" type="checkbox" role="switch"></label>
             </div>
-            <p class="settings-group-label">Touch sound</p>
-            <div id="settings-touch-styles" class="settings-group touch-styles" role="radiogroup" aria-label="Touch sound"></div>
-                      </section>
+            <div class="st-card"><p class="st-lab">Touch sound</p><p class="st-sub">Tap one to hear it.</p>
+              <div id="settings-touch-styles" class="touch-styles st-opts" role="radiogroup" aria-label="Touch sound"></div></div>
+          </section>
         </div>
       </section>
     </div>
