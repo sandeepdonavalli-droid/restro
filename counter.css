@@ -175,7 +175,15 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-b.amber{background:#FDE9B8;color:#7A4A00}
 .cx-b.violet{background:#EDE7FE;color:#5B21B6}
 .cx-b.white{background:#FFFFFF;color:#1C1917}
-.cx-b.print{padding:0;background:#E3ECFC;color:#2F6FDE;box-shadow:inset 0 0 0 1.5px #C5D6F6} /* Print bill: the light blue tint */
+/* Print bill (Counter Update 5): the bill printer's paper left, as a light blue #C9DCFB that drains from the top (white
+   above it), edge #9DBCF2, the printer #1E5BD6; 20% or less: the whole button amber #FCD58A (edge #E9B44C, #92400E);
+   out of paper: red #FCA5A5 (edge #EF8080, #B91C1C) with a red "!" 18 at its top right; printer offline: grey #E2E5EA
+   (edge #C9CED6), the printer crossed out #78716C */
+.cx-b.print{position:relative;padding:0;background:linear-gradient(to top,#C9DCFB 0%,#C9DCFB var(--paper,100%),#FFFFFF var(--paper,100%),#FFFFFF 100%);color:#1E5BD6;box-shadow:inset 0 0 0 1.5px #9DBCF2}
+.cx-b.print.low{background:#FCD58A;color:#92400E;box-shadow:inset 0 0 0 1.5px #E9B44C}
+.cx-b.print.out{background:#FCA5A5;color:#B91C1C;box-shadow:inset 0 0 0 1.5px #EF8080}
+.cx-b.print.off{background:#E2E5EA;color:#78716C;box-shadow:inset 0 0 0 1.5px #C9CED6}
+.cx-paper-out{position:absolute;top:calc(5 * var(--u));right:calc(5 * var(--u));width:calc(15 * var(--u));height:calc(15 * var(--u));border-radius:50%;display:flex;align-items:center;justify-content:center;background:#B91C1C;color:#FFFFFF;font-size:calc(10 * var(--u));font-weight:800;line-height:1}
 .cx-b:disabled{color:#A8A29E;cursor:default}
 .cx-b:active:not(:disabled),.cx-chip:active:not(:disabled){transform:scale(.97)}
 /* The four order types, two by two over the context row and the header, above the dimmed screen */
@@ -219,6 +227,8 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 @keyframes cx-added{from{background:#EAEFF8}}
 .cx-nm{grid-row:1;align-self:center;min-width:0;font-size:calc(16 * var(--u));font-weight:600;line-height:normal;overflow-wrap:anywhere}
 .cx-nm-btn{display:block;width:100%;margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+/* A custom item's grey CUSTOM tag after its name (Update 5): 26.4 tall, 13.2/700 #57534E on #ECEEF2, 9.6 after it */
+.cx-ctag{display:inline-flex;align-items:center;height:calc(22 * var(--u));box-sizing:border-box;margin-left:calc(8 * var(--u));padding:0 calc(8 * var(--u));border-radius:99px;background:#ECEEF2;color:#57534E;font-size:calc(11 * var(--u));font-weight:700;line-height:normal;letter-spacing:.02em;vertical-align:calc(2 * var(--u));white-space:nowrap}
 /* − and + plain (22 glyphs on 40 tap areas, a #EEF0F4 circle only while pressed); the quantity blue #2F6FDE, 16/700 */
 .cx-stp{grid-row:1;display:flex;align-items:center}
 .cx-stp>.cx-sb{width:calc(40 * var(--u));height:calc(40 * var(--u));margin:0;padding:0;border:0;border-radius:999px;display:flex;align-items:center;justify-content:center;background:transparent;color:#1C1917;cursor:pointer}
@@ -289,14 +299,27 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-tb{flex:none;display:flex;align-items:center;gap:calc(10 * var(--u))}
 .cx-mb{flex:none;width:calc(52 * var(--u));height:calc(52 * var(--u));margin:0;padding:0;border:0;border-radius:calc(18 * var(--u));display:flex;align-items:center;justify-content:center;background:#2F6FDE;color:#FFFFFF;box-shadow:0 calc(4 * var(--u)) calc(10 * var(--u)) rgba(47,111,222,.25);cursor:pointer} /* Update 3: the blue of Pay */
 .cx-mb.lifted{position:relative;z-index:50} /* above the dimmed screen, as it is (Update 3: no ring) */
-.cx-sr{flex:1;min-width:0;height:calc(52 * var(--u));box-sizing:border-box;display:flex;align-items:center;gap:calc(10 * var(--u));padding:0 calc(18 * var(--u));border-radius:999px;background:#FFFFFF;color:#615C57;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:text}
+/* Update 5: search, Held, Orders, Payment history and sync 52 tall (43.33 of the design's), text 16 (search 16.8), icons
+   20.4 (search 24), the same white, edge and shadow, centred on the menu button */
+.cx-sr{flex:1;min-width:0;height:calc(43.33 * var(--u));box-sizing:border-box;display:flex;align-items:center;gap:calc(10 * var(--u));padding:0 calc(18 * var(--u));border-radius:999px;background:#FFFFFF;color:#615C57;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:text}
 .cx-sr:focus-within{box-shadow:inset 0 0 0 2px #1E5BD6,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
-.cx-sr input{flex:1;min-width:0;height:100%;margin:0;padding:0;border:0;background:transparent;color:#1C1917;font:inherit;font-size:calc(16 * var(--u));outline:none}
+.cx-sr input{flex:1;min-width:0;height:100%;margin:0;padding:0;border:0;background:transparent;color:#1C1917;font:inherit;font-size:calc(14 * var(--u));outline:none}
 .cx-shell .cx-sr input:focus-visible{outline:none}
 .cx-sr input::placeholder{color:#615C57;opacity:1}
 .cx-sr input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:calc(18 * var(--u));height:calc(18 * var(--u));margin:0;cursor:pointer;background:#A8A29E;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'/%3E%3C/svg%3E") center/contain no-repeat}
-.cx-tc{flex:none;height:calc(52 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(18 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;gap:calc(8 * var(--u));background:#FFFFFF;color:#1C1917;font-size:calc(15 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:pointer}
-.cx-mb:active,.cx-tc:active{transform:scale(.97)}
+.cx-tc{flex:none;height:calc(43.33 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(15 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;gap:calc(7 * var(--u));background:#FFFFFF;color:#1C1917;font-size:calc(13.33 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:pointer}
+/* The sync button: round, white like Held; syncing #E3ECFC edged #C5D6F6, the arrows #2F6FDE turning (1 s a turn);
+   synced #DCFCE7, a cloud with a tick #15803D (2 s); changes waiting #FEF3C7, the arrows #92400E and their number on an
+   amber #D97706 badge (12.6/800 white, edged #F3F4F7) at its top right; offline #EEF0F3, the crossed-out cloud #78716C */
+.cx-sync{position:relative;flex:none;width:calc(43.33 * var(--u));height:calc(43.33 * var(--u));margin:0;padding:0;border:0;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05);cursor:pointer}
+.cx-sync.syncing{background:#E3ECFC;color:#2F6FDE;box-shadow:inset 0 0 0 1px #C5D6F6,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
+.cx-sync.syncing svg{animation:cx-spin 1s linear infinite}
+@keyframes cx-spin{to{transform:rotate(-360deg)}}
+.cx-sync.synced{background:#DCFCE7;color:#15803D;box-shadow:inset 0 0 0 1px #A7E3BC,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
+.cx-sync.pending{background:#FEF3C7;color:#92400E;box-shadow:inset 0 0 0 1px #F5D58A,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
+.cx-sync.offline{background:#EEF0F3;color:#78716C;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
+.cx-sync-n{position:absolute;top:calc(-5 * var(--u));right:calc(-5 * var(--u));min-width:calc(18 * var(--u));height:calc(18 * var(--u));box-sizing:border-box;padding:0 calc(5 * var(--u));border:calc(2 * var(--u)) solid #F3F4F7;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#D97706;color:#FFFFFF;font-size:calc(10.5 * var(--u));font-weight:800;line-height:1}
+.cx-mb:active,.cx-tc:active,.cx-sync:active{transform:scale(.97)}
 /* The three-line menu: 340 wide, 14 below the button; options 64 tall (Print bill, Highlight order, Delete order) */
 .cx-pop{position:absolute;left:0;top:calc(66 * var(--u));z-index:50;width:calc(340 * var(--u));box-sizing:border-box;padding:calc(10 * var(--u));border-radius:calc(24 * var(--u));display:flex;flex-direction:column;background:#FFFFFF;box-shadow:0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(0,0,0,.08),0 calc(18 * var(--u)) calc(40 * var(--u)) rgba(0,0,0,.28);animation:cx-pop .16s ease-out;transform-origin:calc(26 * var(--u)) 0}
 @keyframes cx-pop{from{opacity:0;transform:scale(.94)}}
@@ -315,9 +338,10 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-scroll{flex:1;min-height:0;margin:calc(-12 * var(--u)) calc(-20 * var(--u)) calc(-10 * var(--u));padding:calc(12 * var(--u)) calc(20 * var(--u)) calc(10 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
 .cx-scroll::-webkit-scrollbar{display:none}
 .cx-h{flex:none;margin:calc(24 * var(--u)) calc(4 * var(--u)) calc(14 * var(--u));font-size:calc(20 * var(--u));font-weight:700;line-height:normal}
-/* Pills on top (the default): category pills 56 tall, 10 apart, wrapping; the selected one dark */
+/* Pills on top (the default): category pills 72 tall (Update 5: 60 of the design's), 19.8 bold, 28.8 each side, 10 apart,
+   wrapping; the selected one dark */
 .cx-pills{flex:none;display:flex;flex-wrap:wrap;gap:calc(10 * var(--u));margin:calc(18 * var(--u)) 0 calc(16 * var(--u))}
-.cx-pl{flex:none;height:calc(56 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(22 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font-size:calc(15 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08);cursor:pointer}
+.cx-pl{flex:none;height:calc(60 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(24 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font-size:calc(16.5 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08);cursor:pointer}
 .cx-pl.on{background:#1C1917;color:#FFFFFF;box-shadow:none}
 .cx-pl:active{transform:scale(.97)}
 /* Items: cards 108 tall, radius 22, three across (two beside the rail), 12 apart */
@@ -332,6 +356,14 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-card em::after{content:"";position:absolute;inset:calc(2 * var(--u));border-radius:99px;background:currentColor}
 .cx-card em.veg{color:#16A34A}
 .cx-card em.non{color:#B91C1C}
+/* Add item (Update 5), first: as big as a dish card, a soft blue bloom from its middle (#F4F8FF to white), a faint blue
+   edge and shadow; centred, 12 apart, a round + 48 (#EEF4FF, #2F6FDE) and "Add item" 20.4/700 over "Custom · Starters"
+   15.6/600 #78716C */
+.cx-card.cx-addt{flex-direction:row;justify-content:center;align-items:center;gap:calc(12 * var(--u));background:radial-gradient(120% 90% at 50% 50%,#F4F8FF 0%,#FFFFFF 70%);box-shadow:inset 0 0 0 1px rgba(47,111,222,.10),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(47,111,222,.08)}
+.cx-addt>i{flex:none;width:calc(40 * var(--u));height:calc(40 * var(--u));border-radius:99px;display:flex;align-items:center;justify-content:center;background:#EEF4FF;color:#2F6FDE;box-shadow:inset 0 0 0 1px rgba(47,111,222,.15)}
+.cx-card .cx-addt-t{min-width:0;display:block;margin:0;font-size:inherit;color:#1C1917}
+.cx-card .cx-addt-t b{display:block}
+.cx-card .cx-addt-t small{display:block;margin-top:calc(2 * var(--u));font-size:calc(13 * var(--u));font-weight:600;line-height:normal;color:#78716C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Category grid: "All categories", then tiles 112 tall, three across, 14 apart: the food icon on a 10% tint of the
    category's colour, the name 19/700 and the count 13 grey */
 .cx-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(14 * var(--u));align-content:start}
@@ -349,11 +381,12 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-crumb i{flex:none;width:calc(4 * var(--u));height:calc(28 * var(--u));border-radius:calc(4 * var(--u))}
 .cx-crumb b{font-size:calc(22 * var(--u));font-weight:800;line-height:normal}
 .cx-crumb .cnt{margin-left:calc(-4 * var(--u));padding-top:calc(4 * var(--u));font-size:calc(14 * var(--u));line-height:normal;color:#615C57}
-/* Vertical rail: the category pills down the left (196 wide; it scrolls), 16 from the items, two across */
+/* Vertical rail: the category pills down the left (Update 5: 247.2 wide, pills 72 tall, 24 each side; it scrolls), 16
+   from the items, two across */
 .cx-split{flex:1;min-height:0;display:flex;gap:calc(16 * var(--u));margin-top:calc(18 * var(--u))}
-.cx-rail{flex:none;width:calc(196 * var(--u));display:flex;flex-direction:column;gap:calc(10 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
+.cx-rail{flex:none;width:calc(206 * var(--u));display:flex;flex-direction:column;gap:calc(10 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
 .cx-rail::-webkit-scrollbar{display:none}
-.cx-rail .cx-pl{justify-content:flex-start;padding:0 calc(18 * var(--u))}
+.cx-rail .cx-pl{justify-content:flex-start;padding:0 calc(20 * var(--u))}
 .cx-split .cx-scroll{margin-left:calc(-16 * var(--u));padding-left:calc(16 * var(--u))}
 /* Rearranging (hold a category or an item): they jiggle; the one held follows the finger, its place left empty. It is
    the tile itself, a little larger, with nothing around it: no extra shadow, frame or square (as on the home screen). */
@@ -384,7 +417,12 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-layer-order{position:absolute;left:0;top:0;bottom:0;width:calc(532 * var(--u))}
 .cx-layer-menu{position:absolute;left:calc(532 * var(--u));right:0;top:0;bottom:0;background:rgba(15,23,42,.38)}
 .cx-pu{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;border-radius:calc(28 * var(--u));background:#F3F4F7;box-shadow:0 calc(30 * var(--u)) calc(80 * var(--u)) rgba(15,23,42,.35)}
-.cx-pu-head{flex:none}
+/* The top row (Update 5): the dish (or the custom item's title) and the ✕, 16 apart, at least 52 tall; the ✕ 52 round,
+   raised white (a fine edge and a soft shadow), its cross 26 #1C1917: 26 from the right and 24 from the top on every
+   pop-up. A tap on it closes the pop-up with no changes (counter.js). */
+.cx-pu-head{flex:none;display:flex;align-items:center;justify-content:space-between;gap:calc(16 * var(--u));min-height:calc(52 * var(--u))}
+.cx-x{flex:none;width:calc(52 * var(--u));height:calc(52 * var(--u));margin:0;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(6 * var(--u)) calc(14 * var(--u)) rgba(15,23,42,.08);cursor:pointer}
+.cx-x:active{background:#EEF0F4}
 .cx-pu-dish{display:flex;align-items:center;gap:calc(10 * var(--u));min-width:0}
 .cx-pu-dish em{flex:none;width:calc(20 * var(--u));height:calc(20 * var(--u));box-sizing:border-box;border:calc(2 * var(--u)) solid currentColor;border-radius:calc(3 * var(--u));display:flex;align-items:center;justify-content:center}
 .cx-pu-dish em::after{content:"";width:calc(9 * var(--u));height:calc(9 * var(--u));border-radius:50%;background:currentColor}
@@ -401,8 +439,8 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
    stay. A group: its title 17/700 and a badge 24 tall 12/700 ("Required · pick 1" amber, "Optional" grey; red while a
    required group is left empty, with "Choose a spice level to continue" 15/700 red), 10 apart; then its choices, 12
    apart: 1-3 choices a third of the row each, 4 or more a quarter each, four to a row. A choice: 84 tall, radius 22,
-   17/700, its add-on price under its name the same; chosen: amber (spice level, a required group) or light blue, with
-   a check. The bottom row, 20 apart: the note on a line (13/600 "Note", then the pen and the note 17 on a 1.5 grey
+   17/700, its add-on price under its name the same; chosen: light blue with a check (Update 5: spice level too; amber
+   is no longer used for a choice here). The bottom row, 20 apart: the note on a line (13/600 "Note", then the pen and the note 17 on a 1.5 grey
    underline) · round - and + 52 (raised) with the number 24/800 blue between · Done 220 wide. */
 .cx-pu.mods{left:calc(574 * var(--u));width:calc(1004 * var(--u));max-height:calc(775 * var(--u))}
 .cx-pu.mods>.cx-pu-head{padding:calc(24 * var(--u)) calc(26 * var(--u)) calc(14 * var(--u))}
@@ -422,8 +460,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-mo-t{min-width:0;display:flex;flex-direction:column;align-items:center;gap:calc(2 * var(--u))}
 .cx-mo-t>*{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .cx-mo small{font-size:calc(17 * var(--u));font-weight:700}
-.cx-mo.on.sp{background:#FFF1CC;color:#7A4A00;box-shadow:inset 0 0 0 1.5px #EDC266,0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.08)}
-.cx-mo.on.nn{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 1.5px #9DBCF2,0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.08)}
+.cx-mo.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 1.5px #9DBCF2,0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.08)}
 .cx-mo.err{background:#FFF7F7;box-shadow:inset 0 0 0 1.5px #F5A3A3,0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.08)}
 .cx-mo:active{transform:scale(.98)}
 .cx-pu-foot{flex:none;display:flex;align-items:center;gap:calc(20 * var(--u));padding:calc(8 * var(--u)) calc(26 * var(--u)) calc(22 * var(--u))}
@@ -432,7 +469,14 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-nl-line{display:flex;align-items:center;gap:calc(8 * var(--u));padding:calc(6 * var(--u)) calc(2 * var(--u)) calc(10 * var(--u));border-bottom:calc(1.5 * var(--u)) solid #C9CED6;font-size:calc(17 * var(--u));line-height:normal;color:#1C1917}
 .cx-nl-line .cx-i{color:#615C57}
 .cx-nl-line>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cx-nl-line.empty>span{color:#615C57}
+/* Update 5: with no note the line is soft red #F0A8A8 and 2.16 (a hint only: a note is never needed) and "Type
+   special instructions here" grey #9A948F. A custom item's note line: 2.16 grey with a note, 2.88 blue #2F6FDE while it
+   has the keyboard (the line widths as drawn) */
+.cx-nl-line>.cx-tf{overflow:visible}
+.cx-nl-line.empty{border-bottom:calc(1.8 * var(--u)) solid #F0A8A8}
+.cx-nl-line.empty>span{color:#9A948F}
+.cx-cu-foot .cx-nl-line{border-bottom-width:calc(1.8 * var(--u))}
+.cx-cu-foot .cx-nl-line.on{border-bottom:calc(2.4 * var(--u)) solid #2F6FDE}
 .cx-rs{flex:none;display:flex;align-items:center;gap:calc(10 * var(--u))}
 .cx-rb{flex:none;width:calc(52 * var(--u));height:calc(52 * var(--u));margin:0;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(6 * var(--u)) calc(14 * var(--u)) rgba(15,23,42,.08);cursor:pointer}
 .cx-rb:active{background:#EEF0F4}
@@ -444,10 +488,13 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-pu.qty{left:calc(620 * var(--u));top:50%;width:calc(560 * var(--u));padding:calc(24 * var(--u)) calc(26 * var(--u));transform:translateY(-50%)}
 .cx-pu.qty>.cx-pu-head{margin-bottom:calc(16 * var(--u))}
 .cx-qd{height:calc(96 * var(--u));margin-bottom:calc(16 * var(--u));border-radius:calc(22 * var(--u));display:flex;align-items:center;justify-content:center;background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08);color:#2F6FDE;font-size:calc(52 * var(--u));font-weight:800;line-height:normal}
-.cx-qd i{flex:none;width:calc(3 * var(--u));height:calc(48 * var(--u));margin-left:calc(4 * var(--u));border-radius:calc(2 * var(--u));background:#2F6FDE}
+.cx-qd i{flex:none;width:calc(3 * var(--u));height:calc(48 * var(--u));margin-left:calc(4 * var(--u));border-radius:calc(2 * var(--u));background:#2F6FDE;animation:cx-blink 1.06s step-end infinite}
+/* The cursor blinks (Update 5): on 530 ms, off 530 ms, no fading */
+@keyframes cx-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 .cx-qk{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(12 * var(--u))}
 .cx-key{height:calc(76 * var(--u));margin:0;padding:0;border:0;border-radius:calc(22 * var(--u));display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#1C1917;font-size:calc(26 * var(--u));font-weight:700;line-height:normal;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.08);cursor:pointer}
 .cx-key.fn{font-size:calc(17 * var(--u));color:#44403C}
+.cx-qk[hidden]{display:none}
 .cx-key:active{background:#EEF0F4}
 
 /* Note: 940 wide, 88 from the order, centred on the menu; while the note line has the keyboard, 14 from the top (above
@@ -455,24 +502,89 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
    note line: "Note" 13/600, then the pen 22 and the note 18 (line 1.45) on a 1.5 grey underline. "Quick notes" 13/600,
    then the chips, 10 apart: raised white pills 56 tall, 16/700, 20 each side; light blue while their words are in the
    note. Under them "Clear note" 16/700 grey ........ Done. */
-.cx-pu.note{left:calc(620 * var(--u));top:50%;width:calc(940 * var(--u));padding:calc(22 * var(--u)) calc(26 * var(--u));transform:translateY(-50%)}
+.cx-pu.note{left:calc(620 * var(--u));top:50%;width:calc(940 * var(--u));padding:calc(24 * var(--u)) calc(26 * var(--u)) calc(22 * var(--u));transform:translateY(-50%)}
 .cx-pu.note.typing{top:calc(14 * var(--u));transform:none}
 .cx-pu.note>.cx-pu-head{margin-bottom:calc(18 * var(--u))}
 .cx-nf{display:block;cursor:text}
 .cx-nf-label{display:block;margin:0 0 calc(6 * var(--u)) calc(2 * var(--u));font-size:calc(13 * var(--u));font-weight:600;line-height:normal;color:#615C57}
-.cx-nf-line{display:flex;align-items:flex-start;gap:calc(10 * var(--u));padding:calc(4 * var(--u)) calc(2 * var(--u)) calc(10 * var(--u));border-bottom:calc(1.5 * var(--u)) solid #C9CED6;font-size:calc(18 * var(--u));line-height:1.45}
-.cx-pu.note.typing .cx-nf-line{border-bottom:calc(2 * var(--u)) solid #2F6FDE}
+.cx-nf-line{display:flex;align-items:flex-start;gap:calc(10 * var(--u));padding:calc(4 * var(--u)) calc(2 * var(--u)) calc(10 * var(--u));border-bottom:calc(1.8 * var(--u)) solid #C9CED6;font-size:calc(18 * var(--u));line-height:1.45}
+/* Update 5: 2.16 grey with words on it, soft red while empty; blue and 2.4 while it has the keyboard */
+.cx-nf-line.empty{border-bottom-color:#F0A8A8}
+.cx-nf-line.on{border-bottom:calc(2 * var(--u)) solid #2F6FDE}
 .cx-nf-line .cx-i{color:#615C57}
-.cx-nf-line input{flex:1;min-width:0;height:1.45em;box-sizing:content-box;margin:0;padding:0;border:0;border-radius:0;outline:none;background:none;color:#1C1917;font:inherit;line-height:inherit;caret-color:#2F6FDE}
-.ctr-root .cx-nf-line input:focus-visible{outline:none}
+/* A line typed on (Update 5): the words; the grey hint #9A948F while it is empty (after the cursor while it has the
+   keyboard); our cursor: 2.4 wide, 26.4 tall, blue #2F6FDE, blinking, after the words (1.2 on) or at the start */
+.cx-tf{position:relative;flex:1;min-width:0;display:block;line-height:inherit}
+.cx-tf input{display:block;width:100%;height:auto;box-sizing:border-box;margin:0;padding:0;border:0;border-radius:0;outline:none;background:none;color:#1C1917;font:inherit;line-height:inherit;caret-color:transparent}
+.cx-nf-line .cx-tf input{height:1.45em}
+.ctr-root .cx-tf input:focus-visible{outline:none}
+.cx-tf input::selection{background:#CFE0FB}
+.cx-hint{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;color:#9A948F;white-space:nowrap;pointer-events:none;visibility:hidden}
+.cx-tf.empty .cx-hint{visibility:visible}
+.cx-tf.on .cx-hint{left:calc(6 * var(--u))}
+.cx-cur{position:absolute;left:var(--x,0px);top:50%;width:calc(2 * var(--u));height:calc(22 * var(--u));margin-top:calc(-11 * var(--u));background:#2F6FDE;pointer-events:none;animation:cx-blink 1.06s step-end infinite}
+.cx-tf:not(.empty) .cx-cur{margin-left:calc(1 * var(--u))}
+.cx-nf-line .cx-cur{top:calc(1.17 * var(--u));margin-top:0} /* (where the design's sits on the words' baseline) */
+.cx-nl-line .cx-cur{top:calc(-1.53 * var(--u));margin-top:0}
+.cx-cur[hidden]{display:none}
+.cx-ruler{position:absolute;left:0;top:0;visibility:hidden;white-space:pre;pointer-events:none}
 .cx-nf-q{margin:calc(18 * var(--u)) calc(2 * var(--u)) calc(10 * var(--u));font-size:calc(13 * var(--u));font-weight:600;line-height:normal;color:#615C57}
 .cx-qn{display:flex;flex-wrap:wrap;gap:calc(10 * var(--u))}
 .cx-pu.note.typing .cx-qn{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
 .cx-pu.note.typing .cx-qn::-webkit-scrollbar{display:none}
-.cx-qn-chip{flex:none;height:calc(56 * var(--u));margin:0;padding:0 calc(20 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font-size:calc(16 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(6 * var(--u)) calc(14 * var(--u)) rgba(15,23,42,.07);cursor:pointer}
+.cx-qn-chip{flex:none;max-width:100%;height:calc(56 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(20 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font-size:calc(16 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(6 * var(--u)) calc(14 * var(--u)) rgba(15,23,42,.07);cursor:pointer}
 .cx-qn-chip.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 1.5px #9DBCF2,0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08)}
+.cx-qn-t{min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* Update 5: "+ Add" first: blue #2F6FDE, white words, a blue shadow, the + 22 and "Add" 6 apart; grey words #9A948F on
+   white (only a fine edge) while there is nothing new to add. A pinned note: a pin 18 #615C57 before its words, 6
+   apart. A new note (its first 15 days): edged blue #9DBCF2, "NEW" 13.2/800 #2F6FDE 8 after its words. */
+.cx-qn-chip.add{gap:calc(6 * var(--u));background:#2F6FDE;color:#FFFFFF;box-shadow:0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(47,111,222,.25)}
+.cx-qn-chip.add.off{background:#FFFFFF;color:#9A948F;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08);cursor:default}
+.ctr-root svg.cx-pin{flex:none;width:calc(18 * var(--u));height:calc(18 * var(--u));margin-right:calc(6 * var(--u));fill:#615C57}
+.cx-qn-chip.new{box-shadow:inset 0 0 0 1.5px #9DBCF2,0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(6 * var(--u)) calc(14 * var(--u)) rgba(15,23,42,.07)}
+.cx-new{flex:none;margin-left:calc(8 * var(--u));font-size:calc(11 * var(--u));font-weight:800;letter-spacing:.04em;color:#2F6FDE}
 .cx-nf-foot{display:flex;align-items:center;justify-content:space-between;margin-top:calc(20 * var(--u))}
 .cx-clear{margin:0;padding:0 calc(6 * var(--u));border:0;background:none;color:#615C57;font-size:calc(16 * var(--u));font-weight:700;line-height:normal;cursor:pointer}
+
+/* A custom item (Update 5): 940 wide, 88 from the order, centred on the menu (2.4 lower, as drawn); while its name or
+   note has the keyboard, 14 from the top (above the keyboard). Its top row: a white circle 40 (a fine edge) with a blue
+   + 24, "Add custom item" 24/800 and the category's badge, 12 apart; ✕. "Item name · optional": a line typed on 18
+   ("Custom item" grey while empty). 18 under it, two halves 14 apart: "Veg / Non-veg · optional" 13/600 over two raised
+   buttons 91.2 tall (12 apart; the mark 18 and the word 17/700; the one chosen light blue), and "Price (each) ·
+   required" over a raised field as tall (₹ #78716C 700, the price 26/800, "Enter price" 20/600 grey; edged blue 2.4
+   while our number pad is open). 20 under them, the note's line (under a pen 20) beside − 1 +, 20 apart. While the
+   price is typed: our number pad, keys 79.2 tall, 20 under them. The button, 20 under, the whole width. */
+.cx-pu.custom{left:calc(620 * var(--u));top:50%;width:calc(940 * var(--u));padding:calc(24 * var(--u)) calc(26 * var(--u)) calc(20 * var(--u));transform:translateY(calc(-50% + 2 * var(--u)))}
+.cx-pu.custom.typing{top:calc(14 * var(--u));transform:none}
+.cx-cu-title{min-width:0;display:flex;align-items:center;gap:calc(12 * var(--u))}
+.cx-cu-title>i{flex:none;width:calc(40 * var(--u));height:calc(40 * var(--u));border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#2F6FDE;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10)}
+.cx-cu-title>b{min-width:0;font-size:calc(24 * var(--u));font-weight:800;line-height:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-pu.custom>.cx-nf{margin-top:calc(18 * var(--u))}
+.cx-cu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(14 * var(--u));margin-top:calc(18 * var(--u))}
+.cx-lab3{display:block;margin:0 calc(2 * var(--u)) calc(8 * var(--u));font-size:calc(13 * var(--u));font-weight:600;line-height:normal;color:#615C57}
+.cx-vn-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(12 * var(--u))}
+.cx-vn,.cx-pf{height:calc(76 * var(--u));box-sizing:border-box;margin:0;border:0;border-radius:calc(22 * var(--u));display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font-family:inherit;line-height:normal;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.08);cursor:pointer}
+.cx-vn{min-width:0;padding:0 calc(10 * var(--u));justify-content:center;gap:calc(12 * var(--u));font-size:calc(17 * var(--u));font-weight:700;white-space:nowrap}
+.cx-vn em{flex:none;width:calc(18 * var(--u));height:calc(18 * var(--u));box-sizing:border-box;border:calc(2 * var(--u)) solid currentColor;border-radius:calc(3 * var(--u));display:flex;align-items:center;justify-content:center}
+.cx-vn em::after{content:"";width:calc(8 * var(--u));height:calc(8 * var(--u));border-radius:50%;background:currentColor}
+.cx-vn.veg em{color:#16A34A}
+.cx-vn.non em{color:#B91C1C}
+.cx-vn.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 1.5px #9DBCF2}
+.cx-vn:active{transform:scale(.98)}
+.cx-pf{width:100%;padding:0 calc(20 * var(--u));gap:calc(8 * var(--u));font-size:calc(26 * var(--u));font-weight:800;text-align:left}
+.cx-pf-r{flex:none;color:#78716C;font-weight:700}
+.cx-pf-v{min-width:0;white-space:nowrap}
+.cx-pf.empty .cx-pf-v{font-size:calc(20 * var(--u));font-weight:600;color:#9A948F}
+.cx-pf.focus{box-shadow:inset 0 0 0 calc(2 * var(--u)) #2F6FDE,0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08)}
+.cx-pf .cx-cur{position:static;flex:none;margin:0 0 0 calc(1 * var(--u))}
+.cx-pf.empty .cx-cur{order:-1;margin:0 calc(4 * var(--u)) 0 0}
+.cx-pf.empty .cx-pf-r{order:-2}
+.cx-cu-foot{display:flex;align-items:center;gap:calc(20 * var(--u));margin-top:calc(20 * var(--u))}
+.cx-cu-foot .cx-nl{cursor:text}
+.cx-cu-foot .cx-nl-line{display:flex}
+.cx-qk.cx-pp{margin-top:calc(20 * var(--u))}
+.cx-qk.cx-pp .cx-key{height:calc(66 * var(--u))}
+.cx-pu.custom>.cx-done.wide{margin-top:calc(20 * var(--u))}
 
 /* ---------- Print bill (a browser's printing; the Android app prints it itself) ---------- */
 #print-bill{display:none}

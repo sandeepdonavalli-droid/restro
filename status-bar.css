@@ -3,8 +3,8 @@
    home theme's colours (the --bar-* values, launcher.css): solid white in White, white glass in Sea breeze, dark glass
    with white text in Aurora; over an open app the same bar in the same sizes (White's, Sea breeze's, or Aurora's dark
    one, solid #394147). Left: the restaurant's mark (the first letter of its name, 36 square, radius 10.8, 18 bold), its
-   name (21.6 bold), then the date and time (18.6 bold). Right, 14.4 apart: our status icons as the tablet reports them (Bluetooth, Wi-Fi, signal,
-   battery: they work as before), the Online pill (38.4 high, grey with a fine edge, a 10.8 dot: green online, grey
+   name (21.6 bold), then the date and time (18.6 bold). Right, 14.4 apart: our status icons as the tablet reports them (Bluetooth, Wi-Fi, signal:
+   they work as before), the battery pill (Counter Update 5), the Online pill (38.4 high, grey with a fine edge, a 10.8 dot: green online, grey
    "Offline") and the signed-in server's profile circle (38.4, their initials; a person outline while nobody is signed
    in). Over an app its shadow falls on the top of the app as on a plain page. Pull it down for quick controls, as before.
    Sizes in the bar's unit (--bn-u, launcher.css: the Counter pack's 40-high bar drawn at 1.2). */
@@ -15,16 +15,22 @@
 #top-banner .restaurant-name{flex:0 1 auto;min-width:0;max-width:none;font-size:calc(18 * var(--bn-u));font-weight:700;line-height:normal;letter-spacing:.01em;color:var(--bar-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #top-banner .header-time{flex:none;display:block;min-width:0;height:auto;font-size:calc(15.5 * var(--bn-u));font-weight:700;line-height:normal;letter-spacing:0;font-variant-numeric:normal;color:var(--bar-muted);text-align:left;white-space:nowrap} /* the design's own (proportional) digits */
 #top-banner .system-status{flex:none;margin-left:auto;display:flex;align-items:center;gap:calc(12 * var(--bn-u))}
-/* Our status icons, in the bar's text colour, before the Online pill (the battery as wide as the design's) */
+/* Our status icons, in the bar's text colour, before the battery and the Online pill */
 #top-banner .device-status{display:flex;align-items:center;gap:calc(12 * var(--bn-u));color:var(--bar-text)}
 #top-banner .device-status:not(:has(> :not([hidden]))){display:none}
 #top-banner .network-slot{width:calc(16 * var(--bn-u));height:calc(16 * var(--bn-u))}
 #top-banner .network-slot .icon{width:100%;height:100%}
 #top-banner .bluetooth{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-#top-banner .battery-status{width:calc(28 * var(--bn-u));height:auto;justify-content:center;color:var(--bar-text)} /* the design's 33.6 battery box, the battery centred in it */
-#top-banner .battery{width:calc(23.4 * var(--bn-u));height:calc(11.2 * var(--bn-u))}
-#top-banner .battery-status[data-battery-state="charging"]{color:#16A34A}
-#top-banner .battery-status[data-battery-state="low"]{color:#DC2626}
+/* The battery (Counter Update 5), before the Online pill: the same pill (38.4 high, its grey and fine edge), 14.4 in at
+   each side, the battery drawn lying down 39.6 x 18 (a 2.2 outline, the tip on the right, filled to its level) and its
+   level 16.8/600 in figures of one width, 9.6 apart (Settings > Display > Battery: Fill, the battery alone). 20% or less
+   and not charging: #B91C1C on a #FEE2E2 pill; charging: #15803D, a bolt at the end of the fill. On Aurora's dark bar,
+   the dark pill, white; low #FCA5A5, charging #86EFAC (the --bar-bat-* values, launcher.css). */
+#top-banner .battery-status{flex:none;width:auto;height:calc(32 * var(--bn-u));box-sizing:border-box;padding:0 calc(12 * var(--bn-u));display:flex;align-items:center;gap:calc(8 * var(--bn-u));border-radius:999px;background:var(--bar-pill-bg);box-shadow:inset 0 0 0 1px var(--bar-pill-edge);color:var(--bar-pill-text);font-size:calc(14 * var(--bn-u));font-weight:600;line-height:normal;font-variant-numeric:tabular-nums;white-space:nowrap}
+#top-banner .battery{display:block;width:calc(33 * var(--bn-u));height:calc(15 * var(--bn-u));flex:none}
+#top-banner .battery-status[data-battery-state="low"]{background:var(--bar-bat-low-bg);color:var(--bar-bat-low)}
+#top-banner .battery-status[data-battery-state="charging"]{color:var(--bar-bat-charge)}
+#top-banner .battery-status[data-style="fill"] .battery-text{display:none}
 #top-banner .system-status .network-slot[hidden],#top-banner .battery-status[hidden]{display:none!important}
 #top-banner .online-pill{flex:none;height:calc(32 * var(--bn-u));min-width:0;padding:0 calc(13 * var(--bn-u));box-sizing:border-box;display:flex;align-items:center;gap:calc(7 * var(--bn-u));border-radius:999px;background:var(--bar-pill-bg);box-shadow:inset 0 0 0 1px var(--bar-pill-edge);font-size:calc(14 * var(--bn-u));font-weight:600;color:var(--bar-pill-text);white-space:nowrap}
 #top-banner .online-pill .status-dot{flex:none;width:calc(9 * var(--bn-u));height:calc(9 * var(--bn-u));border-radius:999px;background:var(--bar-dot);box-shadow:none}

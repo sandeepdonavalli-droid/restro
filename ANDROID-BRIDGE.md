@@ -107,14 +107,42 @@ a PIN.
 
 ## Printing the bill: `RESTRODevice.printer.printBill(bill)`
 
-Counter's menu (the three-line button) has **Print bill**. With this method present, the bill goes to it, to print on
-the restaurant's printer; without it, the browser's own printing opens. Return `false` (or throw) if it didn't print;
-Counter says so.
+Counter's **Print bill** button (the printer, at the end of the order panel's top row) prints the bill. With this
+method present, the bill goes to it, to print on the restaurant's bill printer; without it, the browser's own printing
+opens. Return `false` (or throw) if it didn't print; Counter says so.
 
 `bill` is plain data: `{ restaurant, number, at, type, table, customer, pager, lines, subtotal, tax, taxLabel, total }`.
 `number` is the ticket (`"#05"`, or `null` for an order not saved yet), `at` the time in milliseconds, amounts in rupees.
 Each line is `{ name, qty, each, total, modifiers, note }`: print `modifiers` (e.g. `"Medium spicy"`,
-`"Extra gravy +₹40"`) and the `note` (free text for the kitchen) under their line.
+`"Extra gravy +₹40"`) and the `note` (free text for the kitchen) under their line. A custom item (typed in at the
+Counter, not on the menu) is a line like any other: its name, or `"Custom item"`.
+
+## The bill printer's paper: `RESTRODevice.printer.paperStatus()` and `subscribePaperStatus(callback)`
+
+The Print bill button shows how much paper the bill printer has left: its light blue drains from the top as the roll is
+used; at 20% or less (or when the printer's near-end sensor says so) the whole button turns amber; out of paper (or the
+cover open) it turns red with a "!"; with the printer offline it is grey, crossed out. A tap still prints.
+
+Report it for the printer whose role is **Bills & receipts** or **Both** (Settings → Printers); a kitchen-only printer
+is never shown. Each status is plain data, `{ level, state }`: `level` the paper left, 0–100 (%); `state` one of
+`"ok"`, `"low"`, `"out"`, `"offline"`.
+
+| Member | Returns | Notes |
+| --- | --- | --- |
+| `paperStatus()` | `{ level, state }` (or a Promise of it) | Read when Counter opens and after each bill |
+| `subscribePaperStatus(callback)` | a function that stops it | Call `callback({ level, state })` on every change |
+
+Or dispatch a `restro:printer-paper` window event with the same `detail`. Without any of these the button shows a full
+roll.
+
+Work the level out as `PaperEstimator` does (Counter Update 5, `CounterUpdate5.kt`):
+
+- The roll's size is set in the printer's settings (e.g. 80 mm × 50 m). After every print, take off what was printed
+  (its lines × the line height, plus the feed and the cut). A **Both** printer counts bills and kitchen tickets.
+- Poll the printer's status (ESC/POS `DLE EOT`) every 10 seconds and after every job: near-end means `"low"`, paper-end
+  or the cover open `"out"`, no answer `"offline"`.
+- Start again at 100% when paper-end was reported and the cover was then opened and closed, or when staff tap **New roll
+  fitted** in the printer's settings.
 
 ## Back, Home and Recent apps: `RestroSystem.back()`, `.home()`, `.recents()`
 

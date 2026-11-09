@@ -29,8 +29,20 @@
   // What tells two lines of the same item and type apart: their choices (a saved order keeps them as { id, label, ... })
   const modsKey = mods => (Array.isArray(mods) && mods.length ? `#${mods.map(m => (typeof m === 'string' ? m : m?.id)).join('+')}` : '');
   const cleanNote = n => (typeof n === 'string' ? n.replace(/\s+/g, ' ').trim().slice(0, 200) : '');
+  // A custom item (Counter Update 5): a dish that isn't on the menu, typed in at the Counter for one order. It keeps its
+  // name (blank shows as "Custom item"), veg or non-veg (or neither), its price each (whole rupees) and the category it
+  // was added in (its GST is the category's). It is never added to the menu. Its line has an id of its own (cu-…).
+  const cleanCustom = c => {
+    if (!c || typeof c !== 'object') return null;
+    const price = Number(c.price);
+    if (!Number.isInteger(price) || price <= 0 || price > 99999) return null;
+    return { name: typeof c.name === 'string' ? c.name.replace(/\s+/g, ' ').trim().slice(0, 60) : '', veg: c.veg === true ? true : c.veg === false ? false : null, price, cat: categoryById.has(c.cat) ? c.cat : null };
+  };
+  const newCustomId = () => { let id; do id = `cu-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`; while (items.has(id)); return id; };
+  // A line's dish: the menu's, or a custom item's as if it were one
+  const itemOf = line => (line.custom ? { id: line.id, name: line.custom.name || 'Custom item', price: line.custom.price, veg: line.custom.veg, custom: true } : items.get(line.id));
   // One of a line's item with its add-ons (rupees), and a choice as it shows on its pill ("Extra gravy +₹40")
-  const eachOf = line => items.get(line.id).price + (line.mods || []).reduce((sum, m) => sum + (optionOf.get(m)?.price || 0), 0);
+  const eachOf = line => itemOf(line).price + (line.mods || []).reduce((sum, m) => sum + (optionOf.get(m)?.price || 0), 0);
   const modLabel = id => { const o = optionOf.get(id); return o ? (o.price ? `${o.label} +₹${o.price.toLocaleString('en-IN')}` : o.label) : id; };
 
   // ---------- storage ----------
@@ -130,8 +142,11 @@
     return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
       pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
-      lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && items.has(l.id) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
-        .map(l => ({ id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type, mods: cleanMods(l.id, l.mods), note: cleanNote(l.note) })) };
+      lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && (items.has(l.id) || (typeof l.id === 'string' && cleanCustom(l.custom))) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
+        .map(l => {
+          const custom = items.has(l.id) ? null : cleanCustom(l.custom);
+          return { id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type, mods: custom ? [] : cleanMods(l.id, l.mods), note: cleanNote(l.note), ...(custom ? { custom } : {}) };
+        }) };
   };
   // A saved order put on screen: its pager shows only while the order still has it. One that came back (docked, or
   // handed to another order) is no longer the order's: the pager slot is empty, so whatever pager is there when the
@@ -156,6 +171,7 @@
   let modPop = null;                                    // modifiers: { key (the line), added (opened as the dish was added), tried (closing was tried with a required group empty) }
   let qtyPop = null;                                    // quantity: { key, value (typed so far) }
   let notePop = null;                                   // note: { key, draft, back (return to the modifier pop-up), typing (the note line has the keyboard) }
+  const POPS = ['mods', 'qty', 'note', 'custom'];       // (the pop-ups; customPop, a custom item's, is with its code below)
   let cashInput = '';                                   // cash typed on the payment sheet
   let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
@@ -195,7 +211,7 @@
     for (const o of legacy) {
       const r = restoreOrder(o); if (!r.lines.length) continue;
       const at = cleanTime(o.savedAt) || Date.now(), sentAt = cleanTime(o.sentAt);
-      const lines = r.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: items.get(l.id).price, qty: l.qty, type: typeOf(r, l) }));
+      const lines = r.lines.map(l => ({ id: l.id, name: itemOf(l).name, price: itemOf(l).price, qty: l.qty, type: typeOf(r, l) }));
       list.push({ number: nextNumber(), type: r.type, split: r.split, table: r.table, customer: r.customer, pager: r.pager, readyAt: r.readyAt, lines, ...totalsOf(r),
         createdAt: at, savedAt: at, sentAt, sent: sentAt ? Object.fromEntries(lines.map(l => [`${l.id}@${l.type}`, l.qty])) : {}, kots: [], method: null, received: null, change: null, paidAt: null });
     }
@@ -274,7 +290,7 @@
     const line = order.lines[at];
     clearUndo();
     // (kept with the order it came off: another order on screen has no Undo bar)
-    undo = { order, line: JSON.parse(JSON.stringify(line)), at, key, name: items.get(line.id).name };
+    undo = { order, line: JSON.parse(JSON.stringify(line)), at, key, name: itemOf(line).name };
     undo.timer = setTimeout(() => { undo = null; if (dialog.open) render(); }, 5000);
     order.lines.splice(at, 1);
     if (selected === key) selected = null;
@@ -294,7 +310,7 @@
     for (const line of order.lines) {
       if (line.edit) { merged.push(line); continue; } // (its modifier pop-up is open: a line of its own until it closes)
       const type = lineType(line), mods = line.mods || [], same = merged.find(m => !m.edit && m.id === line.id && m.type === type && modsKey(m.mods) === modsKey(mods));
-      if (!same) { merged.push({ id: line.id, qty: line.qty, type, mods: [...mods], note: line.note || '' }); continue; }
+      if (!same) { merged.push({ id: line.id, qty: line.qty, type, mods: [...mods], note: line.note || '', ...(line.custom ? { custom: line.custom } : {}) }); continue; }
       same.qty += line.qty;
       if (line.note && line.note !== same.note) same.note = cleanNote(same.note ? `${same.note} · ${line.note}` : line.note);
     }
@@ -379,7 +395,7 @@
     const lines = [];
     for (const l of entry.lines) {
       const key = `${l.id}@${l.type}${modsKey(l.mods)}`, n = l.qty - (Number(entry.sent[key]) || 0); if (n <= 0) continue;
-      lines.push({ id: l.id, name: l.name, qty: n, type: l.type, ...(l.mods?.length ? { mods: l.mods } : {}), ...(l.note ? { note: l.note } : {}) }); entry.sent[key] = l.qty;
+      lines.push({ id: l.id, name: l.name, qty: n, type: l.type, ...(l.custom ? { custom: true, ...(l.custom.veg != null ? { veg: l.custom.veg } : {}) } : {}), ...(l.mods?.length ? { mods: l.mods } : {}), ...(l.note ? { note: l.note } : {}) }); entry.sent[key] = l.qty;
     }
     if (!lines.length) return 0;
     entry.sentAt = entry.sentAt || now; entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), { at: now, lines }].slice(-30);
@@ -404,8 +420,9 @@
       ? { pager: onScreenPager, pagerAt: order.pagerAt || prev?.pagerAt || (prev ? createdOf(prev) : now), ...(untouched && prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) }
       : record ? { pager: prev.pager, ...(prev.pagerAt ? { pagerAt: prev.pagerAt } : {}), ...(prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) } : { pager: 0 };
     let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, ...pagerFields, readyAt: order.readyAt || null,
-      // each line's price is one with its add-ons; its choices (with their names, for the bill and the kitchen) and note
-      lines: order.lines.map(l => ({ id: l.id, name: items.get(l.id).name, price: eachOf(l), qty: l.qty, type: lineType(l),
+      // each line's price is one with its add-ons; its choices (with their names, for the bill and the kitchen) and note; a
+      // custom item keeps what was typed for it (Counter Update 5), so the order opens again with it
+      lines: order.lines.map(l => ({ id: l.id, name: itemOf(l).name, price: eachOf(l), qty: l.qty, type: lineType(l), ...(l.custom ? { custom: { ...l.custom } } : {}),
         ...(l.mods?.length ? { mods: l.mods.map(m => ({ id: m, label: optionOf.get(m)?.label || m, kind: optionOf.get(m)?.kind || 'other', price: optionOf.get(m)?.price || 0 })) } : {}),
         ...(l.note ? { note: l.note } : {}) })), ...totals(),
       createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? prev.day : given?.day || window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
@@ -660,6 +677,10 @@
     search: 'M380-320q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z',
     history: 'M480-120q-126 0-223-76.5T131-392q-4-15 6-27.5t27-14.5q16-2 29 6t18 24q24 90 99 147t170 57q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h70q17 0 28.5 11.5T360-600q0 17-11.5 28.5T320-560H160q-17 0-28.5-11.5T120-600v-160q0-17 11.5-28.5T160-800q17 0 28.5 11.5T200-760v54q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm40-376 100 100q11 11 11 28t-11 28q-11 11-28 11t-28-11L452-452q-6-6-9-13.5t-3-15.5v-159q0-17 11.5-28.5T480-680q17 0 28.5 11.5T520-640v144Z',
     print: 'M320-120q-33 0-56.5-23.5T240-200v-80h-80q-33 0-56.5-23.5T80-360v-160q0-51 35-85.5t85-34.5h560q51 0 85.5 34.5T880-520v160q0 33-23.5 56.5T800-280h-80v80q0 33-23.5 56.5T640-120H320Zm400-560H240v-80q0-33 23.5-56.5T320-840h320q33 0 56.5 23.5T720-760v80Zm0 220q17 0 28.5-11.5T760-500q0-17-11.5-28.5T720-540q-17 0-28.5 11.5T680-500q0 17 11.5 28.5T720-460ZM320-200h320v-160H320v160Z',
+    print_disabled: 'M763-84 640-206h80v6q0 33-23.5 56.5T640-120H320q-33 0-56.5-23.5T240-200v-80h-80q-33 0-56.5-23.5T80-360v-160q0-51 35-85.5t85-34.5h6L83-763q-12-12-12-28.5T83-820q12-12 28.5-12t28.5 12l680 680q12 12 12 28t-12 28q-12 12-28.5 12T763-84ZM320-200h320v-6L486-360H320v160Zm522-91q-16 9-34 8t-32-15L502-572q-19-19-8.5-43.5T531-640h229q50 0 85 35t35 85v160q0 25-11 42.5T842-291ZM427-680q-16 0-30.5-6T371-703l-69-69q-19-19-8.5-43.5T331-840h309q33 0 56.5 23.5T720-760v40q0 17-11.5 28.5T680-680H427Zm293 220q17 0 28.5-11.5T760-500q0-17-11.5-28.5T720-540q-17 0-28.5 11.5T680-500q0 17 11.5 28.5T720-460Z',
+    sync: 'M240-478q0 45 17 87.5t53 78.5l10 10v-58q0-17 11.5-28.5T360-400q17 0 28.5 11.5T400-360v160q0 17-11.5 28.5T360-160H200q-17 0-28.5-11.5T160-200q0-17 11.5-28.5T200-240h70l-16-14q-52-46-73-105t-21-119q0-94 48-170.5T337-766q14-8 29.5-1t20.5 23q5 15-.5 30T367-691q-58 32-92.5 88.5T240-478Zm480-4q0-45-17-87.5T650-648l-10-10v58q0 17-11.5 28.5T600-560q-17 0-28.5-11.5T560-600v-160q0-17 11.5-28.5T600-800h160q17 0 28.5 11.5T800-760q0 17-11.5 28.5T760-720h-70l16 14q49 49 71.5 106.5T800-482q0 94-48 170.5T623-194q-14 8-29.5 1T573-216q-5-15 .5-30t19.5-23q58-32 92.5-88.5T720-482Z',
+    cloud_done: 'm413-395-56-56q-12-12-28-12t-28 12q-12 12-12 28.5t12 28.5l85 86q12 12 28 12t28-12l169-169q12-12 12-29t-12-29q-12-12-29-12t-29 12L413-395ZM260-160q-91 0-155.5-63T40-377q0-78 47-139t123-78q25-92 100-149t170-57q117 0 198.5 81.5T760-520q69 8 114.5 59.5T920-340q0 75-52.5 127.5T740-160H260Z',
+    cloud_off: 'M260-160q-92 0-156-64T40-380q0-77 47.5-137T210-594q3-8 6-15.5t6-16.5L84-764q-11-11-11-28t11-28q11-11 28-11t28 11l680 680q11 11 11.5 27.5T820-84q-11 11-27.5 11.5T764-83l-78-77H260Zm604-50L322-751q35-24 74.5-36.5T480-800q117 0 198.5 81.5T760-520q69 8 114.5 59.5T920-340q0 39-15 72.5T864-210Z',
     swap_vert: 'M360-440q-17 0-28.5-11.5T320-480v-247l-75 75q-11 11-27.5 11T189-652q-12-12-12-28.5t12-28.5l143-143q6-6 13-8.5t15-2.5q8 0 15 2.5t13 8.5l144 144q12 12 11.5 28T531-652q-12 11-28 11.5T475-652l-75-75v247q0 17-11.5 28.5T360-440ZM600-97q-8 0-15-2.5t-13-8.5L428-252q-12-12-11.5-28t12.5-28q12-11 28-11.5t28 11.5l75 75v-247q0-17 11.5-28.5T600-520q17 0 28.5 11.5T640-480v247l75-75q11-11 27.5-11t28.5 11q12 12 12 28.5T771-251L628-108q-6 6-13 8.5T600-97Z',
     delete: 'M280-120q-33 0-56.5-23.5T200-200v-520q-17 0-28.5-11.5T160-760q0-17 11.5-28.5T200-800h160q0-17 11.5-28.5T400-840h160q17 0 28.5 11.5T600-800h160q17 0 28.5 11.5T800-760q0 17-11.5 28.5T760-720v520q0 33-23.5 56.5T680-120H280Zm120-160q17 0 28.5-11.5T440-320v-280q0-17-11.5-28.5T400-640q-17 0-28.5 11.5T360-600v280q0 17 11.5 28.5T400-280Zm160 0q17 0 28.5-11.5T600-320v-280q0-17-11.5-28.5T560-640q-17 0-28.5 11.5T520-600v280q0 17 11.5 28.5T560-280Z',
     chevron_left: 'm432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z',
@@ -697,7 +718,7 @@
       : ctxButton('grey', c ? 'person' : 'person_add', 19, c ? c.name : 'Add Customer', { class: 'cx-b grey cx-who', 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer });
     const pager = ctxButton(order.pager ? 'violet' : 'grey', 'vibration', 19, order.pager ? `Pager ${order.pager}` : 'Pager',
       { class: `cx-b ${order.pager ? 'violet' : 'grey'} sm cx-pager`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign a pager', onclick: () => { sheet = 'pager'; render(); } });
-    const print = ctxButton('print', 'print', 28, '', { class: 'cx-b print cx-print', 'aria-label': 'Print bill', title: 'Print bill', disabled: !order.lines.length, onclick: printBill });
+    const print = printButton();
     const schedule = chip(order.readyAt ? 'pink' : 'grey', 'schedule', 17, order.readyAt ? whenShort(order.readyAt) : 'Schedule',
       { class: `cx-chip ${order.readyAt ? 'pink' : 'grey'} cx-sched`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule', onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } });
     const modify = chip(order.split ? 'dark' : 'grey', 'edit', 17, 'Modify', { class: `cx-chip ${order.split ? 'dark' : 'grey'} cx-modify`, role: 'switch', 'aria-checked': String(order.split), onclick: () => setSplit(!order.split) });
@@ -720,21 +741,21 @@
 
     // The order's lines, one under another with a hairline between: name · − quantity + (the number in blue: tap it for the
     // quantity pop-up) · "₹220 ea" (more than one) and the line total; under them its choices as a line of coloured text,
-    // and its note.
+    // and its note. A custom item has a grey CUSTOM tag after its name (Update 5).
     // Tap a line to select it (light blue, a blue bar on its left): its choices become pills (tap one for the modifier
     // pop-up) and "Add note / Edit note" shows (the note pop-up). − / + and the number work straight away on any line.
     // With Modify on, the selected line also shows the order types to move it to.
     const list = el('ul', { class: 'cx-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'cx-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap an item to add it.')));
     const lineRow = line => {
-      const item = items.get(line.id), key = keyOf(line), sel = selected === key, open = order.split && sel, each = eachOf(line);
+      const item = itemOf(line), key = keyOf(line), sel = selected === key, open = order.split && sel, each = eachOf(line);
       const mods = (line.mods || []).map(m => {
         const kind = `cx-mc ${optionOf.get(m)?.kind === 'spice' ? 'sp' : 'nn'}`;
         return sel ? el('button', { type: 'button', class: kind, 'aria-label': `${modLabel(m)}. Tap to change the choices`, onclick: () => openMods(key) }, modLabel(m)) : el('span', { class: kind }, modLabel(m));
       });
       return el('li', { class: `cx-line${sel ? ' sel' : ''}${open ? ' open' : ''}`, 'data-line': key, onkeydown: e => { if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.closest?.('button')) { e.preventDefault(); removeLine(key); } } },
         el('div', { class: 'cx-row', onclick: e => { if (!e.target.closest?.('.cx-stp, .cx-mcs button, .cx-an, .cx-move')) selectLine(key); } },
-          el('div', { class: 'cx-nm' }, el('button', { type: 'button', class: 'cx-nm-btn', 'aria-expanded': String(sel) }, item.name)),
+          el('div', { class: 'cx-nm' }, el('button', { type: 'button', class: 'cx-nm-btn', 'aria-expanded': String(sel) }, item.name, line.custom ? el('span', { class: 'cx-ctag' }, 'CUSTOM') : null)),
           el('div', { class: 'cx-stp' },
             el('button', { type: 'button', class: 'cx-sb', 'aria-label': line.qty > 1 ? `One less ${item.name}` : `Remove ${item.name}`, onclick: () => setQty(key, line.qty - 1) }, mi('remove', 22)),
             el('button', { type: 'button', class: 'cx-qty', 'aria-label': `Quantity ${line.qty}. Tap to type a quantity`, onclick: () => openQty(key) }, String(line.qty)),
@@ -773,9 +794,10 @@
   function selectLine(key) { if (selected === key) return; selected = key; render(); }
 
   // The menu side: the three-line menu (Highlight order, Delete order; Print bill is in the context row), search, then
-  // Held · Orders · Payment history; under them the menu itself (renderMenuBody).
+  // Held · Orders · Payment history and the sync button (Update 5: these 52 tall, centred on the 62.4 menu button); under
+  // them the menu itself (renderMenuBody).
   function menuSide() {
-    const search = el('label', { class: 'cx-sr' }, mi('search', 22), el('span', { class: 'visually-hidden' }, 'Search menu items'),
+    const search = el('label', { class: 'cx-sr' }, mi('search', 20), el('span', { class: 'visually-hidden' }, 'Search menu items'),
       el('input', { id: 'counter-search', type: 'search', placeholder: 'Search menu items', autocomplete: 'off', enterkeyhint: 'search', value: query,
         oninput: e => { query = e.target.value; renderMenuBody(); },
         onkeydown: e => {
@@ -788,9 +810,10 @@
       el('button', { type: 'button', class: `cx-mb${optionsMenu ? ' lifted' : ''}`, 'aria-label': 'Menu', title: 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': String(optionsMenu), onclick: () => openOptions(!optionsMenu) }, mi('menu', 22)),
       search,
       // Held opens the held orders in the Orders app; Orders opens the Orders app; Back there returns to Counter as it was.
-      el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter', view: 'held' }); else { sheet = 'held'; render(); } } }, mi('pause_circle', 19), 'Held'),
-      el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, mi('receipt_long', 19), 'Orders'),
-      el('button', { type: 'button', class: 'cx-tc', onclick: () => { sheet = 'payments'; render(); } }, mi('history', 19), 'Payment history'));
+      el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter', view: 'held' }); else { sheet = 'held'; render(); } } }, mi('pause_circle', 17), 'Held'),
+      el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, mi('receipt_long', 17), 'Orders'),
+      el('button', { type: 'button', class: 'cx-tc', onclick: () => { sheet = 'payments'; render(); } }, mi('history', 17), 'Payment history'),
+      syncButton());
     // The menu: 14 below the button, over the dimmed screen. Highlight order needs items; Delete order asks again before
     // it deletes the order on screen.
     const pop = optionsMenu ? el('div', { class: 'cx-pop', role: 'menu', 'aria-label': 'Menu' },
@@ -803,6 +826,43 @@
       highlight && !sheet ? el('div', { class: 'cx-dim', onclick: () => setHighlight(false) }) : null);
   }
 
+  // The sync button (Counter Update 5), last on the bar: a tap syncs with the main system or the cloud straight away
+  // (RestroSync.syncNow). White with the sync arrows; light blue, turning, while it syncs; a green cloud with a tick for
+  // 2 seconds once it is done; amber with the number of changes still to go up; grey with a crossed-out cloud while
+  // there is nothing to sync with (orders are saved on this tablet meanwhile).
+  let syncBusy = false, syncedUntil = 0, syncTimer = 0;
+  function syncLook() {
+    const st = window.RestroSync?.status?.();
+    if (syncBusy || (st?.upstream === 'cloud' && st.cloud.state === 'syncing')) return { kind: 'syncing' };
+    if (Date.now() < syncedUntil) return { kind: 'synced' };
+    const reached = st?.upstream === 'hub' ? st.local.state === 'connected' : st?.upstream === 'cloud' ? st.cloud.state !== 'offline' : false;
+    if (!reached) return { kind: 'offline' };
+    return st.waiting > 0 ? { kind: 'pending', count: st.waiting } : { kind: 'normal' };
+  }
+  function syncButton() {
+    const look = syncLook();
+    const label = { normal: 'Sync now', syncing: 'Syncing', synced: 'Synced', pending: `Sync now: ${plural(look.count || 0, 'change')} waiting`, offline: 'Sync now: offline, orders are saved on this tablet' }[look.kind];
+    return el('button', { type: 'button', class: `cx-sync ${look.kind}`, 'aria-label': label, title: label, onclick: syncNow },
+      mi(look.kind === 'synced' ? 'cloud_done' : look.kind === 'offline' ? 'cloud_off' : 'sync', 20),
+      look.kind === 'pending' ? el('span', { class: 'cx-sync-n', 'aria-hidden': 'true' }, look.count > 99 ? '99+' : String(look.count)) : null);
+  }
+  function paintSync() {
+    const old = dialog.querySelector('.cx-sync'); if (!old) return;
+    const focused = document.activeElement === old, next = syncButton();
+    old.replaceWith(next); if (focused) next.focus({ preventScroll: true });
+  }
+  async function syncNow() {
+    const sync = window.RestroSync; if (syncBusy || typeof sync?.syncNow !== 'function') return;
+    syncBusy = true; syncedUntil = 0; paintSync();
+    const started = Date.now();
+    try { await sync.syncNow(); } catch {}
+    await new Promise(done => setTimeout(done, Math.max(0, 700 - (Date.now() - started)))); // (turning long enough to be seen)
+    syncBusy = false;
+    if (syncLook().kind === 'normal') { syncedUntil = Date.now() + 2000; clearTimeout(syncTimer); syncTimer = setTimeout(paintSync, 2000); }
+    paintSync();
+  }
+  window.addEventListener('restro:sync-status', () => { if (dialog.open) paintSync(); });
+
   const matches = () => {
     const q = query.trim().toLowerCase(); if (!q) return [];
     return categoriesInOrder().flatMap(itemsInOrder).filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase() === q);
@@ -812,7 +872,12 @@
   const itemCard = item => el('button', { type: 'button', class: 'cx-card', 'data-id': item.id, onclick: () => add(item.id),
     'aria-label': `Add ${item.name}, ${rupees(item.price)}${item.veg === false ? ', non-veg' : item.veg ? ', veg' : ''}` },
     item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name), el('span', {}, rupees(item.price)));
-  const itemGrid = (c, cols) => el('div', { class: `cx-grid cols-${cols}`, 'data-arrange': 'items', 'data-cat': c.id }, ...itemsInOrder(c).map(itemCard));
+  // A category's items start with "Add item" (Counter Update 5): a custom item for this order, in that category. The
+  // same size as a dish card, a soft blue bloom, the round + and "Add item / Custom · Starters" in the middle. It stays
+  // first (it isn't one of the tiles that can be moved).
+  const addTile = c => el('button', { type: 'button', class: 'cx-card cx-addt', onclick: () => openCustom(c.id), 'aria-label': `Add a custom item to ${c.name}` },
+    el('i', { 'aria-hidden': 'true' }, mi('add', 24)), el('span', { class: 'cx-addt-t' }, el('b', {}, 'Add item'), el('small', {}, `Custom · ${c.name}`)));
+  const itemGrid = (c, cols) => el('div', { class: `cx-grid cols-${cols}`, 'data-arrange': 'items', 'data-cat': c.id }, addTile(c), ...itemsInOrder(c).map(itemCard));
   const resultGrid = (list, cols) => el('div', { class: `cx-grid cols-${cols}` }, ...list.map(itemCard));
   const scroller = (...children) => el('div', { class: 'cx-scroll' }, ...children);
   // A category in the Category grid: its food icon on a tint of its colour, its name and how many items it has
@@ -916,7 +981,8 @@
   }
   root.addEventListener('pointerdown', event => {
     const tile = event.target.closest?.('[data-arrange] > [data-id]');
-    if (arranging && !drag && !tile) setArranging(false); // a tap anywhere else finishes rearranging
+    // A tap anywhere else finishes rearranging (and on Add item, does only that)
+    if (arranging && !drag && !tile) { setArranging(false); if (event.target.closest?.('[data-arrange]')) suppressClick = true; }
     if (!tile || event.button !== 0 || drag) return;
     suppressClick = false;
     clearTimeout(press?.timer);
@@ -1034,21 +1100,23 @@
   }, true);
   root.addEventListener('contextmenu', event => { if (event.target.closest?.(TILE)) event.preventDefault(); });
 
-  // ---------- the pop-ups: modifiers, quantity, note (Counter Update 4) ----------
+  // ---------- the pop-ups: modifiers, quantity, note (Counter Update 4), a custom item (Update 5) ----------
   // They open over the menu only: the order beside them is not covered or dimmed, so what they change shows on it at
   // once. A tap on the dimmed menu, or on the order, is a tap outside: the modifier pop-up closes keeping its choices
-  // (not while a required group has none), the quantity pop-up closes leaving the quantity as it was, and the note
-  // pop-up stays open until Done.
+  // (not while a required group has none), the quantity pop-up closes leaving the quantity as it was, and the note and
+  // custom item pop-ups stay open. Each has a ✕ at its top right (Update 5), which always closes it with no changes: the
+  // modifier pop-up puts its line back as it was when it opened, the quantity and the note stay as they were, and no
+  // custom item is added.
   const lineOf = key => order.lines.find(l => keyOf(l) === key);
   const modLine = () => (modPop ? lineOf(modPop.key) : null);
   const missingOf = line => groupsOf(line.id).filter(g => g.required && !line.mods.some(m => optionOf.get(m)?.group === g.id));
 
   // Modifiers: a pill on the selected line (or a dish with choices just added). While it is open the line is a line of
-  // its own, selected.
+  // its own, selected. (It keeps how the line was, for ✕.)
   function openMods(key) {
     const line = lineOf(key); if (!line) return;
     line.edit = true; selected = keyOf(line);
-    modPop = { key: selected, added: false, tried: false }; qtyPop = null; notePop = null; sheet = 'mods'; render();
+    modPop = { key: selected, added: false, tried: false, was: { mods: [...line.mods], qty: line.qty, note: line.note || '' } }; qtyPop = null; notePop = null; sheet = 'mods'; render();
   }
   // A choice: a "pick 1" group (a required one, spice level) has one, so tapping another moves it there; an optional
   // group takes any number, a second tap takes one off. The order shows it at once (pills, "₹250 ea", the totals, Pay).
@@ -1079,6 +1147,18 @@
     selected = !added && key && lineOf(key) ? key : null;
     render(); return true;
   }
+  // ✕: the line goes back to how it was when the pop-up opened (its choices, quantity and note) and the pop-up closes.
+  // A dish that came on with its pop-up comes off the order again (the same tap added it).
+  function cancelMods() {
+    const p = modPop; if (!p) return;
+    const line = modLine();
+    sheet = null; modPop = null; notePop = null;
+    if (line && p.added) { order.lines.splice(order.lines.indexOf(line), 1); selected = null; render(); return; }
+    if (line && p.was) { line.mods = [...p.was.mods]; line.qty = p.was.qty; line.note = p.was.note; }
+    const key = line ? settle(line) : null;
+    selected = key && lineOf(key) ? key : null;
+    render();
+  }
   // A line out of its pop-up: it joins a line of the same dish, type and choices, if there is one (the quantities add
   // up; a different note is added to that line's); nothing else on the order changes.
   function settle(line) {
@@ -1092,7 +1172,7 @@
   }
 
   // Quantity: the blue number on any line. The order changes only on Done (0 takes the dish off, with Undo); a tap
-  // outside leaves the quantity as it was.
+  // outside or ✕ leaves the quantity as it was.
   function openQty(key) { if (!lineOf(key)) return; qtyPop = { key, value: '' }; modPop = null; notePop = null; sheet = 'qty'; render(); }
   function pressQty(k) {
     if (!qtyPop) return;
@@ -1109,7 +1189,8 @@
   function cancelQty() { sheet = null; qtyPop = null; render(); }
 
   // Note: "Add note / Edit note" on the selected line, or the note line in the modifier pop-up (Done goes back there).
-  // The keyboard comes up only when the note line is tapped; quick notes are added without it. Saved on Done.
+  // The keyboard comes up only when the note line is tapped; quick notes are added without it. Saved on Done; ✕ leaves
+  // the note as it was.
   function openNote(key, back = false) {
     const line = lineOf(key); if (!line) return;
     notePop = { key, draft: line.note || '', back, typing: false }; qtyPop = null; sheet = 'note'; render();
@@ -1119,24 +1200,150 @@
     notePop = null; sheet = p.back && modPop ? 'mods' : null;
     setNote(p.key, p.draft);
   }
+  function cancelNote() {
+    const p = notePop; if (!p) return;
+    notePop = null; sheet = p.back && modPop ? 'mods' : null; render();
+  }
   // A quick note goes on the end of the note (after a comma), or comes out again when it is already there.
   const noteParts = note => note.split(',').map(s => s.trim()).filter(Boolean);
   const hasQuick = (note, chip) => noteParts(note).some(s => s.toLowerCase() === chip.toLowerCase());
   const toggleQuick = (note, chip) => (hasQuick(note, chip) ? noteParts(note).filter(s => s.toLowerCase() !== chip.toLowerCase()) : [...noteParts(note), chip]).join(', ');
-  // The quick notes for a dish: the 15 notes this restaurant uses most for it, worked out by the backend from the notes
+  // The quick notes for a dish: the notes this restaurant uses most for it, worked out by the backend from the notes
   // saved on its orders and published as a list per dish; the tablet only shows them, kept on the device so they work
-  // offline (restro.quickNotes.v1: { lists: { <item id>: [...] }, defaults: [...] }). Until lists come, every dish
-  // shows the starting set.
-  const QUICK_KEY = 'restro.quickNotes.v1';
+  // offline (restro.quickNotes.v1: { lists: { <item id>: [...] }, defaults: [...] }, each note its words, or
+  // { text, pinned, addedAt }). In order (Update 5): the pinned ones (an owner pins them in Inventory; a pin before the
+  // words), then new ones in their first 15 days (a blue NEW; the newest first), then the rest as published. Until lists
+  // come, every dish has the starting set. "+ Add", first in the row, keeps what is typed in the note that isn't a quick
+  // note of the dish yet as new quick notes of it, on this tablet until the backend takes them
+  // (restro.quickNotes.added.v1: { <item id>: [{ text, at }] }).
+  const QUICK_KEY = 'restro.quickNotes.v1', QUICK_ADDED_KEY = 'restro.quickNotes.added.v1', QUICK_NEW_MS = 15 * 864e5;
   const QUICK_START = ['Less spicy', 'Extra spicy', 'Less oil', 'Less salt', 'No onion', 'No garlic', 'Pack separately', 'Serve first',
     'Extra gravy', 'Allergy: nuts', 'Jain', 'Kids portion', 'Well done', 'No ice', 'Less sugar'];
+  const quickText = t => (typeof t === 'string' ? t.replace(/\s+/g, ' ').trim().slice(0, 200) : '');
   function quickNotesFor(id) {
-    const kept = load(QUICK_KEY, null), list = kept && typeof kept === 'object' ? (kept.lists?.[id] ?? kept.defaults) : null;
-    const clean = (Array.isArray(list) ? list : []).filter(t => typeof t === 'string' && t.trim()).map(t => t.trim().slice(0, 28));
-    return (clean.length ? clean : QUICK_START).slice(0, 15);
+    const kept = load(QUICK_KEY, null), source = kept && typeof kept === 'object' ? (kept.lists?.[id] ?? kept.defaults) : null;
+    const published = (Array.isArray(source) ? source : []).map(x => (typeof x === 'string' ? { text: quickText(x), at: 0 }
+      : x && typeof x === 'object' ? { text: quickText(x.text), pinned: x.pinned === true, at: Number(x.addedAt) || 0 } : null)).filter(x => x?.text);
+    const base = published.length ? published : QUICK_START.map(text => ({ text, at: 0 }));
+    const kept2 = load(QUICK_ADDED_KEY, null), mine = (kept2 && typeof kept2 === 'object' && Array.isArray(kept2[id]) ? kept2[id] : [])
+      .map(x => ({ text: quickText(x?.text), at: Number(x?.at) || 0 })).filter(x => x.text);
+    const now = Date.now(), fresh = x => x.at > 0 && x.at <= now + 60000 && now - x.at < QUICK_NEW_MS;
+    const out = [], seen = new Set();
+    const put = (x, isNew = false) => { const k = x.text.toLowerCase(); if (seen.has(k)) return; seen.add(k); out.push({ text: x.text, pinned: x.pinned === true, isNew }); };
+    base.filter(x => x.pinned).forEach(x => put(x));
+    [...base, ...mine].filter(x => !x.pinned && fresh(x)).sort((a, b) => b.at - a.at).forEach(x => put(x, true));
+    base.forEach(x => put(x)); mine.forEach(x => put(x));
+    return out;
+  }
+  // What "+ Add" would keep: the parts of the note that aren't a quick note of the dish yet
+  function newQuick(id, note) {
+    const known = new Set(quickNotesFor(id).map(x => x.text.toLowerCase())), out = new Map();
+    for (const part of noteParts(note)) if (!known.has(part.toLowerCase())) out.set(part.toLowerCase(), part);
+    return [...out.values()];
+  }
+  function keepQuick(id, parts) {
+    const kept = load(QUICK_ADDED_KEY, null), all = kept && typeof kept === 'object' && !Array.isArray(kept) ? kept : {}, now = Date.now();
+    all[id] = [...parts.map(t => ({ text: quickText(t.charAt(0).toUpperCase() + t.slice(1)), at: now })), ...(Array.isArray(all[id]) ? all[id] : [])].slice(0, 30);
+    try { localStorage.setItem(QUICK_ADDED_KEY, JSON.stringify(all)); } catch {}
   }
 
+  // A custom item (Update 5): "Add item", first in each category's items. The pop-up opens with the whole form and
+  // nothing being typed: Item name (optional) · Veg / Non-veg (optional) · Price each (needed) · Note (optional) ·
+  // − 1 +. Tap the name or the note: the tablet's keyboard comes up (the pop-up moves up above it) and the button at the
+  // bottom reads Set item name / Set note; tap the price: our number pad opens in the pop-up and the button reads Set
+  // price. Set goes back to the whole form, and the button is Done again: Done adds the item to the order (with no price
+  // yet, it opens the price pad: the price is the one thing needed). A tap outside does nothing; ✕ adds nothing.
+  let customPop = null; // { cat, name, veg (true / false / null), price (digits), qty, note, field: null | 'name' | 'price' | 'note' }
+  function openCustom(catId) {
+    if (!categoryById.has(catId)) return;
+    customPop = { cat: catId, name: '', veg: null, price: '', qty: 1, note: '', field: null };
+    modPop = null; qtyPop = null; notePop = null; selected = null; sheet = 'custom'; render();
+  }
+  const customInput = field => (field === 'name' || field === 'note' ? dialog.querySelector(`#counter-custom-${field}`) : null);
+  const paintOrRender = () => (paintCustom ? paintCustom() : render());
+  // Tap a field: it takes the typing (the one typed in before is set, as with its Set button)
+  function customField(field) {
+    const p = customPop; if (!p || p.field === field) return;
+    const was = p.field; p.field = field;
+    tidyCustom(p, was); customInput(was)?.blur();
+    const input = customInput(field);
+    if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    paintOrRender();
+  }
+  // Set item name / Set price / Set note (Enter, or the keyboard put away, too): back to the whole form
+  function customSet() {
+    const p = customPop; if (!p || !p.field) return;
+    const was = p.field; p.field = null;
+    tidyCustom(p, was); customInput(was)?.blur();
+    paintOrRender();
+  }
+  // (what was typed, set: spaces tidied)
+  function tidyCustom(p, field) {
+    if (field === 'name') p.name = p.name.replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (field === 'note') p.note = cleanNote(p.note);
+  }
+  function pressPrice(k) {
+    const p = customPop; if (!p || p.field !== 'price') return;
+    const v = p.price;
+    p.price = k === 'clear' ? '' : k === 'back' ? v.slice(0, -1) : v === '0' ? k : (v + k).slice(0, 5);
+    paintOrRender();
+  }
+  // Done: the item goes on the order (as its own line, flashing); with no price yet, the price pad opens instead.
+  function customDone() {
+    const p = customPop; if (!p) return;
+    if (p.field) { customSet(); return; }
+    const price = parseInt(p.price, 10);
+    if (!(price > 0)) { customField('price'); return; }
+    const line = { id: newCustomId(), qty: p.qty, type: order.type, mods: [], note: cleanNote(p.note), custom: cleanCustom({ name: p.name, veg: p.veg, price, cat: p.cat }) };
+    order.lines.push(line);
+    customPop = null; sheet = null; selected = null; render();
+    showLine(keyOf(line));
+  }
+  function closeCustom() { customInput(customPop?.field)?.blur(); customPop = null; sheet = null; render(); }
+
   // ---------- Print bill ----------
+  // The Print bill button shows how much paper the bill printer has left (Counter Update 5): its light blue drains from
+  // the top as the roll is used; at 20% or less (or when the printer says the paper is nearly out) the whole button is
+  // amber; out of paper (or the cover open) it is red with a "!"; with the printer offline it is grey, its printer
+  // crossed out. A tap still prints. The RESTRO Android app works it out for the printer whose role is Bills & receipts
+  // or Both (the roll's length less what has been printed, and the printer's own paper sensor) and tells the page
+  // (RESTRODevice.printer.paperStatus / subscribePaperStatus, or the restro:printer-paper event: ANDROID-BRIDGE.md);
+  // without it (a browser, which prints with its own printing) the button shows a full roll.
+  let paper = { level: 100, state: 'ok' };
+  const cleanPaper = p => {
+    if (typeof p === 'string') { try { p = JSON.parse(p); } catch { return null; } }
+    if (!p || typeof p !== 'object') return null;
+    const state = ['ok', 'low', 'out', 'offline'].includes(p.state) ? p.state : 'ok', level = Number(p.level);
+    return { level: Number.isFinite(level) ? Math.max(0, Math.min(100, Math.round(level))) : 100, state };
+  };
+  const paperLook = () => (paper.state === 'offline' ? 'off' : paper.state === 'out' ? 'out' : paper.state === 'low' || paper.level <= 20 ? 'low' : 'ok');
+  function printButton() {
+    const look = paperLook();
+    const said = { ok: `paper about ${paper.level}%`, low: 'paper low', out: 'out of paper', off: 'printer offline' }[look];
+    return el('button', { type: 'button', class: `cx-b print cx-print${look === 'ok' ? '' : ` ${look}`}`, style: look === 'ok' ? `--paper:${paper.level}%` : null,
+      'aria-label': `Print bill, ${said}`, title: 'Print bill', disabled: !order.lines.length, onclick: printBill },
+    mi(look === 'off' ? 'print_disabled' : 'print', 28), look === 'out' ? el('span', { class: 'cx-paper-out', 'aria-hidden': 'true' }, '!') : null);
+  }
+  function setPaper(p) {
+    const next = cleanPaper(p); if (!next) return;
+    paper = next;
+    const old = dialog.querySelector('.cx-print'); if (old) old.replaceWith(printButton());
+  }
+  function readPaper() {
+    const printer = window.RESTRODevice?.printer; if (typeof printer?.paperStatus !== 'function') return;
+    try { Promise.resolve(printer.paperStatus()).then(setPaper, () => {}); } catch {}
+  }
+  let paperStop = null;
+  function watchPaper() {
+    try { paperStop?.(); } catch {} paperStop = null;
+    const printer = window.RESTRODevice?.printer;
+    if (typeof printer?.subscribePaperStatus === 'function') { try { const stop = printer.subscribePaperStatus(setPaper); if (typeof stop === 'function') paperStop = stop; } catch {} }
+    readPaper();
+  }
+  window.addEventListener('restro:printer-paper', e => setPaper(e.detail));
+  window.addEventListener('restro:device-ready', watchPaper);
+  watchPaper();
+
   // The bill for the order on screen: each item with its modifiers and note under it, then the sums. The RESTRO Android
   // app prints it on the restaurant's printer (RESTRODevice.printer.printBill, ANDROID-BRIDGE.md); in a browser it goes
   // to the browser's printing.
@@ -1145,7 +1352,7 @@
     return {
       restaurant: shop && shop !== 'RESTAURANT NAME' ? shop : '', number: o.number ? ticket(o.number) : null, at: Date.now(),
       type: typeLabel[o.type || DEFAULT_TYPE], table: usesTable(o) ? tableName(o.table) : '', customer: o.customer ? o.customer.name : '', pager: cleanPager(o.pager) || null,
-      lines: o.lines.map(l => ({ name: items.get(l.id).name, qty: l.qty, each: eachOf(l), total: eachOf(l) * l.qty, modifiers: (l.mods || []).map(modLabel), note: l.note || '' })),
+      lines: o.lines.map(l => ({ name: itemOf(l).name, qty: l.qty, each: eachOf(l), total: eachOf(l) * l.qty, modifiers: (l.mods || []).map(modLabel), note: l.note || '' })),
       subtotal: t.subtotal / 100, tax: t.tax / 100, taxLabel: menu.taxLabel, total: t.total / 100
     };
   }
@@ -1153,7 +1360,7 @@
     if (!order.lines.length) return;
     const bill = billOf(), printer = window.RESTRODevice?.printer;
     if (typeof printer?.printBill === 'function') {
-      Promise.resolve(printer.printBill(bill)).then(ok => toast(ok === false ? 'The bill didn’t print' : 'Bill sent to the printer'), () => toast('The bill didn’t print'));
+      Promise.resolve(printer.printBill(bill)).then(ok => toast(ok === false ? 'The bill didn’t print' : 'Bill sent to the printer'), () => toast('The bill didn’t print')).finally(readPaper);
       return;
     }
     let page = document.querySelector('#print-bill');
@@ -1223,25 +1430,32 @@
   }, true);
 
   // The pop-ups (Counter Update 4): grey cards over the menu, the menu dimmed, the order beside it as it is (a tap there
-  // is a tap outside). Each starts with the dish's veg / non-veg mark and its name, nothing else; its buttons are raised
-  // white tiles; Done is blue; no Cancel, no ✕.
+  // is a tap outside). Each starts with the dish's veg / non-veg mark and its name, with the ✕ at the end of that row
+  // (Update 5: 52 round, raised white, at the same place on every pop-up); its buttons are raised white tiles; Done is
+  // blue.
+  const NOTE_HINT = 'Type special instructions here';
   function popView() {
-    const kind = sheet, key = kind === 'mods' ? modPop.key : kind === 'qty' ? qtyPop.key : notePop.key, line = lineOf(key), item = items.get(line.id);
-    const outside = kind === 'mods' ? () => { closeMods(); } : kind === 'qty' ? cancelQty : () => {};
-    const hold = e => e.preventDefault(); // (a tap that is not on the note line leaves the keyboard as it is)
-    const dish = el('div', { class: 'cx-pu-dish' }, item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name));
-    const done = (fn, wide) => el('button', { type: 'button', class: `cx-done${wide ? ' wide' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: fn }, 'Done');
-    const card = kind === 'mods' ? modsCard(line, item, dish, done) : kind === 'qty' ? qtyCard(line, item, dish, done) : noteCard(line, item, dish, done, hold);
-    return el('div', { class: `cx-layer ${kind}` },
+    const kind = sheet, hold = e => e.preventDefault(); // (a tap that is not on a line typed on leaves the keyboard as it is)
+    const layer = (card, outside = () => {}) => el('div', { class: `cx-layer ${kind}` },
       el('div', { class: 'cx-layer-order', onpointerdown: hold, onmousedown: hold, onclick: outside }),
       el('div', { class: 'cx-layer-menu', onpointerdown: hold, onmousedown: hold, onclick: outside }),
       card);
+    if (kind === 'custom') return layer(customCard(hold));
+    const key = kind === 'mods' ? modPop.key : kind === 'qty' ? qtyPop.key : notePop.key, line = lineOf(key), item = itemOf(line);
+    const outside = kind === 'mods' ? () => { closeMods(); } : kind === 'qty' ? cancelQty : () => {};
+    const dish = el('div', { class: 'cx-pu-dish' }, item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name));
+    const head = el('div', { class: 'cx-pu-head' }, dish, closeX(kind === 'mods' ? cancelMods : kind === 'qty' ? cancelQty : cancelNote, hold));
+    const done = (fn, wide) => el('button', { type: 'button', class: `cx-done${wide ? ' wide' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: fn }, 'Done');
+    return layer(kind === 'mods' ? modsCard(line, item, head, done) : kind === 'qty' ? qtyCard(line, item, head, done) : noteCard(line, item, head, done, hold), outside);
   }
+  const closeX = (fn, hold) => el('button', { type: 'button', class: 'cx-x', 'aria-label': 'Close without changes', title: 'Close', onpointerdown: hold, onmousedown: hold, onclick: fn }, mi('close', 26));
   // Modifiers: each group (title, "Required · pick 1" or "Optional") with its choices as tiles, 1–3 choices a third of
-  // the row each, 4 or more a quarter each, four to a row; a price under its choice's name. The bottom row: the note
-  // (tap it for the note pop-up) · − quantity + · Done. A required group left empty when closing is tried: red badge,
-  // "Choose a spice level to continue", red edges, until a choice is made.
-  function modsCard(line, item, dish, done) {
+  // the row each, 4 or more a quarter each, four to a row; a price under its choice's name; a choice made is light blue
+  // with a tick (Update 5: spice level too; on the order it stays amber). The bottom row: the note (tap it for the note
+  // pop-up; with none, its line is soft red with "Type special instructions here" in grey) · − quantity + · Done. A
+  // required group left empty when closing is tried: red badge, "Choose a spice level to continue", red edges, until a
+  // choice is made.
+  function modsCard(line, item, head, done) {
     const missing = new Set(modPop.tried ? missingOf(line).map(g => g.id) : []);
     const group = g => {
       const err = missing.has(g.id), single = g.required || g.single;
@@ -1252,66 +1466,187 @@
           err ? el('span', { class: 'cx-mg-err', role: 'alert' }, `Choose a ${g.name.toLowerCase()} to continue`) : null),
         el('div', { class: `cx-mg-opts c${g.options.length <= 3 ? 3 : 4}` }, ...g.options.map(o => {
           const on = line.mods.includes(o.id);
-          return el('button', { type: 'button', role: single ? 'radio' : 'checkbox', 'aria-checked': String(on),
-            class: `cx-mo${on ? (g.kind === 'spice' || g.required ? ' on sp' : ' on nn') : err ? ' err' : ''}`, onclick: () => pickOption(g, o) },
-          on ? mi('check', 20) : null,
-          el('span', { class: 'cx-mo-t' }, el('span', {}, o.label), o.price ? el('small', {}, `+₹${o.price.toLocaleString('en-IN')}`) : null));
+          return el('button', { type: 'button', role: single ? 'radio' : 'checkbox', 'aria-checked': String(on), class: `cx-mo${on ? ' on' : err ? ' err' : ''}`, onclick: () => pickOption(g, o) },
+            on ? mi('check', 20) : null,
+            el('span', { class: 'cx-mo-t' }, el('span', {}, o.label), o.price ? el('small', {}, `+₹${o.price.toLocaleString('en-IN')}`) : null));
         })));
     };
     return el('div', { class: 'cx-pu mods', role: 'dialog', 'aria-label': `${item.name}: choices` },
-      el('div', { class: 'cx-pu-head' }, dish),
+      head,
       el('div', { class: 'cx-pu-groups' }, ...groupsOf(line.id).map(group)),
       el('div', { class: 'cx-pu-foot' },
         el('button', { type: 'button', class: 'cx-nl', 'aria-label': line.note ? `Note: ${line.note}. Tap to change it` : 'Add a note', onclick: () => openNote(modPop.key, true) },
           el('span', { class: 'cx-nl-label' }, 'Note'),
-          el('span', { class: `cx-nl-line${line.note ? '' : ' empty'}` }, mi('edit', 20), el('span', {}, line.note || 'Add a note'))),
+          el('span', { class: `cx-nl-line${line.note ? '' : ' empty'}` }, mi('edit', 20), el('span', {}, line.note || NOTE_HINT))),
         el('div', { class: 'cx-rs' },
           el('button', { type: 'button', class: 'cx-rb', 'aria-label': `One less ${item.name}`, onclick: () => stepMods(-1) }, mi('remove', 26)),
           el('output', { 'aria-live': 'polite' }, String(line.qty)),
           el('button', { type: 'button', class: 'cx-rb', 'aria-label': `One more ${item.name}`, onclick: () => stepMods(1) }, mi('add', 26))),
         done(() => { closeMods(); })));
   }
-  // Quantity: the value typed (blue, with a blue cursor; empty until a key is pressed) · 1–9, Clear, 0, ⌫ · Done
-  function qtyCard(line, item, dish, done) {
+  // The number pad (quantity, a custom item's price): 1–9, Clear, 0, ⌫
+  const numberKeys = (press, cls = '') => el('div', { class: `cx-qk${cls}` }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back'].map(k =>
+    el('button', { type: 'button', class: `cx-key${k === 'clear' || k === 'back' ? ' fn' : ''}`, 'data-key': k, 'aria-label': k === 'clear' ? 'Clear' : k === 'back' ? 'Backspace' : k, onclick: () => press(k) },
+      k === 'back' ? mi('backspace', 28) : k === 'clear' ? 'Clear' : k)));
+  // Quantity: the value typed (blue, with a blinking blue cursor; empty until a key is pressed) · 1–9, Clear, 0, ⌫ · Done
+  function qtyCard(line, item, head, done) {
     const v = qtyPop.value;
-    const key = (k, label) => el('button', { type: 'button', class: `cx-key${k === 'clear' || k === 'back' ? ' fn' : ''}`, 'data-key': k, 'aria-label': label || k, onclick: () => pressQty(k) },
-      k === 'back' ? mi('backspace', 28) : k === 'clear' ? 'Clear' : k);
     return el('div', { class: 'cx-pu qty', role: 'dialog', 'aria-label': `Quantity for ${item.name}` },
-      el('div', { class: 'cx-pu-head' }, dish),
+      head,
       el('div', { class: 'cx-qd', role: 'status', 'aria-label': v ? `Quantity ${v}` : `Type the quantity (now ${line.qty})` }, v ? el('span', {}, v) : null, el('i', { 'aria-hidden': 'true' })),
-      el('div', { class: 'cx-qk' }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(k => key(k)), key('clear', 'Clear'), key('0'), key('back', 'Backspace')),
+      numberKeys(pressQty),
       done(doneQty, true));
   }
+  // A line typed on (Update 5): the note (the note pop-up, a custom item's) and a custom item's name. With nothing on it
+  // its grey hint shows ("Type special instructions here"), after the cursor while it has the keyboard. The cursor is
+  // our own: 2.4 wide, blue, blinking (on 530 ms, off 530 ms) where the typing goes (the tablet's own is thinner). The
+  // line under it (counter.css) is soft red while empty (only a hint: nothing needs a note), grey with words on it, and
+  // blue while it has the keyboard.
+  let caretOf = null; // the cursor of the line that has the keyboard
+  document.addEventListener('selectionchange', () => caretOf?.());
+  function textField({ id, value, hint, max, label }) {
+    const input = el('input', { id, type: 'text', maxlength: String(max), autocomplete: 'off', autocapitalize: 'sentences', enterkeyhint: 'done', 'aria-label': label });
+    input.value = value;
+    const cur = el('i', { class: 'cx-cur', 'aria-hidden': 'true', hidden: true }), ruler = el('span', { class: 'cx-ruler', 'aria-hidden': 'true' });
+    const box = el('span', { class: `cx-tf${value ? '' : ' empty'}` }, input, el('span', { class: 'cx-hint', 'aria-hidden': 'true' }, hint), cur, ruler);
+    let frame = 0;
+    const place = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!input.isConnected) return;
+        const on = document.activeElement === input, a = input.selectionStart ?? input.value.length, b = input.selectionEnd ?? a;
+        box.classList.toggle('empty', !input.value); box.classList.toggle('on', on);
+        cur.hidden = !on || a !== b; if (cur.hidden) return;
+        ruler.textContent = input.value.slice(0, a);
+        cur.style.setProperty('--x', `${Math.min(input.clientWidth, Math.max(0, ruler.offsetWidth - input.scrollLeft))}px`);
+      });
+    };
+    const restart = () => cur.getAnimations?.().forEach(a => { a.currentTime = 0; }); // (it shows while typing goes on)
+    input.addEventListener('input', () => { place(); restart(); });
+    input.addEventListener('keydown', () => { place(); restart(); });
+    for (const type of ['keyup', 'pointerup', 'select', 'scroll']) input.addEventListener(type, place);
+    input.addEventListener('focus', () => { caretOf = place; place(); restart(); });
+    input.addEventListener('blur', () => { if (caretOf === place) caretOf = null; place(); });
+    return { box, input, place };
+  }
+  // The pin before a pinned quick note (as drawn: an 18 square showing the pin's head and the top of its point)
+  function pinIcon() {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 18 18'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', 'cx-i cx-pin');
+    s.innerHTML = '<path d="m16 12 2 2v2h-5v6l-1 1-1-1v-6H6v-2l2-2V5H7V3h10v2h-1Z"/>'; return s;
+  }
   // Note: the note line (tap it to type: the keyboard comes up, the pop-up moves up above it and the quick notes become
-  // one row that scrolls) · "Quick notes" · up to 15 chips (light blue while their words are in the note; a tap adds
-  // them, or takes them out) · Clear note ........ Done
-  function noteCard(line, item, dish, done, hold) {
-    const p = notePop, chips = quickNotesFor(line.id);
-    const field = el('input', { id: 'counter-note', type: 'text', maxlength: '200', autocomplete: 'off', enterkeyhint: 'done', 'aria-label': `Note for ${item.name}` });
-    field.value = p.draft;
-    const chipEls = chips.map(c => el('button', { type: 'button', class: 'cx-qn-chip', onpointerdown: hold, onmousedown: hold, onclick: () => { p.draft = toggleQuick(p.draft, c); field.value = p.draft; sync(); } }, c));
-    const sync = () => chipEls.forEach((b, i) => { const on = hasQuick(p.draft, chips[i]); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  // one row that scrolls) · "Quick notes": "+ Add" (Update 5: blue while the note has words that aren't a quick note yet,
+  // grey otherwise; a tap keeps them as quick notes of the dish) and 14 notes (light blue while their words are in the
+  // note; a tap adds them, or takes them out; pinned ones with a pin, new ones with NEW) · Clear note ........ Done.
+  // (A custom item has no + Add: it isn't a dish of the menu.)
+  function noteCard(line, item, head, done, hold) {
+    const p = notePop, notes = quickNotesFor(line.id), adds = !line.custom, shown = notes.slice(0, adds ? 14 : 15);
+    const known = new Set(notes.map(n => n.text.toLowerCase()));
+    const fresh = () => noteParts(p.draft).filter(s => !known.has(s.toLowerCase()));
+    const tf = textField({ id: 'counter-note', value: p.draft, hint: NOTE_HINT, max: 200, label: `Note for ${item.name}` }), field = tf.input;
+    const noteLine = el('span', { class: 'cx-nf-line' }, mi('edit', 22), tf.box);
+    const addBtn = adds ? el('button', { type: 'button', class: 'cx-qn-chip add', onpointerdown: hold, onmousedown: hold, onclick: () => {
+      const parts = fresh(); if (!parts.length) return;
+      keepQuick(line.id, [...new Map(parts.map(s => [s.toLowerCase(), s])).values()]);
+      field.blur(); p.typing = false; render(); // (the note is done being typed: the keyboard goes down)
+    } }, mi('add', 22), el('span', {}, 'Add')) : null;
+    const chipEls = shown.map(n => el('button', { type: 'button', class: `cx-qn-chip${n.isNew ? ' new' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: () => { p.draft = toggleQuick(p.draft, n.text); field.value = p.draft; sync(); tf.place(); } },
+      n.pinned ? pinIcon() : null, el('span', { class: 'cx-qn-t' }, n.text), n.isNew ? el('b', { class: 'cx-new' }, 'NEW') : null));
+    const sync = () => {
+      chipEls.forEach((b, i) => { const on = hasQuick(p.draft, shown[i].text); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+      if (addBtn) { const off = !fresh().length; addBtn.classList.toggle('off', off); addBtn.setAttribute('aria-disabled', String(off)); addBtn.setAttribute('aria-label', off ? 'Add a quick note: type it in the note first' : 'Add what is typed as a quick note'); }
+      noteLine.classList.toggle('empty', !p.draft);
+    };
     sync();
     const card = el('div', { class: `cx-pu note${p.typing ? ' typing' : ''}`, role: 'dialog', 'aria-label': `Note for ${item.name}` },
-      el('div', { class: 'cx-pu-head' }, dish),
-      el('label', { class: 'cx-nf' }, el('span', { class: 'cx-nf-label' }, 'Note'), el('span', { class: 'cx-nf-line' }, mi('edit', 22), field)),
+      head,
+      el('label', { class: 'cx-nf' }, el('span', { class: 'cx-nf-label' }, 'Note'), noteLine),
       el('div', { class: 'cx-nf-q', id: 'counter-quick' }, 'Quick notes'),
-      el('div', { class: 'cx-qn', role: 'group', 'aria-labelledby': 'counter-quick' }, ...chipEls),
+      el('div', { class: 'cx-qn', role: 'group', 'aria-labelledby': 'counter-quick' }, addBtn, ...chipEls),
       el('div', { class: 'cx-nf-foot' },
-        el('button', { type: 'button', class: 'cx-clear', onpointerdown: hold, onmousedown: hold, onclick: () => { p.draft = ''; field.value = ''; sync(); } }, 'Clear note'),
+        el('button', { type: 'button', class: 'cx-clear', onpointerdown: hold, onmousedown: hold, onclick: () => { p.draft = ''; field.value = ''; sync(); tf.place(); } }, 'Clear note'),
         done(doneNote)));
     field.addEventListener('input', () => { p.draft = field.value; sync(); });
-    field.addEventListener('focus', () => { if (notePop !== p) return; p.typing = true; card.classList.add('typing'); });
-    field.addEventListener('blur', () => { if (notePop !== p || !field.isConnected) return; p.typing = false; card.classList.remove('typing'); });
+    field.addEventListener('focus', () => { if (notePop !== p) return; p.typing = true; card.classList.add('typing'); noteLine.classList.add('on'); });
+    field.addEventListener('blur', () => { if (notePop !== p || !field.isConnected) return; p.typing = false; card.classList.remove('typing'); noteLine.classList.remove('on'); });
     field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doneNote(); } });
+    if (p.typing) noteLine.classList.add('on');
     return card;
   }
-  // The modifier pop-up: its top 206 down the menu (over its Desserts / Beverages row), or, once it is taller, centred
-  // on the menu as it grows up and down; at most 775 tall (the groups then scroll, the dish and the bottom row stay).
+  // A custom item: the + in a white circle, "Add custom item" 24/800, the category's badge, ✕ · Item name · optional
+  // (a line typed on) · Veg / Non-veg · optional (two raised buttons, the one chosen light blue; a second tap takes it
+  // off) beside Price (each) · required (a raised field: ₹ and the price, "Enter price" in grey until there is one; blue
+  // edged while our number pad is open) · the note (a line typed on, under a pen) beside − 1 + · the number pad, while
+  // the price is being typed · the button: Set item name / Set price / Set note while one of them is typed in, else Done.
+  // It is drawn once as it opens and then changes in place, so typing is never interrupted.
+  let paintCustom = null;
+  function customCard(hold) {
+    const p = customPop, c = categoryById.get(p.cat);
+    const press = fn => ({ type: 'button', onpointerdown: hold, onmousedown: hold, onclick: fn });
+    const name = textField({ id: 'counter-custom-name', value: p.name, hint: 'Custom item', max: 60, label: 'Item name, optional' });
+    const nameLine = el('span', { class: 'cx-nf-line' }, name.box);
+    const note = textField({ id: 'counter-custom-note', value: p.note, hint: NOTE_HINT, max: 200, label: 'Note, optional' });
+    const noteLine = el('span', { class: 'cx-nl-line' }, mi('edit', 20), note.box);
+    const veg = el('button', { ...press(() => { p.veg = p.veg === true ? null : true; paint(); }), class: 'cx-vn veg' }, el('em', { 'aria-hidden': 'true' }), 'Veg');
+    const non = el('button', { ...press(() => { p.veg = p.veg === false ? null : false; paint(); }), class: 'cx-vn non' }, el('em', { 'aria-hidden': 'true' }), 'Non-veg');
+    const priceText = el('span', { class: 'cx-pf-v' }), priceCur = el('i', { class: 'cx-cur', 'aria-hidden': 'true' });
+    const price = el('button', { ...press(() => customField('price')), class: 'cx-pf', 'aria-label': 'Price each, needed' }, el('span', { class: 'cx-pf-r', 'aria-hidden': 'true' }, '₹'), priceText, priceCur);
+    const qty = el('output', { 'aria-live': 'polite' });
+    const pad = numberKeys(pressPrice, ' cx-pp');
+    const button = el('button', { ...press(customDone), class: 'cx-done wide' });
+    const card = el('div', { class: 'cx-pu custom', role: 'dialog', 'aria-label': `Add a custom item to ${c.name}` },
+      el('div', { class: 'cx-pu-head' },
+        el('div', { class: 'cx-cu-title' }, el('i', { 'aria-hidden': 'true' }, mi('add', 24)), el('b', {}, 'Add custom item'), el('span', { class: 'cx-badge opt' }, c.name)),
+        closeX(closeCustom, hold)),
+      el('label', { class: 'cx-nf' }, el('span', { class: 'cx-nf-label' }, 'Item name · optional'), nameLine),
+      el('div', { class: 'cx-cu-grid' },
+        el('div', { role: 'group', 'aria-label': 'Veg or non-veg, optional' }, el('span', { class: 'cx-lab3', 'aria-hidden': 'true' }, 'Veg / Non-veg · optional'), el('div', { class: 'cx-vn-row' }, veg, non)),
+        el('div', {}, el('span', { class: 'cx-lab3', 'aria-hidden': 'true' }, 'Price (each) · required'), price)),
+      el('div', { class: 'cx-cu-foot' },
+        el('label', { class: 'cx-nl' }, el('span', { class: 'cx-nl-label' }, 'Note'), noteLine),
+        el('div', { class: 'cx-rs' },
+          el('button', { ...press(() => { p.qty = Math.max(1, p.qty - 1); paint(); }), class: 'cx-rb', 'aria-label': 'One less' }, mi('remove', 26)),
+          qty,
+          el('button', { ...press(() => { p.qty = Math.min(999, p.qty + 1); paint(); }), class: 'cx-rb', 'aria-label': 'One more' }, mi('add', 26)))),
+      pad, button);
+    // The name and the note take the keyboard when tapped; Enter, or the keyboard put away, sets them.
+    for (const [tf, line, field] of [[name, nameLine, 'name'], [note, noteLine, 'note']]) {
+      tf.input.addEventListener('input', () => { p[field] = tf.input.value; line.classList.toggle('empty', !tf.input.value); });
+      tf.input.addEventListener('focus', () => { if (customPop !== p || p.field === field) return; p.field = field; paint(); });
+      tf.input.addEventListener('blur', () => { if (customPop === p && p.field === field && tf.input.isConnected) customSet(); });
+      tf.input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); customSet(); } });
+    }
+    function paint() {
+      const typing = p.field === 'name' || p.field === 'note';
+      card.classList.toggle('typing', typing); card.classList.toggle('pad', p.field === 'price');
+      for (const [tf, line, field, text] of [[name, nameLine, 'name', p.name], [note, noteLine, 'note', p.note]]) {
+        if (document.activeElement !== tf.input && tf.input.value !== text) tf.input.value = text;
+        line.classList.toggle('empty', !text); line.classList.toggle('on', p.field === field); tf.place();
+      }
+      veg.classList.toggle('on', p.veg === true); veg.setAttribute('aria-pressed', String(p.veg === true));
+      non.classList.toggle('on', p.veg === false); non.setAttribute('aria-pressed', String(p.veg === false));
+      const typed = p.price !== '';
+      price.classList.toggle('focus', p.field === 'price'); price.classList.toggle('empty', !typed);
+      priceText.textContent = typed ? Number(p.price).toLocaleString('en-IN') : 'Enter price';
+      price.setAttribute('aria-label', typed ? `Price each ₹${priceText.textContent}` : 'Price each, needed');
+      priceCur.hidden = p.field !== 'price';
+      if (!priceCur.hidden) priceCur.getAnimations?.().forEach(a => { a.currentTime = 0; });
+      pad.hidden = p.field !== 'price';
+      qty.textContent = String(p.qty);
+      button.textContent = { name: 'Set item name', price: 'Set price', note: 'Set note' }[p.field] || 'Done';
+    }
+    paintCustom = paint;
+    paint();
+    return card;
+  }
+  // The modifier pop-up: its top 206 down the menu (over its Desserts / Beverages row) while it fits there with 24 to
+  // spare at the bottom; a taller one is centred on the menu. At most 775 tall (the groups then scroll, the dish and the
+  // bottom row stay).
   function placePop() {
     const pu = dialog.querySelector('.cx-pu.mods'), panel = dialog.querySelector('.cx-order'); if (!pu || !panel) return;
-    const u = panel.offsetWidth / 532, room = pu.parentElement.clientHeight;
-    pu.style.top = `${Math.max(0, Math.min(166 * u, (room - pu.offsetHeight) / 2))}px`;
+    const u = panel.offsetWidth / 532, room = pu.parentElement.clientHeight, h = pu.offsetHeight;
+    pu.style.top = `${166 * u + h + 20 * u <= room ? 166 * u : Math.max(0, (room - h) / 2)}px`;
   }
   // (A pop-up whose line is gone closes. A line is "edit" only while its modifier pop-up is open, the note pop-up opened
   // from it included.)
@@ -1321,8 +1656,10 @@
     if (!modPop) order.lines.filter(l => l.edit).forEach(settle);
     if (sheet === 'qty' && !(qtyPop && lineOf(qtyPop.key))) { sheet = null; qtyPop = null; }
     if (sheet === 'note' && !(notePop && lineOf(notePop.key))) { sheet = null; notePop = null; }
+    if (sheet === 'custom' && !customPop) sheet = null;
     if (sheet !== 'qty') qtyPop = null;
     if (sheet !== 'note') notePop = null;
+    if (sheet !== 'custom') { customPop = null; paintCustom = null; }
   }
 
   function sheetView() {
@@ -1330,8 +1667,8 @@
     const t = totals();
     const close = el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': 'Close', onclick: () => { sheet = null; render(); } }, svg(ICON.close));
     let body;
-    // The pop-ups over the menu (Counter Update 4): modifiers, quantity, note
-    if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop)) return popView();
+    // The pop-ups over the menu (Counter Update 4): modifiers, quantity, note; a custom item (Update 5)
+    if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop) || (sheet === 'custom' && customPop)) return popView();
 
     if (sheet === 'pay') {
       const options = cashOptions(t.total);
@@ -1540,7 +1877,7 @@
     // above the dimming.
     root.replaceChildren(
       // (under a pop-up the order is seen as it is, but taps there are taps outside the pop-up, keys too)
-      el('div', { class: `cx-shell${highlight ? ' highlight' : ''}${arranging ? ' arranging' : ''}`, 'data-style': menuStyle, inert: sheet === 'mods' || sheet === 'qty' || sheet === 'note' }, orderPanel(), menuSide()),
+      el('div', { class: `cx-shell${highlight ? ' highlight' : ''}${arranging ? ' arranging' : ''}`, 'data-style': menuStyle, inert: POPS.includes(sheet) }, orderPanel(), menuSide()),
       typeMenu || optionsMenu ? el('div', { class: 'cx-scrim', onclick: () => (typeMenu ? openTypeMenu(false) : openOptions(false)) }) : '',
       ...[sheetView()].flat().filter(Boolean));
     renderMenuBody();
@@ -1550,8 +1887,9 @@
     const groupsEl = dialog.querySelector('.cx-pu-groups'), quickEl = dialog.querySelector('.cx-qn');
     if (groupsEl) groupsEl.scrollTop = popScroll[0];
     if (quickEl) quickEl.scrollLeft = popScroll[1];
-    // Typing carries on where it was (search, or a note)
-    if (focusId === 'counter-search' || focusId === 'counter-note') { const f = dialog.querySelector(`#${focusId}`); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
+    // Typing carries on where it was (search, a note, or a custom item's name or note while it is the one being typed in)
+    const typingOn = focusId === 'counter-search' || focusId === 'counter-note' || (customPop && focusId === `counter-custom-${customPop.field}`);
+    if (typingOn) { const f = dialog.querySelector(`#${focusId}`); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
   }
   function toast(message) { if (typeof window.toast === 'function') window.toast(message); else document.querySelector('#toast') && (document.querySelector('#toast').textContent = message); }
 
@@ -1564,6 +1902,8 @@
     if (sheet === 'mods') { closeMods(); return true; }
     if (sheet === 'qty') { cancelQty(); return true; }
     if (sheet === 'note') { if (notePop?.typing) dialog.querySelector('#counter-note')?.blur(); else doneNote(); return true; }
+    // the custom item: what is being typed in is set first; then it closes, adding nothing (as ✕)
+    if (sheet === 'custom') { if (customPop?.field) customSet(); else closeCustom(); return true; }
     if (sheet && sheet !== 'receipt') { sheet = null; render(); return true; }
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
     if (highlight) { setHighlight(false); return true; } // a sheet opened from it closes first
@@ -1589,7 +1929,7 @@
     if (dialog.open && event.target.classList?.contains('cx-lines')) scrollMemo.lines = event.target.scrollTop;
   }, true);
   // Leaving Counter ends rearranging, the selection, the quantity pop-up and the Undo bar; the order, the page and
-  // everything else (an open modifier or note pop-up too, with its line selected) stay as they were.
+  // everything else (an open modifier, note or custom item pop-up too, with its line selected) stay as they were.
   dialog.addEventListener('close', () => {
     if (press) { clearTimeout(press.timer); press = null; } if (drag) endDrag(true, false); arranging = false;
     if (panelPress) { clearTimeout(panelPress.timer); panelPress = null; } if (panelDrag) endPanelDrag(true); panelArranging = false;
@@ -1597,13 +1937,17 @@
     if (sheet !== 'mods' && sheet !== 'note') selected = null;
     if (sheet === 'qty') { sheet = null; qtyPop = null; }
     if (notePop) notePop.typing = false;
+    if (customPop) { tidyCustom(customPop, customPop.field); customPop.field = null; }
   });
-  // The quantity pop-up from a keyboard too: digits, Backspace, Enter for Done (Esc is Back: it closes as it was)
+  // The quantity pop-up and a custom item's price pad from a keyboard too: digits, Backspace, Enter for Done or Set
+  // price (Esc is Back)
   document.addEventListener('keydown', event => {
-    if (!dialog.open || sheet !== 'qty') return;
-    if (/^\d$/.test(event.key)) { event.preventDefault(); pressQty(event.key); }
-    else if (event.key === 'Backspace') { event.preventDefault(); pressQty('back'); }
-    else if (event.key === 'Enter') { event.preventDefault(); doneQty(); }
+    if (!dialog.open) return;
+    const pad = sheet === 'qty' ? { press: pressQty, enter: doneQty } : sheet === 'custom' && customPop?.field === 'price' ? { press: pressPrice, enter: customSet } : null;
+    if (!pad) return;
+    if (/^\d$/.test(event.key)) { event.preventDefault(); pad.press(event.key); }
+    else if (event.key === 'Backspace') { event.preventDefault(); pad.press('back'); }
+    else if (event.key === 'Enter') { event.preventDefault(); pad.enter(); }
   }, true);
   // The note's keyboard put away by the system (Back on the tablet, or its own key): the note line lets go of it too, and
   // the pop-up comes down again.
@@ -1611,7 +1955,9 @@
     let tallest = visualViewport.height;
     visualViewport.addEventListener('resize', () => {
       tallest = Math.max(tallest, visualViewport.height);
-      if (notePop?.typing && visualViewport.height >= tallest * .9) dialog.querySelector('#counter-note')?.blur();
+      if (visualViewport.height < tallest * .9) return;
+      if (notePop?.typing) dialog.querySelector('#counter-note')?.blur();
+      if (customPop && (customPop.field === 'name' || customPop.field === 'note')) customSet();
     });
   }
   // Toasts must show above this full-screen app.
