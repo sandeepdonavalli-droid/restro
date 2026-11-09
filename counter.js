@@ -743,7 +743,8 @@
     // quantity pop-up) · "₹220 ea" (more than one) and the line total; under them its choices as a line of coloured text,
     // and its note. A custom item has a grey CUSTOM tag after its name (Update 5).
     // Tap a line to select it (light blue, a blue bar on its left): its choices become pills (tap one for the modifier
-    // pop-up) and "Add note / Edit note" shows (the note pop-up). − / + and the number work straight away on any line.
+    // pop-up; a dish with choices but none made has a grey "Select modifier" pill instead) and "Add note / Edit note"
+    // shows (the note pop-up). − / + and the number work straight away on any line.
     // With Modify on, the selected line also shows the order types to move it to.
     const list = el('ul', { class: 'cx-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'cx-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap an item to add it.')));
@@ -761,7 +762,10 @@
             el('button', { type: 'button', class: 'cx-qty', 'aria-label': `Quantity ${line.qty}. Tap to type a quantity`, onclick: () => openQty(key) }, String(line.qty)),
             el('button', { type: 'button', class: 'cx-sb', 'aria-label': `One more ${item.name}`, onclick: () => setQty(key, line.qty + 1) }, mi('add', 22))),
           el('div', { class: 'cx-lt' }, line.qty > 1 ? el('small', {}, `${rupees(each)} ea`) : null, el('b', {}, rupees(each * line.qty))),
-          mods.length ? el('div', { class: 'cx-mcs' }, ...mods) : null,
+          mods.length ? el('div', { class: 'cx-mcs' }, ...mods)
+            // a dish with choices but none made (its pop-up closed with ×): on the selected line, a grey "Select
+            // modifier" pill where its choices would be, opening its pop-up
+            : sel && groupsOf(line.id).length ? el('div', { class: 'cx-mcs' }, el('button', { type: 'button', class: 'cx-mc pick', 'aria-label': `Select modifier for ${item.name}`, onclick: () => openMods(key) }, 'Select modifier')) : null,
           sel ? el('button', { type: 'button', class: 'cx-an', 'aria-label': `${line.note ? 'Edit the note' : 'Add a note'} for ${item.name}`, onclick: () => openNote(key) }, mi('edit', 14), el('span', {}, line.note ? 'Edit note' : 'Add note')) : null,
           line.note ? el('div', { class: 'cx-cmt' }, mi('receipt_long', 14), el('span', {}, line.note)) : null,
           open ? el('div', { class: 'cx-move', role: 'radiogroup', 'aria-label': `Serve ${item.name} as` },
