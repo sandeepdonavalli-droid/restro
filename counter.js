@@ -262,7 +262,7 @@
     if (!groupsOf(id).length) { addLine(id, []); return; }
     const line = { id, qty: 1, type: order.type, mods: [], note: '', edit: true };
     order.lines.push(line);
-    selected = keyOf(line); modPop = { key: selected, added: true, tried: false }; qtyPop = null; notePop = null; sheet = 'mods'; render();
+    selected = keyOf(line); modPop = { key: selected, added: true, tried: false, was: { mods: [], qty: 1, note: '' } }; qtyPop = null; notePop = null; sheet = 'mods'; render();
     showLine(selected);
   }
   function addLine(id, mods) {
@@ -1147,16 +1147,15 @@
     selected = !added && key && lineOf(key) ? key : null;
     render(); return true;
   }
-  // ✕: the line goes back to how it was when the pop-up opened (its choices, quantity and note) and the pop-up closes.
-  // A dish that came on with its pop-up comes off the order again (the same tap added it).
+  // ✕: the pop-up closes and nothing changed in it is kept: the line is as it was when the pop-up opened (its choices,
+  // quantity and note). A dish that came on with its pop-up stays on the order as it came on (nothing chosen yet).
   function cancelMods() {
     const p = modPop; if (!p) return;
     const line = modLine();
     sheet = null; modPop = null; notePop = null;
-    if (line && p.added) { order.lines.splice(order.lines.indexOf(line), 1); selected = null; render(); return; }
     if (line && p.was) { line.mods = [...p.was.mods]; line.qty = p.was.qty; line.note = p.was.note; }
     const key = line ? settle(line) : null;
-    selected = key && lineOf(key) ? key : null;
+    selected = !p.added && key && lineOf(key) ? key : null;
     render();
   }
   // A line out of its pop-up: it joins a line of the same dish, type and choices, if there is one (the quantities add
