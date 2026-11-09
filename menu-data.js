@@ -9,11 +9,11 @@ window.RestroMenu = {
   currency: 'INR',
   taxRate: 0.05,
   taxLabel: 'GST 5%',
-  // Modifier groups. kind: 'spice' shows amber on the order line, 'other' grey. A required group always has one choice
-  // (it can be changed but not cleared; `default` is chosen to start with); the others take any number, or none.
+  // Modifier groups. kind: 'spice' shows amber on the order line, 'other' grey. A required group takes one choice, made
+  // in the dish's pop-up as it is added (it can be changed but not cleared); the others take any number, or none.
   // price: added to the item's price (rupees), shown on the pill ("Extra gravy +₹40").
   modifierGroups: [
-    { id: 'spice', name: 'Spice level', kind: 'spice', required: true, default: 'medium-spicy', options: [
+    { id: 'spice', name: 'Spice level', kind: 'spice', required: true, options: [
       { id: 'less-spicy', label: 'Less spicy' },
       { id: 'medium-spicy', label: 'Medium spicy' },
       { id: 'extra-spicy', label: 'Extra spicy' }
