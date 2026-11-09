@@ -132,22 +132,6 @@
   document.querySelector('#settings-prep-up').addEventListener('click', () => stepPrep(5));
   showPrep();
 
-  // Display > Tiles per row (Counter Update 6): 4 (the default) or 3, in every grid of the Counter's menu. A preference
-  // of this tablet only (counter.js).
-  const tilesList = document.querySelector('#settings-tiles-per-row');
-  if (tilesList && window.RestroCounter) {
-    for (const n of [4, 3]) {
-      const label = document.createElement('label'); label.className = 'settings-item tiles-style';
-      const input = document.createElement('input'); input.type = 'radio'; input.name = 'tiles-per-row'; input.value = String(n); input.id = `tiles-per-row-${n}`;
-      input.addEventListener('change', () => { if (input.checked) window.RestroCounter.setTilesPerRow(n); });
-      const copy = document.createElement('span'); copy.className = 'settings-row-copy';
-      const name = document.createElement('strong'); name.textContent = String(n); copy.append(name);
-      label.append(input, copy); tilesList.append(label);
-    }
-    const paintTiles = () => tilesList.querySelectorAll('input').forEach(input => { input.checked = Number(input.value) === window.RestroCounter.tilesPerRow; });
-    window.addEventListener('restro:counter-tiles-changed', paintTiles); paintTiles();
-  }
-
   // Counter: Menu display style (Category grid, Pills on top, Vertical rail). Each card is the Counter as it is now in
   // that style (RestroCounter.preview) under a copy of the top bar, laid out at the screen's own size and scaled down to
   // the card, made each time the Counter page opens and cleared when it closes. Tapping a card uses it straight away.
@@ -172,7 +156,7 @@
       for (const name of inheritedLooks) screen.style.setProperty(name, look.getPropertyValue(name));
       screen.style.width = `${shot.w}px`; screen.style.height = `${shot.h}px`;
       const app = document.createElement('span'); app.className = 'counter-live-app';
-      app.append(counter.preview(box.dataset.counterStyle));
+      app.append(counter.preview(box.dataset.counterStyle, Number(box.dataset.tiles) || undefined));
       const pill = document.createElement('span'); pill.className = 'home-live-pill';
       screen.append(i ? bar.cloneNode(true) : bar, app, pill);
       box.style.aspectRatio = `${shot.w} / ${shot.h}`;
@@ -224,6 +208,42 @@
     cancelAnimationFrame(restyling); restyling = requestAnimationFrame(paintStylePreviews);
   });
   syncCounterStyle();
+
+  // Counter > Tiles per row (Counter Update 6), under Menu display style: 4 (the default) or 3, in every grid of the
+  // Counter's menu. Each card is the Counter as it is now (in the style applied) with that many tiles a row, made as the
+  // style cards are; tapping one uses it straight away. A preference of this tablet only (counter.js).
+  const tilesOptions = document.querySelector('#settings-tiles-per-row'), tilesCards = new Map();
+  if (tilesOptions && window.RestroCounter) {
+    for (const n of [4, 3]) {
+      const card = document.createElement('button');
+      card.type = 'button'; card.className = 'theme-option counter-style counter-tiles'; card.dataset.tiles = String(n);
+      card.setAttribute('role', 'radio'); card.setAttribute('aria-label', `${n} per row`);
+      const box = document.createElement('span'); box.className = 'theme-preview counter-preview'; box.dataset.tiles = String(n); box.setAttribute('aria-hidden', 'true');
+      stylePreviews.push(box); previewFit.observe(box);
+      const caption = document.createElement('span'); caption.className = 'theme-option-caption';
+      const name = document.createElement('strong'); name.textContent = `${n} per row`;
+      const state = document.createElement('span'); state.className = 'theme-state';
+      caption.append(name, state); card.append(box, caption);
+      card.addEventListener('click', () => window.RestroCounter.setTilesPerRow(n));
+      tilesCards.set(n, card); tilesOptions.append(card);
+    }
+    tilesOptions.addEventListener('keydown', event => {
+      if (!event.target.closest('.counter-tiles') || !['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      const n = ['ArrowRight', 'ArrowDown', 'End'].includes(event.key) ? 3 : 4;
+      event.preventDefault(); window.RestroCounter.setTilesPerRow(n); tilesCards.get(n).focus({ preventScroll: true });
+    });
+    const syncTiles = () => {
+      const n = window.RestroCounter.tilesPerRow;
+      for (const [k, card] of tilesCards) {
+        card.setAttribute('aria-checked', String(k === n)); card.tabIndex = k === n ? 0 : -1;
+        card.querySelector('.theme-state').textContent = k === n ? 'Applied' : k === 4 ? 'Default' : '';
+      }
+    };
+    // (the pictures show the Counter as it is: with the tiles a row, and in the style applied)
+    window.addEventListener('restro:counter-tiles-changed', () => { syncTiles(); paintStylePreviews(); });
+    window.addEventListener('restro:counter-style-changed', () => paintStylePreviews());
+    syncTiles();
+  }
 
   for (const entry of entries) entry.addEventListener('click', () => show(entry.dataset.page, { focus: !twoPane.matches }));
   back.addEventListener('click', showList);

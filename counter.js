@@ -94,7 +94,7 @@
   const STYLE_KEY = 'restro.counter.menuStyle.v1';
   const MENU_STYLES = Object.freeze([Object.freeze({ id: 'grid', name: 'Category grid' }), Object.freeze({ id: 'pills', name: 'Pills on top' }), Object.freeze({ id: 'rail', name: 'Vertical rail' })]);
   let menuStyle = (() => { const v = load(STYLE_KEY, 'pills'); return MENU_STYLES.some(x => x.id === v) ? v : 'pills'; })();
-  // Tiles per row (Counter Update 6; Settings > Display): 4 (the default) or 3, in every grid of the menu; a page has at
+  // Tiles per row (Counter Update 6; Settings > Counter): 4 (the default) or 3, in every grid of the menu; a page has at
   // most 4 rows (16 tiles, or 12). A preference of this tablet only.
   const TILES_KEY = 'restro.counter.tilesPerRow.v1', ROWS = 4;
   let tilesPerRow = Number(load(TILES_KEY, 4)) === 3 ? 3 : 4;
@@ -2391,7 +2391,7 @@
       return used;
     },
     get order() { return JSON.parse(JSON.stringify(order)); },
-    // Settings > Display > Tiles per row (Update 6): 4 or 3
+    // Settings > Counter > Tiles per row (Update 6): 4 or 3
     get tilesPerRow() { return tilesPerRow; },
     setTilesPerRow(n) {
       if (n !== 3 && n !== 4) return false;
@@ -2416,13 +2416,15 @@
     // types, the menu, Highlight order, a selected line, the Undo bar) isn't in it. Nothing in it can be tapped, focused
     // or read out. The order list's
     // place is set once the picture is on screen (data-scroll-top).
-    preview(style = menuStyle) {
+    // (perRow (Update 6): the picture with 4 or 3 tiles a row, for Tiles per row's own cards; the Counter's own otherwise)
+    preview(style = menuStyle, perRow = tilesPerRow) {
       if (!MENU_STYLES.some(x => x.id === style)) style = menuStyle;
-      const was = { typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo };
-      typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; panelArranging = false; selected = null; undo = null;
+      if (perRow !== 3 && perRow !== 4) perRow = tilesPerRow;
+      const was = { typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo, tilesPerRow };
+      typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; panelArranging = false; selected = null; undo = null; tilesPerRow = perRow;
       try {
         const shell = el('div', { class: 'cx-shell', 'data-style': style }, orderPanel(), menuSide());
-        shell.querySelector('.cx-area')?.replaceChildren(...menuArea(style, style === menuStyle).filter(Boolean));
+        shell.querySelector('.cx-area')?.replaceChildren(...menuArea(style, style === menuStyle && perRow === was.tilesPerRow).filter(Boolean));
         for (const node of shell.querySelectorAll('[id]')) node.removeAttribute('id');
         shell.querySelector('.cx-lines')?.setAttribute('data-scroll-top', String(scrollMemo.lines));
         // (the rail as it is on the Counter: where it is scrolled, its fades and More pills)
@@ -2433,7 +2435,7 @@
           rail.parentElement.querySelector('.cx-rarr.up').hidden = !railEdges.up; rail.parentElement.querySelector('.cx-rarr.dn').hidden = !railEdges.down;
         }
         return el('div', { class: 'ctr-root cx-still', inert: true, 'aria-hidden': 'true' }, shell);
-      } finally { ({ typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo } = was); }
+      } finally { ({ typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo, tilesPerRow } = was); }
     }
   });
 })();
