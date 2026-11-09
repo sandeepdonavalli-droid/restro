@@ -94,6 +94,10 @@
   const STYLE_KEY = 'restro.counter.menuStyle.v1';
   const MENU_STYLES = Object.freeze([Object.freeze({ id: 'grid', name: 'Category grid' }), Object.freeze({ id: 'pills', name: 'Pills on top' }), Object.freeze({ id: 'rail', name: 'Vertical rail' })]);
   let menuStyle = (() => { const v = load(STYLE_KEY, 'pills'); return MENU_STYLES.some(x => x.id === v) ? v : 'pills'; })();
+  // Tiles per row (Counter Update 6; Settings > Display): 4 (the default) or 3, in every grid of the menu; a page has at
+  // most 4 rows (16 tiles, or 12). A preference of this tablet only.
+  const TILES_KEY = 'restro.counter.tilesPerRow.v1', ROWS = 4;
+  let tilesPerRow = Number(load(TILES_KEY, 4)) === 3 ? 3 : 4;
   // Ticket numbers come from sync: one sequence a day for the whole restaurant, kept by the cloud or the main system. This
   // one is for orders moved over from an earlier version of the app; a new order gets its number as it is fired (fire()).
   const nextNumber = () => { if (window.RestroSync) return window.RestroSync.nextNumber(); const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
@@ -106,7 +110,8 @@
   // ---------- state ----------
   // A new order starts with no order type. Dine in can have a table (picked on the Floor); every other order a customer.
   // Any order can have a pager, and a ready-by time (Schedule). number: set once the order is saved (Save or Pay).
-  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, lines: [] });
+  // discountPct: a discount on the order (Update 6), a percentage of the subtotal (1–100), or null.
+  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null, lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
@@ -142,6 +147,7 @@
     return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
       pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
+      discountPct: window.RestroBill.pct(o.discountPct),
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && (items.has(l.id) || (typeof l.id === 'string' && cleanCustom(l.custom))) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
         .map(l => {
           const custom = items.has(l.id) ? null : cleanCustom(l.custom);
@@ -161,17 +167,18 @@
   const typeOf = (o, line) => (o.split ? line.type || o.type : o.type) || DEFAULT_TYPE;
   const lineType = line => typeOf(order, line);
   // What a saved order looks like, to tell whether the copy on screen has changes not saved yet.
-  const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.readyAt || 0, o.lines.map(l => [l.id, l.qty, typeOf(o, l), modsKey(l.mods), l.note || ''])]);
+  const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.readyAt || 0, o.discountPct || 0, o.lines.map(l => [l.id, l.qty, typeOf(o, l), modsKey(l.mods), l.note || ''])]);
   // (A line whose choices are being changed in its pop-up is "edit": it stays a line of its own until the pop-up closes,
   // even when its choices match another line's; then they are merged.)
   const keyOf = line => `${line.id}@${lineType(line)}${modsKey(line.mods)}${line.edit ? '!edit' : ''}`;
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, typeMenu = false, optionsMenu = false, deleteArmed = false, highlight = false;
   let undo = null;                                      // the dish just taken off: { line, at, key, name, timer } (the Undo bar)
   // The pop-ups over the menu (Counter Update 4); sheet says which one is open ('mods', 'qty', 'note')
-  let modPop = null;                                    // modifiers: { key (the line), added (opened as the dish was added), tried (closing was tried with a required group empty) }
+  let modPop = null;                                    // modifiers: { key (the line), added (opened as the dish was added), tried (closing was tried with a required group empty), note (Update 6: { draft }, the note being typed in it) }
   let qtyPop = null;                                    // quantity: { key, value (typed so far) }
   let notePop = null;                                   // note: { key, draft, back (return to the modifier pop-up), typing (the note line has the keyboard) }
-  const POPS = ['mods', 'qty', 'note', 'custom'];       // (the pop-ups; customPop, a custom item's, is with its code below)
+  const POPS = ['mods', 'qty', 'note', 'custom', 'discount']; // (the pop-ups; customPop, a custom item's, and discPop, the
+                                                        // discount's (Update 6), are with their code below)
   let cashInput = '';                                   // cash typed on the payment sheet
   let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
@@ -196,11 +203,12 @@
   })();
 
   // ---------- money (all maths in paise) ----------
+  // Counter Update 6 (bill.js): subtotal, less the discount (if any); CGST and SGST on what is left; the total to pay
+  // rounded to the nearest rupee (the round off is on the bill). (tax: CGST and SGST together.)
+  const GST = window.RestroBill.labels(menu.taxRate);
   const totalsOf = o => {
     const subtotal = o.lines.reduce((sum, line) => sum + eachOf(line) * 100 * line.qty, 0);
-    const tax = Math.round(subtotal * menu.taxRate);
-    // Total is exactly subtotal + GST (no rounding to the rupee), so the rows on the ticket always add up.
-    return { subtotal, tax, total: subtotal + tax, count: o.lines.reduce((n, l) => n + l.qty, 0) };
+    return { ...window.RestroBill.totals(subtotal, o.discountPct, menu.taxRate), count: o.lines.reduce((n, l) => n + l.qty, 0) };
   };
   const totals = () => totalsOf(order);
   // Earlier versions kept saved and scheduled orders in Held / Scheduled: they move to Orders (not paid).
@@ -328,11 +336,27 @@
     order.lines.forEach(l => { l.type = type; }); tidy();
     selected = null; render();
   }
-  // The three-line menu (the blue button left of search): Highlight order and Delete order.
+  // The three-line menu (the blue button left of search): Apply discount, Remove discount (Update 6), Highlight order and
+  // Delete order.
   function openOptions(open) {
     optionsMenu = open; deleteArmed = false; render();
     if (open) dialog.querySelector('.cx-mi:not(:disabled)')?.focus({ preventScroll: true });
   }
+  // Discount (Update 6): a percentage of the subtotal, 1 to 100. Apply discount opens its pop-up (with the discount the
+  // order has, to change it); Remove discount takes it off at once (it does nothing until there is one).
+  let discPop = null; // { value: the digits typed }
+  function openDiscount() { optionsMenu = false; deleteArmed = false; discPop = { value: order.discountPct ? String(order.discountPct) : '' }; selected = null; sheet = 'discount'; render(); }
+  function removeDiscount() { if (!order.discountPct) return; order.discountPct = null; optionsMenu = false; deleteArmed = false; render(); }
+  const discOf = p => { const n = Number(p.value); return p.value !== '' && Number.isInteger(n) && n >= 1 && n <= 100 ? n : null; };
+  // The number pad: up to 100 (a key that would go over it does nothing); a quick pick sets its value
+  function pressDisc(k) {
+    if (!discPop) return;
+    const v = discPop.value, next = k === 'clear' ? '' : k === 'back' ? v.slice(0, -1) : v === '0' ? k : v + k;
+    if (next !== '' && Number(next) > 100) return;
+    discPop.value = next; render();
+  }
+  function applyDiscount() { const n = discPop && discOf(discPop); if (!n) return; order.discountPct = n; sheet = null; discPop = null; render(); }
+  function cancelDiscount() { sheet = null; discPop = null; render(); }
   // Highlight order: the order takes the whole left side, top to bottom, to go through and edit its items; the menu side
   // is dimmed. A tap on the dimmed side or Back ends it, and so does the last item going.
   function setHighlight(on) {
@@ -341,8 +365,9 @@
     render();
     if (!on) dialog.querySelector('.cx-mb')?.focus({ preventScroll: true });
   }
-  // Anything on screen to delete: items, a type, a table, a customer, a pager, a ready time, Modify, or a saved order.
-  const hasOrder = () => Boolean(order.lines.length || order.number || order.type || order.table || order.customer || order.pager || order.readyAt || order.split);
+  // Anything on screen to delete: items, a type, a table, a customer, a pager, a ready time, Modify, a discount, or a
+  // saved order.
+  const hasOrder = () => Boolean(order.lines.length || order.number || order.type || order.table || order.customer || order.pager || order.readyAt || order.split || order.discountPct);
   // Delete order: the first tap asks again (Tap again to delete, until the menu closes); the second deletes the order
   // on screen. A saved order (opened from Orders, not paid) comes off Orders too.
   function tapDelete() {
@@ -387,7 +412,7 @@
     if (!order.lines.length || (order.number && signature(order) === baseline)) return false;
     return hold();
   }
-  const fresh = () => { order = blankOrder(); baseline = null; opened = null; selected = null; sheet = null; modPop = null; qtyPop = null; notePop = null; typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; scheduleDraft = null; render(); };
+  const fresh = () => { order = blankOrder(); baseline = null; opened = null; selected = null; sheet = null; modPop = null; qtyPop = null; notePop = null; discPop = null; typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; scheduleDraft = null; render(); };
   // Sends the items not sent yet to the kitchen, as one kitchen ticket. There is no kitchen screen or printer yet,
   // so the ticket is recorded on the order. Returns how many items went.
   function sendToKitchen(entry, now = Date.now()) {
@@ -635,6 +660,14 @@
     const who = o.type === 'dine-in' ? (o.table ? `Table ${tableName(o.table)}` : '') : o.customer ? o.customer.name : '';
     return [type, who, cleanPager(o.pager) ? `Pager ${o.pager}` : ''].filter(Boolean).join(' · ');
   };
+  // A saved order's sums as on its bill: Subtotal, its discount, CGST and SGST (GST on an order from before Update 6),
+  // the round off
+  const sumsOf = o => {
+    const sub = Number.isFinite(o.subtotal) ? o.subtotal : 0, pct = window.RestroBill.pct(o.discountPct), split = Number.isFinite(o.cgst) && Number.isFinite(o.sgst);
+    return [['Subtotal', money(sub)], ...(pct && Number.isFinite(o.discount) ? [[`Discount ${pct}%`, `−${money(o.discount)}`]] : []),
+      ...(split ? [[GST.cgst, money(o.cgst)], [GST.sgst, money(o.sgst)]] : [[menu.taxLabel, money(o.tax || 0)]]),
+      ...(Number(o.roundOff) ? [['Round off', `${o.roundOff < 0 ? '−' : ''}${money(Math.abs(o.roundOff))}`]] : [])];
+  };
   // Orders as kept on this device, items checked: all of them, newest first (Orders), or the paid ones by payment time (Payment history).
   const withLines = o => ({ ...o, createdAt: createdOf(o), lines: o.lines.filter(l => l && typeof l.name === 'string' && Number.isFinite(l.qty) && Number.isFinite(l.price)) });
   const allOrders = () => loadOrders().map(withLines).sort((a, b) => b.createdAt - a.createdAt);
@@ -684,6 +717,12 @@
     swap_vert: 'M360-440q-17 0-28.5-11.5T320-480v-247l-75 75q-11 11-27.5 11T189-652q-12-12-12-28.5t12-28.5l143-143q6-6 13-8.5t15-2.5q8 0 15 2.5t13 8.5l144 144q12 12 11.5 28T531-652q-12 11-28 11.5T475-652l-75-75v247q0 17-11.5 28.5T360-440ZM600-97q-8 0-15-2.5t-13-8.5L428-252q-12-12-11.5-28t12.5-28q12-11 28-11.5t28 11.5l75 75v-247q0-17 11.5-28.5T600-520q17 0 28.5 11.5T640-480v247l75-75q11-11 27.5-11t28.5 11q12 12 12 28.5T771-251L628-108q-6 6-13 8.5T600-97Z',
     delete: 'M280-120q-33 0-56.5-23.5T200-200v-520q-17 0-28.5-11.5T160-760q0-17 11.5-28.5T200-800h160q0-17 11.5-28.5T400-840h160q17 0 28.5 11.5T600-800h160q17 0 28.5 11.5T800-760q0 17-11.5 28.5T760-720v520q0 33-23.5 56.5T680-120H280Zm120-160q17 0 28.5-11.5T440-320v-280q0-17-11.5-28.5T400-640q-17 0-28.5 11.5T360-600v280q0 17 11.5 28.5T400-280Zm160 0q17 0 28.5-11.5T600-320v-280q0-17-11.5-28.5T560-640q-17 0-28.5 11.5T520-600v280q0 17 11.5 28.5T560-280Z',
     chevron_left: 'm432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z',
+    chevron_right: 'M504-480 348-636q-11-11-11-28t11-28q11-11 28-11t28 11l184 184q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L404-268q-11 11-28 11t-28-11q-11-11-11-28t11-28l156-156Z',
+    expand_less: 'M480-529 324-373q-11 11-28 11t-28-11q-11-11-11-28t11-28l184-184q6-6 13-8.5t15-2.5q8 0 15 2.5t13 8.5l184 184q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-529Z',
+    arrow_back_ios_new: 'm382-480 294 294q15 15 14.5 35T675-116q-15 15-35 15t-35-15L297-423q-12-12-18-27t-6-30q0-15 6-30t18-27l308-308q15-15 35.5-14.5T676-844q15 15 15 35t-15 35L382-480Z',
+    percent: 'M300-520q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T360-660q0-25-17.5-42.5T300-720q-25 0-42.5 17.5T240-660q0 25 17.5 42.5T300-600Zm360 440q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T720-300q0-25-17.5-42.5T660-360q-25 0-42.5 17.5T600-300q0 25 17.5 42.5T660-240Zm-472 52q-11-11-11-28t11-28l528-528q11-11 28-11t28 11q11 11 11 28t-11 28L244-188q-11 11-28 11t-28-11Z',
+    // (Remove discount: the rupee crossed out, its stroke cut out of the rupee by a white edge, as drawn)
+    remove_discount: '<path d="M537-132 291-388q-5-5-8-12.5t-3-15.5v-24q0-17 11.5-28.5T320-480h100q53 0 91.5-34.5T558-600H280q-17 0-28.5-11.5T240-640q0-17 11.5-28.5T280-680h266q-17-35-50.5-57.5T420-760H280q-17 0-28.5-11.5T240-800q0-17 11.5-28.5T280-840h400q17 0 28.5 11.5T720-800q0 17-11.5 28.5T680-760h-90q14 17 25 37t17 43h48q17 0 28.5 11.5T720-640q0 17-11.5 28.5T680-600h-41q-8 85-70 142.5T420-400h-29l204 212q18 19 7.5 43.5T566-120q-8 0-15.5-3t-13.5-9Z"/><path d="M150-830 L810-170" stroke="#ffffff" stroke-width="130" stroke-linecap="round" fill="none"/><path d="M150-830 L810-170" stroke="currentColor" stroke-width="70" stroke-linecap="round" fill="none"/>',
     close: 'M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z',
     person: 'M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-240v-32q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v32q0 33-23.5 56.5T720-160H240q-33 0-56.5-23.5T160-240Z',
     table_restaurant: 'M672-520H289l-11 80h404l-10-80ZM166-205l43-315h-89q-20 0-31.5-16T82-571l57-200q4-13 14-21t24-8h606q14 0 24 8t14 21l57 200q5 19-6.5 35T840-520h-88l42 315q2 18-9.5 31.5T755-160q-15 0-26.5-9.5T715-194l-22-166H267l-22 166q-2 15-13.5 24.5T205-160q-18 0-29.5-13.5T166-205Z'
@@ -691,7 +730,7 @@
   const mi = (name, size) => {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     s.setAttribute('viewBox', '0 -960 960 960'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', `cx-i s${size}`);
-    s.innerHTML = `<path d="${MI[name]}"/>`; return s;
+    s.innerHTML = MI[name].startsWith('<') ? MI[name] : `<path d="${MI[name]}"/>`; return s;
   };
   const typeIcon = { 'dine-in': 'restaurant', takeaway: 'local_mall', delivery: 'moped', phone: 'call' };
   // ₹2,270 for whole rupees, ₹113.50 otherwise
@@ -781,15 +820,18 @@
       }
     } else order.lines.forEach(line => list.append(lineRow(line)));
 
-    // Totals: Subtotal and GST (the total is on Pay); Save and Pay at the bottom, the same size, no icons. The Undo bar,
-    // while there is one, floats just above Subtotal.
-    const u = undoShown();
-    const sums = el('div', { class: 'cx-tot' },
+    // Totals (Update 6; the total is on Pay): Subtotal, CGST 2.5% and SGST 2.5%, three small lines in the space two took
+    // before; with a discount, two by two: Subtotal | Discount 10% −₹396 (green) / CGST | SGST. Save (with the kitchen
+    // ticket before it: it sends the order to the kitchen) and Pay at the bottom, the same size. The Undo bar, while there
+    // is one, floats just above the totals.
+    const u = undoShown(), sum = (label, value, cls) => el('div', { class: `cx-tl${cls ? ` ${cls}` : ''}` }, el('span', {}, label), el('b', {}, value));
+    const sums = el('div', { class: `cx-tot${t.discountPct ? '' : ' stack'}` },
       u ? el('div', { class: 'cx-undo', role: 'status' }, el('span', {}, el('b', {}, u.name), ' removed'), el('button', { type: 'button', onclick: undoRemove }, 'UNDO')) : null,
-      el('div', { class: 'cx-r' }, el('span', {}, 'Subtotal'), el('span', {}, amount(t.subtotal))),
-      el('div', { class: 'cx-r' }, el('span', {}, menu.taxLabel), el('span', {}, amount(t.tax))),
+      t.discountPct
+        ? el('div', { class: 'cx-tgrid' }, sum('Subtotal', amount(t.subtotal)), sum(`Discount ${t.discountPct}%`, `−${amount(t.discount)}`, 'dsc'), sum(GST.cgst, amount(t.cgst)), sum(GST.sgst, amount(t.sgst)))
+        : el('div', { class: 'cx-tstack' }, sum('Subtotal', amount(t.subtotal)), sum(GST.cgst, amount(t.cgst)), sum(GST.sgst, amount(t.sgst))),
       el('div', { class: 'cx-act' },
-        el('button', { type: 'button', class: 'cx-save', disabled: !t.count, onclick: saveOrder }, 'Save'),
+        el('button', { type: 'button', class: 'cx-save', disabled: !t.count, onclick: saveOrder }, mi('receipt_long', 26), 'Save'),
         el('button', { type: 'button', class: 'cx-pay', disabled: !t.count, 'aria-label': `Pay ${amount(t.total)}`, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, `Pay\u00A0\u00A0${amount(t.total)}`)));
 
     return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}${typeMenu ? ' picking' : ''}`, 'aria-label': 'Current order' }, pick, row, head, list, sums);
@@ -818,9 +860,14 @@
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, mi('receipt_long', 17), 'Orders'),
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { sheet = 'payments'; render(); } }, mi('history', 17), 'Payment history'),
       syncButton());
-    // The menu: 14 below the button, over the dimmed screen. Highlight order needs items; Delete order asks again before
-    // it deletes the order on screen.
+    // The menu: 14 below the button, over the dimmed screen. Apply discount; Remove discount, grey until the order has a
+    // discount, then with it in a green tag ("10%"); Highlight order needs items; Delete order asks again before it
+    // deletes the order on screen.
     const pop = optionsMenu ? el('div', { class: 'cx-pop', role: 'menu', 'aria-label': 'Menu' },
+      el('button', { type: 'button', role: 'menuitem', class: 'cx-mi', onclick: openDiscount }, mi('percent', 26), 'Apply discount'),
+      el('button', { type: 'button', role: 'menuitem', class: `cx-mi${order.discountPct ? '' : ' off'}`, disabled: !order.discountPct, onclick: removeDiscount }, mi('remove_discount', 26), 'Remove discount',
+        order.discountPct ? el('em', { class: 'cx-dtag' }, `${order.discountPct}%`) : null),
+      el('div', { class: 'cx-sep', role: 'separator' }),
       el('button', { type: 'button', role: 'menuitem', class: 'cx-mi', disabled: !order.lines.length, onclick: () => setHighlight(true) }, mi('swap_vert', 26), 'Highlight order'),
       el('div', { class: 'cx-sep', role: 'separator' }),
       el('button', { type: 'button', role: 'menuitem', class: `cx-mi del${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete }, mi('delete', 26),
@@ -871,68 +918,268 @@
     const q = query.trim().toLowerCase(); if (!q) return [];
     return categoriesInOrder().flatMap(itemsInOrder).filter(i => i.name.toLowerCase().includes(q) || i.code.toLowerCase() === q);
   };
-  // An item: the veg / non-veg mark, its name and price. The whole card adds it (its options sheet first, if it has
-  // modifier groups); hold it to rearrange.
-  const itemCard = item => el('button', { type: 'button', class: 'cx-card', 'data-id': item.id, onclick: () => add(item.id),
-    'aria-label': `Add ${item.name}, ${rupees(item.price)}${item.veg === false ? ', non-veg' : item.veg ? ', veg' : ''}` },
-    item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name), el('span', {}, rupees(item.price)));
+  // How many of a dish the order has, all its lines together
+  const inOrder = id => order.lines.reduce((n, l) => n + (l.id === id ? l.qty : 0), 0);
+  // An item (Update 6): its veg / non-veg mark at the top left, its name under it (two lines at most, then "…") and its
+  // price under the name. The whole tile adds one (its modifier pop-up first, if it has modifier groups); hold it to
+  // rearrange. A dish on the order has a light blue badge at its top right with how many the order has (the tile itself
+  // stays white): a tap on the badge opens the quantity pop-up of its line, or, with several lines (other choices), shows
+  // them on the order.
+  const itemCard = item => {
+    const n = inOrder(item.id), lines = n ? order.lines.filter(l => l.id === item.id).length : 0;
+    return el('div', { class: 'cx-cell', 'data-id': item.id },
+      el('button', { type: 'button', class: 'cx-card', onclick: () => add(item.id),
+        'aria-label': `Add ${item.name}, ${rupees(item.price)}${item.veg === false ? ', non-veg' : item.veg ? ', veg' : ''}${n ? `, ${n} on the order` : ''}` },
+        item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name), el('span', {}, rupees(item.price))),
+      n ? el('button', { type: 'button', class: 'cx-qb', onclick: () => tapBadge(item.id),
+        'aria-label': lines > 1 ? `${item.name}: ${n} on the order, on ${lines} lines. Tap to show them` : `${item.name}: ${n} on the order. Tap to type a quantity` }, el('span', {}, String(n))) : null);
+  };
+  // The badge: one line, its quantity pop-up; several, the order scrolls to them and they flash (no pop-up)
+  function tapBadge(id) {
+    const lines = order.lines.filter(l => l.id === id); if (!lines.length) return;
+    if (lines.length === 1) { openQty(keyOf(lines[0])); return; }
+    const keys = new Set(lines.map(keyOf)), rows = [...dialog.querySelectorAll('.cx-line')].filter(r => keys.has(r.dataset.line));
+    rows[0]?.scrollIntoView({ block: 'nearest' });
+    for (const r of rows) { r.classList.remove('just-added'); void r.offsetWidth; r.classList.add('just-added'); }
+  }
   // A category's items start with "Add item" (Counter Update 5): a custom item for this order, in that category. The
   // same size as a dish card, a soft blue bloom, the round + and "Add item / Custom · Starters" in the middle. It stays
-  // first (it isn't one of the tiles that can be moved).
+  // first, on the first page (it isn't one of the tiles that can be moved).
   const addTile = c => el('button', { type: 'button', class: 'cx-card cx-addt', onclick: () => openCustom(c.id), 'aria-label': `Add a custom item to ${c.name}` },
     el('i', { 'aria-hidden': 'true' }, mi('add', 24)), el('span', { class: 'cx-addt-t' }, el('b', {}, 'Add item'), el('small', {}, `Custom · ${c.name}`)));
-  const itemGrid = (c, cols) => el('div', { class: `cx-grid cols-${cols}`, 'data-arrange': 'items', 'data-cat': c.id }, addTile(c), ...itemsInOrder(c).map(itemCard));
-  const resultGrid = (list, cols) => el('div', { class: `cx-grid cols-${cols}` }, ...list.map(itemCard));
-  const scroller = (...children) => el('div', { class: 'cx-scroll' }, ...children);
-  // A category in the Category grid: its food icon on a tint of its colour, its name and how many items it has
+  // A category in the Category grid: its food icon on a tint of its colour, its name (one line) and how many items it has
   const categoryTile = c => el('button', { type: 'button', class: 'cx-cat', 'data-id': c.id, style: `--cat:${c.color}`, onclick: () => { category = c.id; renderMenuBody(); } },
     el('span', { class: 'cx-ci' }, c.icon ? el('img', { src: c.icon, alt: '', draggable: 'false' }) : null),
     el('span', { class: 'cx-cat-copy' }, el('b', {}, c.name), el('span', {}, plural(c.items.length, 'item'))));
-  const categoryPill = (c, on) => el('button', { type: 'button', class: `cx-pl${on ? ' on' : ''}`, 'data-id': c.id, 'aria-pressed': String(on), onclick: () => { category = c.id; renderMenuBody(); } }, c.name);
+  const categoryPill = (c, on, rail) => el('button', { type: 'button', class: `cx-pl${on ? ' on' : ''}${rail ? ' rl' : ''}`, 'data-id': c.id, 'aria-pressed': String(on), onclick: () => { category = c.id; renderMenuBody(); } }, c.name);
 
-  // The menu in each display style (Settings > Counter > Menu display style). Search results show in the same cards.
+  // ---------- pages (Counter Update 6) ----------
+  // Every grid shows at most 4 rows a page (16 tiles, or 12 at 3 a row), Add item first on the first page; nothing
+  // scrolls. The pages sit side by side: a sideways swipe (a clear drag, 48 or more, more sideways than up or down, so a
+  // tap never turns a page) or the ‹ › under them moves one page. The page controls are at the bottom of the menu, in the
+  // same place on every page (in the rail style, under the items): ‹ · the dots (the page on screen long and dark, as on
+  // the home screen) · ›, the arrows light blue while they can be used, and "Page 1 of 2" under them; none at all when
+  // everything fits on one page. Another category (or search) opens on its first page.
+  const perPage = () => tilesPerRow * ROWS;
+  const pageStart = (p, add) => (add ? (p ? p * perPage() - 1 : 0) : p * perPage());
+  const pageCount = (n, add) => Math.max(1, Math.ceil((n + (add ? 1 : 0)) / perPage()));
+  const pageOf = (list, p, add) => list.slice(pageStart(p, add), pageStart(p + 1, add));
+  const uPx = () => (dialog.querySelector('.cx-order')?.offsetWidth || 532) / 532;
+  const stillMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches; // (pages then change without sliding)
+  let pageView = { key: '', page: 0 };   // the page on screen, and the view it is a page of
+  // ids: the tiles in order; tile: draws one; add: Add item (a category's items); arrange: what holding a tile rearranges
+  function pagedGrid({ ids, tile, add = null, arrange = null, cat = null, page = 0, rail = false }) {
+    const pages = pageCount(ids.length, Boolean(add)), p = Math.min(page, pages - 1);
+    const track = el('div', { class: 'cx-track', style: `transform:translateX(${-p * 100}%)` },
+      ...Array.from({ length: pages }, (_, i) => el('div', { class: 'cx-page', inert: i !== p, 'aria-hidden': i === p ? null : 'true' },
+        el('div', { class: `cx-grid cols-${tilesPerRow}` }, i === 0 ? add : null, ...pageOf(ids, i, Boolean(add)).map(tile)))));
+    return [el('div', { class: 'cx-pages', 'data-page': String(p), 'data-pages': String(pages), 'data-arrange': arrange, 'data-cat': cat }, track), pagerView(p, pages, rail)];
+  }
+  function pagerView(p, pages, rail) {
+    if (pages < 2) return null;
+    const arrow = (d, on) => el('button', { type: 'button', class: `cx-parr${on ? ' on' : ''}`, disabled: !on, 'aria-label': d < 0 ? 'Previous page' : 'Next page', onclick: () => turnPage(d) }, mi(d < 0 ? 'chevron_left' : 'chevron_right', 26));
+    return el('nav', { class: `cx-pnav${rail ? ' rail' : ''}`, 'aria-label': 'Pages' },
+      el('div', { class: 'cx-prow' }, arrow(-1, p > 0), el('div', { class: 'cx-pdots', 'aria-hidden': 'true' }, ...Array.from({ length: pages }, (_, i) => el('i', { class: i === p ? 'on' : null }))), arrow(1, p < pages - 1)),
+      el('div', { class: 'cx-pinfo' }, `Page ${p + 1} of ${pages}`));
+  }
+  function turnPage(d) { const box = dialog.querySelector('.cx-pages'); if (box) showPage(box, Number(box.dataset.page) + d, true); }
+  // A grid's page on screen: it slides there; the controls change at once
+  function showPage(box, p, slide) {
+    const pages = Number(box.dataset.pages) || 1, to = Math.max(0, Math.min(pages - 1, p)), track = box.querySelector(':scope > .cx-track');
+    box.dataset.page = String(to); pageView.page = to;
+    [...track.children].forEach((page, i) => { page.inert = i !== to; if (i === to) page.removeAttribute('aria-hidden'); else page.setAttribute('aria-hidden', 'true'); });
+    track.style.transition = slide && !stillMotion() ? 'transform .3s cubic-bezier(.2,.8,.2,1)' : 'none';
+    track.style.transform = `translateX(${-to * 100}%)`;
+    const old = dialog.querySelector('.cx-pnav'); if (old) old.replaceWith(pagerView(to, pages, old.classList.contains('rail')));
+  }
+
+  // ---------- the categories as pills (Update 6) ----------
+  // Always two rows, so the grid under them never moves: in their order the pills fill the first row, then the second;
+  // the rest go to the next view, and so on (never a pill cut off). A view moves one at a time (a swipe or its arrow): ›
+  // on the right while more categories follow, ‹ on the left once some come before, each taking 60 of the rows' width.
+  // The selected category stays dark, wherever its view is. Counter opens on the view with the selected category.
+  let pillView = null;                  // the view on screen (null: the one with the selected category)
+  let pillCtx = null;
+  // A pill's width (in the design's pixels): its name, 16.5 bold, and 24 either side
+  const pillWidth = name => {
+    pillCtx ||= document.createElement('canvas').getContext('2d');
+    pillCtx.font = '700 16.5px Inter, Roboto, "Segoe UI", Arial, sans-serif';
+    return pillCtx.measureText(name).width + 48;
+  };
+  // The menu's width in the design's pixels: as it is on screen, or worked out from the screen's size (launcher.css --fu)
+  function menuWidth() {
+    const main = dialog.querySelector('.cx-main'), panel = dialog.querySelector('.cx-order');
+    if (main?.clientWidth && panel?.offsetWidth) return main.clientWidth / (panel.offsetWidth / 532);
+    const fu = Math.max(.5636, Math.min(innerWidth / 1920, innerHeight / 1000));
+    return innerWidth / (1.2 * fu) - 572;
+  }
+  // The views: each two rows of categories, and whether it has ‹ and ›
+  function pillViews(cats, width) {
+    const fill = (from, room) => {
+      const rows = [[], []]; let r = 0, used = 0, i = from;
+      while (i < cats.length) {
+        const w = Math.min(pillWidth(cats[i].name), room), need = w + (rows[r].length ? 10 : 0);
+        if (rows[r].length && used + need > room) { if (r) break; r = 1; used = 0; continue; }
+        rows[r].push(cats[i]); used += need; i++;
+      }
+      return { rows, next: i };
+    };
+    const all = fill(0, width);
+    if (all.next >= cats.length) return [{ rows: all.rows, left: false, right: false }];
+    const views = []; let from = 0;
+    while (from < cats.length) {
+      const left = views.length > 0, last = left ? fill(from, width - 60) : null;
+      if (last && last.next >= cats.length) { views.push({ rows: last.rows, left, right: false }); break; }
+      const v = fill(from, width - 60 - (left ? 60 : 0));
+      if (v.next === from) break;
+      views.push({ rows: v.rows, left, right: true }); from = v.next;
+    }
+    views[views.length - 1].right = false;
+    return views;
+  }
+  // The pills in their views (drawn again in place when one is moved: the same pills, in their new places)
+  function pillsInto(wrap, cats, current, pills = new Map(), focus = null) {
+    const views = pillViews(cats, menuWidth()), at = id => views.findIndex(v => v.rows.flat().some(c => c.id === id));
+    let v = focus ? at(focus) : pillView; if (v == null || v < 0 || v >= views.length) v = Math.max(0, at(current?.id));
+    pillView = v;
+    const pill = c => pills.get(c.id) || categoryPill(c, c === current);
+    const track = el('div', { class: 'cx-ptrack', style: `transform:translateX(${-v * 100}%)` },
+      ...views.map((x, i) => el('div', { class: `cx-pview${x.left ? ' l' : ''}${x.right ? ' r' : ''}`, inert: i !== v }, ...x.rows.map(row => el('div', { class: 'cx-prow2' }, ...row.map(pill))))));
+    wrap.dataset.page = String(v); wrap.dataset.pages = String(views.length);
+    wrap.replaceChildren(track,
+      el('button', { type: 'button', class: 'cx-carr prev', hidden: !views[v].left, 'aria-label': 'Categories before', onclick: () => showView(wrap, pillView - 1, true) }, '‹'),
+      el('button', { type: 'button', class: 'cx-carr next', hidden: !views[v].right, 'aria-label': 'More categories', onclick: () => showView(wrap, pillView + 1, true) }, '›'));
+    wrap.views = views;
+    return wrap;
+  }
+  function showView(wrap, v, slide) {
+    const views = wrap.views || [], to = Math.max(0, Math.min(views.length - 1, v)), track = wrap.querySelector(':scope > .cx-ptrack'); if (!track) return;
+    pillView = to; wrap.dataset.page = String(to);
+    [...track.children].forEach((view, i) => { view.inert = i !== to; });
+    track.style.transition = slide && !stillMotion() ? 'transform .3s cubic-bezier(.2,.8,.2,1)' : 'none';
+    track.style.transform = `translateX(${-to * 100}%)`;
+    wrap.querySelector('.cx-carr.prev').hidden = !views[to].left; wrap.querySelector('.cx-carr.next').hidden = !views[to].right;
+  }
+
+  // ---------- the rail (Update 6) ----------
+  // The categories down the left scroll. Where more are hidden, the rail fades out and a light blue "More" pill shows:
+  // "⌃ More" at the top, "More ⌄" at the bottom; a tap scrolls one screen. The rail ends above the page controls.
+  let railScroll = null;                // where the rail was scrolled (null: the selected category in sight)
+  function railArea(cats, current) {
+    const rail = el('div', { class: 'cx-rail', 'data-arrange': 'categories', onscroll: () => { railScroll = rail.scrollTop; paintRail(rail); } }, ...cats.map(c => categoryPill(c, c === current, true)));
+    const step = d => rail.scrollBy({ top: d * rail.clientHeight, behavior: 'smooth' });
+    return el('div', { class: 'cx-railwrap' }, rail,
+      el('button', { type: 'button', class: 'cx-rarr up', hidden: true, 'aria-label': 'More categories above', onclick: () => step(-1) }, mi('expand_less', 26), el('span', {}, 'More')),
+      el('button', { type: 'button', class: 'cx-rarr dn', hidden: true, 'aria-label': 'More categories below', onclick: () => step(1) }, el('span', {}, 'More'), mi('expand_more', 26)));
+  }
+  let railEdges = { up: false, down: menu.categories.length > 9 }; // (until the rail has been on screen: as it opens)
+  function paintRail(rail) {
+    const wrap = rail.parentElement; if (!rail.clientHeight) return;
+    railEdges = { up: rail.scrollTop > 1, down: rail.scrollTop + rail.clientHeight < rail.scrollHeight - 1 };
+    wrap.classList.toggle('fu', railEdges.up); wrap.classList.toggle('fd', railEdges.down);
+    wrap.querySelector('.cx-rarr.up').hidden = !railEdges.up; wrap.querySelector('.cx-rarr.dn').hidden = !railEdges.down;
+  }
+
+  // The menu in each display style (Settings > Counter > Menu display style), in pages. Search results show in the same
+  // tiles, as pages of their own.
   // grid: "All categories" and the category tiles; a category: "‹ All categories", its colour bar, name and count, then
-  //   its items, three across.
-  // pills (the default): the category pills, wrapping, then the selected category's items, three across.
-  // rail: the category pills down the left (it scrolls), the items two across beside them.
-  function menuArea(style = menuStyle) {
-    const q = query.trim();
+  //   its items.
+  // pills (the default): the category pills in two rows, then the selected category's items.
+  // rail: the category pills down the left, the items beside them.
+  // live: the Counter itself (not a picture of it for Settings): the page, view and rail on screen are its own.
+  const viewKey = style => `${style}|${query.trim() ? `q:${query.trim()}` : style === 'grid' ? category || '' : ((category && categoryById.has(category) ? category : categoriesInOrder()[0]?.id) || '')}|${tilesPerRow}`;
+  function menuArea(style = menuStyle, live = true) {
+    const key = viewKey(style);
+    if (live && pageView.key !== key) pageView = { key, page: 0 };
+    const page = live ? pageView.page : 0, q = query.trim();
+    const dish = id => itemCard(items.get(id));
     if (q) {
       const found = matches();
-      return [el('h3', { class: 'cx-h' }, found.length ? `${plural(found.length, 'result')} for “${q}”` : `No items match “${q}”`), scroller(resultGrid(found, style === 'rail' ? 2 : 3))];
+      return [el('h3', { class: 'cx-h' }, found.length ? `${plural(found.length, 'result')} for “${q}”` : `No items match “${q}”`), ...pagedGrid({ ids: found.map(i => i.id), tile: dish, page })];
     }
     const list = categoriesInOrder();
     if (style === 'grid') {
       const c = category && categoryById.get(category);
-      if (!c) return [el('h3', { class: 'cx-h' }, 'All categories'), scroller(el('div', { class: 'cx-cats', 'data-arrange': 'categories' }, ...list.map(categoryTile)))];
+      if (!c) return [el('h3', { class: 'cx-h' }, 'All categories'), ...pagedGrid({ ids: list.map(x => x.id), tile: id => categoryTile(categoryById.get(id)), arrange: 'categories', page })];
       return [el('div', { class: 'cx-crumb' },
         el('button', { type: 'button', class: 'cx-bk', onclick: () => { category = null; renderMenuBody(); } }, mi('chevron_left', 24), 'All categories'),
         el('i', { style: `background:${c.color}`, 'aria-hidden': 'true' }), el('b', {}, c.name), el('span', { class: 'cnt' }, plural(c.items.length, 'item'))),
-        scroller(itemGrid(c, 3))];
+        ...pagedGrid({ ids: itemsInOrder(c).map(i => i.id), tile: dish, add: addTile(c), arrange: 'items', cat: c.id, page })];
     }
     const c = (category && categoryById.get(category)) || list[0];
-    const pills = list.map(x => categoryPill(x, x === c));
-    if (style === 'rail') return [el('div', { class: 'cx-split' }, el('div', { class: 'cx-rail', 'data-arrange': 'categories' }, ...pills), scroller(itemGrid(c, 2)))];
-    return [el('div', { class: 'cx-pills', 'data-arrange': 'categories' }, ...pills), scroller(itemGrid(c, 3))];
+    const grid = pagedGrid({ ids: itemsInOrder(c).map(i => i.id), tile: dish, add: addTile(c), arrange: 'items', cat: c.id, page, rail: style === 'rail' });
+    if (style === 'rail') return [el('div', { class: 'cx-split' }, railArea(list, c), grid[0]), grid[1]];
+    const was = pillView; if (!live) pillView = null;
+    try { return [pillsInto(el('div', { class: 'cx-pillwrap', 'data-arrange': 'categories' }), list, c), ...grid]; } finally { if (!live) pillView = was; }
   }
-  const scrollMenu = { key: '', top: 0 };
   function renderMenuBody() {
     saveDraft(); // every change to the order or to the menu view comes through here, so it is always kept
     if (drag) endDrag(true, false);
     const area = dialog.querySelector('.cx-area'); if (!area) return;
-    const view = `${menuStyle}|${query.trim() ? `q:${query.trim()}` : category || ''}`;
-    const was = area.querySelector('.cx-scroll')?.scrollTop || 0;
-    area.replaceChildren(...menuArea());
-    // The same view keeps where it was scrolled; another one starts at the top
-    const scroll = area.querySelector('.cx-scroll'); if (scroll) scroll.scrollTop = view === scrollMenu.key ? was : 0;
-    scrollMenu.key = view;
+    area.replaceChildren(...menuArea().filter(Boolean));
+    // The rail where it was scrolled (when Counter opens: its selected category in sight), its fades and More pills
+    const rail = area.querySelector('.cx-rail');
+    if (rail) {
+      if (railScroll == null) { const on = rail.querySelector('.cx-pl.on'); rail.scrollTop = on ? Math.max(0, on.offsetTop + on.offsetHeight / 2 - rail.clientHeight / 2) : 0; railScroll = rail.scrollTop; }
+      else rail.scrollTop = railScroll;
+      paintRail(rail);
+    }
   }
 
+  // (the pills' views are worked out for the menu's width: a screen of another shape works them out again)
+  let resizing = 0;
+  addEventListener('resize', () => { if (!dialog.open) return; cancelAnimationFrame(resizing); resizing = requestAnimationFrame(() => { if (!drag) renderMenuBody(); }); });
+
+  // ---------- swiping the pages ----------
+  // A sideways drag on a grid (or on the pills) takes its pages along with the finger; let go past 48 (and more sideways
+  // than up or down) and it moves on a page, otherwise it slides back. Not while the tiles are being rearranged.
+  let pageSwipe = null, swipeTap = false;
+  root.addEventListener('pointerdown', event => {
+    swipeTap = false;
+    const box = event.target.closest?.('.cx-pages, .cx-pillwrap');
+    pageSwipe = box && event.button === 0 && !arranging && !drag && Number(box.dataset.pages) > 1 && !event.target.closest?.('.cx-carr')
+      ? { box, id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, dy: 0, active: false } : null;
+  });
+  root.addEventListener('pointermove', event => {
+    const s = pageSwipe; if (!s || event.pointerId !== s.id) return;
+    if (drag) { pageSwipe = null; return; }
+    const dx = event.clientX - s.x, dy = event.clientY - s.y;
+    if (!s.active) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { pageSwipe = null; return; }
+      if (Math.abs(dx) <= 10 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      s.active = true; s.track = s.box.querySelector(':scope > .cx-track, :scope > .cx-ptrack'); s.page = Number(s.box.dataset.page) || 0; s.pages = Number(s.box.dataset.pages) || 1; s.w = s.track.offsetWidth;
+      if (press) { clearTimeout(press.timer); press = null; } // (a swipe, not a hold)
+      s.track.style.transition = 'none';
+      try { s.box.setPointerCapture(s.id); } catch {}
+    }
+    event.preventDefault();
+    s.dx = dx; s.dy = dy;
+    const end = (s.page === 0 && dx > 0) || (s.page === s.pages - 1 && dx < 0); // (no page that way: it gives a little)
+    s.track.style.transform = `translateX(${-s.page * s.w + (end ? dx / 3 : dx)}px)`;
+  });
+  function endPageSwipe(event, cancel) {
+    const s = pageSwipe; if (!s || event.pointerId !== s.id) return; pageSwipe = null;
+    if (!s.active) return;
+    swipeTap = true;
+    const far = !cancel && Math.abs(s.dx) >= 40 * uPx() && Math.abs(s.dx) > Math.abs(s.dy);
+    const to = far ? s.page - Math.sign(s.dx) : s.page;
+    if (s.box.classList.contains('cx-pillwrap')) showView(s.box, to, true); else showPage(s.box, to, true);
+  }
+  root.addEventListener('pointerup', event => endPageSwipe(event, false));
+  root.addEventListener('pointercancel', event => endPageSwipe(event, true));
+  // (the end of a swipe is not a tap on what it started on)
+  root.addEventListener('click', event => {
+    if (!swipeTap) return; swipeTap = false;
+    if (event.target.closest?.('.cx-pages, .cx-pillwrap')) { event.preventDefault(); event.stopPropagation(); }
+  }, true);
+
   // ---------- rearranging the menu ----------
-  // Hold a category (tile, pill or rail pill) or an item card: they all jiggle and the one held follows the finger, the
-  // others making room as it passes over them. Let go to keep the new order (kept on this device). A tap anywhere else,
-  // or Back, finishes; while they jiggle, a tap doesn't add an item or open a category. Search results keep the menu's
-  // order.
+  // Hold a category (tile, pill or rail pill) or an item: they all jiggle and the one held follows the finger, the others
+  // making room as it passes over them. Held at the left or right edge of a grid (or of the pills) for a moment, it goes
+  // on to the page (or view) before or after it (Update 6); near the top or bottom of the rail, the rail scrolls. Let go
+  // to keep the new order (kept on this device). A tap anywhere else, or Back, finishes; while they jiggle, a tap doesn't
+  // add an item or open a category. Add item stays first; search results keep the menu's order.
+  const MENU_TILE = '[data-arrange] [data-id]';
   let arranging = false, drag = null, press = null, suppressClick = false;
   function setArranging(on) {
     if (arranging === on) return;
@@ -941,52 +1188,117 @@
   }
   // Where a tile is laid out (its jiggle and any slide in progress left out), so tiles passing by never change the
   // place under the finger
-  const placeOf = tile => { const r = tile.parentElement.getBoundingClientRect(); return { left: r.left + tile.offsetLeft, top: r.top + tile.offsetTop, width: tile.offsetWidth, height: tile.offsetHeight }; };
-  // The tile that follows the finger: the tile itself as it is at rest (no shadow or frame of its own), kept in the same
-  // list so it looks exactly the same (it floats above everything, out of the list's layout)
-  function ghostOf(tile, r) {
+  const placeOf = tile => { const p = tile.parentElement, r = p.getBoundingClientRect(); return { left: r.left + tile.offsetLeft - p.scrollLeft, top: r.top + tile.offsetTop - p.scrollTop, width: tile.offsetWidth, height: tile.offsetHeight }; };
+  // The tile that follows the finger: the tile itself as it is at rest (no shadow or frame of its own). (A menu tile's
+  // floats over the whole Counter: its pages slide from under it.)
+  function ghostOf(tile, r, host = tile.parentElement) {
     const ghost = tile.cloneNode(true);
     ghost.classList.add('cx-ghost'); ghost.removeAttribute('data-id'); ghost.removeAttribute('data-tile'); ghost.setAttribute('aria-hidden', 'true'); ghost.tabIndex = -1;
     for (const node of ghost.querySelectorAll('button')) node.tabIndex = -1;
     Object.assign(ghost.style, { width: `${r.width}px`, height: `${r.height}px`, left: `${r.left + r.width / 2}px`, top: `${r.top + r.height / 2}px` });
-    tile.parentElement.append(ghost);
+    host.append(ghost);
     return ghost;
   }
+  const idsOf = list => (list.dataset.arrange === 'categories' ? categoriesInOrder().map(c => c.id) : itemsInOrder(categoryById.get(list.dataset.cat)).map(i => i.id));
+  // The tiles on screen: the page (or view) showing, or the whole rail
+  const shownTiles = list => [...list.querySelectorAll(list.classList.contains('cx-rail') ? '[data-id]' : ':scope > * > :not([inert]) [data-id]')];
   function startDrag(tile, pointerId, x, y) {
-    const list = tile.parentElement; if (!list?.dataset.arrange || !tile.isConnected) return;
+    const list = tile.closest('[data-arrange]'); if (!list || !tile.isConnected) return;
     setArranging(true);
-    const r = placeOf(tile), ghost = ghostOf(tile, r);
+    const r = placeOf(tile), ghost = ghostOf(tile, r, dialog.querySelector('.cx-shell')), ids = idsOf(list);
     tile.classList.add('cx-origin');
-    drag = { list, tile, pointerId, ghost, ox: x - (r.left + r.width / 2), oy: y - (r.top + r.height / 2), start: [...list.children].map(n => n.dataset.id) };
+    drag = { list, tile, id: tile.dataset.id, pointerId, ghost, ox: x - (r.left + r.width / 2), oy: y - (r.top + r.height / 2), ids, start: [...ids], x, y, edge: null, scroll: 0 };
     try { list.setPointerCapture(pointerId); } catch {}
   }
   function moveDrag(x, y) {
-    const d = drag; d.ghost.style.left = `${x - d.ox}px`; d.ghost.style.top = `${y - d.oy}px`;
-    const tiles = [...d.list.children].filter(n => n.dataset.id);
-    const over = tiles.find(t => { if (t === d.tile) return false; const p = placeOf(t); return x >= p.left && x <= p.left + p.width && y >= p.top && y <= p.top + p.height; });
-    if (!over) return;
-    // The tiles that change place slide from where they are shown to their new place
-    const before = new Map(tiles.map(t => [t, t.getBoundingClientRect()]));
+    const d = drag; d.x = x; d.y = y;
+    d.ghost.style.left = `${x - d.ox}px`; d.ghost.style.top = `${y - d.oy}px`;
+    const over = shownTiles(d.list).find(t => { if (t === d.tile) return false; const p = placeOf(t); return x >= p.left && x <= p.left + p.width && y >= p.top && y <= p.top + p.height; });
+    if (over) {
+      const from = d.ids.indexOf(d.id), to = d.ids.indexOf(over.dataset.id);
+      if (from >= 0 && to >= 0) { const ids = d.ids.filter(i => i !== d.id); ids.splice(ids.indexOf(over.dataset.id) + (from < to ? 1 : 0), 0, d.id); arrangeTo(d, ids); }
+    }
+    edgeWatch(d, x, y);
+  }
+  // The list in a new order: the tiles that change place slide there from where they were shown
+  function arrangeTo(d, ids, page = null) {
+    const tiles = [...d.list.querySelectorAll('[data-id]')], before = new Map(tiles.map(t => [t, t.getBoundingClientRect()]));
     tiles.forEach(t => t.getAnimations().forEach(a => { if (a.id === 'cx-slide') a.cancel(); }));
-    if (tiles.indexOf(d.tile) < tiles.indexOf(over)) over.after(d.tile); else over.before(d.tile);
+    d.ids = ids; layoutList(d, page);
+    const far = d.list.clientWidth / 2;
     for (const t of tiles) {
       if (t === d.tile) continue;
-      const a = before.get(t), b = t.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top; if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      const a = before.get(t), b = t.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
+      if ((Math.abs(dx) < 1 && Math.abs(dy) < 1) || Math.abs(dx) > far) continue; // (not from one page to another)
       try { const run = t.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', composite: 'add' }); run.id = 'cx-slide'; } catch {}
     }
+  }
+  function layoutList(d, page) {
+    const list = d.list, byId = new Map([...list.querySelectorAll('[data-id]')].map(t => [t.dataset.id, t]));
+    const tiles = d.ids.map(id => byId.get(id)).filter(Boolean);
+    if (list.classList.contains('cx-pages')) {
+      const add = list.querySelector('.cx-addt');
+      [...list.querySelectorAll(':scope > .cx-track > .cx-page > .cx-grid')].forEach((g, p) => g.replaceChildren(...(p === 0 && add ? [add] : []), ...pageOf(tiles, p, Boolean(add))));
+      if (page != null) showPage(list, page, true);
+    } else if (list.classList.contains('cx-pillwrap')) {
+      const current = categoryById.get(list.querySelector('.cx-pl.on')?.dataset.id);
+      pillsInto(list, d.ids.map(id => categoryById.get(id)), current, byId, d.id);
+    } else list.replaceChildren(...tiles);
+  }
+  // At the edge of a grid or of the pills: after a moment, the page (or view) next to it, the tile on it; near the top or
+  // bottom of the rail, the rail scrolls
+  function edgeWatch(d, x, y) {
+    const r = d.list.getBoundingClientRect(), zone = 40 * uPx();
+    if (d.list.classList.contains('cx-rail')) {
+      const dir = y < r.top + zone ? -1 : y > r.bottom - zone ? 1 : 0;
+      if (dir !== d.scroll) { d.scroll = dir; if (dir) requestAnimationFrame(() => railStep(d)); }
+      return;
+    }
+    const dir = Number(d.list.dataset.pages) > 1 ? (x < r.left + zone ? -1 : x > r.right - zone ? 1 : 0) : 0;
+    if (dir === (d.edge?.dir || 0)) return;
+    clearTimeout(d.edge?.timer); d.edge = dir ? { dir, timer: setTimeout(() => turnEdge(d, dir), 600) } : null;
+  }
+  function turnEdge(d, dir) {
+    if (drag !== d) return;
+    const list = d.list, at = Number(list.dataset.page) || 0, to = at + dir;
+    if (to < 0 || to >= Number(list.dataset.pages)) { d.edge = null; return; }
+    const ids = d.ids.filter(i => i !== d.id);
+    if (list.classList.contains('cx-pages')) {
+      // the first place on the next page, or the last on the one before
+      const add = Boolean(list.querySelector('.cx-addt'));
+      ids.splice(dir > 0 ? pageStart(to, add) : pageStart(at, add) - 1, 0, d.id);
+      arrangeTo(d, ids, to);
+    } else {
+      // the pills: into the next view, as near its start as it fits (or the one before, as near its end)
+      const width = menuWidth(), target = cats(list.views[to]).map(c => c.id);
+      const viewOf = order => pillViews(order.map(id => categoryById.get(id)), width).findIndex(v => cats(v).some(c => c.id === d.id));
+      for (let k = 0; k <= target.length; k++) {
+        const next = [...ids], at2 = dir > 0 ? ids.indexOf(target[0]) + k : ids.indexOf(target[target.length - 1]) + 1 - k;
+        next.splice(Math.max(0, Math.min(ids.length, at2)), 0, d.id);
+        if (viewOf(next) === to) { arrangeTo(d, next); break; }
+      }
+    }
+    d.edge = { dir, timer: setTimeout(() => turnEdge(d, dir), 700) }; // (still there: on to the next one after a moment)
+  }
+  const cats = view => view.rows.flat();
+  function railStep(d) {
+    if (drag !== d || !d.scroll) return;
+    const was = d.list.scrollTop; d.list.scrollTop += d.scroll * 8 * uPx();
+    if (d.list.scrollTop !== was) moveDrag(d.x, d.y);
+    requestAnimationFrame(() => railStep(d));
   }
   // Let go: the order shown is kept. Cancelled: the tiles go back to how they were.
   function endDrag(cancel, rerender = true) {
     const d = drag; if (!d) return; drag = null;
+    clearTimeout(d.edge?.timer); d.scroll = 0;
     d.ghost.remove(); d.tile.classList.remove('cx-origin');
-    const ids = [...d.list.children].map(n => n.dataset.id).filter(Boolean);
-    if (!cancel && ids.join('|') !== d.start.join('|')) saveMenuOrder(d.list.dataset.arrange === 'categories' ? { kind: 'categories' } : { kind: 'items', catId: d.list.dataset.cat }, ids);
+    if (!cancel && d.ids.join('|') !== d.start.join('|')) saveMenuOrder(d.list.dataset.arrange === 'categories' ? { kind: 'categories' } : { kind: 'items', catId: d.list.dataset.cat }, d.ids);
     if (rerender) renderMenuBody();
   }
   root.addEventListener('pointerdown', event => {
-    const tile = event.target.closest?.('[data-arrange] > [data-id]');
+    const tile = event.target.closest?.(MENU_TILE);
     // A tap anywhere else finishes rearranging (and on Add item, does only that)
-    if (arranging && !drag && !tile) { setArranging(false); if (event.target.closest?.('[data-arrange]')) suppressClick = true; }
+    if (arranging && !drag && !tile) { setArranging(false); if (event.target.closest?.('[data-arrange]') && !event.target.closest?.('.cx-carr')) suppressClick = true; }
     if (!tile || event.button !== 0 || drag) return;
     suppressClick = false;
     clearTimeout(press?.timer);
@@ -1009,7 +1321,7 @@
   // (the finger moving a tile doesn't scroll the menu)
   root.addEventListener('touchmove', event => { if (drag) event.preventDefault(); }, { passive: false });
   root.addEventListener('click', event => {
-    if (!event.target.closest?.('[data-arrange]')) return;
+    if (!event.target.closest?.('[data-arrange]') || event.target.closest?.('.cx-carr')) return;
     if (suppressClick || arranging) { event.preventDefault(); event.stopPropagation(); }
     suppressClick = false;
   }, true);
@@ -1104,13 +1416,13 @@
   }, true);
   root.addEventListener('contextmenu', event => { if (event.target.closest?.(TILE)) event.preventDefault(); });
 
-  // ---------- the pop-ups: modifiers, quantity, note (Counter Update 4), a custom item (Update 5) ----------
+  // ---------- the pop-ups: modifiers, quantity, note (Counter Update 4), a custom item (Update 5), discount (Update 6) ----------
   // They open over the menu only: the order beside them is not covered or dimmed, so what they change shows on it at
   // once. A tap on the dimmed menu, or on the order, is a tap outside: the modifier pop-up closes keeping its choices
-  // (not while a required group has none), the quantity pop-up closes leaving the quantity as it was, and the note and
-  // custom item pop-ups stay open. Each has a ✕ at its top right (Update 5), which always closes it with no changes: the
-  // modifier pop-up puts its line back as it was when it opened, the quantity and the note stay as they were, and no
-  // custom item is added.
+  // (not while a required group has none, nor while its note is typed in it), the quantity and discount pop-ups close
+  // leaving the order as it was, and the note and custom item pop-ups stay open. Each has a ✕ at its top right (Update
+  // 5), which always closes it with no changes: the modifier pop-up puts its line back as it was when it opened, the
+  // quantity, the note and the discount stay as they were, and no custom item is added.
   const lineOf = key => order.lines.find(l => keyOf(l) === key);
   const modLine = () => (modPop ? lineOf(modPop.key) : null);
   const missingOf = line => groupsOf(line.id).filter(g => g.required && !line.mods.some(m => optionOf.get(m)?.group === g.id));
@@ -1347,16 +1659,18 @@
   window.addEventListener('restro:device-ready', watchPaper);
   watchPaper();
 
-  // The bill for the order on screen: each item with its modifiers and note under it, then the sums. The RESTRO Android
-  // app prints it on the restaurant's printer (RESTRODevice.printer.printBill, ANDROID-BRIDGE.md); in a browser it goes
-  // to the browser's printing.
+  // The bill for the order on screen: each item with its modifiers and note under it, then the sums (Update 6: the
+  // discount, CGST and SGST, the round off). The RESTRO Android app prints it on the restaurant's printer
+  // (RESTRODevice.printer.printBill, ANDROID-BRIDGE.md); in a browser it goes to the browser's printing.
   function billOf(o = order) {
     const t = totalsOf(o), shop = (localStorage.getItem('restro.restaurantName') || '').trim();
     return {
       restaurant: shop && shop !== 'RESTAURANT NAME' ? shop : '', number: o.number ? ticket(o.number) : null, at: Date.now(),
       type: typeLabel[o.type || DEFAULT_TYPE], table: usesTable(o) ? tableName(o.table) : '', customer: o.customer ? o.customer.name : '', pager: cleanPager(o.pager) || null,
       lines: o.lines.map(l => ({ name: itemOf(l).name, qty: l.qty, each: eachOf(l), total: eachOf(l) * l.qty, modifiers: (l.mods || []).map(modLabel), note: l.note || '' })),
-      subtotal: t.subtotal / 100, tax: t.tax / 100, taxLabel: menu.taxLabel, total: t.total / 100
+      subtotal: t.subtotal / 100, discount: t.discountPct ? { label: `Discount ${t.discountPct}%`, percent: t.discountPct, amount: t.discount / 100 } : null,
+      taxes: [{ label: GST.cgst, amount: t.cgst / 100 }, { label: GST.sgst, amount: t.sgst / 100 }], tax: t.tax / 100, taxLabel: menu.taxLabel,
+      roundOff: t.roundOff / 100, total: t.total / 100
     };
   }
   function printBill() {
@@ -1379,7 +1693,9 @@
         l.note ? el('tr', { class: 'sub note' }, el('td', { colspan: '2' }, l.note)) : null))),
       el('table', { class: 'sums' }, el('tbody', {},
         el('tr', {}, el('td', {}, 'Subtotal'), el('td', {}, r(bill.subtotal))),
-        el('tr', {}, el('td', {}, bill.taxLabel), el('td', {}, r(bill.tax))),
+        bill.discount ? el('tr', {}, el('td', {}, bill.discount.label), el('td', {}, `−${r(bill.discount.amount)}`)) : null,
+        ...bill.taxes.map(x => el('tr', {}, el('td', {}, x.label), el('td', {}, r(x.amount)))),
+        bill.roundOff ? el('tr', {}, el('td', {}, 'Round off'), el('td', {}, `${bill.roundOff < 0 ? '−' : ''}${r(Math.abs(bill.roundOff))}`)) : null,
         el('tr', { class: 'total' }, el('td', {}, 'Total'), el('td', {}, r(bill.total))))));
     try { window.print(); } catch { toast('Printing isn’t available here'); }
   }
@@ -1444,9 +1760,12 @@
       el('div', { class: 'cx-layer-menu', onpointerdown: hold, onmousedown: hold, onclick: outside }),
       card);
     if (kind === 'custom') return layer(customCard(hold));
+    if (kind === 'discount') return layer(discountCard(hold), cancelDiscount);
     const key = kind === 'mods' ? modPop.key : kind === 'qty' ? qtyPop.key : notePop.key, line = lineOf(key), item = itemOf(line);
-    const outside = kind === 'mods' ? () => { closeMods(); } : kind === 'qty' ? cancelQty : () => {};
+    // (a tap outside while the note is typed in the modifier pop-up does nothing, as on the note pop-up)
+    const outside = kind === 'mods' ? () => { if (!modPop?.note) closeMods(); } : kind === 'qty' ? cancelQty : () => {};
     const dish = el('div', { class: 'cx-pu-dish' }, item.veg == null ? null : el('em', { class: item.veg ? 'veg' : 'non', 'aria-hidden': 'true' }), el('b', {}, item.name));
+    if (kind === 'mods' && modPop.note) return layer(modsNoteCard(line, item, dish, hold), outside);
     const head = el('div', { class: 'cx-pu-head' }, dish, closeX(kind === 'mods' ? cancelMods : kind === 'qty' ? cancelQty : cancelNote, hold));
     const done = (fn, wide) => el('button', { type: 'button', class: `cx-done${wide ? ' wide' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: fn }, 'Done');
     return layer(kind === 'mods' ? modsCard(line, item, head, done) : kind === 'qty' ? qtyCard(line, item, head, done) : noteCard(line, item, head, done, hold), outside);
@@ -1454,8 +1773,9 @@
   const closeX = (fn, hold) => el('button', { type: 'button', class: 'cx-x', 'aria-label': 'Close without changes', title: 'Close', onpointerdown: hold, onmousedown: hold, onclick: fn }, mi('close', 26));
   // Modifiers: each group (title, "Required · pick 1" or "Optional") with its choices as tiles, 1–3 choices a third of
   // the row each, 4 or more a quarter each, four to a row; a price under its choice's name; a choice made is light blue
-  // with a tick (Update 5: spice level too; on the order it stays amber). The bottom row: the note (tap it for the note
-  // pop-up; with none, its line is soft red with "Type special instructions here" in grey) · − quantity + · Done. A
+  // with a tick (Update 5: spice level too; on the order it stays amber). The bottom row: the note (tap it to type it,
+  // in this pop-up (Update 6); with none, its line is soft red with "Type special instructions here" in grey) · −
+  // quantity + · Done. A
   // required group left empty when closing is tried: red badge, "Choose a spice level to continue", red edges, until a
   // choice is made.
   function modsCard(line, item, head, done) {
@@ -1478,7 +1798,7 @@
       head,
       el('div', { class: 'cx-pu-groups' }, ...groupsOf(line.id).map(group)),
       el('div', { class: 'cx-pu-foot' },
-        el('button', { type: 'button', class: 'cx-nl', 'aria-label': line.note ? `Note: ${line.note}. Tap to change it` : 'Add a note', onclick: () => openNote(modPop.key, true) },
+        el('button', { type: 'button', class: 'cx-nl', 'aria-label': line.note ? `Note: ${line.note}. Tap to change it` : 'Add a note', onclick: openModsNote },
           el('span', { class: 'cx-nl-label' }, 'Note'),
           el('span', { class: `cx-nl-line${line.note ? '' : ' empty'}` }, mi('edit', 20), el('span', {}, line.note || NOTE_HINT))),
         el('div', { class: 'cx-rs' },
@@ -1499,6 +1819,21 @@
       el('div', { class: 'cx-qd', role: 'status', 'aria-label': v ? `Quantity ${v}` : `Type the quantity (now ${line.qty})` }, v ? el('span', {}, v) : null, el('i', { 'aria-hidden': 'true' })),
       numberKeys(pressQty),
       done(doneQty, true));
+  }
+  // Apply discount (Update 6), as the quantity pop-up and where it is: the green % with "Apply discount", ✕ · the
+  // percentage (blue, its cursor blinking; empty until a key is pressed, or the order's discount, to change it) · what
+  // it comes to ("On subtotal ₹3,960 · saves ₹396") · 5 10 15 20 25 % · 1–9, Clear, 0, ⌫ (1 to 100) · "Apply 10%
+  // discount". ✕ or a tap outside leaves the order as it was.
+  function discountCard(hold) {
+    const p = discPop, n = discOf(p), t = totals(), saves = n ? window.RestroBill.totals(t.subtotal, n, menu.taxRate).discount : 0;
+    return el('div', { class: 'cx-pu disc', role: 'dialog', 'aria-label': 'Apply discount' },
+      el('div', { class: 'cx-pu-head' }, el('div', { class: 'cx-dh' }, el('i', { 'aria-hidden': 'true' }, mi('percent', 22)), el('b', {}, 'Apply discount')), closeX(cancelDiscount, hold)),
+      el('div', { class: 'cx-dd', role: 'status', 'aria-label': n ? `Discount ${n}%` : 'Type the discount' }, p.value ? el('span', {}, p.value) : null, el('small', {}, '%'), el('i', { 'aria-hidden': 'true' })),
+      el('p', { class: 'cx-dpv' }, `On subtotal ${amount(t.subtotal)}`, n ? [' · saves ', el('b', {}, amount(saves))] : null),
+      el('div', { class: 'cx-dqp', role: 'group', 'aria-label': 'Quick picks' }, ...[5, 10, 15, 20, 25].map(q =>
+        el('button', { type: 'button', class: n === q ? 'on' : null, 'aria-pressed': String(n === q), onclick: () => { discPop.value = String(q); render(); } }, `${q}%`))),
+      numberKeys(pressDisc, ' cx-dk'),
+      el('button', { type: 'button', class: 'cx-done wide', disabled: !n, onclick: applyDiscount }, n ? `Apply ${n}% discount` : 'Apply discount'));
   }
   // A line typed on (Update 5): the note (the note pop-up, a custom item's) and a custom item's name. With nothing on it
   // its grey hint shows ("Type special instructions here"), after the cursor while it has the keyboard. The cursor is
@@ -1577,6 +1912,53 @@
     if (p.typing) noteLine.classList.add('on');
     return card;
   }
+  // The note typed in the modifier pop-up itself (Update 6), from its Note line: the keyboard comes up and the pop-up
+  // moves up above it: ‹ · the dish · ✕ · the choices made, as pills (spice level amber, the others white) · the note
+  // line (blue, its cursor blinking, while it has the keyboard) · the dish's quick notes in one row that scrolls (+ Add
+  // first, then the pinned ones) · Set note. ‹ and Set note keep the note and go back to the choices; ✕ closes the
+  // pop-up with nothing changed in it (the choices and the note as they were). Add / Edit note on an order line still
+  // opens the note pop-up.
+  function openModsNote() { const line = modLine(); if (!line) return; modPop.note = { draft: line.note || '' }; render(); dialog.querySelector('#counter-note')?.focus(); }
+  function setModsNote() {
+    const p = modPop?.note; if (!p) return;
+    const line = modLine(); if (line) line.note = cleanNote(p.draft);
+    dialog.querySelector('#counter-note')?.blur();
+    modPop.note = null; render();
+  }
+  function modsNoteCard(line, item, dish, hold) {
+    const p = modPop.note, notes = quickNotesFor(line.id), adds = !line.custom, shown = notes.slice(0, adds ? 14 : 15);
+    const known = new Set(notes.map(n => n.text.toLowerCase()));
+    const fresh = () => noteParts(p.draft).filter(s => !known.has(s.toLowerCase()));
+    const tf = textField({ id: 'counter-note', value: p.draft, hint: NOTE_HINT, max: 200, label: `Note for ${item.name}` }), field = tf.input;
+    const noteLine = el('span', { class: 'cx-nf-line' }, mi('edit', 22), tf.box);
+    const addBtn = adds ? el('button', { type: 'button', class: 'cx-qn-chip add', onpointerdown: hold, onmousedown: hold, onclick: () => {
+      const parts = fresh(); if (!parts.length) return;
+      keepQuick(line.id, [...new Map(parts.map(s => [s.toLowerCase(), s])).values()]);
+      field.blur(); render();
+    } }, mi('add', 22), el('span', {}, 'Add')) : null;
+    const chipEls = shown.map(n => el('button', { type: 'button', class: `cx-qn-chip${n.isNew ? ' new' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: () => { p.draft = toggleQuick(p.draft, n.text); field.value = p.draft; sync(); tf.place(); } },
+      n.pinned ? pinIcon() : null, el('span', { class: 'cx-qn-t' }, n.text), n.isNew ? el('b', { class: 'cx-new' }, 'NEW') : null));
+    const sync = () => {
+      chipEls.forEach((b, i) => { const on = hasQuick(p.draft, shown[i].text); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+      if (addBtn) { const off = !fresh().length; addBtn.classList.toggle('off', off); addBtn.setAttribute('aria-disabled', String(off)); addBtn.setAttribute('aria-label', off ? 'Add a quick note: type it in the note first' : 'Add what is typed as a quick note'); }
+      noteLine.classList.toggle('empty', !p.draft);
+    };
+    sync();
+    const card = el('div', { class: 'cx-pu mods noting', role: 'dialog', 'aria-label': `Note for ${item.name}` },
+      el('div', { class: 'cx-pu-head' },
+        el('div', { class: 'cx-pu-lead' }, el('button', { type: 'button', class: 'cx-x', 'aria-label': 'Back to the choices, keeping the note', title: 'Back', onpointerdown: hold, onmousedown: hold, onclick: setModsNote }, mi('arrow_back_ios_new', 22)), dish),
+        closeX(cancelMods, hold)),
+      line.mods.length ? el('div', { class: 'cx-mpills' }, ...line.mods.map(m => el('span', { class: optionOf.get(m)?.kind === 'spice' ? 'sp' : null }, modLabel(m)))) : null,
+      el('label', { class: 'cx-nf' }, el('span', { class: 'cx-nf-label' }, 'Note'), noteLine),
+      el('div', { class: 'cx-nf-q', id: 'counter-quick' }, 'Quick notes'),
+      el('div', { class: 'cx-qn row', role: 'group', 'aria-labelledby': 'counter-quick' }, addBtn, ...chipEls),
+      el('button', { type: 'button', class: 'cx-done wide', onpointerdown: hold, onmousedown: hold, onclick: setModsNote }, 'Set note'));
+    field.addEventListener('input', () => { p.draft = field.value; sync(); });
+    field.addEventListener('focus', () => noteLine.classList.add('on'));
+    field.addEventListener('blur', () => noteLine.classList.remove('on'));
+    field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); setModsNote(); } });
+    return card;
+  }
   // A custom item: the + in a white circle, "Add custom item" 24/800, the category's badge, ✕ · Item name · optional
   // (a line typed on) · Veg / Non-veg · optional (two raised buttons, the one chosen light blue; a second tap takes it
   // off) beside Price (each) · required (a raised field: ₹ and the price, "Enter price" in grey until there is one; blue
@@ -1647,7 +2029,7 @@
   // spare at the bottom; a taller one is centred on the menu. At most 775 tall (the groups then scroll, the dish and the
   // bottom row stay).
   function placePop() {
-    const pu = dialog.querySelector('.cx-pu.mods'), panel = dialog.querySelector('.cx-order'); if (!pu || !panel) return;
+    const pu = dialog.querySelector('.cx-pu.mods:not(.noting)'), panel = dialog.querySelector('.cx-order'); if (!pu || !panel) return;
     const u = panel.offsetWidth / 532, room = pu.parentElement.clientHeight, h = pu.offsetHeight;
     pu.style.top = `${166 * u + h + 20 * u <= room ? 166 * u : Math.max(0, (room - h) / 2)}px`;
   }
@@ -1660,6 +2042,8 @@
     if (sheet === 'qty' && !(qtyPop && lineOf(qtyPop.key))) { sheet = null; qtyPop = null; }
     if (sheet === 'note' && !(notePop && lineOf(notePop.key))) { sheet = null; notePop = null; }
     if (sheet === 'custom' && !customPop) sheet = null;
+    if (sheet === 'discount' && !discPop) sheet = null;
+    if (sheet !== 'discount') discPop = null;
     if (sheet !== 'qty') qtyPop = null;
     if (sheet !== 'note') notePop = null;
     if (sheet !== 'custom') { customPop = null; paintCustom = null; }
@@ -1671,7 +2055,7 @@
     const close = el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': 'Close', onclick: () => { sheet = null; render(); } }, svg(ICON.close));
     let body;
     // The pop-ups over the menu (Counter Update 4): modifiers, quantity, note; a custom item (Update 5)
-    if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop) || (sheet === 'custom' && customPop)) return popView();
+    if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop) || (sheet === 'custom' && customPop) || (sheet === 'discount' && discPop)) return popView();
 
     if (sheet === 'pay') {
       const options = cashOptions(t.total);
@@ -1810,8 +2194,7 @@
       const detail = o => el('div', { class: 'ctr-history-detail' },
         el('dl', { class: 'ctr-sums' },
           ...o.lines.flatMap(l => [el('dt', {}, `${l.qty} × ${l.name}`), el('dd', {}, rupees(l.price * l.qty))]),
-          el('dt', {}, 'Subtotal'), el('dd', {}, money(o.subtotal || 0)),
-          el('dt', {}, menu.taxLabel), el('dd', {}, money(o.tax || 0)),
+          ...sumsOf(o).flatMap(([label, value]) => [el('dt', {}, label), el('dd', {}, value)]),
           el('dt', { class: 'ctr-total' }, 'Total'), el('dd', { class: 'ctr-total' }, money(o.total))),
         el('p', { class: 'ctr-history-pay' }, o.paidAt
           ? [`Paid ${timeOf(o.paidAt)}`, methodLabel[o.method] || 'Cash', Number.isFinite(o.received) ? `received ${money(o.received)}` : '', o.change > 0 ? `change ${money(o.change)}` : ''].filter(Boolean).join(' · ')
@@ -1902,8 +2285,9 @@
     if (optionsMenu) { openOptions(false); return true; }
     // The pop-ups: the modifier one closes keeping its choices (or shows what is still needed), the quantity one closes
     // as it was, and the note one first puts the keyboard away, then is done.
-    if (sheet === 'mods') { closeMods(); return true; }
+    if (sheet === 'mods') { if (modPop?.note) setModsNote(); else closeMods(); return true; } // (the note typed in it: back to the choices)
     if (sheet === 'qty') { cancelQty(); return true; }
+    if (sheet === 'discount') { cancelDiscount(); return true; }
     if (sheet === 'note') { if (notePop?.typing) dialog.querySelector('#counter-note')?.blur(); else doneNote(); return true; }
     // the custom item: what is being typed in is set first; then it closes, adding nothing (as ✕)
     if (sheet === 'custom') { if (customPop?.field) customSet(); else closeCustom(); return true; }
@@ -1931,22 +2315,22 @@
   root.addEventListener('scroll', event => {
     if (dialog.open && event.target.classList?.contains('cx-lines')) scrollMemo.lines = event.target.scrollTop;
   }, true);
-  // Leaving Counter ends rearranging, the selection, the quantity pop-up and the Undo bar; the order, the page and
+  // Leaving Counter ends rearranging, the selection, the quantity and discount pop-ups and the Undo bar; the order, the page and
   // everything else (an open modifier, note or custom item pop-up too, with its line selected) stay as they were.
   dialog.addEventListener('close', () => {
     if (press) { clearTimeout(press.timer); press = null; } if (drag) endDrag(true, false); arranging = false;
     if (panelPress) { clearTimeout(panelPress.timer); panelPress = null; } if (panelDrag) endPanelDrag(true); panelArranging = false;
     typeMenu = false; optionsMenu = false; deleteArmed = false; clearUndo();
     if (sheet !== 'mods' && sheet !== 'note') selected = null;
-    if (sheet === 'qty') { sheet = null; qtyPop = null; }
+    if (sheet === 'qty' || sheet === 'discount') { sheet = null; qtyPop = null; discPop = null; }
     if (notePop) notePop.typing = false;
     if (customPop) { tidyCustom(customPop, customPop.field); customPop.field = null; }
   });
-  // The quantity pop-up and a custom item's price pad from a keyboard too: digits, Backspace, Enter for Done or Set
-  // price (Esc is Back)
+  // The quantity and discount pop-ups and a custom item's price pad from a keyboard too: digits, Backspace, Enter for
+  // Done, Apply or Set price (Esc is Back)
   document.addEventListener('keydown', event => {
     if (!dialog.open) return;
-    const pad = sheet === 'qty' ? { press: pressQty, enter: doneQty } : sheet === 'custom' && customPop?.field === 'price' ? { press: pressPrice, enter: customSet } : null;
+    const pad = sheet === 'qty' ? { press: pressQty, enter: doneQty } : sheet === 'discount' ? { press: pressDisc, enter: applyDiscount } : sheet === 'custom' && customPop?.field === 'price' ? { press: pressPrice, enter: customSet } : null;
     if (!pad) return;
     if (/^\d$/.test(event.key)) { event.preventDefault(); pad.press(event.key); }
     else if (event.key === 'Backspace') { event.preventDefault(); pad.press('back'); }
@@ -1959,7 +2343,7 @@
     visualViewport.addEventListener('resize', () => {
       tallest = Math.max(tallest, visualViewport.height);
       if (visualViewport.height < tallest * .9) return;
-      if (notePop?.typing) dialog.querySelector('#counter-note')?.blur();
+      if (notePop?.typing || modPop?.note) dialog.querySelector('#counter-note')?.blur();
       if (customPop && (customPop.field === 'name' || customPop.field === 'note')) customSet();
     });
   }
@@ -1971,7 +2355,8 @@
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
   // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
-  function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
+  // (It opens on the view of the pills, or the part of the rail, with the selected category.)
+  function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; pillView = null; railScroll = null; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
   window.RestroCounter = Object.freeze({
     open() { fromFloor = false; fromOrders = false; openCounter(); },
     // Back from an app Counter opened (Orders): Counter as it was, where it came from unchanged.
@@ -2006,6 +2391,15 @@
       return used;
     },
     get order() { return JSON.parse(JSON.stringify(order)); },
+    // Settings > Display > Tiles per row (Update 6): 4 or 3
+    get tilesPerRow() { return tilesPerRow; },
+    setTilesPerRow(n) {
+      if (n !== 3 && n !== 4) return false;
+      tilesPerRow = n; try { localStorage.setItem(TILES_KEY, JSON.stringify(n)); } catch {}
+      if (dialog.open) render();
+      window.dispatchEvent(new CustomEvent('restro:counter-tiles-changed', { detail: { tilesPerRow: n } }));
+      return true;
+    },
     // Settings > Counter > Menu display style
     menuStyles: MENU_STYLES,
     get menuStyle() { return MENU_STYLES.find(x => x.id === menuStyle); },
@@ -2028,9 +2422,16 @@
       typeMenu = false; optionsMenu = false; deleteArmed = false; highlight = false; panelArranging = false; selected = null; undo = null;
       try {
         const shell = el('div', { class: 'cx-shell', 'data-style': style }, orderPanel(), menuSide());
-        shell.querySelector('.cx-area')?.replaceChildren(...menuArea(style));
+        shell.querySelector('.cx-area')?.replaceChildren(...menuArea(style, style === menuStyle).filter(Boolean));
         for (const node of shell.querySelectorAll('[id]')) node.removeAttribute('id');
         shell.querySelector('.cx-lines')?.setAttribute('data-scroll-top', String(scrollMemo.lines));
+        // (the rail as it is on the Counter: where it is scrolled, its fades and More pills)
+        const rail = shell.querySelector('.cx-rail');
+        if (rail) {
+          rail.setAttribute('data-scroll-top', String(railScroll || 0));
+          rail.parentElement.classList.toggle('fu', railEdges.up); rail.parentElement.classList.toggle('fd', railEdges.down);
+          rail.parentElement.querySelector('.cx-rarr.up').hidden = !railEdges.up; rail.parentElement.querySelector('.cx-rarr.dn').hidden = !railEdges.down;
+        }
         return el('div', { class: 'ctr-root cx-still', inert: true, 'aria-hidden': 'true' }, shell);
       } finally { ({ typeMenu, optionsMenu, deleteArmed, highlight, panelArranging, selected, undo } = was); }
     }

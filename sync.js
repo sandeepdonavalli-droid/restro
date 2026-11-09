@@ -281,8 +281,9 @@
     if (name !== 'orders' || !isObj(doc) || !Array.isArray(doc.lines) || !doc.lines.every(l => Number.isFinite(l?.price) && Number.isFinite(l?.qty))) return doc;
     const subtotal = doc.lines.reduce((s, l) => s + Math.round(l.price * 100) * l.qty, 0);
     const rate = window.RestroMenu?.taxRate ?? (doc.subtotal ? doc.tax / doc.subtotal : 0);
-    const tax = Math.round(subtotal * rate);
-    const out = { ...doc, subtotal, tax, total: subtotal + tax, count: doc.lines.reduce((n, l) => n + l.qty, 0) };
+    // (Counter Update 6, bill.js: the order's discount off the subtotal, CGST and SGST, the total to the nearest rupee)
+    const sums = window.RestroBill ? window.RestroBill.totals(subtotal, doc.discountPct, rate) : { subtotal, tax: Math.round(subtotal * rate), total: subtotal + Math.round(subtotal * rate) };
+    const out = { ...doc, ...sums, count: doc.lines.reduce((n, l) => n + l.qty, 0) };
     if (Array.isArray(doc.kots)) {
       const sent = { ...(isObj(doc.sent) ? doc.sent : {}) }, fromTickets = {};
       for (const k of doc.kots) for (const l of Array.isArray(k?.lines) ? k.lines : []) if (Number.isFinite(l?.qty)) fromTickets[lineKey(l)] = (fromTickets[lineKey(l)] || 0) + l.qty;

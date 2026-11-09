@@ -130,6 +130,9 @@
     closeReceipt();
     const type = typeOf(o), sub = Number.isFinite(o.subtotal) ? o.subtotal : o.lines.reduce((n, l) => n + Math.round(l.price * 100) * l.qty, 0);
     const rate = sub ? Math.round((o.tax / sub) * 1000) / 10 : 0;
+    // (an order with a discount, from Counter Update 6 on: CGST and SGST each half the GST on what was left)
+    const pct = window.RestroBill?.pct(o.discountPct) ?? null, split = Number.isFinite(o.cgst) && Number.isFinite(o.sgst);
+    const gst = window.RestroBill?.labels(window.RestroMenu?.taxRate) || { cgst: 'CGST', sgst: 'SGST' };
     const cash = (o.method || 'cash') === 'cash' && Number.isFinite(o.received);
     receipt = el('div', { class: 'ord-sheet-wrap', onclick: e => { if (e.target === e.currentTarget) closeReceipt(); } },
       el('div', { class: 'ord-receipt', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Receipt, order ${ticket(o.number)}` },
@@ -144,9 +147,13 @@
           el('span', { class: 'ord-receipt-item' }, l.name), el('span', { class: 'ord-receipt-qty' }, `× ${l.qty}`), el('span', { class: 'ord-receipt-amt' }, money(Math.round(l.price * 100) * l.qty)),
           Array.isArray(l.mods) && l.mods.length ? el('span', { class: 'ord-receipt-mods' }, l.mods.map(m => (m.price ? `${m.label} +₹${m.price}` : m.label)).join(' · ')) : null,
           l.note ? el('span', { class: 'ord-receipt-note' }, l.note) : null))),
+        // the sums as on the bill (Counter Update 6): the discount, CGST and SGST (GST on an order from before), the round off
         el('dl', { class: 'ord-receipt-sums' },
           el('dt', {}, 'Subtotal'), el('dd', {}, money(sub)),
-          el('dt', {}, rate ? `GST ${rate}%` : 'GST'), el('dd', {}, money(o.tax || 0)),
+          ...(pct && Number.isFinite(o.discount) ? [el('dt', {}, `Discount ${pct}%`), el('dd', {}, `−${money(o.discount)}`)] : []),
+          ...(split ? [el('dt', {}, gst.cgst), el('dd', {}, money(o.cgst)), el('dt', {}, gst.sgst), el('dd', {}, money(o.sgst))]
+            : [el('dt', {}, rate ? `GST ${rate}%` : 'GST'), el('dd', {}, money(o.tax || 0))]),
+          ...(Number(o.roundOff) ? [el('dt', {}, 'Round off'), el('dd', {}, `${o.roundOff < 0 ? '−' : ''}${money(Math.abs(o.roundOff))}`)] : []),
           el('dt', { class: 'ord-receipt-total' }, 'Total'), el('dd', { class: 'ord-receipt-total' }, money(o.total)),
           ...(cash ? [el('dt', {}, 'Cash received'), el('dd', {}, money(o.received)), el('dt', {}, 'Change given'), el('dd', {}, money(o.change || 0))] : [])),
         el('p', { class: 'ord-receipt-paid' }, `Paid · ${METHODS[o.method] || 'Cash'} · ${timeOf(o.paidAt)}`)));

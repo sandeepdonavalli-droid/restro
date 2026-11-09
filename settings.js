@@ -132,6 +132,22 @@
   document.querySelector('#settings-prep-up').addEventListener('click', () => stepPrep(5));
   showPrep();
 
+  // Display > Tiles per row (Counter Update 6): 4 (the default) or 3, in every grid of the Counter's menu. A preference
+  // of this tablet only (counter.js).
+  const tilesList = document.querySelector('#settings-tiles-per-row');
+  if (tilesList && window.RestroCounter) {
+    for (const n of [4, 3]) {
+      const label = document.createElement('label'); label.className = 'settings-item tiles-style';
+      const input = document.createElement('input'); input.type = 'radio'; input.name = 'tiles-per-row'; input.value = String(n); input.id = `tiles-per-row-${n}`;
+      input.addEventListener('change', () => { if (input.checked) window.RestroCounter.setTilesPerRow(n); });
+      const copy = document.createElement('span'); copy.className = 'settings-row-copy';
+      const name = document.createElement('strong'); name.textContent = String(n); copy.append(name);
+      label.append(input, copy); tilesList.append(label);
+    }
+    const paintTiles = () => tilesList.querySelectorAll('input').forEach(input => { input.checked = Number(input.value) === window.RestroCounter.tilesPerRow; });
+    window.addEventListener('restro:counter-tiles-changed', paintTiles); paintTiles();
+  }
+
   // Counter: Menu display style (Category grid, Pills on top, Vertical rail). Each card is the Counter as it is now in
   // that style (RestroCounter.preview) under a copy of the top bar, laid out at the screen's own size and scaled down to
   // the card, made each time the Counter page opens and cleared when it closes. Tapping a card uses it straight away.

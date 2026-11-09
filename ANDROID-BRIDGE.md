@@ -111,11 +111,17 @@ Counter's **Print bill** button (the printer, at the end of the order panel's to
 method present, the bill goes to it, to print on the restaurant's bill printer; without it, the browser's own printing
 opens. Return `false` (or throw) if it didn't print; Counter says so.
 
-`bill` is plain data: `{ restaurant, number, at, type, table, customer, pager, lines, subtotal, tax, taxLabel, total }`.
-`number` is the ticket (`"#05"`, or `null` for an order not saved yet), `at` the time in milliseconds, amounts in rupees.
-Each line is `{ name, qty, each, total, modifiers, note }`: print `modifiers` (e.g. `"Medium spicy"`,
-`"Extra gravy +₹40"`) and the `note` (free text for the kitchen) under their line. A custom item (typed in at the
-Counter, not on the menu) is a line like any other: its name, or `"Custom item"`.
+`bill` is plain data: `{ restaurant, number, at, type, table, customer, pager, lines, subtotal, discount, taxes, tax,
+taxLabel, roundOff, total }`. `number` is the ticket (`"#05"`, or `null` for an order not saved yet), `at` the time in
+milliseconds, amounts in rupees. Each line is `{ name, qty, each, total, modifiers, note }`: print `modifiers` (e.g.
+`"Medium spicy"`, `"Extra gravy +₹40"`) and the `note` (free text for the kitchen) under their line. A custom item
+(typed in at the Counter, not on the menu) is a line like any other: its name, or `"Custom item"`.
+
+The sums, in this order: Subtotal; the discount, when the order has one (`discount`: `{ label, percent, amount }`, e.g.
+`"Discount 10%"` and `396`, printed as −₹396.00; otherwise `null`); each of `taxes` (`{ label, amount }`: `"CGST 2.5%"`
+and `"SGST 2.5%"`, on what is left after the discount); `roundOff` when it isn't 0 (the total is rounded to the nearest
+rupee: −0.20 is printed "Round off −₹0.20"); then `total`, the amount to pay. (`tax` and `taxLabel` are the two taxes
+together, `"GST 5%"`, for a one-line summary.)
 
 ## The bill printer's paper: `RESTRODevice.printer.paperStatus()` and `subscribePaperStatus(callback)`
 

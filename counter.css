@@ -276,8 +276,18 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 /* Totals: a dashed line above; Subtotal and GST 15 grey (the total is on Pay); Save | Pay 64 tall, 19/800, no icons:
    Save the darker grey, Pay blue #2F6FDE */
 .cx-tot{position:relative;flex:none;display:flex;flex-direction:column;gap:calc(6 * var(--u));padding:calc(12 * var(--u)) calc(4 * var(--u)) 0;border-top:1px dashed #D6D9E0}
-.cx-r{display:flex;justify-content:space-between;font-size:calc(15 * var(--u));color:#57534E}
-.cx-r+.cx-r{margin-bottom:calc(6 * var(--u))}
+/* Update 6: Subtotal, CGST 2.5%, SGST 2.5%: three lines 18.5 apart (14), in the space two took before; with a
+   discount two by two (15): Subtotal | Discount (green) / CGST | SGST, 20 apart, a hairline between the columns. The
+   amounts 600, darker. */
+.cx-tl{display:flex;justify-content:space-between;align-items:baseline;gap:calc(8 * var(--u));font-size:calc(15 * var(--u));line-height:normal;color:#57534E;white-space:nowrap}
+.cx-tl b{font-weight:600;color:#44403C}
+.cx-tstack{display:flex;flex-direction:column;margin:0 0 calc(2 * var(--u))}
+.cx-tstack .cx-tl{font-size:calc(14 * var(--u));line-height:calc(18.5 * var(--u))}
+.cx-tot.stack{padding-top:calc(4 * var(--u))}
+.cx-tot.stack .cx-act{margin-top:calc(-2 * var(--u))}
+.cx-tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:calc(20 * var(--u));row-gap:calc(6 * var(--u));margin-bottom:calc(6 * var(--u))}
+.cx-tgrid .cx-tl:nth-child(odd){padding-right:calc(20 * var(--u));border-right:1px solid #ECEEF2}
+.cx-tl.dsc span,.cx-tl.dsc b{color:#15803D;font-weight:700}
 .cx-act{display:grid;grid-template-columns:1fr 1fr;gap:calc(12 * var(--u))}
 .cx-save,.cx-pay{height:calc(64 * var(--u));margin:0;padding:0 calc(6 * var(--u));border:0;border-radius:calc(18 * var(--u));display:flex;align-items:center;justify-content:center;font-size:calc(19 * var(--u));font-weight:800;letter-spacing:.01em;white-space:nowrap;cursor:pointer}
 .cx-save{background:#E2E5EA;color:#1C1917;box-shadow:inset 0 0 0 1.5px #C9CED6,0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08)}
@@ -285,6 +295,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-save:active:not(:disabled),.cx-pay:active:not(:disabled){transform:scale(.98)}
 .cx-save:disabled,.cx-pay:disabled{opacity:.5;cursor:default}
 .cx-pay:disabled{box-shadow:none}
+.cx-save{gap:calc(10 * var(--u))} /* Update 6: the kitchen ticket (26) before Save */
 /* The Undo bar, just above Subtotal: dark #1F2937, 52 tall, radius 14; "Chicken biryani removed" 15 white, UNDO 15/800
    light blue */
 .cx-undo{position:absolute;left:0;right:0;bottom:calc(100% + 1px + 20 * var(--u));z-index:30;height:calc(52 * var(--u));box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:calc(12 * var(--u));padding:0 calc(8 * var(--u)) 0 calc(18 * var(--u));border-radius:calc(14 * var(--u));background:#1F2937;color:#FFFFFF;font-size:calc(15 * var(--u));line-height:normal;box-shadow:0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35);animation:cx-fade .14s ease-out}
@@ -330,50 +341,95 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-mi:disabled{opacity:.4;cursor:default}
 .cx-sep{height:1px;margin:calc(6 * var(--u)) calc(10 * var(--u));background:#ECEEF2}
 .cx-mi.del,.cx-mi.del svg{color:#B91C1C}
+/* Update 6: Remove discount, grey until the order has a discount; then its green tag (26 tall, 13/700) at the end */
+.cx-mi.off:disabled,.cx-mi.off:disabled svg{opacity:1;color:#C9C5C1}
+.cx-dtag{flex:none;margin-left:auto;height:calc(26 * var(--u));padding:0 calc(10 * var(--u));border-radius:99px;display:flex;align-items:center;background:#DCFCE7;color:#15803D;font-size:calc(13 * var(--u));font-weight:700;font-style:normal;line-height:normal}
 .cx-mi.del.armed,.cx-mi.del.armed:hover{background:#B91C1C;color:#FFFFFF}
 .cx-mi.del.armed svg{color:#FFFFFF}
 
 /* The menu under the bar, in the display style chosen (Settings > Counter) */
 .cx-area{flex:1;min-height:0;display:flex;flex-direction:column}
-/* It scrolls up and down; its edges reach out over the gaps around it so the cards' shadows are not cut off */
-.cx-scroll{flex:1;min-height:0;margin:calc(-12 * var(--u)) calc(-20 * var(--u)) calc(-10 * var(--u));padding:calc(12 * var(--u)) calc(20 * var(--u)) calc(10 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
-.cx-scroll::-webkit-scrollbar{display:none}
 .cx-h{flex:none;margin:calc(24 * var(--u)) calc(4 * var(--u)) calc(14 * var(--u));font-size:calc(20 * var(--u));font-weight:700;line-height:normal}
-/* Pills on top (the default): category pills 72 tall (Update 5: 60 of the design's), 19.8 bold, 28.8 each side, 10 apart,
-   wrapping; the selected one dark */
-.cx-pills{flex:none;display:flex;flex-wrap:wrap;gap:calc(10 * var(--u));margin:calc(18 * var(--u)) 0 calc(16 * var(--u))}
+/* Pages (Update 6): every grid shows at most 4 rows a page, its pages side by side (only the one on screen shows); the
+   box reaches out over the gaps around it so the tiles' shadows are not cut off, and each page has that much room on
+   either side, so the next one never shows. A sideways drag moves the pages (counter.js). */
+.cx-pages{flex:1;min-height:0;margin:calc(-12 * var(--u)) calc(-20 * var(--u)) calc(-10 * var(--u));padding:calc(12 * var(--u)) 0 calc(10 * var(--u));overflow:hidden;touch-action:pan-y}
+.cx-track{display:flex;height:100%}
+.cx-page{flex:0 0 100%;min-width:0;box-sizing:border-box;padding:0 calc(20 * var(--u))}
+/* The page controls, fixed at the bottom of the menu (6 from its bottom), centred under the grid (the rail style: under
+   the items): ‹ · dots · › 16 apart, "Page 1 of 2" 4 under them. Arrows 43 round, light blue while they can be used,
+   white and faded otherwise; dots 10, 8 apart, grey; the page on screen 28 long and dark. */
+.cx-pnav{position:absolute;left:0;right:0;bottom:calc(6 * var(--u));z-index:2;display:flex;flex-direction:column;align-items:center;gap:calc(4 * var(--u));pointer-events:none}
+.cx-pnav>*{pointer-events:auto}
+.cx-pnav.rail{left:calc(222 * var(--u))}
+.cx-prow{display:flex;align-items:center;gap:calc(16 * var(--u))}
+.cx-parr{flex:none;width:calc(43 * var(--u));height:calc(43 * var(--u));margin:0;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#C9C5C1;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.06);cursor:default}
+.cx-parr.on{background:#E3ECFC;color:#2F6FDE;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(47,111,222,.15);cursor:pointer}
+.cx-parr.on:active{transform:scale(.95)}
+.cx-pdots{display:flex;align-items:center;gap:calc(8 * var(--u))}
+.cx-pdots i{flex:none;width:calc(10 * var(--u));height:calc(10 * var(--u));border-radius:99px;background:rgba(28,25,23,.22)}
+.cx-pdots i.on{width:calc(28 * var(--u));background:#1C1917}
+.cx-pinfo{font-size:calc(12.5 * var(--u));font-weight:600;line-height:normal;color:#615C57;white-space:nowrap}
+/* Pills on top (the default): category pills 60 tall, 16.5 bold, 24 each side, 10 apart, the selected one dark. Update 6:
+   always two rows (130 in all), in views side by side; an arrow (43 round, light blue, ‹ or ›) where more views are,
+   each taking 60 of the rows (› 4 from the right, ‹ at the left). */
+.cx-pillwrap{position:relative;flex:none;height:calc(130 * var(--u));margin:calc(18 * var(--u)) 0 calc(16 * var(--u));overflow:hidden;touch-action:pan-y}
+.cx-ptrack{display:flex;height:100%}
+.cx-pview{flex:0 0 100%;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;gap:calc(10 * var(--u))}
+.cx-pview.l{padding-left:calc(60 * var(--u))}
+.cx-pview.r{padding-right:calc(60 * var(--u))}
+.cx-prow2{position:relative;flex:none;min-width:0;display:flex;gap:calc(10 * var(--u))}
+.cx-prow2 .cx-pl{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.cx-carr{position:absolute;top:50%;z-index:1;width:calc(43 * var(--u));height:calc(43 * var(--u));margin:calc(-21.5 * var(--u)) 0 0;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#E3ECFC;color:#2F6FDE;font-size:calc(22 * var(--u));font-weight:700;line-height:normal;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2;cursor:pointer}
+.cx-carr.next{right:calc(4 * var(--u))}
+.cx-carr.prev{left:0}
+.cx-carr[hidden]{display:none}
+.cx-carr:active{transform:scale(.95)}
 .cx-pl{flex:none;height:calc(60 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(24 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font-size:calc(16.5 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08);cursor:pointer}
 .cx-pl.on{background:#1C1917;color:#FFFFFF;box-shadow:none}
 .cx-pl:active{transform:scale(.97)}
-/* Items: cards 108 tall, radius 22, three across (two beside the rail), 12 apart */
-.cx-grid{display:grid;gap:calc(12 * var(--u));align-content:start}
+/* Items: tiles 108 tall, radius 22, 12 apart, 4 across (Update 6; or 3, Settings > Display > Tiles per row) in every
+   style */
+.cx-grid{position:relative;display:grid;gap:calc(12 * var(--u));align-content:start}
+.cx-grid.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .cx-grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
-.cx-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.cx-card{position:relative;height:calc(108 * var(--u));min-width:0;box-sizing:border-box;margin:0;padding:calc(16 * var(--u)) calc(18 * var(--u));border:0;border-radius:calc(22 * var(--u));display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;background:#FFFFFF;color:#1C1917;text-align:left;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.06);cursor:pointer}
+.cx-cell{position:relative;min-width:0}
+.cx-card{position:relative;width:100%;height:calc(108 * var(--u));min-width:0;box-sizing:border-box;margin:0;padding:calc(16 * var(--u)) calc(18 * var(--u));border:0;border-radius:calc(22 * var(--u));display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;background:#FFFFFF;color:#1C1917;text-align:left;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.06);cursor:pointer}
 .cx-card:active{transform:scale(.98)}
 .cx-card b{font-size:calc(17 * var(--u));font-weight:700;line-height:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cx-card span{margin-top:calc(2 * var(--u));font-size:calc(15 * var(--u));font-weight:600;line-height:normal;color:#57534E}
-.cx-card em{position:absolute;left:calc(18 * var(--u));top:calc(16 * var(--u));width:calc(14 * var(--u));height:calc(14 * var(--u));box-sizing:border-box;border:calc(2 * var(--u)) solid currentColor;border-radius:calc(3 * var(--u))}
+/* A dish (Update 6): the veg / non-veg mark at its top left (12 down, 16 in, 2 more down), its name at the bottom (two
+   lines at most, line 1.15, then "…") and its price 3 under it; nothing can leave the tile */
+.cx-card:not(.cx-addt){padding:calc(12 * var(--u)) calc(16 * var(--u));justify-content:flex-start}
+.cx-card:not(.cx-addt) b{flex:none;white-space:normal;overflow-wrap:anywhere;line-height:1.15;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.cx-card:not(.cx-addt)>b:first-child{margin-top:auto}
+.cx-card:not(.cx-addt) span{flex:none;margin-top:calc(3 * var(--u));white-space:nowrap}
+.cx-card em{position:relative;flex:none;width:calc(14 * var(--u));height:calc(14 * var(--u));box-sizing:border-box;margin:calc(2 * var(--u)) 0 auto;border:calc(2 * var(--u)) solid currentColor;border-radius:calc(3 * var(--u))}
 .cx-card em::after{content:"";position:absolute;inset:calc(2 * var(--u));border-radius:99px;background:currentColor}
 .cx-card em.veg{color:#16A34A}
 .cx-card em.non{color:#B91C1C}
+/* How many of the dish the order has (Update 6): a light blue badge 31 round (wider for more digits) 11 from the tile's
+   top right, 16 heavy dark blue; a 40 square around it takes the tap */
+.cx-qb{position:absolute;top:calc(6.5 * var(--u));right:calc(6.5 * var(--u));z-index:1;min-width:calc(40 * var(--u));height:calc(40 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(4.5 * var(--u));border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:transparent;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cx-qb span{min-width:calc(31 * var(--u));height:calc(31 * var(--u));box-sizing:border-box;padding:0 calc(9 * var(--u));border-radius:99px;display:flex;align-items:center;justify-content:center;background:#C9DCFB;color:#1E4FB8;font-size:calc(16 * var(--u));font-weight:800;line-height:normal;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2}
+.cx-qb:active span{transform:scale(.94)}
 /* Add item (Update 5), first: as big as a dish card, a soft blue bloom from its middle (#F4F8FF to white), a faint blue
    edge and shadow; centred, 12 apart, a round + 48 (#EEF4FF, #2F6FDE) and "Add item" 20.4/700 over "Custom · Starters"
    15.6/600 #78716C */
-.cx-card.cx-addt{flex-direction:row;justify-content:center;align-items:center;gap:calc(12 * var(--u));background:radial-gradient(120% 90% at 50% 50%,#F4F8FF 0%,#FFFFFF 70%);box-shadow:inset 0 0 0 1px rgba(47,111,222,.10),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(47,111,222,.08)}
+.cx-card.cx-addt{padding-left:calc(8 * var(--u));padding-right:calc(8 * var(--u));flex-direction:row;justify-content:center;align-items:center;gap:calc(12 * var(--u));background:radial-gradient(120% 90% at 50% 50%,#F4F8FF 0%,#FFFFFF 70%);box-shadow:inset 0 0 0 1px rgba(47,111,222,.10),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(47,111,222,.08)}
 .cx-addt>i{flex:none;width:calc(40 * var(--u));height:calc(40 * var(--u));border-radius:99px;display:flex;align-items:center;justify-content:center;background:#EEF4FF;color:#2F6FDE;box-shadow:inset 0 0 0 1px rgba(47,111,222,.15)}
 .cx-card .cx-addt-t{min-width:0;display:block;margin:0;font-size:inherit;color:#1C1917}
 .cx-card .cx-addt-t b{display:block}
 .cx-card .cx-addt-t small{display:block;margin-top:calc(2 * var(--u));font-size:calc(13 * var(--u));font-weight:600;line-height:normal;color:#78716C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* Category grid: "All categories", then tiles 112 tall, three across, 14 apart: the food icon on a 10% tint of the
-   category's colour, the name 19/700 and the count 13 grey */
-.cx-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(14 * var(--u));align-content:start}
-.cx-cat{height:calc(112 * var(--u));min-width:0;box-sizing:border-box;margin:0;padding:0 calc(24 * var(--u));border:0;border-radius:calc(22 * var(--u));display:flex;align-items:center;gap:calc(16 * var(--u));background:#FFFFFF;color:#1C1917;text-align:left;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(10 * var(--u)) calc(24 * var(--u)) rgba(15,23,42,.07);cursor:pointer}
+/* Category grid: "All categories", then tiles 112 tall, 14 apart (4 across, Update 6): the food icon (34) in a 48 box (13
+   round) on a 10% tint of the category's colour, 12 from the name 19/700 (one line) and the count 13 grey; 16 each side */
+.cx-pages[data-arrange="categories"] .cx-grid{gap:calc(14 * var(--u))}
+.cx-cat{height:calc(112 * var(--u));min-width:0;box-sizing:border-box;margin:0;padding:0 calc(16 * var(--u));border:0;border-radius:calc(22 * var(--u));display:flex;align-items:center;gap:calc(12 * var(--u));background:#FFFFFF;color:#1C1917;text-align:left;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(10 * var(--u)) calc(24 * var(--u)) rgba(15,23,42,.07);cursor:pointer}
 .cx-cat:active{transform:scale(.98)}
-.cx-ci{flex:none;width:calc(64 * var(--u));height:calc(64 * var(--u));border-radius:calc(16 * var(--u));display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--cat) 10%,transparent)}
-.cx-ci img{width:calc(46 * var(--u));height:calc(46 * var(--u));filter:drop-shadow(0 calc(4 * var(--u)) calc(4 * var(--u)) rgba(0,0,0,.15));-webkit-user-drag:none}
+.cx-ci{flex:none;width:calc(48 * var(--u));height:calc(48 * var(--u));border-radius:calc(13 * var(--u));display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--cat) 10%,transparent)}
+.cx-ci img{width:calc(34 * var(--u));height:calc(34 * var(--u));filter:drop-shadow(0 calc(4 * var(--u)) calc(4 * var(--u)) rgba(0,0,0,.15));-webkit-user-drag:none}
 .cx-cat-copy{display:block;min-width:0;font-size:calc(16 * var(--u));line-height:normal}
-.cx-cat-copy b{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:calc(19 * var(--u));font-weight:700;overflow:hidden} /* a long name takes two lines on a narrower menu */
+.cx-cat-copy b{display:block;font-size:calc(19 * var(--u));font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cx-cat-copy span{font-size:calc(13 * var(--u));color:#615C57}
 /* Inside a category: "‹ All categories" (56 tall), the category's colour bar (4 x 28), its name 22/800 and count */
 .cx-crumb{flex:none;display:flex;align-items:center;gap:calc(14 * var(--u));margin:calc(18 * var(--u)) 0 calc(16 * var(--u))}
@@ -382,21 +438,33 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-crumb i{flex:none;width:calc(4 * var(--u));height:calc(28 * var(--u));border-radius:calc(4 * var(--u))}
 .cx-crumb b{font-size:calc(22 * var(--u));font-weight:800;line-height:normal}
 .cx-crumb .cnt{margin-left:calc(-4 * var(--u));padding-top:calc(4 * var(--u));font-size:calc(14 * var(--u));line-height:normal;color:#615C57}
-/* Vertical rail: the category pills down the left (Update 5: 247.2 wide, pills 72 tall, 24 each side; it scrolls), 16
-   from the items, two across */
+/* Vertical rail: the category pills down the left (206 wide, pills 60 tall, 20 each side; it scrolls), 16 from the
+   items. Update 6: it ends 62 above the bottom (above the page controls); where more categories are hidden it fades out
+   (90) and a "More" pill shows (36 tall, light blue, 6 from the top or the bottom); a tap scrolls one screen. */
 .cx-split{flex:1;min-height:0;display:flex;gap:calc(16 * var(--u));margin-top:calc(18 * var(--u))}
-.cx-rail{flex:none;width:calc(206 * var(--u));display:flex;flex-direction:column;gap:calc(10 * var(--u));overflow:auto;overscroll-behavior:contain;scrollbar-width:none}
+.cx-railwrap{position:relative;flex:none;width:calc(206 * var(--u));margin-bottom:calc(62 * var(--u));overflow:hidden}
+.cx-rail{height:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:calc(10 * var(--u));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
 .cx-rail::-webkit-scrollbar{display:none}
-.cx-rail .cx-pl{justify-content:flex-start;padding:0 calc(20 * var(--u))}
-.cx-split .cx-scroll{margin-left:calc(-16 * var(--u));padding-left:calc(16 * var(--u))}
+.cx-pl.rl{justify-content:flex-start;padding:0 calc(20 * var(--u))}
+.cx-railwrap::before,.cx-railwrap::after{content:"";position:absolute;left:0;right:0;z-index:2;height:calc(90 * var(--u));pointer-events:none;opacity:0}
+.cx-railwrap::before{top:0;background:linear-gradient(0deg,rgba(243,244,247,0),#F3F4F7 70%)}
+.cx-railwrap::after{bottom:0;background:linear-gradient(180deg,rgba(243,244,247,0),#F3F4F7 70%)}
+.cx-railwrap.fu::before,.cx-railwrap.fd::after{opacity:1}
+.cx-rarr{position:absolute;left:50%;z-index:3;height:calc(36 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(14 * var(--u)) 0 calc(10 * var(--u));border:0;border-radius:99px;display:flex;align-items:center;gap:calc(4 * var(--u));background:#E3ECFC;color:#2F6FDE;font-size:calc(13 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(47,111,222,.15);transform:translateX(-50%);cursor:pointer}
+.cx-rarr.up{top:calc(6 * var(--u))}
+.cx-rarr.dn{bottom:calc(6 * var(--u));padding:0 calc(10 * var(--u)) 0 calc(14 * var(--u))}
+.cx-rarr[hidden]{display:none}
+.cx-split .cx-pages{flex:1;min-width:0;margin-left:calc(-16 * var(--u))}
+.cx-split .cx-page{padding-left:calc(16 * var(--u))}
+.cx-split .cx-card:not(.cx-addt) span{margin-top:calc(2 * var(--u))} /* (beside the rail the price is 2 under the name) */
 /* Rearranging (hold a category or an item): they jiggle; the one held follows the finger, its place left empty. It is
    the tile itself, a little larger, with nothing around it: no extra shadow, frame or square (as on the home screen). */
-.cx-shell.arranging [data-arrange]>[data-id]:not(.cx-origin){animation:cx-jiggle .26s ease-in-out infinite alternate}
-.cx-shell.arranging [data-arrange]>[data-id]:nth-child(2n):not(.cx-origin){animation-duration:.3s;animation-delay:-.15s}
-.cx-shell.arranging [data-arrange]>[data-id]:nth-child(3n):not(.cx-origin){animation-duration:.28s;animation-delay:-.08s}
+.cx-shell.arranging [data-arrange] [data-id]:not(.cx-origin){animation:cx-jiggle .26s ease-in-out infinite alternate}
+.cx-shell.arranging [data-arrange] [data-id]:nth-child(2n):not(.cx-origin){animation-duration:.3s;animation-delay:-.15s}
+.cx-shell.arranging [data-arrange] [data-id]:nth-child(3n):not(.cx-origin){animation-duration:.28s;animation-delay:-.08s}
 @keyframes cx-jiggle{from{transform:rotate(-1.1deg)}to{transform:rotate(1.1deg)}}
-.cx-shell [data-arrange]{position:relative} /* where each tile is laid out is measured from its list (counter.js placeOf) */
-.cx-shell [data-arrange]>[data-id]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.cx-shell [data-arrange]{position:relative} /* where each tile is laid out is measured from its list, or its row or page (counter.js placeOf) */
+.cx-shell [data-arrange] [data-id]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .cx-origin{opacity:0}
 .cx-ghost{position:fixed;z-index:60;margin:0;pointer-events:none;transform:translate(-50%,-50%) scale(1.05);animation:none;transition:none}
 /* The buttons at the top of the order panel rearrange the same way (hold one), each within its group (the context row,
@@ -406,7 +474,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-order.arranging [data-group]>[data-tile]:nth-child(3n):not(.cx-origin){animation-duration:.28s;animation-delay:-.08s}
 [data-group]>[data-tile]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 [data-group]>[data-tile]>:disabled{pointer-events:none}
-@media (prefers-reduced-motion:reduce){.cx-shell.arranging [data-arrange]>[data-id],.cx-order.arranging [data-group]>[data-tile]{animation:none}.cx-scrim,.cx-dim,.cx-pop,.cx-line.just-added .cx-row{animation:none}.cx-line.settling>.cx-row{transition:none}}
+@media (prefers-reduced-motion:reduce){.cx-shell.arranging [data-arrange] [data-id],.cx-order.arranging [data-group]>[data-tile]{animation:none}.cx-scrim,.cx-dim,.cx-pop,.cx-line.just-added .cx-row{animation:none}.cx-line.settling>.cx-row{transition:none}}
 
 /* ---------- the pop-ups over the menu: modifiers, quantity, note (Counter Update 4) ---------- */
 /* Over the menu only, dimmed rgba(15,23,42,.38); the order beside it stays as it is (a tap there is a tap outside).
@@ -583,6 +651,39 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-cu-foot{display:flex;align-items:center;gap:calc(20 * var(--u));margin-top:calc(20 * var(--u))}
 .cx-cu-foot .cx-nl{cursor:text}
 .cx-cu-foot .cx-nl-line{display:flex}
+/* Apply discount (Update 6), where the quantity pop-up is (560 wide, 620 in): the green % (40 round, #DCFCE7) and
+   "Apply discount" 24/800, ✕ · the percentage, 100 tall, 54/800 blue, its % 34, its cursor 3 x 48 · "On subtotal ₹3,960 ·
+   saves ₹396" 15/600 grey (the saving green), 10 under it · five quick picks 54 tall, 10 apart (the one chosen light
+   blue) · the number pad, keys 66 tall · "Apply 10% discount", 16 under it */
+.cx-pu.disc{left:calc(620 * var(--u));top:50%;width:calc(560 * var(--u));padding:calc(22 * var(--u)) calc(26 * var(--u)) calc(24 * var(--u));transform:translateY(-50%)}
+.cx-pu.disc>.cx-pu-head{margin-bottom:calc(16 * var(--u))}
+.cx-dh{min-width:0;display:flex;align-items:center;gap:calc(12 * var(--u))}
+.cx-dh>i{flex:none;width:calc(40 * var(--u));height:calc(40 * var(--u));border-radius:99px;display:flex;align-items:center;justify-content:center;background:#DCFCE7;color:#15803D}
+.cx-dh b{font-size:calc(24 * var(--u));font-weight:800;line-height:normal;white-space:nowrap}
+.cx-dd{flex:none;height:calc(100 * var(--u));border-radius:calc(22 * var(--u));display:flex;align-items:center;justify-content:center;gap:calc(6 * var(--u));background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08);color:#2F6FDE;font-size:calc(54 * var(--u));font-weight:800;line-height:normal}
+.cx-dd small{font-size:calc(34 * var(--u))}
+.cx-dd i{flex:none;width:calc(3 * var(--u));height:calc(48 * var(--u));background:#2F6FDE;animation:cx-blink 1.06s step-end infinite}
+.cx-dpv{margin:calc(10 * var(--u)) 0 calc(14 * var(--u));text-align:center;font-size:calc(15 * var(--u));font-weight:600;line-height:normal;color:#615C57}
+.cx-dpv b{color:#15803D}
+.cx-dqp{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:calc(10 * var(--u));margin-bottom:calc(14 * var(--u))}
+.cx-dqp button{height:calc(54 * var(--u));margin:0;padding:0;border:0;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#1C1917;font-size:calc(18 * var(--u));font-weight:700;line-height:normal;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.06);cursor:pointer}
+.cx-dqp button.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2}
+.cx-dqp button:active{transform:scale(.97)}
+.cx-qk.cx-dk .cx-key{height:calc(66 * var(--u))}
+.cx-pu.disc>.cx-done.wide{margin-top:calc(16 * var(--u))}
+.cx-done:disabled{opacity:.5;cursor:default}
+/* The note typed in the modifier pop-up (Update 6): at the top (above the keyboard), 24 26 20 inside; ‹ (as ✕) 14 from
+   the dish; the choices made as pills 30 tall (14/600: spice level amber, the others white with a blue-grey edge), 8
+   apart, 12 under the dish; the note 16 under them; its quick notes in one row that scrolls; Set note */
+.cx-pu.mods.noting{top:calc(14 * var(--u));max-height:none;padding:calc(24 * var(--u)) calc(26 * var(--u)) calc(20 * var(--u))}
+.cx-pu.mods.noting>.cx-pu-head{padding:0}
+.cx-pu-lead{min-width:0;display:flex;align-items:center;gap:calc(14 * var(--u))}
+.cx-mpills{display:flex;flex-wrap:wrap;gap:calc(8 * var(--u));margin-top:calc(12 * var(--u))}
+.cx-mpills span{height:calc(30 * var(--u));box-sizing:border-box;padding:0 calc(12 * var(--u));border-radius:99px;display:flex;align-items:center;background:#FFFFFF;color:#57534E;box-shadow:inset 0 0 0 1px #DCE3EE;font-size:calc(14 * var(--u));font-weight:600;line-height:normal;white-space:nowrap}
+.cx-mpills span.sp{background:#FFF9EC;color:#9A6B1F;box-shadow:inset 0 0 0 1px #F6E6C2}
+.cx-pu.mods.noting>.cx-nf{margin-top:calc(16 * var(--u))}
+.cx-qn.row{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.cx-qn.row::-webkit-scrollbar{display:none}
 .cx-qk.cx-pp{margin-top:calc(20 * var(--u))}
 .cx-qk.cx-pp .cx-key{height:calc(66 * var(--u))}
 .cx-pu.custom>.cx-done.wide{margin-top:calc(20 * var(--u))}
