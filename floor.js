@@ -23,7 +23,8 @@
     return node;
   }
   const svg = path => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = path; return s; };
-  const ICON = { home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', back: '<path d="m15 6-6 6 6 6"/>' };
+  const ICON = { home: '<path d="M4.5 11.2 L12 4.6 L19.5 11.2 V18.4 a1.6 1.6 0 0 1 -1.6 1.6 H14.6 V15.4 a2.6 2.6 0 0 0 -5.2 0 V20 H6.1 a1.6 1.6 0 0 1 -1.6 -1.6 Z"/>', back: '<path d="m15 6-6 6 6 6"/>' };
+  const backIcon = () => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 -960 960 960'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', 'nav-back'); s.innerHTML = '<path d="m432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z"/>'; return s; };
   const floorIcon = () => {
     const art = typeof artNode === 'function' && typeof shortcuts !== 'undefined' ? artNode({ ...shortcuts.find(item => item.id === 'floor').art, plain: true }) : document.createElement('span');
     art.classList.add('floor-title-icon'); return art;
@@ -38,8 +39,9 @@
     const inUse = new Set(window.RestroCounter?.tablesInUse?.() || []);
     const area = plan.areas.find(a => a.id === areaId) || plan.areas[0];
     const head = el('div', { class: 'floor-head' },
-      el('button', { type: 'button', class: 'floor-nav', 'aria-label': pick ? 'Back to Counter' : 'Home', title: pick ? 'Back' : 'Home',
-        onclick: () => { if (pick) close(); else document.querySelector('#system-home')?.click(); } }, svg(pick ? ICON.back : ICON.home)),
+      // (Update Pack 3: Home the same in every app; "‹ Counter" when it goes back there, as in Orders)
+      el('button', { type: 'button', class: `floor-nav${pick ? ' back' : ''}`, 'aria-label': pick ? 'Back to Counter' : 'Home', title: pick ? 'Back' : 'Home',
+        onclick: () => { if (pick) close(); else document.querySelector('#system-home')?.click(); } }, pick ? backIcon() : svg(ICON.home), pick ? 'Counter' : null),
       floorIcon(),
       el('h2', { id: 'floor-title', tabindex: '-1' }, pick ? 'Select a table' : 'Floor'));
     const tabs = plan.areas.length > 1 ? el('div', { class: 'floor-areas', role: 'tablist', 'aria-label': 'Areas' },

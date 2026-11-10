@@ -9,18 +9,17 @@
 .cust-root button{font:inherit}
 .cust-root button:focus-visible{outline:2px solid var(--palette-accent);outline-offset:2px}
 
-/* Header (Customers and Employees), exactly as in Orders and Floor: the round Home button (a back arrow when it goes
-   back: opened from Counter, or inside a form), the app's icon and the title, with a line under them all. Home is the
-   same everywhere, in the same neutral greys whatever the theme: 35.2px with a 17.6px icon. */
-/* Home, the icon and the title are evenly spaced (10px between what shows) and centred on one line: the icons show at the
-   Home button's height (35.2px; on a white tile, the drawing alone), and the title is centred by its capital letters */
-.cust-head{flex:none;display:flex;align-items:center;gap:10px;margin:0 16px;padding:10px 0 9px;border-bottom:1px solid var(--palette-line)}
-.cust-nav{display:grid;place-items:center;width:35.2px;height:35.2px;margin:0;padding:0;border:0;border-radius:50%;background:#f5f6f7;color:#1f2933;box-shadow:inset 0 0 0 1px #cbcfd5;cursor:pointer}
-.cust-nav:hover{background:#e3e6ea}
-.cust-nav svg{width:17.6px;height:17.6px}
-/* The app's icon (Customers, Employees): square, 35.2px as in Orders and Floor, centred on the line with Home and the title */
-.cust-title-icon{display:block;flex:none;width:35.2px;height:35.2px}
-.cust-head h2{margin:0 0 0 -1px;text-box:trim-both cap alphabetic;font-size:18px;font-weight:600;color:var(--palette-accent-ink)}
+/* Header (Customers and Staff; Update Pack 3, rules for every app), with a line under it: Home as in Orders, a raised
+   white circle (60) with our outline house (34, stroke 2), or where Back goes ("‹ Counter" when Counter opened it,
+   "‹ Customers" / "‹ Staff" from a form); 16 on, the app's icon, 28 tall, and 10 on the title, 30, centred by its
+   capital letters */
+.cust-head{flex:none;display:flex;align-items:center;gap:calc(16 * var(--fu));margin:0 16px;padding:calc(16 * var(--fu)) 0 calc(12 * var(--fu));border-bottom:1px solid var(--palette-line)}
+.cust-nav{flex:none;display:grid;place-items:center;width:calc(60 * var(--fu));height:calc(60 * var(--fu));margin:0;padding:0;border:0;border-radius:999px;background:#FFFFFF;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 calc(2 * var(--fu)) calc(4 * var(--fu)) rgba(15,23,42,.10),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(15,23,42,.12);cursor:pointer}
+.cust-nav svg{width:calc(34 * var(--fu));height:calc(34 * var(--fu));stroke-width:2}
+.cust-nav.back{width:auto;padding:0 calc(20 * var(--fu)) 0 calc(10 * var(--fu));display:flex;align-items:center;gap:calc(2 * var(--fu));font-size:calc(18 * var(--fu));font-weight:700}
+.cust-nav .nav-back{width:calc(30 * var(--fu));height:calc(30 * var(--fu));fill:currentColor;stroke:none}
+.cust-title-icon{display:block;flex:none;width:calc(28 * var(--fu));height:calc(28 * var(--fu))}
+.cust-head h2{margin:0 0 0 calc(-6 * var(--fu));text-box:trim-both cap alphabetic;font-size:calc(30 * var(--fu));font-weight:800;color:var(--palette-accent-ink)}
 #customers-title:focus{outline:none}
 
 .cust-body{width:min(680px,100%);margin:0 auto;padding:16px}

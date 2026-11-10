@@ -24,10 +24,11 @@
   }
   const svg = path => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = path; return s; };
   const ICON = {
-    home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9.5h4v-5h3v5h4V10"/>', back: '<path d="m15 6-6 6 6 6"/>',
+    home: '<path d="M4.5 11.2 L12 4.6 L19.5 11.2 V18.4 a1.6 1.6 0 0 1 -1.6 1.6 H14.6 V15.4 a2.6 2.6 0 0 0 -5.2 0 V20 H6.1 a1.6 1.6 0 0 1 -1.6 -1.6 Z"/>', back: '<path d="m15 6-6 6 6 6"/>',
     plus: '<path d="M12 5v14M5 12h14"/>', chevron: '<path d="m9 6 6 6-6 6"/>',
     del: '<path d="M9 6h11v12H9l-6-6 6-6Z"/><path d="m12 9 5 6m0-6-5 6"/>'
   };
+  const backIcon = () => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 -960 960 960'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', 'nav-back'); s.innerHTML = '<path d="m432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z"/>'; return s; };
   const appIcon = () => {
     const art = typeof artNode === 'function' && typeof apps !== 'undefined' && apps.employees ? artNode({ ...apps.employees.art, plain: true }) : document.createElement('span');
     art.classList.add('cust-title-icon'); return art;
@@ -48,8 +49,9 @@
     const title = setup ? 'Owner account' : form ? (form.id ? 'Edit employee' : 'New employee') : 'Staff';
     const back = Boolean(form) && !setup;
     const head = el('div', { class: 'cust-head' },
-      el('button', { type: 'button', class: 'cust-nav', 'aria-label': back ? 'Back to employees' : 'Home', title: back ? 'Back' : 'Home',
-        onclick: () => { if (back) closeForm(); else document.querySelector('#system-home')?.click(); } }, svg(back ? ICON.back : ICON.home)),
+      // (Update Pack 3: Home the same in every app; "‹ Staff" back to the list, as Orders shows where Back goes)
+      el('button', { type: 'button', class: `cust-nav${back ? ' back' : ''}`, 'aria-label': back ? 'Back to employees' : 'Home', title: back ? 'Back' : 'Home',
+        onclick: () => { if (back) closeForm(); else document.querySelector('#system-home')?.click(); } }, back ? backIcon() : svg(ICON.home), back ? 'Staff' : null),
       appIcon(),
       el('h2', { id: 'employees-title', tabindex: '-1' }, title));
     root.replaceChildren(head, form ? formView(setup) : listView());
