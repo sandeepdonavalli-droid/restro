@@ -157,11 +157,10 @@ label.st-row,.st-link{cursor:pointer}
 .settings-shell .st-sg .ics svg{width:calc(26 * var(--su));height:calc(26 * var(--su));--nav-icon-under:#FFFFFF}
 .settings-shell .st-sg[aria-checked="true"] .ics svg{--nav-icon-under:var(--st-wash)}
 
-/* Lists the restaurant edits (reasons, quick picks): pills with ✕, and a field to add one */
+/* Lists the restaurant edits (quick picks): pills with ✕, and a field to add one */
 .st-chips{display:flex;flex-wrap:wrap;gap:calc(10 * var(--su))}
 .st-chip{display:inline-flex;align-items:center;gap:calc(4 * var(--su));height:calc(46 * var(--su));padding:0 calc(6 * var(--su)) 0 calc(18 * var(--su));border-radius:999px;background:#FFFFFF;
   box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 1px 2px rgba(15,23,42,.06);font-size:calc(16 * var(--su));font-weight:700;color:var(--st-ink);white-space:nowrap}
-.st-chip.fixed{padding-right:calc(18 * var(--su));color:var(--st-muted);font-weight:600}
 .st-chip button{display:grid;place-items:center;width:calc(34 * var(--su));height:calc(34 * var(--su));margin:0;padding:0;border:0;border-radius:50%;background:#F1F3F6;color:#57534E;cursor:pointer}
 .st-chip button:hover{background:#E7E9EE}
 .st-chip button:focus-visible{outline:2px solid var(--st-blue);outline-offset:1px}
@@ -170,7 +169,6 @@ label.st-row,.st-link{cursor:pointer}
 .st-add>input{flex:1;min-width:0}
 .settings-app .st-add>input{min-height:calc(50 * var(--su));font-size:calc(16 * var(--su))}
 .st-add .st-secondary{height:calc(50 * var(--su))}
-.st-sep{height:1px;margin:calc(22 * var(--su)) 0;background:#ECEEF2}
 .st-fixed{display:flex;flex-direction:column;gap:calc(10 * var(--su))}
 .st-fixed p{display:flex;gap:calc(12 * var(--su));align-items:baseline;font-size:calc(16 * var(--su));font-weight:600;color:#44403C;line-height:1.45}
 .st-fixed p b{flex:none;min-width:calc(210 * var(--su));font-weight:700;color:var(--st-ink)}

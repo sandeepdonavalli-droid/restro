@@ -50,10 +50,9 @@
     restaurantName: { key: 'restro.restaurantName', raw: true, placeholder: 'RESTAURANT NAME' },
     profile: { key: 'restro.profile.v1' },
     prepMinutes: { key: 'restro.counter.prepMinutes.v1' },
-    // (Update Pack 9 Nov 2026, prefs.js: Billing & charges, Business details, Kitchen, the printers, Staff & security)
+    // (Update Pack 9 Nov 2026, prefs.js: Billing & charges, Business details, the printers, Staff & security)
     billing: { key: 'restro.billing.v1' },
     business: { key: 'restro.business.v1' },
-    kitchen: { key: 'restro.kitchen.v1' },
     printers: { key: 'restro.printers.v1' },
     security: { key: 'restro.security.v1' },
     // (Counter Update 7: what is sold out, set in the Menu app, shown live on every Counter)

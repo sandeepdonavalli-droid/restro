@@ -111,13 +111,14 @@ Counter's **Print bill** button (the printer, at the end of the order panel's to
 method present, the bill goes to it, to print on the restaurant's bill printer; without it, the browser's own printing
 opens. Return `false` (or throw) if it didn't print; Counter says so.
 
-Print it as `25_printed-bill` (Counter Update 7), 80 mm, **black only**:
+Print it as `25_printed-bill` (Counter Update 7, the customer's copy, the same for every kind of order), 80 mm,
+**black only**:
 
 - **Header:** `restaurant` (large), `address`, then `GSTIN …` · `FSSAI …` (`gstin`, `fssai`: Settings › Business
   details; the FSSAI licence number is required on bills in India). A dashed rule, **TAX INVOICE**, then the order
-  (`number`, e.g. `"#05"`, or `null` for an order not saved yet) and the date and time (`at`, milliseconds), then
-  `type` · `Table …` (`table`) · `… guests` (`guests`, 0 for none) · `customer` · `Pager …` (`pager`), and
-  `Server: EC` (the initials of `server`).
+  (`number`, e.g. `"#05"`, or `null` for an order not saved yet) and the date and time (`at`, milliseconds, printed
+  `7 Nov 2026 11:58 AM`), then `type` · `Table …` (`table`) · `… guests` (`guests`, 0 for none), and `Server: EC` (the
+  initials of `server`).
 - **Dishes:** each of `lines`, `{ name, qty, each, total, modifiers, discount }`: `2 × Sweet lassi` and its `total`;
   its `modifiers` under it on one line (`"Half · Medium spicy"`); its dish discount, when it has one, as an indented
   minus line: `discount.label` and −`discount.amount` (`"10% off"` −26.00, `"100% off · Complaint"` −180.00). Dish
@@ -129,7 +130,7 @@ Print it as `25_printed-bill` (Counter Update 7), 80 mm, **black only**:
   (`"Round off −0.46"`); then **GRAND TOTAL** `total` (to the rupee). Each of these is `null` when the order hasn't
   got it. (`tax` and `taxLabel` are the two taxes together, `"GST 5%"`.)
 - **Footer:** each of `footer` on its own line, centred: the service-charge line when there is a service charge
-  (`"Service charge is optional — ask us to remove it."`, Settings › Billing & charges), then the bill footer
+  (`"Service charge is optional — ask us to remove it."`), then the bill footer
   (`"Thank you! Visit again."`, Settings › Business details).
 
 Amounts are in rupees.
@@ -138,7 +139,7 @@ Amounts are in rupees.
 
 Counter Update 7. **Save sends the KOT, and so does Pay**; each KOT has only the dishes the kitchen doesn't have yet
 (KOT #2 has what was added after KOT #1). After a KOT has gone, taking a dish off or reducing it prints a **VOID**
-slip, deleting the order prints **ORDER CANCELLED** (both with the reason staff picked), changing a dish's choices or
+slip, deleting the order prints **ORDER CANCELLED** (both with the reason staff gave), changing a dish's choices or
 note prints a **CHANGED** slip, and marking the order as priority prints a short **★ PRIORITY** notice. **Reprint KOT**
 (the order menu) sends the last KOT again, as it was. A scheduled order's KOT goes at its kitchen time, from the tablet
 that saved it last.

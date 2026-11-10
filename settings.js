@@ -2,9 +2,9 @@
 // Settings (Update Pack 9 Nov 2026: the look of Display › Navigation, N6/N7, on every page). The categories on the left
 // beside the page chosen on tablets, one column with a back arrow on narrow screens. Each page has a breadcrumb over
 // its title ("Settings", or "Settings › Display" on a page inside another) and its settings in cards.
-// New in this update: Business details (printed on the bill), Billing & charges, Kitchen (void and cancel reasons),
-// Staff & security (auto-lock), Display › Navigation (swipe gestures or the navigation bar, button order, Go dark) and
-// Devices & sync › each printer (role, KOT language, copies). Their values are kept by prefs.js.
+// New in this update: Business details (printed on the bill), Billing & charges, Staff & security (auto-lock), Display ›
+// Navigation (swipe gestures or the navigation bar, button order, Go dark) and Devices & sync › each printer (role, KOT
+// language, copies). Their values are kept by prefs.js.
 (() => {
   const dialog = document.querySelector('#settings-dialog');
   const shell = dialog.querySelector('.settings-shell');
@@ -59,8 +59,8 @@
     });
     return group;
   }
-  // A list the restaurant edits: its items as pills with ✕ (the fixed ones without), and a field to add one more
-  function chips({ id, label, items, fixed = () => false, text = v => String(v), parse, placeholder, inputmode = 'text', max = 12, change }) {
+  // A list the restaurant edits: its items as pills with ✕, and a field to add one more
+  function chips({ id, label, items, text = v => String(v), parse, placeholder, inputmode = 'text', max = 12, change }) {
     const field = el('input', { id, type: 'text', inputmode, maxlength: inputmode === 'decimal' ? '5' : '40', placeholder, autocomplete: 'off', 'aria-label': `Add to ${label}` });
     const error = el('p', { class: 'field-error', role: 'alert', hidden: true });
     const add = () => {
@@ -73,14 +73,12 @@
     field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
     field.addEventListener('input', () => { error.hidden = true; });
     return el('div', { class: 'st-chiplist' },
-      el('div', { class: 'st-chips', role: 'list', 'aria-label': label }, items.map(v => fixed(v)
-        ? el('span', { class: 'st-chip fixed', role: 'listitem' }, text(v))
-        : el('span', { class: 'st-chip', role: 'listitem' }, text(v), el('button', { type: 'button', 'aria-label': `Remove ${text(v)}`, title: 'Remove', onclick: () => change(items.filter(x => x !== v), false) }, line(X))))),
+      el('div', { class: 'st-chips', role: 'list', 'aria-label': label }, items.map(v =>
+        el('span', { class: 'st-chip', role: 'listitem' }, text(v), el('button', { type: 'button', 'aria-label': `Remove ${text(v)}`, title: 'Remove', onclick: () => change(items.filter(x => x !== v), false) }, line(X))))),
       el('div', { class: 'st-add' }, field, el('button', { type: 'button', class: 'st-secondary', onclick: add }, line('<path d="M12 5v14M5 12h14"/>'), 'Add')), error);
   }
   const pctText = v => `${String(v).replace(/\.0$/, '')}%`;
   const parsePct = (min, max, step) => s => { const n = Number(String(s).replace(/[%\s]/g, '')); if (!Number.isFinite(n) || n < min || n > max) return null; const r = Math.round(n / step) * step; return Math.abs(r - n) > 1e-9 ? null : Math.round(r * 10) / 10; };
-  const parseWords = s => { const t = String(s).replace(/\s+/g, ' ').trim().slice(0, 40); return t || null; };
   const rupees = v => `₹${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
   // An amount in rupees (up to 2 decimals) or a percentage, in a field with ₹ before it or % after it
   function amountField({ id, label, value, pct = false, max = 99999, change, disabled = false, hint }) {
@@ -95,12 +93,6 @@
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
     return el('div', { class: 'st-field' }, el('label', { for: id }, label), el('div', { class: `st-money${pct ? ' pct' : ''}` }, el('i', {}, pct ? '%' : '₹'), input),
       hint ? el('p', { class: 'field-note', id: `${id}-hint` }, hint) : null, error);
-  }
-  function textField({ id, label, value, max = 80, change, placeholder }) {
-    const input = el('input', { id, type: 'text', maxlength: String(max), autocomplete: 'off', value, placeholder });
-    input.addEventListener('change', () => change(input.value));
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
-    return el('div', { class: 'st-field' }, el('label', { for: id }, label), input);
   }
   // Rebuilds a page's card list, keeping the focus where it was (by id) and the scroll
   function rebuild(host, build) {
@@ -204,8 +196,8 @@
     set('settings-navigation-summary', `${navi.mode === 'bar' ? `Navigation bar · Back on the ${navi.order === 'back-right' ? 'right' : 'left'}` : 'Swipe gestures'} · Go dark ${dark ? `after ${dark} min` : 'never'}`);
     set('settings-brightness-value', `${brightness}%`);
     const range = document.querySelector('#settings-brightness-range'); if (range) range.value = String(brightness);
-    const billing = Prefs.get('billing');
-    set('settings-billing-summary', billing.serviceCharge.on ? `Service charge ${pctText(billing.serviceCharge.rate)} (optional)` : 'Service charge off');
+    const { packaging: pk, delivery: dl } = Prefs.get('billing');
+    set('settings-billing-summary', `Packaging ${pk.on ? (pk.mode === 'dish' ? 'per dish' : rupees(pk.flat)) : 'off'} · Delivery ${dl.on ? rupees(dl.flat) : 'off'}`);
     const business = Prefs.get('business');
     set('settings-business-summary', business.gstin && business.fssai ? 'GSTIN and FSSAI on the bill' : !business.fssai ? 'Add the FSSAI licence number' : 'Printed on the bill');
     set('settings-security-summary', `Auto-lock ${Prefs.get('security').autoLock ? `after ${Prefs.get('security').autoLock} min` : 'off'}`);
@@ -362,25 +354,9 @@
   const billingHost = document.querySelector('#settings-billing');
   const setBilling = change => Prefs.update('billing', change);
   builders.billing = () => rebuild(billingHost, () => {
-    const b = Prefs.get('billing'), sc = b.serviceCharge, pk = b.packaging, dl = b.delivery;
-    const scOn = sc.on, pkOn = pk.on;
+    const b = Prefs.get('billing'), pk = b.packaging, dl = b.delivery;
+    const pkOn = pk.on;
     return [
-      card('st-rowcard',
-        lab('Service charge'),
-        el('p', { class: 'st-sub', style: 'margin-bottom:0' }, 'Dine-in only, and never added automatically: staff add it only when the customer agrees.'),
-        el('div', { class: 'st-rows' }, switchRow('bill-sc-on', 'Allow service charge', scOn ? 'On · staff can add it to a dine-in order' : 'Off · it isn’t offered on the Counter', scOn, on => setBilling(v => { v.serviceCharge.on = on; })))),
-      card(scOn ? '' : 'dis',
-        lab('Service charge details'), sub('What the Service charge pop-up starts with, and how it prints.'),
-        el('div', { class: 'st-two' },
-          amountField({ id: 'bill-sc-rate', label: 'Default rate', value: sc.rate, pct: true, max: 20, disabled: !scOn, hint: 'Filled in when staff open it.', change: n => setBilling(v => { v.serviceCharge.rate = Math.min(n, v.serviceCharge.max); }) }),
-          amountField({ id: 'bill-sc-max', label: 'Maximum', value: sc.max, pct: true, max: 20, disabled: !scOn, hint: 'Staff can’t go above it.', change: n => setBilling(v => { v.serviceCharge.max = n; v.serviceCharge.rate = Math.min(v.serviceCharge.rate, n); v.serviceCharge.picks = v.serviceCharge.picks.filter(p => p <= n); }) })),
-        el('div', { class: 'st-field' }, el('span', { class: 'st-flabel' }, 'Quick picks'),
-          chips({ id: 'bill-sc-pick', label: 'Service charge quick picks', items: sc.picks, text: pctText, parse: parsePct(0.5, sc.max, 0.5), placeholder: 'Add a rate, like 12.5', inputmode: 'decimal', max: 6,
-            change: list => setBilling(v => { v.serviceCharge.picks = list; }) })),
-        el('div', { class: 'st-two' },
-          textField({ id: 'bill-sc-label', label: 'Bill label', value: sc.label, max: 40, change: t => setBilling(v => { v.serviceCharge.label = t; }) }),
-          textField({ id: 'bill-sc-footer', label: 'Bill footer line', value: sc.footer, max: 80, change: t => setBilling(v => { v.serviceCharge.footer = t; }) })),
-        note('Charged on the subtotal after discounts, with GST on top of it. Applies to: Dine-in only.')),
       card('',
         lab('Order discount'), sub('The quick picks in the Discount pop-up. Any whole number from 1% to 100% can be typed there too.'),
         chips({ id: 'bill-od-pick', label: 'Order discount quick picks', items: b.orderDiscount.picks, text: pctText, parse: parsePct(1, 100, 1), placeholder: 'Add a percentage', inputmode: 'decimal', max: 6,
@@ -388,11 +364,7 @@
       card('',
         lab('Dish discount'), sub('The quick picks in the Dish discount pop-up.'),
         chips({ id: 'bill-dd-pick', label: 'Dish discount quick picks', items: b.dishDiscount.picks, text: pctText, parse: parsePct(1, 100, 1), placeholder: 'Add a percentage', inputmode: 'decimal', max: 6,
-          change: list => setBilling(v => { v.dishDiscount.picks = list; }) }),
-        el('div', { class: 'st-sep' }),
-        lab('Reasons for 100% off'), sub('Asked when a dish is made free (complimentary). Reports keep these apart from ordinary discounts. Other… is always there: it opens the keyboard.'),
-        chips({ id: 'bill-dd-reason', label: 'Reasons for a complimentary dish', items: b.dishDiscount.reasons, fixed: r => /^other/i.test(r), parse: parseWords, placeholder: 'Add a reason', max: 12,
-          change: list => setBilling(v => { v.dishDiscount.reasons = list; }) })),
+          change: list => setBilling(v => { v.dishDiscount.picks = list; }) })),
       card('st-rowcard',
         lab('Packaging charge'),
         el('div', { class: 'st-rows' }, switchRow('bill-pk-on', 'Charge for packaging', pkOn ? 'On' : 'Off', pkOn, on => setBilling(v => { v.packaging.on = on; })))),
@@ -417,19 +389,6 @@
         el('div', { class: 'st-fixed' },
           el('p', {}, el('b', {}, 'Rounding'), 'To the nearest rupee: 50 paise and up go up. The Round off line shows on the screen and on the bill.'),
           el('p', {}, el('b', {}, `GST ${window.RestroBill?.labels(window.RestroMenu?.taxRate).gst.replace('GST ', '') || '5%'}`), `Shown as ${window.RestroBill?.labels(window.RestroMenu?.taxRate).cgst || 'CGST 2.5%'} + ${window.RestroBill?.labels(window.RestroMenu?.taxRate).sgst || 'SGST 2.5%'}. It stays CGST + SGST even for a customer with a GSTIN from another state, as the place of supply is where the food is served (confirm with your CA).`)))
-    ];
-  });
-
-  // ---------- Kitchen: void and cancel reasons (Counter Update 7) ----------
-  const kitchenHost = document.querySelector('#settings-kitchen');
-  builders.kitchen = () => rebuild(kitchenHost, () => {
-    const k = Prefs.get('kitchen');
-    return [
-      card('', lab('Void reasons'), sub('Asked when a dish already sent to the kitchen is removed or its quantity lowered. The VOID slip prints them. Other… is always there: it opens the keyboard.'),
-        chips({ id: 'kitchen-void', label: 'Void reasons', items: k.voidReasons, fixed: r => /^other/i.test(r), parse: parseWords, placeholder: 'Add a reason', change: list => Prefs.update('kitchen', v => { v.voidReasons = list; }) })),
-      card('', lab('Order-cancel reasons'), sub('Asked when an order already sent to the kitchen is deleted. The ORDER CANCELLED slip prints them.'),
-        chips({ id: 'kitchen-cancel', label: 'Order-cancel reasons', items: k.cancelReasons, fixed: r => /^other/i.test(r), parse: parseWords, placeholder: 'Add a reason', change: list => Prefs.update('kitchen', v => { v.cancelReasons = list; }) })),
-      el('p', { class: 'st-foot' }, 'Every void and every cancelled order keeps the reason and who did it.')
     ];
   });
 
@@ -527,7 +486,7 @@
     syncSummaries();
     if (!dialog.open) return;
     const name = event.detail?.name;
-    const page = { billing: 'billing', kitchen: 'kitchen', security: 'security', navigation: 'navigation', screen: 'navigation', printers: current === 'printer' ? 'printer' : 'sync', business: 'business' }[name];
+    const page = { billing: 'billing', security: 'security', navigation: 'navigation', screen: 'navigation', printers: current === 'printer' ? 'printer' : 'sync', business: 'business' }[name];
     if (page === current && page !== 'business') builders[page]?.();
     if (page === 'business' && current === 'business' && !document.querySelector('#business-form').contains(document.activeElement)) fillBusiness();
   });

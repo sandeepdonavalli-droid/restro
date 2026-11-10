@@ -1,31 +1,26 @@
 'use strict';
 // Settings added by the Update Pack of 9 Nov 2026 (Counter Update 7, Navigation & Lock Update 1), kept in one place:
-// - The restaurant's own (shared by all its tablets through sync.js): Billing & charges, Business details, Kitchen,
-//   the printers' settings and Staff & security.
+// - The restaurant's own (shared by all its tablets through sync.js): Billing & charges, Business details, the
+//   printers' settings and Staff & security.
 // - This tablet's own: Display › Navigation (swipe gestures or the navigation bar, and its button order) and Go dark.
 // Every value is checked as it is read, so a missing, old or bad value falls back to its default. Changes are announced
 // with `restro:prefs-changed` ({ name }), here or from another tablet.
 (() => {
   const DEFAULTS = Object.freeze({
     billing: {
-      serviceCharge: { on: false, rate: 5, picks: [2.5, 5, 7.5, 10], max: 10, label: 'Service charge (optional)', footer: 'Service charge is optional — ask us to remove it.' },
       orderDiscount: { picks: [5, 10, 15, 20, 25] },
-      dishDiscount: { picks: [10, 20, 50, 100], reasons: ['Staff meal', 'Complaint', 'Owner’s guest', 'Regular customer', 'Birthday', 'Other'] },
+      dishDiscount: { picks: [10, 20, 50, 100] },
       packaging: { on: false, mode: 'flat', flat: 0, types: ['takeaway', 'delivery', 'phone'] },
       delivery: { on: false, flat: 0 }
     },
     business: { address: '', gstin: '', fssai: '', footer: 'Thank you! Visit again.' },
-    kitchen: {
-      voidReasons: ['Customer changed mind', 'Ordered by mistake', 'Taking too long', 'Quality issue', 'Item unavailable', 'Other'],
-      cancelReasons: ['Customer left', 'Duplicate order', 'Payment issue', 'Kitchen can’t make it', 'Other']
-    },
     printers: {},
     security: { autoLock: 5 },
     navigation: { mode: 'swipe', order: 'back-left' },
     screen: { goDark: 5 }
   });
-  const KEYS = Object.freeze({ billing: 'restro.billing.v1', business: 'restro.business.v1', kitchen: 'restro.kitchen.v1', printers: 'restro.printers.v1', security: 'restro.security.v1', navigation: 'restro.navigation.v1', screen: 'restro.screen.v1' });
-  const SHARED = new Set(['billing', 'business', 'kitchen', 'printers', 'security']);
+  const KEYS = Object.freeze({ billing: 'restro.billing.v1', business: 'restro.business.v1', printers: 'restro.printers.v1', security: 'restro.security.v1', navigation: 'restro.navigation.v1', screen: 'restro.screen.v1' });
+  const SHARED = new Set(['billing', 'business', 'printers', 'security']);
   const AUTO_LOCK = Object.freeze([0, 1, 2, 5, 10, 15]);        // minutes; 0 = off
   const GO_DARK = Object.freeze([1, 2, 5, 10, 15, 30, 0]);      // minutes; 0 = never
   const LANGUAGES = Object.freeze(['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati']);
@@ -36,12 +31,6 @@
   const num = (v, min, max, fallback) => { const n = Number(v); return Number.isFinite(n) && n >= min && n <= max ? n : fallback; };
   const money = (v, fallback) => { const n = num(v, 0, 99999, NaN); return Number.isFinite(n) ? Math.round(n * 100) / 100 : fallback; };
   const text = (v, max, fallback) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : fallback);
-  const words = (v, fallback, max = 12, len = 40) => {
-    if (!Array.isArray(v)) return fallback;
-    const seen = new Set(), out = [];
-    for (const s of v) { const t = text(s, len, ''); if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); } }
-    return out.length ? out.slice(0, max) : fallback;
-  };
   const picks = (v, min, max, fallback) => {
     if (!Array.isArray(v)) return fallback;
     const out = [...new Set(v.map(Number).filter(n => Number.isFinite(n) && n >= min && n <= max).map(n => Math.round(n * 10) / 10))].sort((a, b) => a - b);
@@ -49,16 +38,11 @@
   };
   const CLEAN = {
     billing(v) {
-      const d = DEFAULTS.billing, s = isObj(v?.serviceCharge) ? v.serviceCharge : {}, od = isObj(v?.orderDiscount) ? v.orderDiscount : {};
+      const d = DEFAULTS.billing, od = isObj(v?.orderDiscount) ? v.orderDiscount : {};
       const dd = isObj(v?.dishDiscount) ? v.dishDiscount : {}, pk = isObj(v?.packaging) ? v.packaging : {}, dl = isObj(v?.delivery) ? v.delivery : {};
-      const max = num(s.max, 1, 20, d.serviceCharge.max);
-      const reasons = words(dd.reasons, d.dishDiscount.reasons);
       return {
-        serviceCharge: { on: s.on === true, rate: Math.min(max, num(s.rate, 0.5, 20, d.serviceCharge.rate)), picks: picks(s.picks, 0.5, max, d.serviceCharge.picks.filter(p => p <= max)), max,
-          label: text(s.label, 40, '') || d.serviceCharge.label, footer: text(s.footer, 80, d.serviceCharge.footer) },
         orderDiscount: { picks: picks(od.picks, 1, 100, d.orderDiscount.picks).map(Math.round) },
-        // (Other… is always there: it opens the keyboard for a reason of their own)
-        dishDiscount: { picks: picks(dd.picks, 1, 100, d.dishDiscount.picks).map(Math.round), reasons: reasons.some(r => /^other/i.test(r)) ? reasons : [...reasons, 'Other'] },
+        dishDiscount: { picks: picks(dd.picks, 1, 100, d.dishDiscount.picks).map(Math.round) },
         packaging: { on: pk.on === true, mode: pk.mode === 'dish' ? 'dish' : 'flat', flat: money(pk.flat, 0), types: Array.isArray(pk.types) ? TYPES.filter(t => pk.types.includes(t)) : [...d.packaging.types] },
         delivery: { on: dl.on === true, flat: money(dl.flat, 0) }
       };
@@ -66,10 +50,6 @@
     business(v) {
       const d = DEFAULTS.business;
       return { address: text(v?.address, 160, ''), gstin: text(v?.gstin, 15, '').toUpperCase().replace(/\s/g, ''), fssai: text(v?.fssai, 14, '').replace(/\D/g, ''), footer: typeof v?.footer === 'string' ? text(v.footer, 80, '') : d.footer };
-    },
-    kitchen(v) {
-      const d = DEFAULTS.kitchen, keepOther = list => (list.some(r => /^other/i.test(r)) ? list : [...list, 'Other']);
-      return { voidReasons: keepOther(words(v?.voidReasons, d.voidReasons)), cancelReasons: keepOther(words(v?.cancelReasons, d.cancelReasons)) };
     },
     printers(v) {
       const out = {};
@@ -94,7 +74,7 @@
     announce(name);
     return next;
   }
-  // Part of a value: update('billing', b => { b.serviceCharge.on = true; })
+  // Part of a value: update('billing', b => { b.packaging.on = true; })
   function update(name, change) { const v = get(name); change(v); return set(name, v); }
   // Changed on another tablet: tell the screens which (the values themselves arrive in localStorage, sync.js)
   let seen = Object.fromEntries([...SHARED].map(name => [name, JSON.stringify(get(name))]));

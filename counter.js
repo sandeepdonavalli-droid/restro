@@ -435,17 +435,15 @@
   }
   function applyDiscount() { const n = discPop && discOf(discPop); if (!n) return; order.discountPct = n; sheet = null; discPop = null; render(); }
   function cancelDiscount() { sheet = null; discPop = null; render(); }
-  // Service charge (Update 7): dine-in only, never automatic (the customer agrees to it). Its pop-up opens with the
-  // owner's preset (5%), or the order's rate to change it; quick picks 2.5 / 5 / 7.5 / 10; a decimal point; at most the
-  // owner's maximum (10%). It is charged on what is left after the discounts, with GST on top.
+  // Service charge (Update 7): every dine-in order has it in the order menu, and it is never added by itself (the customer
+  // agrees to it). Its pop-up opens with 5%, or the order's rate to change it; quick picks 2.5 / 5 / 7.5 / 10; a decimal
+  // point; 10% at most. It is charged on what is left after the discounts, with GST on top. (No settings: fixed here.)
   let servicePop = null; // { value: what is typed, '7.5' }
-  const serviceSet = () => billing().serviceCharge || {};
-  const serviceMax = () => window.RestroBill.rate(serviceSet().max) || 10;
-  const serviceAllowed = () => serviceSet().on === true;
+  const SERVICE = Object.freeze({ preset: 5, picks: Object.freeze([2.5, 5, 7.5, 10]), max: 10 });
+  const serviceMax = () => SERVICE.max;
   function openService() {
     closeMenu();
-    const preset = order.servicePct || window.RestroBill.rate(serviceSet().rate) || 5;
-    servicePop = { value: String(Math.min(preset, serviceMax())) }; selected = null; sheet = 'service'; render();
+    servicePop = { value: String(Math.min(order.servicePct || SERVICE.preset, serviceMax())) }; selected = null; sheet = 'service'; render();
   }
   const serviceOf = p => { const n = Number(p.value); return p.value !== '' && /^\d{1,2}(\.\d)?$/.test(p.value) && n > 0 && n <= serviceMax() ? n : null; };
   function pressService(k) {
@@ -464,7 +462,8 @@
   // line's worth each: a line keeps its own.
   let dishPop = null; // { step: 1 | 2, picked: [line keys], value, reason, other (the reason typed after Other…), typing }
   const dishPicks = () => billing().dishDiscount?.picks?.length ? billing().dishDiscount.picks : [10, 20, 50, 100];
-  const dishReasons = () => { const r = billing().dishDiscount?.reasons; return Array.isArray(r) && r.length ? r : ['Staff meal', 'Complaint', 'Owner’s guest', 'Regular customer', 'Birthday', 'Other']; };
+  const DISH_REASONS = Object.freeze(['Staff meal', 'Complaint', 'Owner’s guest', 'Regular customer', 'Birthday', 'Other']);
+  const dishReasons = () => DISH_REASONS;
   function openDish() {
     closeMenu();
     const picked = order.lines.filter(l => l.off).map(keyOf);
@@ -862,7 +861,7 @@
     // (settings: what is sold out, the charges; Update 7)
     if (dialog.open && (names.includes('held') || names.includes('orders') || names.includes('settings'))) render();
   });
-  window.addEventListener('restro:prefs-changed', e => { if (dialog.open && ['billing', 'kitchen'].includes(e.detail?.name)) render(); });
+  window.addEventListener('restro:prefs-changed', e => { if (dialog.open && e.detail?.name === 'billing') render(); });
   // An order this tablet had from before it joined the others, whose number another order that day has: it was given the
   // next free number.
   window.addEventListener('restro:orders-renumbered', e => {
@@ -1033,24 +1032,30 @@
 
   // ---------- voids (Update 7) ----------
   // After a KOT has gone, taking a dish off or below what the kitchen has, or deleting the order, asks why first (a
-  // reason is needed: Settings › Kitchen's list, Other… types one). Then it happens at once and for good: the VOID slip
-  // (ORDER CANCELLED for the whole order) prints in the kitchen, the saved order changes straight away, and there is no
-  // Undo. Who did it and why are kept on the order. (No manager PIN for now.)
-  let voidPop = null; // { key (the line; null: the whole order), to (the quantity it goes to), reason, other, typing }
-  const kitchenPrefs = () => window.RestroPrefs?.get('kitchen') || {};
-  const reasonsFor = whole => {
-    const list = whole ? kitchenPrefs().cancelReasons : kitchenPrefs().voidReasons;
-    return Array.isArray(list) && list.length ? list : whole ? ['Customer left', 'Duplicate order', 'Payment issue', 'Kitchen can’t make it', 'Other'] : ['Customer changed mind', 'Ordered by mistake', 'Taking too long', 'Quality issue', 'Item unavailable', 'Other'];
-  };
+  // reason is needed). Then it happens at once and for good: the VOID slip (ORDER CANCELLED for the whole order) prints
+  // in the kitchen, the saved order changes straight away, and there is no Undo. Who did it and why are kept on the
+  // order. (No manager PIN for now.)
+  // The reasons are learned, as the quick notes are: the 10 this restaurant gives most, worked out by the backend from
+  // the reasons kept on its orders with the quick notes' rules (every 15 days, at the close of day) and published with
+  // them, as the lists "@void" (a dish taken off or lowered) and "@cancel" (an order deleted). There is no starting set:
+  // a new restaurant has none until its first lists come, and the reason is typed.
+  let voidPop = null; // { key (the line; null: the whole order), to (the quantity it goes to), reason (what is on the reason line), typing }
+  const VOID_QUICK = '@void', CANCEL_QUICK = '@cancel';
+  function learnedReasons(id) {
+    const kept = load(QUICK_KEY, null), list = kept && typeof kept === 'object' && Array.isArray(kept.lists?.[id]) ? kept.lists[id] : [];
+    const out = new Map();
+    for (const x of list) { const t = cleanReason(typeof x === 'string' ? x : x?.text); if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t); }
+    return [...out.values()].slice(0, 10);
+  }
   const isOther = r => /^other/i.test(r || '');
   function openVoid(key, to) {
     if (key != null && !lineOf(key)) return;
-    voidPop = { key, to, reason: '', other: '', typing: false }; modPop = null; qtyPop = null; notePop = null; optionsMenu = false; deleteArmed = false;
+    voidPop = { key, to, reason: '', typing: false }; modPop = null; qtyPop = null; notePop = null; optionsMenu = false; deleteArmed = false;
     if (key != null) selected = key;
     sheet = 'void'; render();
   }
   function cancelVoid() { dialog.querySelector('#counter-reason')?.blur(); sheet = null; voidPop = null; render(); }
-  const voidReason = p => (isOther(p.reason) ? cleanReason(p.other) : cleanReason(p.reason));
+  const voidReason = p => cleanReason(p.reason);
   function confirmVoid() {
     const p = voidPop; if (!p) return;
     const reason = voidReason(p); if (!reason) return;
@@ -1398,7 +1403,7 @@
       sep(),
       swRow('percent', 'Discount', Boolean(order.discountPct), `${order.discountPct}%`, 'cx-dtag', openDiscount, () => switchOff('discount')),
       swRow('sell', 'Dish discount', dished > 0, `${dished} ${dished === 1 ? 'dish' : 'dishes'}`, 'cx-dtag', openDish, () => switchOff('dish'), !order.lines.length && !dished),
-      dine && (serviceAllowed() || order.servicePct) ? swRow('room_service', 'Service charge', Boolean(order.servicePct), `${order.servicePct}%`, 'cx-stag', openService, () => switchOff('service')) : null,
+      dine ? swRow('room_service', 'Service charge', Boolean(order.servicePct), `${order.servicePct}%`, 'cx-stag', openService, () => switchOff('service')) : null,
       ...(dine ? [sep(), row('move_table', 'Move table', moveTable), row('merge', 'Merge tables', mergeTables), row('badge', 'Change server', openServer)] : []),
       sep(),
       el('button', { type: 'button', role: 'menuitem', class: `cx-mi del${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete }, mi('delete', 26),
@@ -2089,7 +2094,8 @@
   const QUICK_KEY = 'restro.quickNotes.v1', QUICK_ADDED_KEY = 'restro.quickNotes.added.v1', QUICK_NEW_MS = 15 * 864e5;
   const QUICK_START = ['Less spicy', 'Extra spicy', 'Less oil', 'Less salt', 'No onion', 'No garlic', 'Pack separately', 'Serve first',
     'Extra gravy', 'Allergy: nuts', 'Jain', 'Kids portion', 'Well done', 'No ice', 'Less sugar'];
-  // (Update 7: the order note's quick notes, for the whole order, from the same engine: the list "@order", or orderDefaults)
+  // (Update 7: the order note's quick notes, for the whole order, from the same engine: the list "@order", or orderDefaults.
+  // The void pop-ups' reasons come with them too, as "@void" and "@cancel": the top 10, with no starting set; see voids.)
   const ORDER_QUICK = '@order';
   const ORDER_QUICK_START = ['Birthday celebration', 'Serve all together', 'Starters first', 'Kids at the table', 'Anniversary', 'Bring extra plates', 'Senior citizens',
     'Jain food', 'Allergy: nuts', 'Pack leftovers', 'No onion, no garlic', 'Serve slowly', 'Business meeting', 'Extra spoons', 'High chair needed'];
@@ -2218,20 +2224,22 @@
   window.addEventListener('restro:device-ready', watchPaper);
   watchPaper();
 
-  // The bill for the order on screen (25_printed-bill, Counter Update 7): the restaurant's name, address, GSTIN and FSSAI
-  // number (Settings › Business details); TAX INVOICE; the order number, date and time; the order type, table and guests;
-  // the server; each dish with its choices under it and its dish discount as a minus line ("10% off −26.00", "100% off ·
-  // Complaint −180.00"); Subtotal, Discount, Service charge (optional), Packaging, Delivery, CGST and SGST each on its own
-  // line, Round off, GRAND TOTAL; the service-charge line (when there is one) and the bill footer. Black only. The RESTRO
-  // Android app prints it on the restaurant's bill printer (RESTRODevice.printer.printBill, ANDROID-BRIDGE.md); in a
-  // browser it goes to the browser's printing.
+  // The bill for the order on screen (25_printed-bill, Counter Update 7, the customer's copy, for every kind of order): the
+  // restaurant's name, address, GSTIN and FSSAI number (Settings › Business details); TAX INVOICE; the order number, the
+  // date and time; the order type, table and guests; the server; each dish with its choices under it and its dish
+  // discount as a minus line ("10% off −26.00", "100% off · Complaint −180.00"); Subtotal, Discount, Service charge
+  // (optional), Packaging, Delivery, CGST and SGST each on its own line, Round off, GRAND TOTAL; "Service charge is
+  // optional — ask us to remove it." (when there is one) and the bill footer. Black only. The RESTRO Android app prints it
+  // on the restaurant's bill printer (RESTRODevice.printer.printBill, ANDROID-BRIDGE.md); in a browser it goes to the
+  // browser's printing.
+  const SERVICE_FOOTER = 'Service charge is optional — ask us to remove it.';
   function billOf(o = order) {
-    const t = totalsOf(o), shop = (localStorage.getItem('restro.restaurantName') || '').trim(), biz = window.RestroPrefs?.get('business') || {}, sc = billing().serviceCharge || {};
+    const t = totalsOf(o), shop = (localStorage.getItem('restro.restaurantName') || '').trim(), biz = window.RestroPrefs?.get('business') || {};
     const type = o.type || DEFAULT_TYPE;
     return {
       restaurant: shop && shop !== 'RESTAURANT NAME' ? shop : '', address: biz.address || '', gstin: biz.gstin || '', fssai: biz.fssai || '',
       number: o.number ? ticket(o.number) : null, at: Date.now(),
-      type: typeLabel[type], table: usesTable(o) ? tableName(o.table) : '', guests: o.guests || 0, customer: o.customer ? o.customer.name : '', pager: cleanPager(o.pager) || null,
+      type: typeLabel[type], table: usesTable(o) ? tableName(o.table) : '', guests: o.guests || 0,
       server: o.server || staffName() || '',
       lines: o.lines.map(l => {
         const each = eachOf(l), gross = each * l.qty * 100, off = window.RestroBill.lineOff(gross, l.off);
@@ -2239,12 +2247,11 @@
           ...(l.off ? { discount: { percent: l.off, reason: l.off === 100 ? l.offReason || '' : '', amount: off / 100, label: `${l.off}% off${l.off === 100 && l.offReason ? ` · ${l.offReason}` : ''}` } } : {}) };
       }),
       subtotal: t.subtotal / 100, discount: t.discountPct ? { label: `Discount ${t.discountPct}%`, percent: t.discountPct, amount: t.discount / 100 } : null,
-      // (the bill label from Settings, "Service charge (optional)", with the rate: "Service charge 5% (optional)")
-      serviceCharge: t.servicePct ? { label: !sc.label ? `Service charge ${t.servicePct}% (optional)` : /service charge/i.test(sc.label) ? sc.label.replace(/service charge/i, m => `${m} ${t.servicePct}%`) : `${sc.label} ${t.servicePct}%`, percent: t.servicePct, amount: t.service / 100 } : null,
+      serviceCharge: t.servicePct ? { label: `Service charge ${t.servicePct}% (optional)`, percent: t.servicePct, amount: t.service / 100 } : null,
       packaging: t.packaging ? { label: 'Packaging charge', amount: t.packaging / 100 } : null, delivery: t.delivery ? { label: 'Delivery charge', amount: t.delivery / 100 } : null,
       taxes: [{ label: GST.cgst, amount: t.cgst / 100 }, { label: GST.sgst, amount: t.sgst / 100 }], tax: t.tax / 100, taxLabel: menu.taxLabel,
       roundOff: t.roundOff / 100, total: t.total / 100,
-      footer: [t.servicePct ? sc.footer || 'Service charge is optional — ask us to remove it.' : '', biz.footer || ''].filter(Boolean)
+      footer: [t.servicePct ? SERVICE_FOOTER : '', biz.footer || ''].filter(Boolean)
     };
   }
   function printBill() {
@@ -2258,13 +2265,14 @@
     if (!page) { page = el('div', { id: 'print-bill', 'aria-hidden': 'true' }); document.body.append(page); }
     const r = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), minus = n => `−${r(n)}`;
     const row = (label, value, cls) => el('tr', cls ? { class: cls } : {}, el('td', {}, ...[label].flat()), el('td', {}, value));
-    const when = new Date(bill.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const at = new Date(bill.at), hour = at.getHours(); // "7 Nov 2026 11:58 AM"
+    const when = `${at.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][at.getMonth()]} ${at.getFullYear()} ${hour % 12 || 12}:${String(at.getMinutes()).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
     page.replaceChildren(...[
       bill.restaurant ? el('h1', {}, bill.restaurant) : null,
       bill.address || bill.gstin || bill.fssai ? el('p', { class: 'small' }, bill.address, bill.address && (bill.gstin || bill.fssai) ? el('br') : null, [bill.gstin ? `GSTIN ${bill.gstin}` : '', bill.fssai ? `FSSAI ${bill.fssai}` : ''].filter(Boolean).join(' · ')) : null,
       el('hr'), el('p', { class: 'b' }, 'TAX INVOICE'),
       el('table', { class: 'small' }, el('tbody', {}, row(bill.number ? `Order ${bill.number}` : 'Bill', when),
-        row([bill.type, bill.table ? `Table ${bill.table}` : '', bill.guests ? plural(bill.guests, 'guest') : '', bill.customer, bill.pager ? `Pager ${bill.pager}` : ''].filter(Boolean).join(' · '), bill.server ? `Server: ${initialsOf(bill.server)}` : ''))),
+        row([bill.type, bill.table ? `Table ${bill.table}` : '', bill.guests ? plural(bill.guests, 'guest') : ''].filter(Boolean).join(' · '), bill.server ? `Server: ${initialsOf(bill.server)}` : ''))),
       el('hr'),
       el('table', {}, el('tbody', {}, ...bill.lines.flatMap(l => [
         row([`${l.qty} × ${l.name}`, l.modifiers.length ? el('div', { class: 'mod' }, l.modifiers.join(' · ')) : null], r(l.total)),
@@ -2435,11 +2443,11 @@
   }
   // Service charge (Update 7), where the discount pop-up is: the blue cloche with "Service charge", ✕ · the rate (blue,
   // its cursor blinking) · "On ₹3,564 after discount · adds ₹178.20" · 2.5% 5% 7.5% 10% · the number pad with a decimal
-  // point · "Add 5% service charge" · "Optional · add only if the customer agrees · max 10% (set by owner)".
+  // point · "Add 5% service charge" · "Optional · add only if the customer agrees · max 10%".
   function serviceCard(hold) {
     const p = servicePop, n = serviceOf(p), t = totals(), base = t.subtotal - t.discount, max = serviceMax();
     const adds = n ? totalsOf({ ...order, servicePct: n }).service : 0;
-    const picks = (serviceSet().picks?.length ? serviceSet().picks : [2.5, 5, 7.5, 10]).filter(q => q > 0 && q <= max).slice(0, 4);
+    const picks = SERVICE.picks;
     return el('div', { class: 'cx-pu disc svc', role: 'dialog', 'aria-label': 'Service charge' },
       el('div', { class: 'cx-pu-head' }, el('div', { class: 'cx-dh svc' }, el('i', { 'aria-hidden': 'true' }, mi('room_service', 22)), el('b', {}, 'Service charge')), closeX(cancelService, hold)),
       el('div', { class: 'cx-dd', role: 'status', 'aria-label': n ? `Service charge ${n}%` : 'Type the service charge' }, p.value ? el('span', {}, p.value) : null, el('small', {}, '%'), el('i', { 'aria-hidden': 'true' })),
@@ -2448,7 +2456,7 @@
         el('button', { type: 'button', class: n === q ? 'on' : null, 'aria-pressed': String(n === q), onclick: () => { servicePop.value = String(q); render(); } }, `${q}%`))),
       numberKeys(pressService, ' cx-dk', '.'),
       el('button', { type: 'button', class: 'cx-done wide', disabled: !n, onclick: applyService }, n ? `Add ${n}% service charge` : 'Add service charge'),
-      el('p', { class: 'cx-legal' }, `Optional · add only if the customer agrees · max ${max}% (set by owner)`));
+      el('p', { class: 'cx-legal' }, `Optional · add only if the customer agrees · max ${max}%`));
   }
   // Dish discount (Update 7). Step 1, "Pick the dishes": every line, a box, its quantity (× 8) and its total; "Next ·
   // 1 dish". Step 2: ‹, the dish (or how many), its quantity × price = total, ✕ · the percentage · "₹180 → ₹0 · 100% off"
@@ -2488,7 +2496,8 @@
       el('button', { ...press(applyDish), class: 'cx-done wide', disabled: !ok }, removing ? 'Remove dish discount' : `Apply ${n}% off`));
     return card;
   }
-  // The reasons, as chips (one at a time, light blue when picked); Other… opens the keyboard for one typed in
+  // A dish made free's reasons (100% off), as chips (one at a time, light blue when picked); Other… opens the keyboard for
+  // one typed in
   function reasonChips(list, p, id, label) {
     const wrap = el('div', { class: 'cx-rsn', role: 'radiogroup', 'aria-label': label });
     for (const r of list) {
@@ -2509,24 +2518,48 @@
   }
   // A void (Update 7): the red ⊖ with "Remove Chicken biryani?" / "Reduce Chicken noodles 8 → 7?" / "Delete order
   // #1015?" and what the kitchen has ("Already sent to the kitchen · KOT #2") · a red box saying what will print · "Why?
-  // (required)" and the reasons · the red button, grey until a reason is picked. ✕ changes nothing.
+  // (required)", the reason line and the restaurant's most-used reasons (up to 10; none until its first list comes) · the
+  // red button, grey until there is a reason. The reason line works as a note's: a tap on it brings up the keyboard (the
+  // pop-up moves up above it, the reasons become one row that scrolls, and Clear reason ........ Done shows in place of
+  // the red button: Done keeps what is typed and puts the keyboard away). A reason tapped goes on the line, or comes off
+  // it, as a quick note does (the keyboard stays as it was). ✕ changes nothing.
   function voidCard(hold) {
     const p = voidPop, whole = p.key == null, line = whole ? null : lineOf(p.key), rec = savedOf(loadOrders());
     const name = line ? itemOf(line).name : '', n = line ? sentOf(line) - Math.max(0, p.to) : 0, kots = kotsOf(rec);
     const kotNo = line && rec ? kotOfKey(rec, kitchenKey(line.id, lineType(line), (line.kit || [])[line.kit.length - 1]?.mods || line.mods)) : null;
     const title = whole ? `Delete order ${ticket(order.number)}?` : p.to <= 0 ? `Remove ${name}?` : `Reduce ${name} ${line.qty} → ${p.to}?`;
     const sub = whole ? `${kots.length} KOT${kots.length === 1 ? '' : 's'} already sent to the kitchen` : `Already sent to the kitchen${kotNo ? ` · KOT #${kotNo}` : ''}`;
-    const reason = voidReason(p);
-    return el('div', { class: `cx-pu void${p.typing ? ' typing' : ''}`, role: 'dialog', 'aria-label': title },
+    const reasons = learnedReasons(whole ? CANCEL_QUICK : VOID_QUICK);
+    const tf = textField({ id: 'counter-reason', value: p.reason, hint: 'Type the reason', max: 80, label: 'Why?' }), field = tf.input;
+    const reasonLine = el('span', { class: 'cx-nf-line' }, mi('edit', 22), tf.box);
+    const chipEls = reasons.map(r => el('button', { type: 'button', onpointerdown: hold, onmousedown: hold,
+      onclick: () => { p.reason = toggleQuick(p.reason, r); field.value = p.reason; sync(); tf.place(); } }, el('span', { class: 'cx-qn-t' }, r)));
+    const send = el('button', { type: 'button', class: 'cx-btnr', onpointerdown: hold, onmousedown: hold, onclick: confirmVoid },
+      whole ? 'Delete order & send void' : p.to <= 0 ? 'Remove & send void' : 'Reduce & send void');
+    const sync = () => {
+      chipEls.forEach((b, i) => { const on = hasQuick(p.reason, reasons[i]); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+      reasonLine.classList.toggle('empty', !p.reason);
+      const ok = Boolean(voidReason(p)); send.disabled = !ok; send.classList.toggle('off', !ok);
+    };
+    sync();
+    const card = el('div', { class: `cx-pu void${p.typing ? ' typing' : ''}`, role: 'dialog', 'aria-label': title },
       el('div', { class: 'cx-pu-head' },
         el('div', { class: 'cx-dh void' }, el('i', { 'aria-hidden': 'true' }, mi('do_not_disturb_on', 22)), el('div', { class: 'cx-steph' }, el('b', {}, title), el('span', {}, sub))),
         closeX(cancelVoid, hold)),
       el('div', { class: 'cx-vinfo' }, mi('receipt_long', 22), el('span', {}, 'A ', el('b', {}, 'VOID'), ' slip for ',
         whole ? ['the ', el('b', {}, `whole order (${plural(totals().count, 'item')})`), ' will print in the kitchen. This can’t be undone.'] : [el('b', {}, `${n} × ${name}`), ' will print in the kitchen.'])),
-      el('div', { class: 'cx-lab3' }, 'Why? (required)'),
-      reasonChips(reasonsFor(whole), p, 'counter-reason', 'Why'),
-      el('button', { type: 'button', class: `cx-btnr${reason ? '' : ' off'}`, disabled: !reason, onpointerdown: hold, onmousedown: hold, onclick: confirmVoid },
-        whole ? 'Delete order & send void' : p.to <= 0 ? 'Remove & send void' : 'Reduce & send void'));
+      el('label', { class: 'cx-nf' }, el('span', { class: 'cx-lab3' }, 'Why? (required)'), reasonLine),
+      chipEls.length ? el('div', { class: 'cx-rsn', role: 'group', 'aria-label': 'Reasons' }, ...chipEls) : null,
+      el('div', { class: 'cx-nf-foot' },
+        el('button', { type: 'button', class: 'cx-clear', onpointerdown: hold, onmousedown: hold, onclick: () => { p.reason = ''; field.value = ''; sync(); tf.place(); } }, 'Clear reason'),
+        el('button', { type: 'button', class: 'cx-done', onpointerdown: hold, onmousedown: hold, onclick: () => field.blur() }, 'Done')),
+      send);
+    field.addEventListener('input', () => { p.reason = field.value; sync(); });
+    field.addEventListener('focus', () => { if (voidPop !== p) return; p.typing = true; card.classList.add('typing'); reasonLine.classList.add('on'); });
+    field.addEventListener('blur', () => { if (voidPop !== p || !field.isConnected) return; p.typing = false; card.classList.remove('typing'); reasonLine.classList.remove('on'); });
+    field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); field.blur(); } });
+    if (p.typing) reasonLine.classList.add('on');
+    return card;
   }
   // Change server: the restaurant's staff (Staff app), the one serving it light blue
   function serverCard(hold) {
@@ -3074,14 +3107,16 @@
     else if (event.key === 'Backspace') { event.preventDefault(); pad.press('back'); }
     else if (event.key === 'Enter') { event.preventDefault(); pad.enter(); }
   }, true);
-  // The note's keyboard put away by the system (Back on the tablet, or its own key): the note line lets go of it too, and
-  // the pop-up comes down again.
+  // The keyboard put away by the system (Back on the tablet, or its own key): the line typed on (a note, a reason) lets go
+  // of it too, and the pop-up comes down again.
   if (window.visualViewport) {
     let tallest = visualViewport.height;
     visualViewport.addEventListener('resize', () => {
       tallest = Math.max(tallest, visualViewport.height);
       if (visualViewport.height < tallest * .9) return;
       if (notePop?.typing || modPop?.note) dialog.querySelector('#counter-note')?.blur();
+      if (voidPop?.typing) dialog.querySelector('#counter-reason')?.blur();
+      if (dishPop?.typing) dialog.querySelector('#counter-dish-reason')?.blur();
       if (customPop && (customPop.field === 'name' || customPop.field === 'note')) customSet();
     });
   }

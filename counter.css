@@ -811,15 +811,23 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 /* The reasons: chips 50 tall (16.5/700), the one picked light blue; Other… grey 600 (it opens the keyboard) */
 .cx-lab3{margin:0 0 calc(10 * var(--u));font-size:calc(15 * var(--u));font-weight:700;line-height:normal;color:#57534E}
 .cx-rsn{display:flex;flex-wrap:wrap;gap:calc(10 * var(--u));margin-bottom:calc(16 * var(--u))}
-.cx-pu.void .cx-rsn{margin-bottom:calc(22 * var(--u))}
 .cx-rsn>button{height:calc(50 * var(--u));margin:0;padding:0 calc(18 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font:inherit;font-size:calc(16.5 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 1px 2px rgba(15,23,42,.06);cursor:pointer}
 .cx-rsn>button.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2}
 .cx-rsn>button.oth{color:#615C57;font-weight:600}
 .cx-rsn>button.oth.on{color:#1E4FB8}
 .cx-rsn-other{flex:1 1 100%;margin-top:calc(4 * var(--u))}
-/* A void: the red ⊖ on #FEE2E2; what will print in a red box (#FEF2F2, #991B1B 15/600); the red button #DC2626 64
-   tall, grey #E7E5E4 until a reason is picked */
+/* A void: the red ⊖ on #FEE2E2; what will print in a red box (#FEF2F2, #991B1B 15/600); "Why? (required)" over the
+   reason line (a note's line); the learned reasons 18 under it, as the reason chips; the red button #DC2626 64 tall, 22
+   under them, grey #E7E5E4 until there is a reason. Typing the reason: the reasons in one row that scrolls, and Clear
+   reason ........ Done (a note's) in place of the red button. */
 .cx-dh.void>i{background:#FEE2E2;color:#DC2626}
+.cx-pu.void .cx-nf>.cx-lab3{display:block}
+.cx-pu.void .cx-rsn{margin:calc(18 * var(--u)) 0 0}
+.cx-pu.void .cx-rsn>button{flex:none;max-width:100%}
+.cx-pu.void.typing .cx-rsn{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.cx-pu.void.typing .cx-rsn::-webkit-scrollbar{display:none}
+.cx-pu.void>.cx-btnr{margin-top:calc(22 * var(--u))}
+.cx-pu.void:not(.typing)>.cx-nf-foot,.cx-pu.void.typing>.cx-btnr{display:none}
 .cx-vinfo{display:flex;align-items:flex-start;gap:calc(12 * var(--u));margin:0 0 calc(18 * var(--u));padding:calc(14 * var(--u)) calc(16 * var(--u));border-radius:calc(16 * var(--u));background:#FEF2F2;color:#991B1B;font-size:calc(15 * var(--u));font-weight:600;line-height:1.4}
 .cx-vinfo svg{margin-top:calc(1 * var(--u));color:#DC2626}
 .cx-btnr{flex:none;width:100%;height:calc(64 * var(--u));margin:0;padding:0;border:0;border-radius:calc(18 * var(--u));display:flex;align-items:center;justify-content:center;background:#DC2626;color:#FFFFFF;font:inherit;font-size:calc(19 * var(--u));font-weight:800;line-height:normal;cursor:pointer}
@@ -836,21 +844,23 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 
 /* ---------- Print bill (a browser's printing; the Android app prints it itself) ---------- */
 #print-bill{display:none}
-/* Counter Update 7 (25_printed-bill): 80 mm, black only; the name 24/900, address and GSTIN · FSSAI small, dashed rules,
-   TAX INVOICE, dish discounts as minus lines, CGST and SGST each on a line, GRAND TOTAL 22/900, the footer small */
+/* Counter Update 7 (25_printed-bill): 80 mm, black only, every size the template's (its slip is 384 wide inside the
+   margins) in proportion to the 72 mm the printer prints on: the name 24/900, the address and GSTIN · FSSAI 13.5, dashed
+   rules 2, TAX INVOICE 800, dishes 16 with their choices 14.5 under them, dish discounts as minus lines 14.5, CGST and
+   SGST each on a line, GRAND TOTAL 22/900, the footer 13.5 */
 @media print{
   body>*:not(#print-bill){display:none!important}
-  #print-bill{display:block!important;width:72mm;margin:0 auto;color:#000;font:12px/1.35 Inter,Roboto,Arial,sans-serif}
-  #print-bill h1{margin:0;font-size:18px;font-weight:900;text-align:center}
+  #print-bill{--p:calc(72mm / 384);display:block!important;width:72mm;margin:0 auto;color:#000;font:calc(16 * var(--p))/1.35 Inter,Roboto,Arial,sans-serif}
+  #print-bill h1{margin:0;font-size:calc(24 * var(--p));font-weight:900;line-height:1.35;text-align:center}
   #print-bill p{margin:0;text-align:center}
-  #print-bill .small{font-size:10px}
+  #print-bill .small{font-size:calc(13.5 * var(--p))}
   #print-bill .b{font-weight:800}
-  #print-bill hr{margin:6px 0;border:0;border-top:1.5px dashed #000}
+  #print-bill hr{margin:calc(10 * var(--p)) 0;border:0;border-top:calc(2 * var(--p)) dashed #000}
   #print-bill table{width:100%;border-collapse:collapse}
-  #print-bill td{padding:2px 0;vertical-align:top}
-  #print-bill td:last-child{padding-left:8px;text-align:right;white-space:nowrap}
-  #print-bill .mod,#print-bill tr.sub td{font-size:11px}
-  #print-bill .mod{padding-left:16px}
-  #print-bill table.gt td{padding-top:4px;font-size:16px;font-weight:900}
+  #print-bill td{padding:calc(3 * var(--p)) 0;vertical-align:top}
+  #print-bill td:last-child{padding-left:calc(10 * var(--p));text-align:right;white-space:nowrap}
+  #print-bill .mod,#print-bill tr.sub td{font-size:calc(14.5 * var(--p))}
+  #print-bill .mod{padding-left:calc(22 * var(--p))}
+  #print-bill table.gt td{padding-top:calc(6 * var(--p));font-size:calc(22 * var(--p));font-weight:900}
 }
 
