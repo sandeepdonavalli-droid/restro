@@ -38,7 +38,7 @@
   // Collections: a list of records under one key, `id` naming a record, with the rules for merging two versions.
   const COLLECTIONS = {
     orders: { key: 'restro.counter.orders.v1', id: o => (typeof o?.uid === 'string' ? o.uid : Number.isFinite(o?.number) ? `n${o.number}` : null),
-      rules: { keyed: { lines: lineKey, kots: k => String(k.id || k.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'] } },
+      rules: { keyed: { lines: lineKey, kots: k => String(k.id || k.at), events: e => String(e.id || e.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'] } },
     held: { key: 'restro.counter.held.v1', id: h => (typeof h?.heldId === 'string' ? h.heldId : null), keep: h => !(Number.isFinite(h.holdUntil) && h.holdUntil <= Date.now()),
       rules: { keyed: { lines: lineKey }, additive: { lines: 'qty' } } },
     customers: { key: 'restro.customers.v1', id: c => (typeof c?.id === 'string' ? c.id : null) },

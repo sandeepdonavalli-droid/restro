@@ -129,7 +129,7 @@
   // orders whose dishes Merge tables brought onto it (they go when it is saved). A line can have off, its dish discount
   // (1–100%; 100 complimentary, with offReason), and kit: what the kitchen has of it ([{ n, mods, note }]).
   const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, pagerShared: false, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null,
-    servicePct: null, priority: false, note: '', guests: 0, server: null, serverId: null, merged: [], lines: [] });
+    servicePct: null, priority: false, note: '', guests: 0, server: null, serverId: null, merged: [], events: [], lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
@@ -165,6 +165,10 @@
   const cleanKit = (id, kit) => (Array.isArray(kit) ? kit : []).filter(k => k && Number.isInteger(k.n) && k.n > 0).map(k => ({ n: k.n, mods: cleanMods(id, k.mods), note: cleanNote(k.note) }));
   const sentOf = line => (line.kit || []).reduce((n, k) => n + k.n, 0);
   // An order read back from storage (the draft, Held or Orders), keeping only what is valid.
+  // What happened to an order (Update Pack 3, Track history), besides its KOTs, voids and bill prints (kots, bills):
+  // events: { id, at, kind, by, … } (logEvent)
+  const EVENT_KINDS = ['open', 'disc', 'disc-off', 'dish', 'dish-off', 'svc', 'svc-off', 'move', 'merge', 'server', 'priority', 'priority-off'];
+  const cleanEvents = list => (Array.isArray(list) ? list : []).filter(e => e && typeof e === 'object' && EVENT_KINDS.includes(e.kind) && Number.isFinite(e.at)).slice(-200);
   const restoreOrder = o => {
     const type = TYPES.includes(o.type) ? o.type : null;
     return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
@@ -172,7 +176,7 @@
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
       discountPct: window.RestroBill.pct(o.discountPct), servicePct: window.RestroBill.rate(o.servicePct), priority: o.priority === true, note: cleanNote(o.note), guests: cleanGuests(o.guests),
       server: typeof o.server === 'string' && o.server ? o.server.slice(0, 60) : null, serverId: typeof o.serverId === 'string' ? o.serverId : null,
-      merged: (Array.isArray(o.merged) ? o.merged : []).filter(u => typeof u === 'string').slice(0, 20),
+      merged: (Array.isArray(o.merged) ? o.merged : []).filter(u => typeof u === 'string').slice(0, 20), events: cleanEvents(o.events),
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && (items.has(l.id) || (typeof l.id === 'string' && cleanCustom(l.custom))) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
         .map(l => {
           const custom = items.has(l.id) ? null : cleanCustom(l.custom), off = window.RestroBill.pct(l.off), kit = cleanKit(l.id, l.kit);
@@ -218,7 +222,7 @@
   let qtyPop = null;                                    // quantity: { key, value (typed so far) }
   let notePop = null;                                   // note: { key, draft, back (return to the modifier pop-up), typing (the note line has the keyboard) }
                                                         // (Update 7: key null for the order note)
-  const POPS = ['mods', 'qty', 'note', 'custom', 'discount', 'service', 'dish', 'void', 'server', 'pagerask']; // (the pop-ups; customPop, a custom
+  const POPS = ['mods', 'qty', 'note', 'custom', 'discount', 'service', 'dish', 'void', 'server', 'pagerask', 'history']; // (the pop-ups; customPop, a custom
                                                         // item's, discPop, the discount's (Update 6), and Update 7's service
                                                         // charge, dish discount, void and Change server ones are with their code below)
   let cashInput = '';                                   // cash typed on the payment sheet
@@ -406,18 +410,19 @@
     closeMenu();
     const target = order;
     if (what === 'discount') {
-      const was = order.discountPct; order.discountPct = null; render();
-      say({ b: 'Discount', t: ' removed', undo: () => { if (order === target) { order.discountPct = was; render(); } } });
+      const was = order.discountPct, e = was ? logEvent('disc-off', { was }) : null; order.discountPct = null; render();
+      say({ b: 'Discount', t: ' removed', undo: () => { if (order === target) { order.discountPct = was; unlog(e); render(); } } });
     } else if (what === 'service') {
-      const was = order.servicePct; order.servicePct = null; render();
-      say({ b: 'Service charge', t: ' removed', undo: () => { if (order === target) { order.servicePct = was; render(); } } });
+      const was = order.servicePct, e = was ? logEvent('svc-off', { was }) : null; order.servicePct = null; render();
+      say({ b: 'Service charge', t: ' removed', undo: () => { if (order === target) { order.servicePct = was; unlog(e); render(); } } });
     } else if (what === 'dish') {
       const was = order.lines.map(l => [l, l.off, l.offReason]);
+      const es = order.lines.filter(l => l.off).map(l => logEvent('dish-off', { name: itemOf(l).name, qty: l.qty, was: l.off }));
       order.lines.forEach(l => { delete l.off; delete l.offReason; }); tidy(); selected = null; render();
       say({ b: 'Dish discounts', t: ' removed', undo: () => {
         if (order !== target) return;
         for (const [l, off, reason] of was) if (order.lines.includes(l)) { if (off) l.off = off; if (reason) l.offReason = reason; }
-        tidy(); render();
+        unlog(...es); tidy(); render();
       } });
     }
   }
@@ -433,7 +438,12 @@
     if (next !== '' && Number(next) > 100) return;
     discPop.value = next; render();
   }
-  function applyDiscount() { const n = discPop && discOf(discPop); if (!n) return; order.discountPct = n; sheet = null; discPop = null; render(); }
+  function applyDiscount() {
+    const n = discPop && discOf(discPop); if (!n) return;
+    const was = order.discountPct || 0; order.discountPct = n;
+    if (n !== was) logEvent('disc', { pct: n, was, amount: totals().discount });
+    sheet = null; discPop = null; render();
+  }
   function cancelDiscount() { sheet = null; discPop = null; render(); }
   // Service charge (Update 7): every dine-in order has it in the order menu, and it is never added by itself (the customer
   // agrees to it). Its pop-up opens with 5%, or the order's rate to change it; the quick picks set in Settings › Billing &
@@ -455,7 +465,12 @@
     if (next !== '' && Number(next) > serviceMax()) return; // (a key that would go over the maximum does nothing)
     p.value = next; render();
   }
-  function applyService() { const n = servicePop && serviceOf(servicePop); if (!n) return; order.servicePct = n; sheet = null; servicePop = null; render(); }
+  function applyService() {
+    const n = servicePop && serviceOf(servicePop); if (!n) return;
+    const was = order.servicePct || 0; order.servicePct = n;
+    if (n !== was) logEvent('svc', { pct: n, was });
+    sheet = null; servicePop = null; render();
+  }
   function cancelService() { sheet = null; servicePop = null; render(); }
   // Dish discount (Update 7), in two steps: pick the dishes (every line, each with a box; more than one can be picked and
   // they all get the same percentage) · then the percentage (quick picks 10 / 20 / 50 / 100, the number pad; at 100%, a
@@ -494,6 +509,11 @@
     if (n === 100 && !reason) return;
     for (const key of p.picked) {
       const line = lineOf(key); if (!line) continue;
+      const was = line.off || 0, name = itemOf(line).name;
+      if (n !== was || (n === 100 && reason !== (line.offReason || ''))) {
+        if (n > 0) logEvent('dish', { name, qty: line.qty, pct: n, was, ...(reason ? { reason } : {}), amount: window.RestroBill.lineOff(eachOf(line) * 100 * line.qty, n) });
+        else logEvent('dish-off', { name, qty: line.qty, was });
+      }
       if (n > 0) { line.off = n; if (reason) line.offReason = reason; else delete line.offReason; } else { delete line.off; delete line.offReason; }
     }
     tidy(); sheet = null; dishPop = null; selected = null; render();
@@ -503,12 +523,13 @@
   // after a KOT has gone, a short priority notice goes to the kitchen.
   function togglePriority() {
     closeMenu();
-    order.priority = !order.priority; render();
+    order.priority = !order.priority;
+    const e = logEvent(order.priority ? 'priority' : 'priority-off'); render();
     if (!order.priority) return;
     const saved = savedOf(loadOrders());
     if (saved && Array.isArray(saved.kots) && saved.kots.some(k => (k.kind || 'kot') === 'kot')) {
       const list = loadOrders(), rec = savedOf(list);
-      rec.priority = true;
+      rec.priority = true; rec.events = [...cleanEvents(rec.events), e];
       const slip = kitchenSlip(rec, { kind: 'priority', at: Date.now(), lines: [] });
       rec.kots = [...rec.kots, { id: newKotId(), at: slip.at, kind: 'priority', by: staffName() }].slice(-60);
       storeOrders(list); keepOpened(rec);
@@ -537,6 +558,7 @@
       const r = onScreen(other);
       for (const l of r.lines) { l.type = order.split ? typeOf(r, l) : order.type || DEFAULT_TYPE; order.lines.push(l); }
       order.merged = [...order.merged, idOf(other)];
+      logEvent('merge', { from: table.id, to: order.table || '', number: other.number });
       if (!order.type) order.type = 'dine-in';
       order.guests = cleanGuests((order.guests || 0) + (r.guests || 0)) || order.guests;
       if (r.note && r.note !== order.note) order.note = cleanNote(order.note ? `${order.note} · ${r.note}` : r.note);
@@ -568,7 +590,9 @@
     if (!window.RestroStaff?.list().length) { render(); say('No staff accounts yet · add them in Staff'); return; }
     serverPop = {}; sheet = 'server'; render();
   }
-  function pickServer(person) { order.server = person.name; order.serverId = person.id; sheet = null; serverPop = null; render(); say({ b: person.name, t: ' is serving this order' }); }
+  function pickServer(person) {
+    if ((order.uid || order.number) && person.name !== order.server) logEvent('server', { from: order.server || '', to: person.name });
+    order.server = person.name; order.serverId = person.id; sheet = null; serverPop = null; render(); say({ b: person.name, t: ' is serving this order' }); }
   // Anything on screen to delete: items, a type, a table, a customer, a pager, a ready time, Modify, a discount, or a
   // saved order.
   const hasOrder = () => Boolean(order.lines.length || order.number || order.type || order.table || order.customer || order.pager || order.readyAt || order.split || order.discountPct || order.servicePct || order.note);
@@ -636,6 +660,15 @@
   const initialsOf = name => (typeof name === 'string' && name.trim() ? name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() : '');
   const newKotId = () => window.RestroSync?.newId?.('k') || `k${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
   const kotsOf = o => (Array.isArray(o?.kots) ? o.kots : []).filter(k => k && (k.kind || 'kot') === 'kot');
+  // Track history (Update Pack 3): a change to the order on screen, kept with it when it is saved (one dropped before Save
+  // never happened); Undo takes it back off
+  const newEventId = () => window.RestroSync?.newId?.('e') || `e${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  function logEvent(kind, data = {}) {
+    const e = { id: newEventId(), at: Date.now(), kind, by: staffName(), ...data };
+    order.events = [...(order.events || []), e].slice(-200);
+    return e;
+  }
+  const unlog = (...es) => { order.events = (order.events || []).filter(x => !es.some(e => e && e.id === x.id)); };
   // KOT numbers run through the business day for the whole restaurant (owner, 10 Nov 2026): the day's first KOT is #1,
   // starting again at 4 AM with the order numbers. This tablet counts past every KOT it gave or saw that day (on any
   // tablet's order, as they come in).
@@ -730,6 +763,10 @@
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
       // the server: as changed with Change server (Update 7), otherwise whoever was signed in when it was first saved
       server: order.server || (prev && prev.server) || staffName(), serverId: order.serverId || (prev && prev.serverId) || window.RestroStaff?.current?.id || null,
+      // (Update Pack 3) what happened to it, for Track history: opened at the first save, which what was done before
+      // then counts from
+      events: prev ? cleanEvents(order.events) : [{ id: newEventId(), at: now, kind: 'open', by: staffName(), type: order.type || DEFAULT_TYPE, table: usesTable(order) ? order.table : '',
+        guests: order.guests || 0, customer: order.customer?.name || '' }, ...cleanEvents(order.events).map(e => ({ ...e, at: Math.max(e.at, now) }))],
       // (the tablet that saved it last sends its KOT at the kitchen time, when it is scheduled)
       ...(thisDevice() ? { savedOn: thisDevice() } : {}),
       // kept from the kitchen screen: the kitchen's "complete" (until more items go to the kitchen)
@@ -1169,7 +1206,7 @@
     if (line.kit && !line.kit.length) delete line.kit;
     // the saved order: the dishes come off it, and off what the kitchen has; the VOID slip is kept on it
     const slipLines = parts.map(part => ({ id: line.id, name: itemOf(line).name, qty: -part.n, type, ...(part.mods.length ? { mods: modObjs(part.mods) } : {}), kot: rec ? kotOfKey(rec, kitchenKey(line.id, type, part.mods)) : null }));
-    const slip = { id: newKotId(), at: now, kind: 'void', lines: slipLines, reason, by };
+    const gross = eachOf(line) * 100 * n, slip = { id: newKotId(), at: now, kind: 'void', lines: slipLines, reason, by, amount: gross - window.RestroBill.lineOff(gross, line.off) };
     if (rec) {
       if (!rec.sent || typeof rec.sent !== 'object') rec.sent = {};
       for (const part of parts) {
@@ -1215,6 +1252,7 @@
   const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
   function pickTable() {
     window.RestroFloor?.open({ pick: true, current: order.table, guests: order.guests, onPick: table => {
+      if (order.table && order.table !== table.id && (order.uid || order.number)) logEvent('move', { from: order.table, to: table.id });
       order.table = table.id;
       // (Update 7: the guest count, asked in the Dining app the first time the table is picked for the order)
       if (cleanGuests(table.guests)) order.guests = table.guests;
@@ -1311,6 +1349,7 @@
     merge: 'M480-344 277-141q-9 9-21 9t-21-9q-9-9-9-21t9-21l175-175q24-24 32-44t8-59v-265l-69 69q-9 9-21 9t-21-9q-9-9-9-21t9-21l120-120q9-9 21-9t21 9l120 120q9 9 9 21t-9 21q-9 9-21 9t-21-9l-69-69v265q0 39 8 59t32 44l175 175q9 9 9 21t-9 21q-9 9-21 9t-21-9L480-344Z',
     badge: 'M232-247h239v-14q0-18-9-32t-23-19q-32-11-50-14.5t-35-3.5q-19 0-40.5 4.5T265-312q-15 5-24 19t-9 32v14Zm361-67h120q10.83 0 17.92-7.12 7.08-7.11 7.08-18 0-10.88-7.08-17.88-7.09-7-17.92-7H593q-10.83 0-17.92 7.12-7.08 7.11-7.08 18 0 10.88 7.08 17.88 7.09 7 17.92 7Zm-239-50q22.5 0 38.25-15.75T408-418q0-22.5-15.75-38.25T354-472q-22.5 0-38.25 15.75T300-418q0 22.5 15.75 38.25T354-364Zm239-63h120q10.83 0 17.92-7.12 7.08-7.11 7.08-18 0-10.88-7.08-17.88-7.09-7-17.92-7H593q-10.83 0-17.92 7.12-7.08 7.11-7.08 18 0 10.88 7.08 17.88 7.09 7 17.92 7ZM140-80q-24 0-42-18t-18-42v-480q0-24 18-42t42-18h250v-140q0-24 18-42t42.41-18h59.18Q534-880 552-862q18 18 18 42v140h250q24 0 42 18t18 42v480q0 24-18 42t-42 18H140Zm310-510h60v-230h-60v230Z',
     do_not_disturb_on: 'M310-453h340q12.75 0 21.38-8.68 8.62-8.67 8.62-21.5 0-12.82-8.62-21.32-8.63-8.5-21.38-8.5H310q-12.75 0-21.37 8.68-8.63 8.67-8.63 21.5 0 12.82 8.63 21.32 8.62 8.5 21.37 8.5ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Z',
+    void_x: '<path transform="matrix(40 0 0 40 0 -960)" d="M12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-18C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2m2.59 6L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41z"/>',
     table_restaurant: 'M672-520H289l-11 80h404l-10-80ZM166-205l43-315h-89q-20 0-31.5-16T82-571l57-200q4-13 14-21t24-8h606q14 0 24 8t14 21l57 200q5 19-6.5 35T840-520h-88l42 315q2 18-9.5 31.5T755-160q-15 0-26.5-9.5T715-194l-22-166H267l-22 166q-2 15-13.5 24.5T205-160q-18 0-29.5-13.5T166-205Z'
   };
   const mi = (name, size) => {
@@ -1495,6 +1534,8 @@
       swRow('sell', 'Dish discount', dished > 0, `${dished} ${dished === 1 ? 'dish' : 'dishes'}`, 'cx-dtag', openDish, () => switchOff('dish'), !order.lines.length && !dished),
       dine ? swRow('room_service', 'Service charge', Boolean(order.servicePct), `${order.servicePct}%`, 'cx-stag', openService, () => switchOff('service')) : null,
       ...(dine ? [sep(), row('move_table', 'Move table', moveTable), row('merge', 'Merge tables', mergeTables), row('badge', 'Change server', openServer)] : []),
+      sep(),
+      row('history', 'Track history', openHistory),
       sep(),
       el('button', { type: 'button', role: 'menuitem', class: `cx-mi del${deleteArmed ? ' armed' : ''}`, disabled: !hasOrder(), onclick: tapDelete }, mi('delete', 26),
         el('span', { class: 'cx-mi-t' }, deleteArmed ? (order.number ? `Tap again to delete ${ticket(order.number)}` : 'Tap again to delete') : 'Delete order')));
@@ -2488,6 +2529,7 @@
     if (kind === 'void') return layer(voidCard(hold), () => {});
     if (kind === 'server') return layer(serverCard(hold), () => { sheet = null; serverPop = null; render(); });
     if (kind === 'pagerask') return layer(pagerAskCard(hold), cancelPagerAsk);
+    if (kind === 'history') return historyLayer(hold);
     const done = (fn, wide) => el('button', { type: 'button', class: `cx-done${wide ? ' wide' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: fn }, 'Done');
     if (kind === 'note' && notePop.key === null) {
       // "Order note · Order #1015 · Table 12", the whole order's quick notes (no + Add), Clear note, Done
@@ -2703,6 +2745,104 @@
     // (the keyboard's Enter puts it away; sending is the red button's)
     field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); field.blur(); } });
     return card;
+  }
+  // Track history (Update Pack 3, CT02): every change to the order on screen (saved, not paid), oldest first: when, its
+  // icon, what happened, the details (the reason, who, the slip printed) and the amount. What came after the bill was
+  // first printed is amber, tagged "After bill" ("After void" on a bill reprinted after a void). At the bottom: the
+  // order's discounts as they are now, its voids, and how many changes came after the bill. The list scrolls; while more
+  // is below, its last line fades out. Voided dishes show only here and in Orders (the order panel has what is on the
+  // order now).
+  let historyTop = 0;
+  function openHistory() {
+    closeMenu();
+    if (!savedOf(loadOrders())) { render(); say('No history yet · Save starts it'); return; }
+    historyTop = 0; sheet = 'history'; render();
+  }
+  const closeHistory = () => { sheet = null; render(); };
+  const clockOf = t => { const s = timeOf(t).toUpperCase(); return dayKey(t) === dayKey(Date.now()) ? s : `${new Date(t).toLocaleDateString('en-IN', { weekday: 'short' })} ${s}`; };
+  const dishCount = n => `${n} ${n === 1 ? 'dish' : 'dishes'}`;
+  // A void slip's dishes at their price then (a slip from before Update Pack 3: at the order's or the menu's price)
+  const voidAmount = (rec, k) => Number.isFinite(k.amount) ? k.amount
+    : (k.lines || []).reduce((sum, l) => sum + Math.abs(Number(l.qty) || 0) * 100 * (Number(rec.lines.find(x => x.id === l.id)?.price) || Number(items.get(l.id)?.price) || 0), 0);
+  function historyOf(rec) {
+    const by = name => (name ? `by ${initialsOf(name)}` : '');
+    const known = new Map();
+    for (const e of [...cleanEvents(rec.events), ...cleanEvents(order.events)]) known.set(e.id || `${e.kind}@${e.at}`, e);
+    const list = [...known.values()].map(e => ({ ...e }));
+    // (an order saved before Update Pack 3: opened when it was first saved, by whoever sent its first KOT)
+    if (!list.some(e => e.kind === 'open')) list.push({ kind: 'open', at: createdOf(rec), by: kotsOf(rec)[0]?.by || rec.server || '', type: rec.type, table: usesTable(rec) ? rec.table : '', guests: rec.guests || 0, customer: rec.customer?.name || '' });
+    for (const k of Array.isArray(rec.kots) ? rec.kots : []) {
+      const kind = k && (k.kind || 'kot');
+      if (kind === 'kot' || kind === 'void' || kind === 'changed') list.push({ ...k, kind: `slip-${kind}` });
+      else if (kind === 'priority' && !Array.isArray(rec.events)) list.push({ kind: 'priority', at: k.at, by: k.by });
+    }
+    (Array.isArray(rec.bills) ? rec.bills : []).forEach((b, i) => list.push({ kind: i ? 'reprint' : 'bill', at: b.at, by: b.by, total: b.total }));
+    list.forEach((e, i) => { e.seq = i; });
+    list.sort((a, b) => (b.kind === 'open') - (a.kind === 'open') || (Number(a.at) || 0) - (Number(b.at) || 0) || a.seq - b.seq);
+    const q = e => (e.qty > 1 ? `${e.qty} × ` : '');
+    const rows = list.map(e => {
+      switch (e.kind) {
+        case 'open': return { e, icon: !e.type || e.type === 'dine-in' ? 'table_restaurant' : typeIcon[e.type], title: 'Order opened',
+          sub: [e.table ? `Table ${tableName(e.table)}` : e.customer || typeLabel[e.type] || '', e.guests ? plural(e.guests, 'guest') : '', by(e.by)] };
+        case 'slip-kot': return { e, icon: 'receipt_long', cls: 'kt', title: e.no ? `KOT #${e.no} sent` : 'KOT sent',
+          sub: [dishCount((e.lines || []).reduce((n, l) => n + (Number(l.qty) || 0), 0)), e.from ? `from Order ${ticket(e.from)}` : '', by(e.by)] };
+        case 'slip-changed': { const l = (e.lines || [])[0] || {}, more = (e.lines || []).length - 1;
+          return { e, icon: 'receipt_long', cls: 'kt', title: `Changed · ${l.qty || 1} × ${l.name || ''}${more > 0 ? ` +${more}` : ''}`, sub: [changesOf(l).join(', '), by(e.by), 'CHANGED slip printed'] }; }
+        case 'slip-void': { const ls = e.lines || [], n = ls.reduce((s2, l) => s2 + Math.abs(Number(l.qty) || 0), 0), names = [...new Set(ls.map(l => l.name))].join(', ');
+          return { e, icon: 'void_x', title: `Void · ${n} × ${names}`, sub: [e.reason ? `Reason: ${e.reason}` : '', by(e.by), 'VOID slip printed'], amount: voidAmount(rec, e), isVoid: true }; }
+        case 'bill': return { e, icon: 'print', title: 'Bill printed', sub: [Number.isFinite(e.total) ? amount(e.total) : '', by(e.by)] };
+        case 'reprint': return { e, icon: 'print', title: 'Bill reprinted', sub: [Number.isFinite(e.total) ? amount(e.total) : '', by(e.by)] };
+        case 'disc': return { e, icon: 'percent', title: `Discount ${e.pct}% on order`, sub: [e.reason ? `Reason: ${e.reason}` : '', e.was ? `was ${e.was}%` : '', by(e.by)], amount: e.amount };
+        case 'disc-off': return { e, icon: 'remove_discount', title: 'Discount removed', sub: [e.was ? `was ${e.was}%` : '', by(e.by)] };
+        case 'dish': return { e, icon: 'sell', title: e.pct === 100 ? `Complimentary · ${q(e)}${e.name}` : `Dish discount ${e.pct}% · ${q(e)}${e.name}`,
+          sub: [e.reason ? `Reason: ${e.reason}` : '', e.was ? `was ${e.was}%` : '', by(e.by)], amount: e.amount };
+        case 'dish-off': return { e, icon: 'remove_discount', title: `Dish discount removed · ${q(e)}${e.name}`, sub: [e.was ? `was ${e.was}%` : '', by(e.by)] };
+        case 'svc': return { e, icon: 'room_service', title: `Service charge ${e.pct}% on order`, sub: [e.was ? `was ${e.was}%` : '', by(e.by)] };
+        case 'svc-off': return { e, icon: 'room_service', title: 'Service charge removed', sub: [e.was ? `was ${e.was}%` : '', by(e.by)] };
+        case 'move': return { e, icon: 'move_table', title: 'Moved table', sub: [`Table ${tableName(e.from)} → Table ${tableName(e.to)}`, by(e.by)] };
+        case 'merge': return { e, icon: 'merge', title: 'Merged tables', sub: [`Table ${tableName(e.from)}${e.to ? ` → Table ${tableName(e.to)}` : ''}`, e.number ? `Order ${ticket(e.number)}` : '', by(e.by)] };
+        case 'server': return { e, icon: 'badge', title: 'Server changed', sub: [`${initialsOf(e.from) || '—'} → ${initialsOf(e.to)}`, by(e.by)] };
+        case 'priority': return { e, icon: 'flag', title: 'Marked as priority', sub: ['Kitchen only', by(e.by)] };
+        case 'priority-off': return { e, icon: 'flag', title: 'Priority removed', sub: ['Kitchen only', by(e.by)] };
+        default: return null;
+      }
+    }).filter(Boolean);
+    // after the bill: amber, tagged
+    const billAt = rows.findIndex(r => r.e.kind === 'bill');
+    let voided = false;
+    rows.forEach((r, i) => {
+      if (billAt < 0 || i <= billAt) return;
+      r.after = r.e.kind === 'reprint' && voided ? 'After void' : 'After bill';
+      if (r.e.kind === 'reprint') voided = false; else if (r.isVoid) voided = true;
+    });
+    return rows;
+  }
+  function historyLayer(hold) {
+    const rec = savedOf(loadOrders());
+    if (!rec) { queueMicrotask(closeHistory); return null; }
+    const rows = historyOf(rec), t = totals(), off = t.dishDiscount + t.discount, voids = rows.filter(r => r.isVoid).reduce((n, r) => n + (r.amount || 0), 0), changes = rows.filter(r => r.after).length;
+    const opened = rows.find(r => r.e.kind === 'open')?.e;
+    const title = `Track history · Order ${ticket(order.number)}`;
+    const sub = [typeLabel[order.type || DEFAULT_TYPE], usesTable(order) ? `Table ${tableName(order.table)}` : order.customer?.name || '', order.guests ? plural(order.guests, 'guest') : '',
+      opened ? `opened ${clockOf(opened.at)}${opened.by ? ` by ${initialsOf(opened.by)}` : ''}` : ''].filter(Boolean).join(' · ');
+    const minus = n => (n > 0 ? `−${amount(n)}` : amount(0));
+    const list = el('ul', { class: 'cx-hl', 'aria-label': 'What happened, oldest first' }, ...rows.map(r => el('li', { class: [r.after ? 'am' : r.cls || ''].join(' ').trim() },
+      el('div', { class: 'tm' }, clockOf(r.e.at)),
+      el('div', { class: 'ic', 'aria-hidden': 'true' }, mi(r.icon, 21)),
+      el('div', { class: 'tx' }, el('b', {}, r.title), r.after ? el('span', { class: 'tag' }, r.after) : null, el('br'), r.sub.filter(Boolean).join(' · ')),
+      el('div', { class: 'amt' }, r.amount > 0 ? `−${amount(r.amount)}` : ''))));
+    const fade = () => { historyTop = list.scrollTop; list.classList.toggle('more', list.scrollTop + list.clientHeight < list.scrollHeight - 2); };
+    list.addEventListener('scroll', fade, { passive: true });
+    requestAnimationFrame(() => { list.scrollTop = historyTop; fade(); });
+    return el('div', { class: 'cx-layer history' },
+      el('div', { class: 'cx-hscrim', onpointerdown: hold, onmousedown: hold, onclick: closeHistory }),
+      el('div', { class: 'cx-hp', role: 'dialog', 'aria-label': title },
+        el('div', { class: 'cx-hp-head' }, el('div', { class: 'cx-hp-t' }, el('h3', {}, title), el('div', { class: 'cx-hp-sub' }, sub)), closeX(closeHistory, hold)),
+        list,
+        el('div', { class: 'cx-hsum' },
+          el('div', { class: 'c' }, 'Discounts', el('b', {}, minus(off))),
+          el('div', { class: 'c' }, 'Voids', el('b', {}, minus(voids))),
+          changes ? el('div', { class: 'c a' }, `${changes} change${changes === 1 ? '' : 's'} after the bill`) : null)));
   }
   // Pager still out with another order (Update Pack 3): "Pager 5 is still with #1012" · "Anitha · Paid · Ready", then
   // Same customer / Handed back
@@ -2968,7 +3108,7 @@
     let body;
     // The pop-ups over the menu (Counter Update 4): modifiers, quantity, note; a custom item (Update 5)
     if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop) || (sheet === 'custom' && customPop) || (sheet === 'discount' && discPop)
-      || (sheet === 'service' && servicePop) || (sheet === 'dish' && dishPop) || (sheet === 'void' && voidPop) || (sheet === 'server' && serverPop) || (sheet === 'pagerask' && pagerAsk)) return popView();
+      || (sheet === 'service' && servicePop) || (sheet === 'dish' && dishPop) || (sheet === 'void' && voidPop) || (sheet === 'server' && serverPop) || (sheet === 'pagerask' && pagerAsk) || sheet === 'history') return popView();
 
     if (sheet === 'pay') {
       const options = cashOptions(t.total);

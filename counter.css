@@ -790,6 +790,35 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-pu.dish.pick .cx-steph b{line-height:normal}
 .cx-pu.dish.pct>.cx-pu-head{margin-bottom:calc(14 * var(--u))}
 .cx-pu.server>.cx-pu-head{margin-bottom:calc(16 * var(--u))}
+/* Track history (Update Pack 3, CT02): drawn on the 1920 x 1080 screen, so its sizes are in --fu (launcher.css). Over the
+   whole screen, the banner too; from just under the banner to just above the bottom edge, 1120 wide. */
+.cx-layer.history{position:fixed;inset:0;z-index:60}
+.cx-hscrim{position:absolute;inset:0;background:rgba(15,23,42,.45)}
+.cx-hp{position:absolute;left:50%;top:calc(66 * var(--fu));font-size:calc(16 * var(--fu));bottom:calc(70 * var(--fu));width:calc(1120 * var(--fu));max-width:calc(100% - calc(32 * var(--fu)));box-sizing:border-box;display:flex;flex-direction:column;padding:calc(26 * var(--fu)) calc(28 * var(--fu)) calc(24 * var(--fu));border-radius:calc(30 * var(--fu));background:#F3F4F7;color:#1C1917;box-shadow:0 calc(30 * var(--fu)) calc(80 * var(--fu)) rgba(15,23,42,.35);transform:translateX(-50%)}
+.cx-hp-head{flex:none;display:flex;justify-content:space-between;align-items:flex-start}
+.cx-hp-t{min-width:0}
+.cx-hp h3{margin:0;font-size:calc(28 * var(--fu));font-weight:800;line-height:normal}
+.cx-hp-sub{margin-top:calc(4 * var(--fu));font-size:calc(17 * var(--fu));font-weight:600;line-height:normal;color:#78716C}
+.cx-hp .cx-x{width:calc(52 * var(--fu));height:calc(52 * var(--fu));box-shadow:inset 0 0 0 1px rgba(17,24,39,.08)}
+.ctr-root .cx-hp .cx-x svg.cx-i{width:calc(26 * var(--fu));height:calc(26 * var(--fu))}
+.cx-hl{flex:1;min-height:0;margin:calc(20 * var(--fu)) 0 0;padding:0;list-style:none;background:#FFFFFF;border-radius:calc(22 * var(--fu));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.cx-hl::-webkit-scrollbar{display:none}
+.cx-hl.more{-webkit-mask-image:linear-gradient(#000 88%,transparent);mask-image:linear-gradient(#000 88%,transparent)}
+.cx-hl li{display:flex;align-items:flex-start;gap:calc(16 * var(--fu));padding:calc(14 * var(--fu)) calc(20 * var(--fu));border-top:1px solid #EEF0F4}
+.cx-hl li:first-child{border-top:0}
+.cx-hl .tm{flex:none;width:calc(96 * var(--fu));padding-top:calc(3 * var(--fu));font-size:calc(16 * var(--fu));font-weight:700;line-height:normal;color:#78716C}
+.cx-hl .ic{flex:none;width:calc(38 * var(--fu));height:calc(38 * var(--fu));border-radius:calc(11 * var(--fu));display:flex;align-items:center;justify-content:center;background:#EEF0F4;color:#57534E}
+.ctr-root .cx-hl .ic svg.cx-i{width:calc(21 * var(--fu));height:calc(21 * var(--fu))}
+.cx-hl .kt .ic{background:#F3E8FF;color:#6D28D9}
+.cx-hl .am .ic{background:#FEF3C7;color:#B45309}
+.cx-hl .tx{flex:1;min-width:0;font-size:calc(16.5 * var(--fu));line-height:1.38;color:#57534E}
+.cx-hl .tx b{font-size:calc(18 * var(--fu));color:#1C1917}
+.cx-hl .tag{display:inline-block;margin-left:calc(8 * var(--fu));padding:calc(1 * var(--fu)) calc(9 * var(--fu));border-radius:calc(7 * var(--fu));background:#FEF3C7;color:#B45309;font-size:calc(13.5 * var(--fu));font-weight:800;vertical-align:calc(2 * var(--fu))}
+.cx-hl .amt{flex:none;padding-top:calc(2 * var(--fu));font-size:calc(18 * var(--fu));font-weight:800;line-height:normal;white-space:nowrap;color:#1C1917}
+.cx-hsum{flex:none;display:flex;align-items:center;gap:calc(10 * var(--fu));margin-top:calc(18 * var(--fu))}
+.cx-hsum .c{height:calc(44 * var(--fu));padding:0 calc(16 * var(--fu));border-radius:99px;display:flex;align-items:center;background:#FFFFFF;color:#44403C;font-size:calc(16 * var(--fu));font-weight:700;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08)}
+.cx-hsum .c b{margin-left:calc(6 * var(--fu));color:#1C1917}
+.cx-hsum .c.a{background:#FEF3C7;color:#B45309;box-shadow:inset 0 0 0 1px #FCD34D}
 /* (Update Pack 3) a pager still out with another order: Same customer / Handed back */
 .cx-dh.pg>i{background:#EDE7FE;color:#5B21B6}
 .cx-pu.pagerask>.cx-pu-head{margin-bottom:calc(4 * var(--u))}
