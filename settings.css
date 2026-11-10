@@ -297,6 +297,68 @@ label.st-row,.st-link{cursor:pointer}
 .settings-app .bt-action-primary{background:var(--st-blue);color:#FFFFFF;box-shadow:none}
 .settings-app .bt-action:disabled{opacity:.5}
 
+/* ---------- Update Pack 3 (03_Settings): every page in the pattern of Settings › Orders (Orders display) ----------
+   The categories in a white column (360) with a hairline at its edge: the raised round Back (60) and "Settings", then
+   one row each (58 tall: the icon, the name), the page's in light blue. The page: a breadcrumb, its title (32), then
+   white cards (radius 26, a faint edge, a soft shadow), each with a 20 heading and a grey line; a choice that changes
+   how a screen looks is a 2-column grid of option tiles (a radio, the name and a line, and a large live preview of
+   the whole screen); "Use on · This tablet only | All tablets" at the top right of a card's heading where a setting can
+   differ per tablet. Sizes are the design's pixels on the 1920 x 1080 screen. */
+.settings-shell{grid-template-columns:calc(360 * var(--su)) minmax(0,1fr)}
+.settings-nav{padding:calc(28 * var(--su)) calc(18 * var(--su)) calc(24 * var(--su));gap:calc(20 * var(--su));background:#FFFFFF;box-shadow:inset -1px 0 0 #ECEEF2}
+.settings-nav-top{gap:calc(14 * var(--su));padding:0 0 0 calc(12 * var(--su))}
+.settings-back-round{width:calc(60 * var(--su));height:calc(60 * var(--su));box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 calc(2 * var(--su)) calc(4 * var(--su)) rgba(15,23,42,.10),0 calc(6 * var(--su)) calc(16 * var(--su)) rgba(15,23,42,.12)}
+.settings-shell .settings-back-round svg{width:calc(26 * var(--su));height:calc(26 * var(--su));stroke-width:2.4}
+.settings-nav-top h2{font-size:calc(30 * var(--su));line-height:normal;font-weight:700;letter-spacing:0}
+.settings-list{padding:0;gap:0;border-radius:0;background:none;box-shadow:none}
+.settings-row{min-height:calc(58 * var(--su));height:calc(58 * var(--su));gap:calc(14 * var(--su));padding:0 calc(14 * var(--su)) 0 calc(18 * var(--su));color:#44403C}
+.settings-row:hover{background:#F7F8FA}
+.settings-row.selected{background:#E8F0FD;box-shadow:none;color:#1E4FB8}
+.settings-row-icon{width:calc(24 * var(--su));height:calc(24 * var(--su));border-radius:0;background:none;color:inherit}
+.settings-shell .settings-row-icon svg{width:calc(24 * var(--su));height:calc(24 * var(--su))}
+.settings-row.selected .settings-row-icon{background:none;color:inherit}
+.settings-row-copy strong{position:relative;top:calc(-1 * var(--su));font-size:calc(18 * var(--su));line-height:normal;font-weight:600;color:inherit;white-space:nowrap}
+
+.settings-pages{padding:calc(20 * var(--su)) calc(37 * var(--su)) calc(40 * var(--su)) calc(36 * var(--su))}
+.settings-pages>*{max-width:none}
+.settings-detail-top{margin-bottom:calc(14 * var(--su))}
+.st-crumb{font-size:calc(16 * var(--su));font-weight:500;color:#78716C;margin-bottom:calc(2 * var(--su))!important}
+.settings-detail-top h3{font-size:calc(32 * var(--su));line-height:normal;font-weight:700}
+.st-card{border-radius:calc(26 * var(--su));padding:calc(20 * var(--su)) calc(24 * var(--su)) calc(24 * var(--su));margin:0 0 calc(20 * var(--su))}
+.st-lab{font-size:calc(20 * var(--su));font-weight:700;line-height:normal;margin-bottom:calc(4 * var(--su))!important}
+.st-sub{font-size:calc(16 * var(--su));font-weight:400;line-height:normal;color:#78716C;margin-bottom:calc(14 * var(--su))!important}
+/* a card's heading with Use on at its right */
+.st-sec-head{display:flex;align-items:flex-start;gap:calc(24 * var(--su));margin-bottom:calc(14 * var(--su))}
+.st-sec-head>div:first-child{flex:1;min-width:0}
+.st-sec-head .st-sub{margin-bottom:0!important}
+.st-useon{flex:none;display:flex;align-items:center;gap:calc(12 * var(--su));margin:0}
+.st-useon>span{margin-right:calc(4.5 * var(--su));font-size:calc(15 * var(--su));font-weight:500;color:#44403C}
+.st-useon button{display:inline-flex;align-items:center;gap:calc(10 * var(--su));height:calc(48 * var(--su));margin:0;padding:0 calc(18 * var(--su));border:0;border-radius:calc(16 * var(--su));background:#FFFFFF;color:#1C1917;
+  font-size:calc(16 * var(--su));font-weight:700;box-shadow:inset 0 0 0 1.5px #E2E5EA;cursor:pointer}
+.st-useon button[aria-checked="true"]{background:#F3F7FE;color:#1E4FB8;box-shadow:inset 0 0 0 2.5px #2F6FDE}
+.settings-shell .st-useon button svg{width:calc(20 * var(--su));height:calc(20 * var(--su));stroke-width:2.6}
+.st-useon button:focus-visible,.st-tile:focus-visible{outline:2px solid var(--st-blue);outline-offset:3px}
+/* option tiles with a live preview */
+.st-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(14 * var(--su))}
+.st-tile{min-width:0;display:flex;flex-direction:column;margin:0;padding:calc(15 * var(--su));border:0;border-radius:calc(22 * var(--su));background:#FFFFFF;color:var(--st-ink);text-align:left;
+  box-shadow:inset 0 0 0 1.5px #E2E5EA;cursor:pointer}
+.st-tile[aria-checked="true"]{background:#F3F7FE;box-shadow:inset 0 0 0 2.5px #2F6FDE}
+.st-tile-top{display:grid;grid-template-columns:calc(24 * var(--su)) minmax(0,1fr);gap:0 calc(11.5 * var(--su));padding:0 0 0 calc(1 * var(--su))}
+.st-tile .st-rd{margin:0;box-shadow:inset 0 0 0 2px #A8A29E}
+.st-tile[aria-checked="true"] .st-rd{box-shadow:inset 0 0 0 calc(7 * var(--su)) #2F6FDE}
+.st-tile-top b{position:relative;top:calc(-2 * var(--su));align-self:center;font-size:calc(19 * var(--su));font-weight:700;line-height:normal;color:var(--st-ink)}
+.st-tile-top span:last-child{grid-column:2;font-size:calc(14.5 * var(--su));font-weight:400;line-height:normal;color:#78716C}
+.st-tile-pic{position:relative;display:block;margin-top:calc(16 * var(--su));border-radius:calc(14 * var(--su));overflow:hidden;background:#F3F4F7;box-shadow:inset 0 0 0 1px #E1E5ED}
+.st-tile-pic::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px #E1E5ED;pointer-events:none}
+.st-sample{position:absolute;left:calc(10 * var(--su));bottom:calc(10 * var(--su));z-index:1;padding:calc(3 * var(--su)) calc(10 * var(--su));border-radius:999px;background:rgba(28,25,23,.72);color:#FFFFFF;font-size:calc(13 * var(--su));font-weight:700}
+/* the live screen in a preview: laid out at the screen's size, scaled down to the tile (never cropped or squeezed) */
+.st-live{position:absolute;left:0;top:0;transform:scale(var(--preview-scale,0));transform-origin:0 0;overflow:hidden;pointer-events:none;contain:strict}
+.st-live .st-live-lock{position:absolute;right:calc(16 * var(--fu));bottom:calc(14 * var(--fu));width:calc(60 * var(--fu));height:calc(60 * var(--fu));border-radius:50%;display:grid;place-items:center;background:#1C1917;color:#FFFFFF}
+.settings-shell .st-live .st-live-lock svg{width:calc(31 * var(--fu));height:calc(31 * var(--fu))}
+.st-live .st-live-pill{position:absolute;left:50%;bottom:calc(10 * var(--fu));width:calc(220 * var(--fu));height:calc(6 * var(--fu));border-radius:999px;background:rgba(28,25,23,.35);transform:translateX(-50%)}
+/* Orders' own look inside a preview (orders.css styles the app as a full-screen dialog) */
+.settings-app .st-live.orders-app{position:absolute;inset:auto;left:0;top:0;display:block;width:auto;height:auto;max-width:none;max-height:none;background:#F3F4F7}
+
 /* ---------- Narrow screens: one column, like a phone ---------- */
 @media (max-width:1000px){.theme-options,.tiles-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:759px){

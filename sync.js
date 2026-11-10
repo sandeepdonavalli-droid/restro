@@ -50,6 +50,11 @@
     restaurantName: { key: 'restro.restaurantName', raw: true, placeholder: 'RESTAURANT NAME' },
     profile: { key: 'restro.profile.v1' },
     prepMinutes: { key: 'restro.counter.prepMinutes.v1' },
+    // (Update Pack 3: Settings › Kitchen's prep time, one for every order or one per order type; the Orders display's and
+    // the Counter's look when set for All tablets: the restaurant's default)
+    kitchenPrep: { key: 'restro.kitchen.prep.v1' },
+    ordersLook: { key: 'restro.ordersLook.shared.v1' },
+    counterLook: { key: 'restro.counterLook.shared.v1' },
     // (Update Pack 9 Nov 2026, prefs.js: Billing & charges, Business details, the printers, Staff & security)
     billing: { key: 'restro.billing.v1' },
     business: { key: 'restro.business.v1' },

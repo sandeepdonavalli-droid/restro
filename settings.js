@@ -13,15 +13,13 @@
   const pageTitle = document.querySelector('#settings-page-title');
   const crumb = document.querySelector('#settings-crumb');
   const back = document.querySelector('#settings-back');
-  const search = document.querySelector('#settings-search');
-  const noResults = document.querySelector('#settings-no-results');
   const entries = [...nav.querySelectorAll('[data-page]')];
   const pages = new Map([...dialog.querySelectorAll('.settings-page')].map(page => [page.dataset.page, page]));
   const twoPane = window.matchMedia('(min-width: 760px)');
   const toastNode = document.querySelector('#toast');
   const toastHome = toastNode.parentElement;
   const Prefs = window.RestroPrefs;
-  let current = 'restaurant';
+  let current = 'business';
 
   // ---------- tiny DOM helpers ----------
   function el(tag, props = {}, ...children) {
@@ -121,21 +119,23 @@
     for (const [pageId, page] of pages) page.hidden = pageId !== id;
     pageTitle.textContent = id === 'printer' ? printerName(printerId) : pages.get(id).dataset.title;
     // The breadcrumb: "Settings", or "Settings › Display" (the page it is in, a tap away)
-    crumb.replaceChildren('Settings', ...(parent ? [' › ', el('button', { type: 'button', onclick: () => show(parent, { focus: true }) }, pages.get(parent).dataset.title)] : []));
+    crumb.replaceChildren('Settings', ...(parent ? [' › ', el('button', { type: 'button', onclick: () => show(parent, { focus: true }) }, pages.get(parent).dataset.title)] : pages.get(id).dataset.crumb ? [' › ', pages.get(id).dataset.crumb] : []));
     for (const entry of entries) {
       const selected = entry.dataset.page === top;
       entry.classList.toggle('selected', selected);
       if (selected) entry.setAttribute('aria-current', 'page'); else entry.removeAttribute('aria-current');
     }
     if (id === 'display') window.RestroThemePicker?.reset();
-    if (id === 'counter') paintStylePreviews(); else clearStylePreviews();
+    // (the live pictures are only there while their page is: a copy of a whole screen each)
+    if (id !== 'orders') ordersHost?.replaceChildren();
+    if (id !== 'counter') counterHost?.replaceChildren();
     if (id === 'business') fillBusiness();
     builders[id]?.();
     renderLivePanels(id);
     dialog.querySelector('.settings-pages').scrollTop = 0;
     if (!twoPane.matches) shell.dataset.view = 'detail';
     if (focus) {
-      const target = id === 'business' ? document.querySelector('#restaurant-input') : id === 'restaurant' ? document.querySelector('#profile-email') : null;
+      const target = id === 'business' ? document.querySelector('#restaurant-input') : null;
       (target || pages.get(id).querySelector('input,button,a') || back)?.focus({ preventScroll: true });
     }
   }
@@ -145,29 +145,16 @@
   }
   function goBack() {
     if (!dialog.open) return false;
-    if (search.value) { search.value = ''; filter(); search.focus(); return true; }
     if (parentOf(current)) { show(parentOf(current), { focus: true }); return true; }
     if (!twoPane.matches && isDetailView()) { showList(); return true; }
     return false;
   }
   function reset() {
-    search.value = ''; filter();
     window.RestroThemePicker?.reset();
     syncSummaries();
     shell.dataset.view = 'list';
-    if (twoPane.matches) show('restaurant');
-    else { current = 'restaurant'; for (const [pageId, page] of pages) page.hidden = pageId !== current; }
-  }
-  function filter() {
-    const query = search.value.trim().toLowerCase();
-    let matches = 0;
-    for (const entry of entries) {
-      const text = `${entry.textContent} ${entry.dataset.keywords || ''}`.toLowerCase();
-      const match = !query || query.split(/\s+/).every(word => text.includes(word));
-      (entry.closest('li') || entry).hidden = !match;
-      if (match) matches++;
-    }
-    noResults.hidden = matches > 0;
+    if (twoPane.matches) show('business');
+    else { current = 'business'; for (const [pageId, page] of pages) page.hidden = pageId !== current; }
   }
 
   // ---------- the line under each category ----------
@@ -202,8 +189,6 @@
     const business = Prefs.get('business');
     set('settings-business-summary', business.gstin && business.fssai ? 'GSTIN and FSSAI on the bill' : !business.fssai ? 'Add the FSSAI licence number' : 'Printed on the bill');
     set('settings-security-summary', `Auto-lock ${Prefs.get('security').autoLock ? `after ${Prefs.get('security').autoLock} min` : 'off'}`);
-    const profile = window.RestroProfile;
-    set('settings-profile-summary', profile?.email || profile?.international || 'Email and mobile number');
   }
 
   // ---------- My Profile and Business details ----------
@@ -215,6 +200,7 @@
     document.querySelector('#business-fssai').value = b.fssai;
     document.querySelector('#business-footer').value = b.footer;
     for (const id of ['business-gstin-error', 'business-fssai-error']) document.getElementById(id).hidden = true;
+    window.RestroProfile?.fill();
   }
   const say = (id, message) => { const node = document.getElementById(id); node.textContent = message; node.hidden = !message; };
   document.querySelector('#business-gstin').addEventListener('input', e => { const v = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ''); if (v !== e.target.value) e.target.value = v; say('business-gstin-error', ''); });
@@ -223,133 +209,145 @@
     e.preventDefault();
     const gstin = document.querySelector('#business-gstin').value.trim(), fssai = document.querySelector('#business-fssai').value.trim();
     let ok = true;
+    const contact = window.RestroProfile?.read() || null;
+    if (!contact) { (document.querySelector('#profile-mobile-error:not([hidden])') ? document.querySelector('#profile-mobile') : document.querySelector('#profile-email')).focus(); return; }
     if (gstin && !Prefs.gstinOk(gstin)) { say('business-gstin-error', gstin.length !== 15 ? 'A GSTIN has 15 letters and numbers.' : 'This GSTIN doesn’t check out. Look for a typing mistake.'); ok = false; }
     if (fssai && !Prefs.fssaiOk(fssai)) { say('business-fssai-error', 'An FSSAI number has 14 digits.'); ok = false; }
     if (!ok) { document.querySelector(gstin && !Prefs.gstinOk(gstin) ? '#business-gstin' : '#business-fssai').focus(); return; }
     if (!window.RestroRestaurantName?.save(document.querySelector('#restaurant-input').value)) return;
-    Prefs.set('business', { address: document.querySelector('#business-address').value, gstin, fssai, footer: document.querySelector('#business-footer').value });
+    Prefs.set('business', { address: document.querySelector('#business-address').value, ...contact, gstin, fssai, footer: document.querySelector('#business-footer').value });
     fillBusiness(); toast('Business details saved');
   });
 
-  // ---------- Orders: how long before a scheduled order is due it goes to the kitchen (5 to 240 minutes) ----------
-  const PREP_KEY = 'restro.counter.prepMinutes.v1';
-  const readPrep = () => { try { const n = Number(JSON.parse(localStorage.getItem(PREP_KEY) || '30')); return Number.isFinite(n) ? Math.min(240, Math.max(5, Math.round(n / 5) * 5)) : 30; } catch { return 30; } };
-  function showPrep() {
-    const n = readPrep();
-    document.querySelector('#settings-prep-value').textContent = `${n} min`;
-    document.querySelector('#settings-orders-summary').textContent = `Preparation time ${n} min`;
-    document.querySelector('#settings-prep-down').disabled = n <= 5;
-    document.querySelector('#settings-prep-up').disabled = n >= 240;
+  // ---------- Update Pack 3: Use on, and option tiles with a live preview ----------
+  const CHECK = '<path d="m5.5 12.5 4.2 4.2L18.5 7.8"/>';
+  // "Use on · This tablet only | All tablets", at the top right of a card's heading where a setting can differ per tablet
+  function useOn(scope, set) {
+    const b = (value, label) => el('button', { type: 'button', role: 'radio', 'aria-checked': String(scope === value), onclick: () => { if (scope !== value) set(value); } }, scope === value ? line(CHECK) : null, label);
+    return el('div', { class: 'st-useon', role: 'radiogroup', 'aria-label': 'Use on' }, el('span', {}, 'Use on'), b('tablet', 'This tablet only'), b('all', 'All tablets'));
   }
-  function stepPrep(delta) {
-    const n = Math.min(240, Math.max(5, readPrep() + delta));
-    try { localStorage.setItem(PREP_KEY, JSON.stringify(n)); } catch {}
-    window.RestroSync?.wrote(PREP_KEY);
-    showPrep(); window.dispatchEvent(new CustomEvent('restro:prep-time-changed', { detail: n }));
+  const secHead = (title, text, right = null) => el('div', { class: 'st-sec-head' }, el('div', {}, lab(title), sub(text)), right);
+  // A live preview: the screen as the app has it (its area under the top bar, with the lock and the swipe line when
+  // swipe gestures are on), laid out at its own size and scaled down to the tile's width, never cropped or squeezed
+  const inheritedLooks = ['color', 'font-family', 'font-size', 'font-style', 'font-weight', 'line-height', 'letter-spacing', 'word-spacing', 'text-align', 'text-transform'];
+  function screenSize() {
+    const swipe = document.documentElement.dataset.nav !== 'bar';
+    const top = document.querySelector('#top-banner')?.getBoundingClientRect().height || 0;
+    const bar = swipe ? 0 : document.querySelector('#system-navigation')?.getBoundingClientRect().height || 0;
+    return { w: innerWidth, h: Math.max(1, Math.round(innerHeight - top - bar)), swipe };
   }
-  let prepShown = readPrep();
-  window.addEventListener('restro:data-changed', event => {
-    if (!(event.detail?.collections || []).includes('settings') || readPrep() === prepShown) return;
-    prepShown = readPrep(); showPrep(); window.dispatchEvent(new CustomEvent('restro:prep-time-changed', { detail: prepShown }));
-  });
-  document.querySelector('#settings-prep-down').addEventListener('click', () => stepPrep(-5));
-  document.querySelector('#settings-prep-up').addEventListener('click', () => stepPrep(5));
-  showPrep();
+  const fitLive = new ResizeObserver(list => { for (const e of list) e.target.style.setProperty('--preview-scale', String(e.contentRect.width / (Number(e.target.dataset.w) || 1))); });
+  function livePic(make) {
+    const size = screenSize(), box = el('span', { class: 'st-tile-pic', 'aria-hidden': 'true', 'data-w': String(size.w) });
+    box.style.aspectRatio = `${size.w} / ${size.h}`;
+    const made = make(), shell = document.querySelector('.app-shell'), look = shell ? getComputedStyle(shell) : null;
+    const screen = el('span', { class: `st-live ${made.cls || ''}` }, made.node, size.swipe ? [el('span', { class: 'st-live-lock' }, ms('nav-lock')), el('span', { class: 'st-live-pill' })] : null);
+    screen.inert = true; screen.style.width = `${size.w}px`; screen.style.height = `${size.h}px`;
+    if (look) for (const name of inheritedLooks) screen.style.setProperty(name, look.getPropertyValue(name));
+    box.append(screen, made.sample ? el('span', { class: 'st-sample' }, 'Sample') : null);
+    fitLive.observe(box);
+    return box;
+  }
+  // Option tiles in a 2-column grid: a radio, the name and its line, the preview; arrow keys move along them
+  function radioGrid(label, options, value, pick) {
+    const grid = el('div', { class: 'st-tiles', role: 'radiogroup', 'aria-label': label }, options.map(o => el('button', {
+      type: 'button', class: 'st-tile', role: 'radio', 'aria-checked': String(o.id === value), tabindex: o.id === value ? '0' : '-1', 'data-id': String(o.id), 'aria-label': `${o.name}. ${o.text}`,
+      onclick: () => { if (o.id !== value) pick(o.id); } },
+      el('span', { class: 'st-tile-top' }, el('span', { class: 'st-rd' }), el('b', {}, o.name), el('span', {}, o.text)), o.pic())));
+    grid.addEventListener('keydown', e => {
+      const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0; if (!d) return;
+      e.preventDefault(); const i = options.findIndex(o => o.id === value), next = options[(i + d + options.length) % options.length];
+      pick(next.id); requestAnimationFrame(() => dialog.querySelector(`[aria-label="${label}"] [data-id="${next.id}"]`)?.focus({ preventScroll: true }));
+    });
+    return grid;
+  }
 
-  // ---------- Counter: Menu display style and Tiles per row (Counter Update 6), as pictures of the Counter ----------
-  // Each card is the Counter as it is now in that style (RestroCounter.preview) under a copy of the top bar, laid out at
-  // the screen's own size and scaled down to the card, made each time the Counter page opens and cleared when it
-  // closes. Tapping a card uses it straight away. Preferences of this tablet only (counter.js).
-  const counterStyles = document.querySelector('#counter-style-options');
-  const styleCards = new Map(), stylePreviews = [];
-  const menuStyles = window.RestroCounter?.menuStyles || [];
-  let shot = { w: innerWidth, h: innerHeight };
-  const fitPreview = box => { const w = box.getBoundingClientRect().width; if (w) box.style.setProperty('--preview-scale', String(w / shot.w)); };
-  const previewFit = new ResizeObserver(list => { for (const entry of list) fitPreview(entry.target); });
-  const inheritedLooks = ['color', 'font-family', 'font-size', 'font-style', 'font-weight', 'font-stretch', 'font-variant', 'font-feature-settings', 'font-variation-settings', 'font-kerning', 'line-height', 'letter-spacing', 'word-spacing', 'text-align', 'text-transform', 'text-indent', 'text-shadow', 'text-rendering', 'white-space', 'word-break', 'overflow-wrap', 'hyphens', 'direction', 'visibility', 'cursor', 'list-style', '-webkit-font-smoothing'];
-  function paintStylePreviews() {
-    const counter = window.RestroCounter, banner = document.querySelector('#top-banner'), appShell = document.querySelector('.app-shell');
-    if (!dialog.open || current !== 'counter' || !counter || !banner || !appShell) { clearStylePreviews(); return; }
-    const look = getComputedStyle(appShell), widths = stylePreviews.map(box => box.getBoundingClientRect().width);
-    shot = { w: innerWidth, h: innerHeight };
-    const bar = banner.cloneNode(true);
-    for (const part of [bar, ...bar.querySelectorAll('*')]) for (const name of ['autofocus', 'name', 'title', 'aria-live']) part.removeAttribute(name);
-    stylePreviews.forEach((box, i) => {
-      const screen = document.createElement('span'); screen.className = 'counter-live-screen'; screen.inert = true;
-      for (const name of inheritedLooks) screen.style.setProperty(name, look.getPropertyValue(name));
-      screen.style.width = `${shot.w}px`; screen.style.height = `${shot.h}px`;
-      const app = document.createElement('span'); app.className = 'counter-live-app';
-      app.append(counter.preview(box.dataset.counterStyle, Number(box.dataset.tiles) || undefined));
-      screen.append(i ? bar.cloneNode(true) : bar, app);
-      box.style.aspectRatio = `${shot.w} / ${shot.h}`;
-      if (widths[i]) box.style.setProperty('--preview-scale', String(widths[i] / shot.w));
-      box.replaceChildren(screen);
-      for (const list of screen.querySelectorAll('[data-scroll-top]')) list.scrollTop = Number(list.dataset.scrollTop) || 0;
-    });
-  }
-  function clearStylePreviews() { for (const box of stylePreviews) box.replaceChildren(); }
-  function syncCounterStyle() {
-    const style = window.RestroCounter?.menuStyle;
-    document.querySelector('#settings-counter-summary').textContent = `Menu: ${style?.name || 'Pills on top'}`;
-    for (const [id, c] of styleCards) {
-      c.setAttribute('aria-checked', String(id === style?.id));
-      c.tabIndex = id === style?.id ? 0 : -1;
-      c.querySelector('.theme-state').textContent = id === style?.id ? 'Applied' : id === 'pills' ? 'Default' : '';
-    }
-  }
-  const pictureCard = (cls, data, label) => {
-    const c = el('button', { type: 'button', class: `theme-option counter-style ${cls}`, role: 'radio', 'aria-label': label, ...data });
-    const box = el('span', { class: 'theme-preview counter-preview', 'aria-hidden': 'true', ...data });
-    stylePreviews.push(box); previewFit.observe(box);
-    c.append(box, el('span', { class: 'theme-option-caption' }, el('strong', {}, label), el('span', { class: 'theme-state' })));
-    return c;
-  };
-  for (const style of menuStyles) {
-    const c = pictureCard('', { 'data-counter-style': style.id }, style.name);
-    c.addEventListener('click', () => window.RestroCounter?.setMenuStyle(style.id));
-    styleCards.set(style.id, c); counterStyles.append(c);
-  }
-  counterStyles.addEventListener('keydown', event => {
-    const c = event.target.closest('.counter-style'); if (!c) return;
-    const index = menuStyles.findIndex(style => style.id === c.dataset.counterStyle);
-    let next = index;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % menuStyles.length;
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + menuStyles.length - 1) % menuStyles.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = menuStyles.length - 1;
-    else return;
-    event.preventDefault(); window.RestroCounter?.setMenuStyle(menuStyles[next].id); styleCards.get(menuStyles[next].id).focus({ preventScroll: true });
+  // ---------- Orders: Orders display (Update Pack 3, S1 / S2): the list view and the row style ----------
+  // The same orders, buttons, filters and rules in every view and style; only the layout changes. Each tile is the
+  // Orders page as it is now (today's orders; sample orders while there are none). Use on: this tablet only (the default)
+  // or all tablets; new tablets start with the restaurant's.
+  const ordersHost = document.querySelector('#settings-orders');
+  const ORDER_VIEWS = [['classic', 'Classic', 'Default · one row per order. Fastest to scan at a busy counter.'], ['split', 'Split detail', 'Order list on the left, the selected order’s dishes on the right.'],
+    ['cards', 'Cards', 'One card per order, bigger buttons, easy to tap.'], ['board', 'Board', 'Columns by kitchen status. Closed folds into a side column.']];
+  const ORDER_ROWS = [['classic', 'Classic rows', 'One panel with thin lines between orders. Square-ish buttons.'], ['pills', 'Floating pills', 'Each order floats as a soft rounded pill. Round buttons.']];
+  const ordersPic = (view, rows) => livePic(() => { const p = window.RestroOrders?.preview?.({ view, rows }); return { node: p?.node || el('span'), sample: Boolean(p?.sample), cls: 'orders-app' }; });
+  builders.orders = () => rebuild(ordersHost, () => {
+    const { value: v, from } = Prefs.scoped('orders'), scope = from === 'all' ? 'all' : 'tablet';
+    const set = next => Prefs.setScoped('orders', next, scope);
+    return [
+      card('', secHead('Order list view', 'Same orders, buttons, filters and rules in every view. Only the layout changes.', useOn(scope, s => Prefs.setScoped('orders', v, s))),
+        radioGrid('Order list view', ORDER_VIEWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic(id, v.rows) })), v.view, id => set({ ...v, view: id }))),
+      card('', secHead('Row style', 'Applies to every view above. New tablets start with Classic rows.'),
+        radioGrid('Row style', ORDER_ROWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic('classic', id) })), v.rows, id => set({ ...v, rows: id })))
+    ];
   });
-  window.addEventListener('restro:counter-style-changed', syncCounterStyle);
-  let restyling = 0;
-  addEventListener('resize', () => {
-    if (!dialog.open || current !== 'counter' || !stylePreviews[0]?.firstChild || (innerWidth === shot.w && innerHeight === shot.h)) return;
-    cancelAnimationFrame(restyling); restyling = requestAnimationFrame(paintStylePreviews);
+
+  // ---------- Counter: Menu display style and Tiles per row (Counter Update 6), as option tiles ----------
+  // Each tile is the Counter as it is now in that style (RestroCounter.preview). Use on as for Orders.
+  const counterHost = document.querySelector('#settings-counter');
+  const STYLE_LINES = { grid: 'Every category as a tile; tap one to see its dishes.', pills: 'Default · categories as pills above the dishes.', rail: 'Categories in a column on the left, the dishes beside them.' };
+  const counterPic = (style, perRow) => livePic(() => ({ node: window.RestroCounter.preview(style, perRow), cls: 'counter-still' }));
+  builders.counter = () => rebuild(counterHost, () => {
+    const c = window.RestroCounter; if (!c) return [];
+    const scope = c.lookScope, style = c.menuStyle?.id || 'pills', perRow = c.tilesPerRow;
+    return [
+      card('', secHead('Menu display style', 'How the menu shows on the Counter.', useOn(scope, s => c.setLookScope(s))),
+        radioGrid('Menu display style', c.menuStyles.map(m => ({ id: m.id, name: m.name, text: STYLE_LINES[m.id] || '', pic: () => counterPic(m.id, perRow) })), style, id => c.setMenuStyle(id, scope))),
+      card('', secHead('Tiles per row', 'How many dishes in each row of the menu.'),
+        radioGrid('Tiles per row', [4, 3].map(n => ({ id: n, name: `${n} per row`, text: n === 4 ? 'Default · more dishes on each page.' : 'Bigger tiles, easier to tap.', pic: () => counterPic(style, n) })), perRow, n => c.setTilesPerRow(n, scope)))
+    ];
   });
-  syncCounterStyle();
-  const tilesOptions = document.querySelector('#settings-tiles-per-row'), tilesCards = new Map();
-  if (tilesOptions && window.RestroCounter) {
-    for (const n of [4, 3]) {
-      const c = pictureCard('counter-tiles', { 'data-tiles': String(n) }, `${n} per row`);
-      c.addEventListener('click', () => window.RestroCounter.setTilesPerRow(n));
-      tilesCards.set(n, c); tilesOptions.append(c);
-    }
-    tilesOptions.addEventListener('keydown', event => {
-      if (!event.target.closest('.counter-tiles') || !['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-      const n = ['ArrowRight', 'ArrowDown', 'End'].includes(event.key) ? 3 : 4;
-      event.preventDefault(); window.RestroCounter.setTilesPerRow(n); tilesCards.get(n).focus({ preventScroll: true });
-    });
-    const syncTiles = () => {
-      const n = window.RestroCounter.tilesPerRow;
-      for (const [k, c] of tilesCards) {
-        c.setAttribute('aria-checked', String(k === n)); c.tabIndex = k === n ? 0 : -1;
-        c.querySelector('.theme-state').textContent = k === n ? 'Applied' : k === 4 ? 'Default' : '';
-      }
-    };
-    window.addEventListener('restro:counter-tiles-changed', () => { syncTiles(); paintStylePreviews(); });
-    window.addEventListener('restro:counter-style-changed', () => paintStylePreviews());
-    syncTiles();
+  const syncCounterSummary = () => { const n = document.querySelector('#settings-counter-summary'); if (n) n.textContent = `Menu: ${window.RestroCounter?.menuStyle?.name || 'Pills on top'}`; };
+  window.addEventListener('restro:counter-style-changed', syncCounterSummary);
+  syncCounterSummary();
+  // (a new size of the screen: the pictures again)
+  let relaying = 0;
+  addEventListener('resize', () => { if (!dialog.open || !['orders', 'counter'].includes(current)) return; cancelAnimationFrame(relaying); relaying = requestAnimationFrame(() => builders[current]?.()); });
+
+  // ---------- Kitchen: the kitchen prep time (Update Pack 3; before, under Orders) ----------
+  // One time for every order, or one per order type (owner, 10 Nov 2026), 5 to 240 minutes in 5s. Past it, an order in
+  // the kitchen shows late in Orders (from when the kitchen printer got its KOT); a scheduled order goes to the kitchen
+  // this long before it is due. The restaurant's (every tablet's). (One time before: restro.counter.prepMinutes.v1, kept
+  // in step for the tablets not updated yet.)
+  const KITCHEN_PREP_KEY = 'restro.kitchen.prep.v1', OLD_PREP_KEY = 'restro.counter.prepMinutes.v1';
+  const PREP_TYPES = [['dine-in', 'Dine-in'], ['takeaway', 'Takeaway'], ['delivery', 'Delivery'], ['phone', 'Phone order']];
+  const prepClean = n => { if (n == null || n === '') return null; n = Number(n); return Number.isFinite(n) ? Math.min(240, Math.max(5, Math.round(n / 5) * 5)) : null; };
+  const readJson = key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } };
+  function readKitchenPrep() {
+    const k = readJson(KITCHEN_PREP_KEY), one = prepClean(k?.minutes) ?? prepClean(readJson(OLD_PREP_KEY)) ?? 30;
+    return { mode: k?.mode === 'type' ? 'type' : 'one', minutes: one, byType: Object.fromEntries(PREP_TYPES.map(([t]) => [t, prepClean(k?.byType?.[t]) ?? one])) };
   }
+  function saveKitchenPrep(change) {
+    const p = readKitchenPrep(); change(p);
+    try { localStorage.setItem(KITCHEN_PREP_KEY, JSON.stringify(p)); localStorage.setItem(OLD_PREP_KEY, JSON.stringify(p.minutes)); } catch {}
+    window.RestroSync?.wrote(KITCHEN_PREP_KEY); window.RestroSync?.wrote(OLD_PREP_KEY);
+    prepSeen = JSON.stringify(p);
+    window.dispatchEvent(new CustomEvent('restro:prep-time-changed', { detail: p.minutes }));
+    builders.kitchen();
+  }
+  const kitchenHost = document.querySelector('#settings-kitchen');
+  const MINUS = '<path d="M6 12h12"/>', PLUS = '<path d="M12 6v12M6 12h12"/>';
+  builders.kitchen = () => rebuild(kitchenHost, () => {
+    const p = readKitchenPrep();
+    const stepper = (id, name, value, change) => el('div', { class: 'settings-stepper', role: 'group', 'aria-label': `${name} prep time` },
+      el('button', { id: `${id}-down`, type: 'button', class: 'settings-step', 'aria-label': `${name}: 5 minutes less`, disabled: value <= 5, onclick: () => change(value - 5) }, line(MINUS)),
+      el('output', {}, `${value} min`),
+      el('button', { id: `${id}-up`, type: 'button', class: 'settings-step', 'aria-label': `${name}: 5 minutes more`, disabled: value >= 240, onclick: () => change(value + 5) }, line(PLUS)));
+    const row = (id, name, value, change) => el('div', { class: 'st-row' }, el('span', { class: 'st-row-copy' }, el('strong', {}, name)), stepper(id, name, value, change));
+    return [card('', lab('Kitchen prep time'), sub('Past it, an order in the kitchen turns late in Orders, counted from when the kitchen printer gets its KOT. A scheduled order goes to the kitchen this long before it is due.'),
+      tiles('Kitchen prep time', [{ value: 'one', label: 'One for every order' }, { value: 'type', label: 'By order type' }], p.mode, m => saveKitchenPrep(q => { q.mode = m; })),
+      el('div', { class: 'st-rows' }, p.mode === 'one'
+        ? row('kitchen-prep', 'Every order', p.minutes, n => saveKitchenPrep(q => { q.minutes = n; for (const [t] of PREP_TYPES) q.byType[t] = q.byType[t] ?? n; }))
+        : PREP_TYPES.map(([t, name]) => row(`kitchen-prep-${t}`, name, p.byType[t], n => saveKitchenPrep(q => { q.byType[t] = n; })))))];
+  });
+  // (changed on another tablet)
+  let prepSeen = JSON.stringify(readKitchenPrep());
+  window.addEventListener('restro:data-changed', event => {
+    if (!(event.detail?.collections || []).includes('settings')) return;
+    const now = JSON.stringify(readKitchenPrep()); if (now === prepSeen) return;
+    prepSeen = now; window.dispatchEvent(new CustomEvent('restro:prep-time-changed', { detail: readKitchenPrep().minutes }));
+    if (dialog.open && current === 'kitchen') builders.kitchen();
+  });
 
   // ---------- Billing & charges (Counter Update 7) ----------
   const billingHost = document.querySelector('#settings-billing');
@@ -462,13 +460,13 @@
   async function paintPrinters() {
     const bridged = await loadPrinters();
     const kotOf = s => (s.role === 'bills' ? '' : ` · KOT in ${s.language} · ${s.copies} ${s.copies === 1 ? 'copy' : 'copies'}`);
-    printersHost.replaceChildren(lab('Printers'),
+    rebuild(printersHost, () => [card('st-rowcard', lab('Printers'), sub('Connected to the main system. Tap one to choose what it prints.'), el('div', { class: 'st-rows' },
       ...(printers.length ? printers.map(p => {
         const s = printerSettings(p.id);
         return el('button', { type: 'button', class: 'st-row st-link', onclick: () => { printerId = p.id; show('printer', { focus: true }); } },
           el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, p.name), el('span', {}, `${roleName[s.role]}${kotOf(s)}${p.connection ? ` · ${p.connection}` : ''}`)), ms('ms-chevron-right', 'ms st-chev'));
       }) : [el('div', { class: 'st-row' }, el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, 'No printers here'),
-        el('span', {}, bridged ? 'The main system hasn’t found a printer yet.' : 'Printers connect to the main system through the RESTRO Android app.')))]));
+        el('span', {}, bridged ? 'The main system hasn’t found a printer yet.' : 'Printers connect to the main system through the RESTRO Android app.')))])))]);
   }
   const printerHost = document.querySelector('#settings-printer');
   const setPrinter = change => Prefs.update('printers', all => { const s = { ...printerSettings(printerId) }; change(s); all[printerId] = s; });
@@ -484,14 +482,14 @@
         tiles('Copies per KOT', [1, 2, 3].map(n => ({ value: n, label: String(n) })), s.copies, n => { setPrinter(x => { x.copies = n; }); again(); }, { disabled: !kitchen }))
     ];
   });
-  builders.sync = () => { paintPrinters(); };
+  builders.printers = () => { paintPrinters(); };
 
   // A setting changed (here, or on another tablet): the page on screen and the lines under the categories follow
   window.addEventListener('restro:prefs-changed', event => {
     syncSummaries();
     if (!dialog.open) return;
     const name = event.detail?.name;
-    const page = { billing: 'billing', security: 'security', navigation: 'navigation', screen: 'navigation', printers: current === 'printer' ? 'printer' : 'sync', business: 'business' }[name];
+    const page = { billing: 'billing', security: 'security', navigation: 'navigation', screen: 'navigation', printers: current === 'printer' ? 'printer' : 'printers', business: 'business', orders: 'orders', counter: 'counter' }[name];
     if (page === current && page !== 'business') builders[page]?.();
     if (page === 'business' && current === 'business' && !document.querySelector('#business-form').contains(document.activeElement)) fillBusiness();
   });
@@ -499,12 +497,6 @@
   for (const entry of entries) entry.addEventListener('click', () => show(entry.dataset.page, { focus: !twoPane.matches }));
   dialog.querySelector('[data-open="navigation"]').addEventListener('click', () => show('navigation', { focus: true }));
   back.addEventListener('click', () => { if (parentOf(current)) show(parentOf(current), { focus: true }); else showList(); });
-  search.addEventListener('input', filter);
-  search.addEventListener('keydown', event => {
-    if (event.key !== 'Enter') return;
-    const first = entries.find(entry => !(entry.closest('li') || entry).hidden);
-    if (first) { event.preventDefault(); show(first.dataset.page, { focus: true }); }
-  });
   document.querySelector('#settings-internet-check').addEventListener('click', async event => {
     const button = event.currentTarget; button.disabled = true; button.textContent = 'Checking…';
     try { await window.RestroConnectivity?.refresh?.(); } finally { button.disabled = false; button.textContent = 'Check now'; syncSummaries(); }
@@ -514,7 +506,7 @@
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
   dialog.addEventListener('close', () => {
     window.RestroThemePicker?.reset();
-    clearStylePreviews();
+    for (const host of [ordersHost, counterHost]) host?.replaceChildren(); // (the pictures go with the page)
     if (toastNode.parentElement === dialog) toastHome.append(toastNode);
   });
   new MutationObserver(() => { if (dialog.open && toastNode.parentElement !== dialog) dialog.append(toastNode); })

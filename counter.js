@@ -72,8 +72,16 @@
     store(DONE_KEY, [...byNew.filter(o => !o.paidAt), ...byNew.filter(o => o.paidAt).slice(0, 500)].sort((a, b) => createdOf(b) - createdOf(a)));
   };
   // How long before a scheduled order is due it goes to the kitchen (Settings → Orders; 30 minutes unless changed).
-  const prepMinutes = () => { const n = Number(load(PREP_KEY, 30)); return Number.isFinite(n) ? Math.min(240, Math.max(5, Math.round(n / 5) * 5)) : 30; };
-  const kitchenTime = o => o.readyAt - prepMinutes() * 60000;
+  // The kitchen prep time (Settings › Kitchen; Update Pack 3: one for every order, or one per order type), 5 to 240
+  // minutes in 5s: a scheduled order goes to the kitchen this long before it is due, and Orders shows an order late once
+  // it has been in the kitchen longer. (Before Update Pack 3 it was one time, under Orders: restro.counter.prepMinutes.v1.)
+  const KITCHEN_PREP_KEY = 'restro.kitchen.prep.v1';
+  const prepOf = n => { if (n == null || n === '') return null; n = Number(n); return Number.isFinite(n) ? Math.min(240, Math.max(5, Math.round(n / 5) * 5)) : null; };
+  const prepMinutes = type => {
+    const k = load(KITCHEN_PREP_KEY, null), one = prepOf(k?.minutes) ?? prepOf(load(PREP_KEY, 30)) ?? 30;
+    return k?.mode === 'type' && TYPES.includes(type) ? prepOf(k.byType?.[type]) ?? one : one;
+  };
+  const kitchenTime = o => o.readyAt - prepMinutes(o.type) * 60000;
   const endOfDay = () => { const d = new Date(); d.setHours(24, 0, 0, 0); return d.getTime(); };
   // The order of categories and items, as rearranged by holding a tile (kept on this device until the backend exists).
   const ORDER_KEY = 'restro.counter.menuOrder.v1';
@@ -102,14 +110,14 @@
   const panelOrder = { ctx: ordered(PANEL_GROUPS.ctx.tiles, load(PANEL_GROUPS.ctx.key, null)), head: ordered(PANEL_GROUPS.head.tiles, load(PANEL_GROUPS.head.key, null)) };
   let panelArranging = false, panelDrag = null, panelPress = null, panelSuppress = false;
   // The menu's display style (Settings > Counter > Menu display style): Category grid, Pills on top (the default) or
-  // Vertical rail. A preference of this tablet only.
-  const STYLE_KEY = 'restro.counter.menuStyle.v1';
+  // Vertical rail; and Tiles per row (Counter Update 6): 4 (the default) or 3, in every grid of the menu; a page has at
+  // most 4 rows (16 tiles, or 12). This tablet's own, or every tablet's (Update Pack 3: Use on; prefs.js).
   const MENU_STYLES = Object.freeze([Object.freeze({ id: 'grid', name: 'Category grid' }), Object.freeze({ id: 'pills', name: 'Pills on top' }), Object.freeze({ id: 'rail', name: 'Vertical rail' })]);
-  let menuStyle = (() => { const v = load(STYLE_KEY, 'pills'); return MENU_STYLES.some(x => x.id === v) ? v : 'pills'; })();
-  // Tiles per row (Counter Update 6; Settings > Counter): 4 (the default) or 3, in every grid of the menu; a page has at
-  // most 4 rows (16 tiles, or 12). A preference of this tablet only.
-  const TILES_KEY = 'restro.counter.tilesPerRow.v1', ROWS = 4;
-  let tilesPerRow = Number(load(TILES_KEY, 4)) === 3 ? 3 : 4;
+  const ROWS = 4;
+  const counterLook = () => window.RestroPrefs?.scoped?.('counter')?.value || { style: 'pills', perRow: 4 };
+  const lookScope = () => (window.RestroPrefs?.scoped?.('counter')?.from === 'all' ? 'all' : 'tablet');
+  let menuStyle = counterLook().style;
+  let tilesPerRow = counterLook().perRow;
   // Ticket numbers come from sync: one sequence a day for the whole restaurant, kept by the cloud or the main system. This
   // one is for orders moved over from an earlier version of the app; a new order gets its number as it is fired (fire()).
   const nextNumber = () => { if (window.RestroSync) return window.RestroSync.nextNumber(); const n = Number(load(NUM_KEY, 1001)) || 1001; store(NUM_KEY, n + 1); return n; };
@@ -969,6 +977,16 @@
     if (dialog.open && (names.includes('held') || names.includes('orders') || names.includes('settings'))) render();
   });
   window.addEventListener('restro:prefs-changed', e => { if (dialog.open && e.detail?.name === 'billing') render(); });
+  // The look chosen in Settings › Counter, here or (for all tablets) on another tablet
+  window.addEventListener('restro:prefs-changed', e => {
+    if (e.detail?.name !== 'counter') return;
+    const v = counterLook(), style = v.style !== menuStyle, rows = v.perRow !== tilesPerRow;
+    if (!style && !rows) return;
+    menuStyle = v.style; tilesPerRow = v.perRow;
+    if (dialog.open) render(); else renderMenuBody();
+    if (style) window.dispatchEvent(new CustomEvent('restro:counter-style-changed', { detail: { id: menuStyle } }));
+    if (rows) window.dispatchEvent(new CustomEvent('restro:counter-tiles-changed', { detail: { tilesPerRow } }));
+  });
   // An order this tablet had from before it joined the others, whose number another order that day has: it was given the
   // next free number.
   window.addEventListener('restro:orders-renumbered', e => {
@@ -3218,7 +3236,7 @@
     // Schedule works from the start: the time can be picked before any item is added. The day is picked on top; the time
     // with three wheels, Hour · Minutes (in 5s) · AM or PM, each scrolled (or tapped) until the value sits in the band.
     if (sheet === 'schedule') {
-      const nowMs = Date.now(), today = new Date(), prep = prepMinutes();
+      const nowMs = Date.now(), today = new Date(), prep = prepMinutes(order.type || DEFAULT_TYPE);
       const days = Array.from({ length: 7 }, (_, i) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + i));
       if (!scheduleDraft) {
         // The time already on the order, or else the soonest the kitchen can have it ready (now plus the preparation
@@ -3575,7 +3593,7 @@
     resumeHeld(id) { if (typeof id !== 'string' || !held.some(h => h.heldId === id)) return; openCounter(); fromFloor = false; fromOrders = false; resume(id); },
     goBack,
     // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
-    kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: () => prepMinutes(),
+    kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type),
     tablesInUse() {
       // (a held order's table was freed when it was held; a saved order's held copy has the saved order's)
       const used = [...loadOrders().filter(o => !o.paidAt), ...held.filter(h => h.number)].filter(usesTable).map(o => o.table);
@@ -3593,23 +3611,22 @@
     },
     // Settings > Counter > Tiles per row (Update 6): 4 or 3
     get tilesPerRow() { return tilesPerRow; },
-    setTilesPerRow(n) {
+    setTilesPerRow(n, scope = lookScope()) {
       if (n !== 3 && n !== 4) return false;
-      tilesPerRow = n; try { localStorage.setItem(TILES_KEY, JSON.stringify(n)); } catch {}
-      if (dialog.open) render();
-      window.dispatchEvent(new CustomEvent('restro:counter-tiles-changed', { detail: { tilesPerRow: n } }));
+      window.RestroPrefs?.setScoped('counter', { style: menuStyle, perRow: n }, scope); // (restro:prefs-changed applies it)
       return true;
     },
     // Settings > Counter > Menu display style
     menuStyles: MENU_STYLES,
     get menuStyle() { return MENU_STYLES.find(x => x.id === menuStyle); },
-    setMenuStyle(id) {
+    setMenuStyle(id, scope = lookScope()) {
       if (!MENU_STYLES.some(x => x.id === id)) return false;
-      menuStyle = id; try { localStorage.setItem(STYLE_KEY, JSON.stringify(id)); } catch {}
-      if (dialog.open) render(); else renderMenuBody();
-      window.dispatchEvent(new CustomEvent('restro:counter-style-changed', { detail: { id } }));
+      window.RestroPrefs?.setScoped('counter', { style: id, perRow: tilesPerRow }, scope); // (restro:prefs-changed applies it)
       return true;
     },
+    // Settings › Counter's Use on: 'tablet' (this tablet only) or 'all' (every tablet)
+    get lookScope() { return lookScope(); },
+    setLookScope(scope) { window.RestroPrefs?.setScoped('counter', { style: menuStyle, perRow: tilesPerRow }, scope === 'all' ? 'all' : 'tablet'); },
     // A still picture of the Counter as it is now, in a display style: for the previews in Settings. Exactly what Counter
     // shows when it opens again (the order on screen and where its list is scrolled, the buttons and the menu in this
     // tablet's order, the category or search it was on), in that style. What closes when Counter is left (the order

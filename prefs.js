@@ -90,6 +90,44 @@
   });
   window.addEventListener('restro:prefs-changed', event => { const name = event.detail?.name; if (SHARED.has(name)) seen[name] = JSON.stringify(get(name)); });
 
+  // ---------- settings that can differ per tablet (Update Pack 3: "Use on · This tablet only | All tablets") ----------
+  // This tablet's own value (never shared) and the restaurant's default (shared with every tablet through sync.js),
+  // each with when it was set: the newer one is used, so "All tablets" moves every tablet onto it and a tablet that then
+  // picks for itself keeps its own. A new tablet starts with the restaurant's default, or the built-in one.
+  // orders: Settings › Orders (Order list view, Row style); counter: Settings › Counter (Menu display style, Tiles per
+  // row; before Update Pack 3 this tablet's own only: restro.counter.menuStyle.v1 and restro.counter.tilesPerRow.v1).
+  const VIEWS = ['classic', 'split', 'cards', 'board'], STYLES = ['grid', 'pills', 'rail'];
+  const SCOPED = Object.freeze({
+    orders: { own: 'restro.ordersLook.v1', all: 'restro.ordersLook.shared.v1', clean: v => ({ view: VIEWS.includes(v?.view) ? v.view : 'classic', rows: v?.rows === 'pills' ? 'pills' : 'classic' }) },
+    counter: { own: 'restro.counterLook.v1', all: 'restro.counterLook.shared.v1', clean: v => ({ style: STYLES.includes(v?.style) ? v.style : 'pills', perRow: Number(v?.perRow) === 3 ? 3 : 4 }),
+      legacy: () => { const st = readKey('restro.counter.menuStyle.v1'), pr = readKey('restro.counter.tilesPerRow.v1'); return st == null && pr == null ? null : { style: st, perRow: pr, at: 1 }; } }
+  });
+  function readKey(key) { try { const raw = localStorage.getItem(key); return raw == null ? null : JSON.parse(raw); } catch { return null; } }
+  const when = x => (isObj(x) && Number.isFinite(x.at) ? x.at : 0);
+  // → { value, from: 'tablet' (this tablet's own) | 'all' (the restaurant's default) | 'default' }
+  function scoped(name) {
+    const s = SCOPED[name]; if (!s) return null;
+    const own = readKey(s.own) ?? s.legacy?.() ?? null, all = readKey(s.all);
+    if (isObj(own) && (!isObj(all) || when(own) >= when(all))) return { value: s.clean(own), from: 'tablet' };
+    if (isObj(all)) return { value: s.clean(all), from: 'all' };
+    return { value: s.clean({}), from: 'default' };
+  }
+  // scope 'all': every tablet's (the restaurant's default); otherwise this tablet's own
+  function setScoped(name, value, scope) {
+    const s = SCOPED[name]; if (!s) return null;
+    const next = { ...s.clean(value), at: Date.now() };
+    try { localStorage.setItem(scope === 'all' ? s.all : s.own, JSON.stringify(next)); if (scope === 'all') localStorage.removeItem(s.own); } catch {}
+    if (scope === 'all') window.RestroSync?.wrote(s.all);
+    announce(name);
+    return next;
+  }
+  let seenScoped = Object.fromEntries(Object.keys(SCOPED).map(name => [name, JSON.stringify(scoped(name))]));
+  window.addEventListener('restro:data-changed', event => {
+    if (!(event.detail?.collections || []).includes('settings')) return;
+    for (const name of Object.keys(SCOPED)) { const now = JSON.stringify(scoped(name)); if (now !== seenScoped[name]) { seenScoped[name] = now; announce(name); } }
+  });
+  window.addEventListener('restro:prefs-changed', event => { const name = event.detail?.name; if (SCOPED[name]) seenScoped[name] = JSON.stringify(scoped(name)); });
+
   // GSTIN: 15 characters (2-digit state code, the PAN, the entity number, Z, a check character). The check character is
   // worked out from the first 14 (the GST network's mod-36 check), so a typing mistake is caught before it is printed.
   const GSTIN_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -103,5 +141,5 @@
   // FSSAI licence and registration numbers are 14 digits
   const fssaiOk = value => /^\d{14}$/.test(String(value || ''));
 
-  window.RestroPrefs = Object.freeze({ get, set, update, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, printerRoles: ROLES, gstinOk, fssaiOk });
+  window.RestroPrefs = Object.freeze({ get: name => (SCOPED[name] && !CLEAN[name] ? scoped(name).value : get(name)), set, update, scoped, setScoped, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, printerRoles: ROLES, gstinOk, fssaiOk });
 })();

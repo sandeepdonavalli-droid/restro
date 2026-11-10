@@ -484,36 +484,37 @@ window.RestroProfile=(()=>{
   const digits=(value,c)=>{let d=String(value).replace(/\D/g,'');const max=Math.max(...c.len);if(d.length>max&&d.startsWith('00'+c.code))d=d.slice(2+c.code.length);else if(d.length>max&&d.startsWith(c.code))d=d.slice(c.code.length);if(d.length>max&&d.startsWith('0'))d=d.slice(1);else if(d.length===max+1&&d.startsWith('0'))d=d.slice(1);return d;};
   const pretty=(value,c)=>{const sample=c.sample.split(' ').map(part=>part.length);let out='',i=0;for(const n of sample){if(i>=value.length)break;out+=(out?' ':'')+value.slice(i,i+n);i+=n;}if(i<value.length)out+=value.slice(i);return out;};
   const lengths=c=>c.len.length>1?`${c.len[0]}–${c.len.at(-1)}`:String(c.len[0]);
-  const describe=()=>{const c=current();$('#profile-mobile-hint').textContent=`${lengths(c)}-digit mobile number in ${c.name}`;$('#profile-mobile').placeholder=c.sample;};
+  const describe=()=>{const c=current();$('#profile-mobile-hint').textContent=`${lengths(c)}-digit number in ${c.name}`;$('#profile-mobile').placeholder=c.sample;};
   const showError=(id,message)=>{const el=$(id);el.textContent=message;el.hidden=!message;};
   select.addEventListener('change',()=>{describe();showError('#profile-mobile-error','');});
+  // The restaurant's phone and email (Update Pack 3): in Business details, printed on the bill under the address, kept
+  // with the restaurant's other details (prefs.js). They were My Profile's: a tablet that has them there moves them once.
+  const business=()=>window.RestroPrefs?.get('business')||{phone:'',phoneCountry:'IN',email:''};
+  const moveOnce=()=>{const b=business();if(!b.phone&&!b.email&&(profile.mobile||profile.email))window.RestroPrefs?.update('business',v=>{v.phone=profile.mobile;v.phoneCountry=profile.country;v.email=profile.email;});};
   return{
-    get email(){return profile.email;},get mobile(){return profile.mobile;},
-    get country(){return byIso(profile.country);},
-    get international(){return profile.mobile?`+${byIso(profile.country).code} ${pretty(profile.mobile,byIso(profile.country))}`:'';},
+    get email(){return business().email;},get mobile(){return business().phone;},
+    // the restaurant's country, which customers' mobile numbers follow
+    get country(){return byIso(business().phoneCountry||profile.country);},
+    get international(){const b=business();return b.phone?`+${byIso(b.phoneCountry).code} ${pretty(b.phone,byIso(b.phoneCountry))}`:'';},
     // A number as it prints: "+91 98765 43210"
     formatPhone(number,iso){const c=byIso(iso),d=String(number||'').replace(/\D/g,'');return d?`+${c.code} ${pretty(d,c)}`:'';},
     countries:COUNTRIES.map(({iso,name,code})=>({iso,name,code})),
-    fill(){select.value=profile.country;describe();$('#profile-email').value=profile.email;$('#profile-mobile').value=pretty(profile.mobile,byIso(profile.country));showError('#profile-email-error','');showError('#profile-mobile-error','');},
-    // Returns the cleaned values, or null after showing what to fix.
+    fill(){moveOnce();const b=business(),c=byIso(b.phoneCountry);select.value=c.iso;describe();$('#profile-email').value=b.email||'';$('#profile-mobile').value=pretty(b.phone||'',c);showError('#profile-email-error','');showError('#profile-mobile-error','');},
+    // The phone and email as typed: { phone, phoneCountry, email }, or null after showing what to fix. (A restaurant's
+    // phone may be a landline: the length is checked, not the first digit.)
     read(){
-      const c=current(),email=$('#profile-email').value.trim().toLowerCase(),mobile=digits($('#profile-mobile').value,c);
+      const c=current(),email=$('#profile-email').value.trim().toLowerCase(),phone=digits($('#profile-mobile').value,c);
       let ok=true;
       if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){showError('#profile-email-error','Enter an email like name@example.com.');ok=false;}else showError('#profile-email-error','');
-      const badLength=mobile&&!c.len.includes(mobile.length),badStart=mobile&&c.start&&!c.start.includes(mobile[0]);
-      if(badLength||badStart){showError('#profile-mobile-error',`Enter a ${lengths(c)}-digit ${c.name} mobile number${c.start?` starting with ${[...c.start].join(', ').replace(/, (\d)$/,' or $1')}`:''}.`);ok=false;}else showError('#profile-mobile-error','');
-      return ok?{email,mobile,country:c.iso}:null;
+      if(phone&&!c.len.includes(phone.length)){showError('#profile-mobile-error',`Enter a ${lengths(c)}-digit ${c.name} number.`);ok=false;}else showError('#profile-mobile-error','');
+      return ok?{phone,phoneCountry:c.iso,email}:null;
     },
-    save(values){profile=values;try{localStorage.setItem(KEY,JSON.stringify(profile));}catch{}window.RestroSync?.wrote(KEY);this.fill();},
-    // Changed on another tablet (sync.js): read again, and refill the form unless it is being edited
-    reload(){loadProfile();if(!$('#profile-form').contains(document.activeElement))this.fill();}
+    // Changed on another tablet (sync.js): read again, and refill the fields unless they are being edited
+    reload(){loadProfile();if(!$('#business-form').contains(document.activeElement))this.fill();}
   };
 })();
 $('#profile-mobile').addEventListener('input',event=>{const input=event.target,clean=input.value.replace(/[^\d ]/g,'');if(clean!==input.value)input.value=clean;$('#profile-mobile-error').hidden=true;});
 $('#profile-email').addEventListener('input',()=>{$('#profile-email-error').hidden=true;});
-// My Profile: the owner's email and mobile number. (The restaurant's name is in Business details, with what else prints
-// on the bill: settings.js saves it through RestroRestaurantName.)
-$('#profile-form').addEventListener('submit',event=>{event.preventDefault();const contact=window.RestroProfile.read();if(!contact)return;window.RestroProfile.save(contact);toast('Profile saved');});
 window.RestroRestaurantName=Object.freeze({
   get value(){return restaurantName;},
   // Saves the name typed in Business details; false (after saying so on the field) when it is empty

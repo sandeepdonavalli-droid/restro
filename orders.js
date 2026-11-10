@@ -103,7 +103,7 @@
   const todayKey = () => window.RestroSync?.today?.() || localDay(Date.now());
   const dayOfOrder = o => window.RestroSync?.orderDay?.(o) || o.day || localDay(o.createdAt || Date.now());
   const shopName = () => { const n = (localStorage.getItem('restro.restaurantName') || '').trim(); return n && n !== 'RESTAURANT NAME' ? n : ''; };
-  const prepMinutes = () => window.RestroCounter?.prepMinutes?.() || 30;
+  const prepMinutes = type => window.RestroCounter?.prepMinutes?.(type) || 30;
   const toast = message => say({ text: message });
 
   // ---------- an order as a row shows it ----------
@@ -121,7 +121,7 @@
     if (waiting) return { text: 'Open', cls: 'open', sub: `Scheduled ${clockOf(o.readyAt)}`, base: `Scheduled ${clockOf(o.readyAt)}`, subCls: 'sch', rank: 0 };
     if (ready) return { text: 'Open', cls: 'open', sub: `Ready · ${minutes(now - o.kitchenDoneAt)} min`, base: 'Ready', subCls: 'rd', rank: 0 };
     if (screen) {
-      const n = minutes(now - (Number(o.kitchenAt) || Number(o.sentAt))), late = n > prepMinutes();
+      const n = minutes(now - (Number(o.kitchenAt) || Number(o.sentAt))), late = n > prepMinutes(o.type);
       return { text: 'Open', cls: `open${late ? ' late' : ''}`, sub: `In kitchen · ${n} min`, base: 'In kitchen', subCls: late ? 'late' : '', late, rank: 0 };
     }
     return { text: 'Open', cls: 'open', rank: 0 };
@@ -209,7 +209,9 @@
   const filtering = () => Boolean(query.trim()) || dv !== 'all' || typeF !== 'all' || staffF !== 'all';
   function resetFilters() { tab = 'all'; query = ''; dv = 'all'; typeF = 'all'; staffF = 'all'; sort = { key: 'when', dir: -1 }; day = null; menu = null; picking = null; pop = null; scrollTop = 0; }
   // The view and the row style (Settings › Orders › Order list view, Row style; to come): Classic and Classic rows until then
-  const look = () => { try { return window.RestroPrefs?.get?.('orders') || {}; } catch { return {}; } };
+  // (Settings › Orders; Update Pack 3: this tablet's own or every tablet's, prefs.js; lookOverride: a preview's)
+  let lookOverride = null, sampleRows = null;
+  const look = () => { if (lookOverride) return lookOverride; try { return window.RestroPrefs?.get?.('orders') || {}; } catch { return {}; } };
   const rowStyle = () => (look().rows === 'pills' ? 'pills' : 'classic');
   const viewKind = () => (['split', 'cards', 'board'].includes(look().view) ? look().view : 'classic');
   let chosen = null;                     // Split detail: the order shown on the right
@@ -217,6 +219,7 @@
 
   // The day's orders as rows (and the held ones, today), and what the filters and search leave
   function rowsNow() {
+    if (sampleRows) return sampleRows;
     const now = Date.now(), d = day || todayKey(), today = d === todayKey();
     const orders = (window.RestroCounter?.orders?.() || []).map(o => infoOf(o, false, now)).filter(r => r.day === d);
     const held = today ? (window.RestroCounter?.held?.() || []).map(o => infoOf(o, true, now)) : [];
@@ -854,6 +857,8 @@
   // seconds for the kitchen minutes, unless a finger is scrolling or a menu or pop-up is open.
   window.addEventListener('restro:data-changed', e => { const names = e.detail?.collections || []; if (dialog.open && (names.includes('orders') || names.includes('held')) && !menu) renderRest(); });
   window.addEventListener('restro:pager-docked', () => { if (dialog.open && !menu) renderRest(); });
+  // (Settings › Orders: the list view and row style, chosen here or for all tablets on another)
+  window.addEventListener('restro:prefs-changed', e => { if (e.detail?.name === 'orders' && dialog.open) render(); });
   let timer = null;
   dialog.addEventListener('close', () => {
     clearInterval(timer); timer = null; closeReceipt();
@@ -882,7 +887,45 @@
     else if (toastNode.parentElement === dialog) (document.querySelector('#counter-dialog[open]') || toastHome).append(toastNode);
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
+  // ---------- Settings › Orders (Update Pack 3): a still picture of this page ----------
+  // The page as it is now (today's orders, no search or filters) in a list view and row style, for Settings' live
+  // previews. With no orders yet: built-in sample orders (tables and amounts only: no names or phone numbers), and
+  // `sample` says so. → { node, sample }
+  function sampleOrders(now) {
+    const m = n => now - n * 60000;
+    const O = (n, mins, type, total, extra = {}) => ({ uid: `sample${n}`, number: n, type, table: '', guests: 0, customer: null, lines: [{ id: 'paneer-tikka', name: 'Paneer tikka', qty: 1, price: 260, type }],
+      sent: { [`paneer-tikka@${type}`]: 1 }, total: total * 100, createdAt: m(mins), sentAt: m(mins - 1), kitchenAt: m(mins - 1), kots: [{ id: `k${n}`, kind: 'kot', no: n, at: m(mins - 1), lines: [] }], ...extra });
+    return [
+      O(12, 4, 'phone', 2814, { readyAt: null }),
+      O(11, 9, 'dine-in', 4158, { table: 'T12', guests: 4 }),
+      O(10, 16, 'delivery', 646, { method: 'card', paidAt: new Date(m(16)).toISOString() }),
+      O(9, 25, 'takeaway', 1040, { kitchenDoneAt: m(6), method: 'upi', paidAt: new Date(m(24)).toISOString(), pager: 3, pagerOut: true }),
+      O(8, 39, 'dine-in', 945, { table: 'T4', guests: 2 }),
+      O(7, 47, 'phone', 819, { sentAt: null, kitchenAt: null, kots: [], sent: {}, readyAt: now + 63 * 60000, method: 'upi', paidAt: new Date(m(46)).toISOString() }),
+      O(6, 52, 'takeaway', 1320, { kitchenDoneAt: m(29), method: 'cash', paidAt: new Date(m(50)).toISOString() }),
+      O(5, 67, 'dine-in', 1848, { table: 'T7', guests: 3, kitchenDoneAt: m(37), method: 'cash', paidAt: new Date(m(32)).toISOString() }),
+      O(4, 85, 'takeaway', 560, { kitchenDoneAt: m(62), method: 'card', paidAt: new Date(m(61)).toISOString() }),
+      O(3, 96, 'dine-in', 1210, { table: 'T2', guests: 2, kitchenDoneAt: m(66), method: 'upi', paidAt: new Date(m(58)).toISOString() })];
+  }
+  function preview({ view: v = 'classic', rows = 'classic' } = {}) {
+    const keep = { tab, query, dv, typeF, staffF, sort, day, menu, picking, pop, chosen, closedOpen, listEl, scrollTop, flash };
+    tab = 'all'; query = ''; dv = 'all'; typeF = 'all'; staffF = 'all'; sort = { key: 'when', dir: -1 }; day = null; menu = null; picking = null; pop = null; closedOpen = false; flash = new Map(); scrollTop = 0;
+    lookOverride = { view: v, rows };
+    try {
+      let vv = view(); const sample = !vv.all.length;
+      if (sample) { const now = Date.now(); sampleRows = sampleOrders(now).map(o => infoOf(o, false, now)); vv = view(); }
+      const kind = viewKind();
+      const node = el('div', { class: 'or-root' }, topBar(vv), el('div', { class: 'or-rest' }, filterBar(vv), kind === 'split' ? splitView(vv) : kind === 'cards' ? cardsView(vv) : kind === 'board' ? boardView(vv) : list(vv)));
+      for (const n of node.querySelectorAll('[id]')) n.removeAttribute('id');
+      return { node, sample };
+    } finally {
+      lookOverride = null; sampleRows = null;
+      ({ tab, query, dv, typeF, staffF, sort, day, menu, picking, pop, chosen, closedOpen, listEl, scrollTop, flash } = keep);
+    }
+  }
+
   window.RestroOrders = Object.freeze({
+    preview,
     // open() from the home screen (or Back from an order opened here: the filters as they were); open({ from: 'counter' })
     // from Counter's Orders button; open({ from: 'counter', view: 'held' }) from Counter's Held button; open({ find: id })
     // for one order (a pager tapped on the NFC spot: its order number searched, on its day).
