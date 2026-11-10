@@ -2393,7 +2393,9 @@
   const PAID_AS = { cash: 'Cash', upi: 'UPI', card: 'Card', swiggy: 'Swiggy', zomato: 'Zomato' };
   function billDoc(o, kind, prints, rec = null) {
     const now = Date.now(), last = prints.length ? { at: now, by: initialsOf(staffName()) } : null;
-    const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : 'TAX INVOICE', at: prints[0]?.at || now, reprint: last };
+    // (the receipt carries the bill's date and time, as PS01 draws it, when a bill was printed first)
+    const billAt = kind === 'receipt' && Array.isArray(rec?.bills) ? Number(rec.bills[0]?.at) || 0 : 0;
+    const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : 'TAX INVOICE', at: billAt || prints[0]?.at || now, reprint: last };
     if (kind === 'receipt' && rec) bill.paid = { method: PAID_AS[rec.method] || 'Cash', amount: bill.total, at: Date.parse(rec.paidAt) || now, ref: typeof rec.payRef === 'string' ? rec.payRef : '' };
     return bill;
   }

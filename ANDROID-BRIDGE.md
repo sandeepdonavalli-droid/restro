@@ -83,8 +83,9 @@ until 1 hour 15 minutes after the order is done on every side (Closed, and its p
 Buzz until the pager is docked back (below), then greyed out with the pager's number kept on it, for the record. The
 kitchen screen also marks the order `kitchenDoneAt` (the time) when the whole order is complete, cleared when more
 items go to the kitchen. Orders shows Open with In kitchen under it once the order goes to the kitchen, then Ready,
-and Closed once the order is also paid (at once, if it was paid upfront). Every restaurant has the kitchen screen for
-now; subscription levels will decide it later, and without it orders are just Open, then Closed when paid.
+and Closed once the order is also paid and, when it had a pager, the pager is docked back (owner, 10 Nov 2026; at once
+when it was paid upfront and had no pager). Every restaurant has the kitchen screen for now; subscription levels will
+decide it later, and without it orders are just Open, then Closed when paid (and the pager docked).
 
 **When a pager is docked back** in its docking station (connected to the main system), dispatch on the main system:
 
@@ -110,6 +111,15 @@ window.dispatchEvent(new CustomEvent('restro:pager-tapped', { detail: { number: 
 With Counter open, the pager goes on the order on screen at once, with Undo (or the question above, when another order
 still has it). Anywhere else it opens that pager's order: in Counter while it isn't paid, in Orders once it is; "Pager
 12 isn't out" when no order has it.
+
+## Orders (Update Pack 3): WhatsApp, the paper roll, delivery apps
+
+| Method or event | |
+| --- | --- |
+| `RESTRODevice.whatsapp.send({ to, code, text, order })` | Optional, like `sms.send`: Notify's WhatsApp. Return `true` / `false` (may be a promise); `false` falls back to SMS |
+| `RESTRODevice.printer.newRoll()` | Staff confirmed a new paper roll in the bill printer: reset its paper level to 100% (and tell the other tablets through `restro:printer-paper`) |
+| `restro:printer-cover`, `{ printer, level }` | Dispatch when the bill printer's cover was opened and closed: Orders asks "New paper roll?" (`printer`: its name; `level`: the level before) |
+| `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number), once the integrations exist |
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 
@@ -161,6 +171,18 @@ Print it as `25_printed-bill` (Counter Update 7, the customer's copy, the same f
 
 Amounts are in rupees.
 
+**Reprints and receipts** (Update Pack 3, `PS01_bill-and-receipt-reprint`; black only):
+
+| Field | |
+| --- | --- |
+| `kind` | `"bill"` (not paid yet) or `"receipt"` (paid: a document of its own, not a reprint of the bill) |
+| `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is |
+| `at` | the bill's first print (a receipt keeps the bill's date and time when a bill was printed first, otherwise its own first print); a reprint keeps it |
+| `reprint` | `null` on a first print; on every later print of the same bill or receipt `{ at, by }`: a bold black outlined box at the very top, **REPRINT** in large letters, and under it `"Reprinted 7 Nov 2026 12:20 PM · by RK"` (`by`: the staff's initials) |
+| `paid` | receipts only: `{ method, amount, at, ref }`, a boxed line above the footer, `"PAID · UPI ₹837"` and under it `"7 Nov 2026 12:41 PM · Ref 4318 9920 1187"` (`ref` only when the payment has one) |
+
+Each print is kept on the order (`bills`, `receipts`: `{ at, by, total }`), so the next one is a REPRINT on every tablet.
+
 ## The kitchen printer: `RESTRODevice.printer.printKot(slip)`
 
 Counter Update 7. **Save sends the KOT, and so does Pay**; each KOT has only the dishes the kitchen doesn't have yet
@@ -173,14 +195,19 @@ KOT goes at its kitchen time, from the tablet that saved it last.
 
 Print each slip on every printer whose role is **Kitchen** or **Both**. Return `true` (or a Promise of it) when it
 printed, `false` (or throw, or reject) when it didn't: Counter then shows "Kitchen printer offline / KOT #3 not sent"
-with **Retry**, and calls `printKot` again with the same slip. Without this method (a browser) the slips are kept on the
-order only.
+with **Retry**, and calls `printKot` again with the same slip. Without this method (a browser) the slips are kept on
+the order only.
+
+Update Pack 3: say why it didn't print with `{ ok: false, reason }` (or reject with an error carrying `reason`):
+`"paper"` (out of paper), `"offline"` (the printer doesn't answer) or `"cover"` (its cover is open). A KOT that didn't
+print is kept as failed on its order (`failed`, `failWhy`): Orders shows **KOT !** with the reason, and the tablet
+that sent it tries again by itself every 30 seconds until it prints.
 
 `slip` is plain data:
 
 | Field | |
 | --- | --- |
-| `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"` or `"priority"` |
+| `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"` or `"cancel-bulk"` (below) |
 | `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"` (`type` is the order type) |
 | `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"`, `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"` |
 | `title`, `where` | bold: `"KOT #3 · Order #1015"`, then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `order` the ticket) |
@@ -190,6 +217,7 @@ order only.
 | `footer` | small, at the end: `"KOT #141, #152 sent earlier · only new dishes on this KOT"`, or `"Reason: Customer changed mind"` |
 | `priority` | true when the ★ PRIORITY box is on it |
 | `printers` | Settings › Devices › Printers: `[{ id, language, copies }]` for the kitchen printers |
+| `reprint` | KOTs reprinted from Orders (Update Pack 3): `{ at, by }`, the red **REPRINT** box with the time and initials, and **(R)** after every dish (Update Pack 1); `undefined` otherwise |
 
 - **Red** (modifiers, dish notes, the order note, the action box) prints red on two-colour printers (red/black ribbon or
   two-colour thermal paper) and black on black-only printers.
@@ -201,6 +229,13 @@ order only.
 
 The page keeps every slip on its order (`kots`: `{ id, at, kind, no, lines, reason, by }`), with who did it and why
 (no manager PIN for now).
+
+**Bulk cancel** (Update Pack 3, `PS02_bulk-cancel-slip`): orders deleted together in Orders print one compact slip
+instead of one ORDER CANCELLED each: `kind: "cancel-bulk"`, `band` (`"ORDERS CANCELLED"`, the black band), `action`
+(`"BULK DELETE · 5 ORDERS"`, the red outlined box), `at` (printed `Mon 9 Nov 2026 · 11:58 PM`), `info` (`"By: EC ·
+Reason: End of day – not collected"`), `orders` (`{ order, kots, at }` each, newest first, as a table ORDER · KOT ·
+TIME: `"#1031"`, `"141 · 152"` or `"—"` for an order that never reached the kitchen, `7:24 pm`), `footer` (`"— = order
+never reached the kitchen."`) and `printers`. A single order deleted prints its ORDER CANCELLED slip as before.
 
 ## The printers: `RESTRODevice.printer.list()`
 
