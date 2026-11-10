@@ -2,9 +2,10 @@
 // Settings (Update Pack 9 Nov 2026: the look of Display › Navigation, N6/N7, on every page). The categories on the left
 // beside the page chosen on tablets, one column with a back arrow on narrow screens. Each page has a breadcrumb over
 // its title ("Settings", or "Settings › Display" on a page inside another) and its settings in cards.
-// New in this update: Business details (printed on the bill), Billing & charges, Staff & security (auto-lock), Display ›
-// Navigation (swipe gestures or the navigation bar, button order, Go dark) and Devices & sync › each printer (role, KOT
-// language, copies). Their values are kept by prefs.js.
+// New in this update: Business details (printed on the bill), Billing & charges, Kitchen (empty for now: kitchen and
+// receipt styles later, Update Pack 2), Staff & security (auto-lock), Display › Navigation (swipe gestures or the
+// navigation bar, button order, Go dark) and Devices & sync › each printer (role, KOT language, copies). Their values are
+// kept by prefs.js.
 (() => {
   const dialog = document.querySelector('#settings-dialog');
   const shell = dialog.querySelector('.settings-shell');
@@ -376,7 +377,7 @@
         lab('Packaging details'), sub('Added to the bill before GST, and taxed at the food GST rate.'),
         el('div', { class: 'st-opts', role: 'radiogroup', 'aria-label': 'Packaging charge' }, [
           { id: 'flat', title: 'Flat per order', text: 'The same amount on every order of the types below.' },
-          { id: 'dish', title: 'Per dish', text: 'Each dish’s own amount, set on the dish in the Menu app.' }
+          { id: 'dish', title: 'Per dish', text: 'Each dish’s own amount, set on the dish in Inventory.' }
         ].map(m => el('button', { type: 'button', class: 'st-opt', role: 'radio', 'aria-checked': String(pk.mode === m.id), disabled: !pkOn, onclick: () => setBilling(v => { v.packaging.mode = m.id; }) },
           el('span', { class: 'st-rd' }), el('span', { class: 'st-opt-copy' }, el('b', {}, m.title), el('span', {}, m.text))))),
         pk.mode === 'flat' ? el('div', { class: 'st-two' }, amountField({ id: 'bill-pk-flat', label: 'Amount per order', value: pk.flat, disabled: !pkOn, change: n => setBilling(v => { v.packaging.flat = n; }) })) : null,
@@ -477,7 +478,7 @@
     return [
       card('', lab('Role'), sub('What this printer prints.'),
         tiles('Printer role', [{ value: 'bills', label: 'Bills' }, { value: 'kitchen', label: 'Kitchen (KOT)' }, { value: 'both', label: 'Both' }], s.role, r => { setPrinter(x => { x.role = r; }); again(); })),
-      card(kitchen ? '' : 'dis', lab('KOT language'), sub('Kitchen tickets print in this language. Other than English, a ticket prints as a picture, as thermal printers have no Indian-language fonts. Dish names come from the Menu app; a dish without a name in this language prints in English.'),
+      card(kitchen ? '' : 'dis', lab('KOT language'), sub('Kitchen tickets print in this language. Other than English, a ticket prints as a picture, as thermal printers have no Indian-language fonts. Dish names come from Inventory; a dish without a name in this language prints in English.'),
         el('div', { class: 'st-langs' }, tiles('KOT language', Prefs.languages.map(l => ({ value: l, label: l })), s.language, l => { setPrinter(x => { x.language = l; }); again(); }, { disabled: !kitchen }))),
       card(kitchen ? '' : 'dis', lab('Copies per KOT'), sub('How many of each kitchen ticket it prints.'),
         tiles('Copies per KOT', [1, 2, 3].map(n => ({ value: n, label: String(n) })), s.copies, n => { setPrinter(x => { x.copies = n; }); again(); }, { disabled: !kitchen }))

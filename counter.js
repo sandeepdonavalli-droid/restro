@@ -52,7 +52,7 @@
   const modLabel = id => { const o = optionOf.get(id); return o ? (o.price && o.mode !== 'set' ? `${o.label} +₹${o.price.toLocaleString('en-IN')}` : o.label) : id; };
   // A dish whose price is set by a choice shows its prices on its tile: "₹200 · ₹340"
   const setGroupOf = id => groupsOf(id).find(g => g.mode === 'set') || null;
-  // Sold out (Update 7): set in the Menu app (to be renamed Availability), shared with every tablet through sync
+  // Sold out (Update 7): set in the Availability app (today's Menu app), shared with every tablet through sync
   // (restro.menu.availability.v1: { soldOut: { <item id>: true } }). A custom item is never sold out.
   const AVAIL_KEY = 'restro.menu.availability.v1';
   const soldOut = id => { try { return JSON.parse(localStorage.getItem(AVAIL_KEY) || 'null')?.soldOut?.[id] === true; } catch { return false; } };
@@ -250,7 +250,7 @@
   // all of that; the total to pay rounded to the nearest rupee (the round off is on the bill). (tax: CGST and SGST.)
   const GST = window.RestroBill.labels(menu.taxRate);
   const billing = () => window.RestroPrefs?.get('billing') || {};
-  const packagingOf = id => Number(items.get(id)?.packaging) || 0; // (a dish's own, from the Menu app)
+  const packagingOf = id => Number(items.get(id)?.packaging) || 0; // (a dish's own, set on the dish in Inventory)
   const totalsOf = o => {
     const type = o.type || DEFAULT_TYPE, lines = o.lines.map(l => ({ id: l.id, each: eachOf(l) * 100, qty: l.qty, off: l.off }));
     const charges = window.RestroBill.charges(type, lines, billing(), packagingOf);
@@ -1036,17 +1036,18 @@
   // reason is needed). Then it happens at once and for good: the VOID slip (ORDER CANCELLED for the whole order) prints
   // in the kitchen, the saved order changes straight away, and there is no Undo. Who did it and why are kept on the
   // order. (No manager PIN for now.)
-  // The reasons are learned, as the quick notes are: the 10 this restaurant gives most, worked out by the backend from
-  // the reasons kept on its orders with the quick notes' rules (every 15 days, at the close of day) and published with
-  // them, as the lists "@void" (a dish taken off or lowered) and "@cancel" (an order deleted). There is no starting set:
-  // a new restaurant has none until its first lists come, and the reason is typed.
+  // The reasons are learned (Update Pack 2, void pop-up v2; not a setting): the 9 this restaurant gives most, of all
+  // time, worked out by the backend from the reasons kept on its orders every 15 days, at the close of day (near-same
+  // ones merged, no fewest number of uses), and published with the quick notes as two lists: "@void" (a dish taken off
+  // or lowered) and "@cancel" (an order deleted). There is no starting set: a new restaurant has none until its first
+  // lists come, and the reason is typed.
   let voidPop = null; // { key (the line; null: the whole order), to (the quantity it goes to), reason (what is on the reason line), typing }
   const VOID_QUICK = '@void', CANCEL_QUICK = '@cancel';
   function learnedReasons(id) {
     const kept = load(QUICK_KEY, null), list = kept && typeof kept === 'object' && Array.isArray(kept.lists?.[id]) ? kept.lists[id] : [];
     const out = new Map();
     for (const x of list) { const t = cleanReason(typeof x === 'string' ? x : x?.text); if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t); }
-    return [...out.values()].slice(0, 10);
+    return [...out.values()].slice(0, 9);
   }
   const isOther = r => /^other/i.test(r || '');
   function openVoid(key, to) {
@@ -2096,7 +2097,7 @@
   const QUICK_START = ['Less spicy', 'Extra spicy', 'Less oil', 'Less salt', 'No onion', 'No garlic', 'Pack separately', 'Serve first',
     'Extra gravy', 'Allergy: nuts', 'Jain', 'Kids portion', 'Well done', 'No ice', 'Less sugar'];
   // (Update 7: the order note's quick notes, for the whole order, from the same engine: the list "@order", or orderDefaults.
-  // The void pop-ups' reasons come with them too, as "@void" and "@cancel": the top 10, with no starting set; see voids.)
+  // The void pop-ups' reasons come with them too, as "@void" and "@cancel": the top 9, with no starting set; see voids.)
   const ORDER_QUICK = '@order';
   const ORDER_QUICK_START = ['Birthday celebration', 'Serve all together', 'Starters first', 'Kids at the table', 'Anniversary', 'Bring extra plates', 'Senior citizens',
     'Jain food', 'Allergy: nuts', 'Pack leftovers', 'No onion, no garlic', 'Serve slowly', 'Business meeting', 'Extra spoons', 'High chair needed'];
@@ -2517,13 +2518,15 @@
     }
     return wrap;
   }
-  // A void (Update 7): the red ⊖ with "Remove Chicken biryani?" / "Reduce Chicken noodles 8 → 7?" / "Delete order
-  // #1015?" and what the kitchen has ("Already sent to the kitchen · KOT #2") · a red box saying what will print · "Why?
-  // (required)", the reason line and the restaurant's most-used reasons (up to 10; none until its first list comes) · the
-  // red button, grey until there is a reason. The reason line works as a note's: a tap on it brings up the keyboard (the
-  // pop-up moves up above it, the reasons become one row that scrolls, and Clear reason ........ Done shows in place of
-  // the red button: Done keeps what is typed and puts the keyboard away). A reason tapped goes on the line, or comes off
-  // it, as a quick note does (the keyboard stays as it was). ✕ changes nothing.
+  // A void (Update Pack 2, void pop-up v2, screens V1–V6), where the note pop-up is (940 wide, 14 under the top of the
+  // menu, keyboard or not): the red ⊖, "Remove Chicken biryani?" / "Reduce Chicken noodles 8 → 7?" / "Delete order
+  // #1015?" with what the kitchen has beside it ("Already sent to the kitchen · KOT #2"), ✕ · what will print, in a red
+  // box · "Reason (required)" and its box (a soft red line while empty; blue, its cursor at the end, once it has words)
+  // · "Top reasons": the restaurant's 9 most used, 3 a row (a tap puts that reason in the box, where it can be changed;
+  // the one in the box is light blue), or before its first list "Your most-used reasons will show up here after 15
+  // days." · Clear (grey while the box is empty) ........ the red button, grey until the box has words. The keyboard
+  // comes up only when the box is tapped: then the red box goes and the reasons become one row that slides, so it all
+  // sits above the keyboard. ✕ changes nothing; a tap outside does nothing.
   function voidCard(hold) {
     const p = voidPop, whole = p.key == null, line = whole ? null : lineOf(p.key), rec = savedOf(loadOrders());
     const name = line ? itemOf(line).name : '', n = line ? sentOf(line) - Math.max(0, p.to) : 0, kots = kotsOf(rec);
@@ -2531,35 +2534,38 @@
     const title = whole ? `Delete order ${ticket(order.number)}?` : p.to <= 0 ? `Remove ${name}?` : `Reduce ${name} ${line.qty} → ${p.to}?`;
     const sub = whole ? `${kots.length} KOT${kots.length === 1 ? '' : 's'} already sent to the kitchen` : `Already sent to the kitchen${kotNo ? ` · KOT #${kotNo}` : ''}`;
     const reasons = learnedReasons(whole ? CANCEL_QUICK : VOID_QUICK);
-    const tf = textField({ id: 'counter-reason', value: p.reason, hint: 'Type the reason', max: 80, label: 'Why?' }), field = tf.input;
+    const tf = textField({ id: 'counter-reason', value: p.reason, hint: 'Type the reason here', max: 80, label: 'Reason', idle: true }), field = tf.input;
     const reasonLine = el('span', { class: 'cx-nf-line' }, mi('edit', 22), tf.box);
-    const chipEls = reasons.map(r => el('button', { type: 'button', onpointerdown: hold, onmousedown: hold,
-      onclick: () => { p.reason = toggleQuick(p.reason, r); field.value = p.reason; sync(); tf.place(); } }, el('span', { class: 'cx-qn-t' }, r)));
+    const chipEls = reasons.map(r => el('button', { type: 'button', class: 'cx-qn-chip', onpointerdown: hold, onmousedown: hold,
+      onclick: () => { p.reason = r; field.value = r; sync(); tf.place(); } }, el('span', { class: 'cx-qn-t' }, r)));
+    const clear = el('button', { type: 'button', class: 'cx-clear', onpointerdown: hold, onmousedown: hold, onclick: () => { p.reason = ''; field.value = ''; sync(); tf.place(); } }, 'Clear');
     const send = el('button', { type: 'button', class: 'cx-btnr', onpointerdown: hold, onmousedown: hold, onclick: confirmVoid },
       whole ? 'Delete order & send void' : p.to <= 0 ? 'Remove & send void' : 'Reduce & send void');
     const sync = () => {
-      chipEls.forEach((b, i) => { const on = hasQuick(p.reason, reasons[i]); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+      const said = cleanReason(p.reason).toLowerCase();
+      chipEls.forEach((b, i) => { const on = Boolean(said) && reasons[i].toLowerCase() === said; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
       reasonLine.classList.toggle('empty', !p.reason);
       const ok = Boolean(voidReason(p)); send.disabled = !ok; send.classList.toggle('off', !ok);
+      clear.disabled = !p.reason; clear.classList.toggle('off', !p.reason);
     };
     sync();
     const card = el('div', { class: `cx-pu void${p.typing ? ' typing' : ''}`, role: 'dialog', 'aria-label': title },
       el('div', { class: 'cx-pu-head' },
-        el('div', { class: 'cx-dh void' }, el('i', { 'aria-hidden': 'true' }, mi('do_not_disturb_on', 22)), el('div', { class: 'cx-steph' }, el('b', {}, title), el('span', {}, sub))),
+        el('div', { class: 'cx-dh void' }, el('i', { 'aria-hidden': 'true' }, mi('do_not_disturb_on', 22)), el('b', {}, title), el('span', {}, sub)),
         closeX(cancelVoid, hold)),
-      el('div', { class: 'cx-vinfo' }, mi('receipt_long', 22), el('span', {}, 'A ', el('b', {}, 'VOID'), ' slip for ',
-        whole ? ['the ', el('b', {}, `whole order (${plural(totals().count, 'item')})`), ' will print in the kitchen. This can’t be undone.'] : [el('b', {}, `${n} × ${name}`), ' will print in the kitchen.'])),
-      el('label', { class: 'cx-nf' }, el('span', { class: 'cx-lab3' }, 'Why? (required)'), reasonLine),
-      chipEls.length ? el('div', { class: 'cx-rsn', role: 'group', 'aria-label': 'Reasons' }, ...chipEls) : null,
-      el('div', { class: 'cx-nf-foot' },
-        el('button', { type: 'button', class: 'cx-clear', onpointerdown: hold, onmousedown: hold, onclick: () => { p.reason = ''; field.value = ''; sync(); tf.place(); } }, 'Clear reason'),
-        el('button', { type: 'button', class: 'cx-done', onpointerdown: hold, onmousedown: hold, onclick: () => field.blur() }, 'Done')),
-      send);
+      el('div', { class: 'cx-vinfo' }, mi('receipt_long', 22), whole
+        ? el('span', {}, 'An ', el('b', {}, 'ORDER CANCELLED'), ' slip for the ', el('b', {}, `whole order (${plural(totals().count, 'item')})`), ' will print in the kitchen. This can’t be undone.')
+        : el('span', {}, 'A ', el('b', {}, 'VOID'), ' slip for ', el('b', {}, `${n} × ${name}`), ' will print in the kitchen.')),
+      el('label', { class: 'cx-nf' }, el('span', { class: 'cx-nf-label' }, 'Reason (required)'), reasonLine),
+      el('div', { class: 'cx-nf-q' }, 'Top reasons'),
+      chipEls.length ? el('div', { class: 'cx-vr', role: 'group', 'aria-label': 'Top reasons' }, ...chipEls)
+        : el('div', { class: 'cx-vempty' }, 'Your most-used reasons will show up here after 15 days.'),
+      el('div', { class: 'cx-nf-foot' }, clear, send));
     field.addEventListener('input', () => { p.reason = field.value; sync(); });
-    field.addEventListener('focus', () => { if (voidPop !== p) return; p.typing = true; card.classList.add('typing'); reasonLine.classList.add('on'); });
-    field.addEventListener('blur', () => { if (voidPop !== p || !field.isConnected) return; p.typing = false; card.classList.remove('typing'); reasonLine.classList.remove('on'); });
+    field.addEventListener('focus', () => { if (voidPop !== p) return; p.typing = true; card.classList.add('typing'); });
+    field.addEventListener('blur', () => { if (voidPop !== p || !field.isConnected) return; p.typing = false; card.classList.remove('typing'); });
+    // (the keyboard's Enter puts it away; sending is the red button's)
     field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); field.blur(); } });
-    if (p.typing) reasonLine.classList.add('on');
     return card;
   }
   // Change server: the restaurant's staff (Staff app), the one serving it light blue
@@ -2580,7 +2586,8 @@
   // blue while it has the keyboard.
   let caretOf = null; // the cursor of the line that has the keyboard
   document.addEventListener('selectionchange', () => caretOf?.());
-  function textField({ id, value, hint, max, label }) {
+  // (idle: the cursor also shows at the end of the words while the field isn't being typed in: the void pop-up's reason)
+  function textField({ id, value, hint, max, label, idle = false }) {
     const input = el('input', { id, type: 'text', maxlength: String(max), autocomplete: 'off', autocapitalize: 'sentences', enterkeyhint: 'done', 'aria-label': label });
     input.value = value;
     const cur = el('i', { class: 'cx-cur', 'aria-hidden': 'true', hidden: true }), ruler = el('span', { class: 'cx-ruler', 'aria-hidden': 'true' });
@@ -2590,9 +2597,10 @@
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         if (!input.isConnected) return;
-        const on = document.activeElement === input, a = input.selectionStart ?? input.value.length, b = input.selectionEnd ?? a;
+        const on = document.activeElement === input, rest = !on && idle && Boolean(input.value);
+        const a = rest ? input.value.length : input.selectionStart ?? input.value.length, b = rest ? a : input.selectionEnd ?? a;
         box.classList.toggle('empty', !input.value); box.classList.toggle('on', on);
-        cur.hidden = !on || a !== b; if (cur.hidden) return;
+        cur.hidden = !(on || rest) || a !== b; if (cur.hidden) return;
         ruler.textContent = input.value.slice(0, a);
         cur.style.setProperty('--x', `${Math.min(input.clientWidth, Math.max(0, ruler.offsetWidth - input.scrollLeft))}px`);
       });

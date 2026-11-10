@@ -55,7 +55,7 @@
     business: { key: 'restro.business.v1' },
     printers: { key: 'restro.printers.v1' },
     security: { key: 'restro.security.v1' },
-    // (Counter Update 7: what is sold out, set in the Menu app, shown live on every Counter)
+    // (Counter Update 7: what is sold out, set in the Availability app (today's Menu app), shown live on every Counter)
     availability: { key: 'restro.menu.availability.v1' }
   };
   const NAMES = [...Object.keys(COLLECTIONS), 'settings'];

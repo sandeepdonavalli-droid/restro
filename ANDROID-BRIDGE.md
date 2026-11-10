@@ -159,7 +159,7 @@ order only.
 | `title`, `where` | bold: `"KOT #3 · Order #1015"`, then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `order` the ticket) |
 | `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway and phone orders the customer and a masked phone; on a void `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #1–#2 · 12:05 PM · By: EC"` |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT; `""` for none |
-| `lines` | `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages from the Menu app (`{ te: "…" }`), or `null` |
+| `lines` | `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null` |
 | `footer` | small, at the end: `"KOT #1, #2 sent earlier · only new dishes on this KOT"`, or `"Reason: Customer changed mind"` |
 | `priority` | true when the ★ PRIORITY box is on it |
 | `printers` | Settings › Devices › Printers: `[{ id, language, copies }]` for the kitchen printers |

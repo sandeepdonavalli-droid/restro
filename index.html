@@ -11,10 +11,10 @@
   <link rel="stylesheet" href="styles.css?v=27">
   <link rel="stylesheet" href="quality-layout.css?v=4">
   <link rel="stylesheet" href="device-controls.css?v=3">
-  <link rel="stylesheet" href="system-navigation.css?v=14">
+  <link rel="stylesheet" href="system-navigation.css?v=15">
   <link rel="stylesheet" href="themes.css?v=3">
   <link rel="stylesheet" href="settings.css?v=19">
-  <link rel="stylesheet" href="counter.css?v=128">
+  <link rel="stylesheet" href="counter.css?v=129">
   <link rel="stylesheet" href="floor.css?v=18">
   <link rel="stylesheet" href="customers.css?v=16">
   <link rel="stylesheet" href="employees.css?v=2">
@@ -30,8 +30,8 @@
   <script src="themes.js?v=8"></script>
   <script src="app-layout.js?v=4" defer></script>
   <script src="prefs.js?v=3" defer></script>
-  <script src="bill.js?v=2" defer></script>
-  <script src="sync.js?v=12" defer></script>
+  <script src="bill.js?v=3" defer></script>
+  <script src="sync.js?v=13" defer></script>
   <script src="app.js?v=41" defer></script>
   <script src="home-widgets.js?v=6" defer></script>
   <script src="connectivity-status.js?v=4" defer></script>
@@ -40,15 +40,15 @@
   <script src="device-controls.js?v=8" defer></script>
   <script src="sound.js?v=4" defer></script>
   <script src="menu-data.js?v=6" defer></script>
-  <script src="counter.js?v=82" defer></script>
+  <script src="counter.js?v=83" defer></script>
   <script src="floor-data.js?v=1" defer></script>
   <script src="floor.js?v=3" defer></script>
   <script src="customers.js?v=3" defer></script>
   <script src="orders.js?v=21" defer></script>
-  <script src="settings.js?v=16" defer></script>
+  <script src="settings.js?v=17" defer></script>
   <script src="battery-status.js?v=2" defer></script>
   <script src="notifications.js?v=1" defer></script>
-  <script src="system-navigation.js?v=18" defer></script>
+  <script src="system-navigation.js?v=19" defer></script>
   <script src="staff.js?v=2" defer></script>
   <script src="employees.js?v=5" defer></script>
 </head>
@@ -71,6 +71,7 @@
     <symbol id="ms-receipt-long" viewBox="0 -960 960 960"><path d="M222-80q-43.75 0-74.37-30.63Q117-141.25 117-185v-95q0-12.75 8.63-21.38Q134.25-310 147-310h97v-552q0-5.25 4.5-7.13Q253-871 257-867l36 36q4.64 5 10.82 5 6.18 0 11.18-5l38-38q4.64-5 10.82-5 6.18 0 11.18 5l37 38q4.64 5 10.82 5 6.18 0 11.18-5l38-38q4.64-5 10.82-5 6.18 0 11.18 5l38 38q4.64 5 10.82 5 6.18 0 11.18-5l38-38q4.64-5 10.82-5 6.18 0 11.18 5l38 38q4.64 5 10.82 5 6.18 0 11.18-5l38-38q4.64-5 10.82-5 6.18 0 11.18 5l38 38q4.64 5 10.82 5 6.18 0 11.18-5l36-36q4-4 8.5-2.13 4.5 1.88 4.5 7.13v677q0 43.75-30.62 74.37Q781.75-80 738-80H222Zm514.5-60q19.5 0 31.5-12.5t12-32.5v-611H307v536h360q12.75 0 21.38 8.62Q697-242.75 697-230v45q0 20 10 32.5t29.5 12.5ZM390-702h180q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H390q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5Zm0 134h180q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H390q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5Zm303-74q-12 0-21-9t-9-21q0-12 9-21t21-9q12 0 21 9t9 21q0 12-9 21t-21 9Zm0 129q-12 0-21-9t-9-21q0-12 9-21t21-9q12 0 21 9t9 21q0 12-9 21t-21 9Z"/></symbol>
     <symbol id="ms-point-of-sale" viewBox="0 -960 960 960"><path d="M260-630q-25 0-42.5-17.5T200-690v-130q0-25 17.5-42.5T260-880h440q25 0 42.5 17.5T760-820v130q0 25-17.5 42.5T700-630H260Zm30-60h380q13 0 21.5-8.5T700-720v-70q0-13-8.5-21.5T670-820H290q-13 0-21.5 8.5T260-790v70q0 13 8.5 21.5T290-690ZM140-80q-25 0-42.5-17.5T80-140v-70h800v70q0 25-17.5 42.5T820-80H140ZM80-240l145-324q8-16 22.5-26t31.5-10h402q17 0 31.5 10t22.5 26l145 324H80Zm260-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm120 160h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm120 160h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Zm0-80h40q8 0 14-6t6-14q0-8-6-14t-14-6h-40q-8 0-14 6t-6 14q0 8 6 14t14 6Z"/></symbol>
     <symbol id="ms-currency-rupee" viewBox="0 -960 960 960"><path d="M555-129 299.2-393.83Q294-399 292-404.5t-2-12.17v-20q0-14.16 9.49-23.75Q308.98-470 323-470h97q57 0 100-37t50-103H270q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h295q-13-48-53.57-79T420-780H270q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h420q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H566q23 20 39 51t23 59h62q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5h-60q-8 91-67.36 145.5Q503.29-410 420-410h-52l231 240q14 14 5.98 32t-27.87 18q-6.11 0-11.61-2-5.5-2-10.5-7Z"/></symbol>
+    <symbol id="ms-skillet" viewBox="0 -960 960 960"><path d="M200-160q-51 0-85.5-34.5T80-280v-169q0-13 9-22t22-9h549q0-32 16-58.5t45-36.5l161-54q12-4 23 1.5t15 17.5q4 12-1.5 23T901-572l-161 53q-11 4-15.5 15.5T720-480v200q0 50-34.5 85T600-160H200Zm-60-532q-21-31-30.5-58.5T101-810q0-13 8.5-21.5T131-840q11 0 19 8.5t8 20.5q1 26 10 48.5t31 53.5q21 31 31 58.5t8 61.5q-1 12-10 20.5t-22 8.5q-11 0-18.5-8.5T180-589q0-26-9.5-49T140-692Zm170 0q-21-31-31-58.5t-9-59.5q0-13 9-21.5t22-8.5q11 0 19 8.5t8 20.5q1 26 10 48.5t31 53.5q21 31 30.5 58.5T407-589q-1 12-9.5 20.5T376-560q-11 0-18.5-8.5T350-589q0-26-9.5-49T310-692Zm170 0q-21-31-31-58.5t-9-59.5q0-13 9-21.5t22-8.5q11 0 19 8.5t8 20.5q1 26 10 48.5t31 53.5q21 31 30.5 58.5T577-589q-1 12-9.5 20.5T546-560q-11 0-18.5-8.5T520-589q0-26-9.5-49T480-692Z"/></symbol>
     <symbol id="ms-shield-person" viewBox="0 -960 960 960"><path d="M480.17-450Q537-450 577-490.17t40-97Q617-644 576.83-684t-97-40Q423-724 383-683.83t-40 97Q343-530 383.17-490t97 40ZM480-143q60-20 108-59.5t83-90.5q-44.67-21.02-92.97-32.01Q529.72-336 479.86-336t-98.07 10.99Q333.58-314.02 289-293q35 51 83 90.5T480-143Zm0 59q-5.32 0-9.88-1-4.56-1-9.12-3-139-47-220-168.5t-81-266.61V-719q0-19.26 10.88-34.66Q181.75-769.07 199-776l260-97q11-4 21-4t21 4l260 97q17.25 6.93 28.13 22.34Q800-738.26 800-719v195.89Q800-378 719-256.5T499-88q-4.56 2-9.12 3T480-84Z"/></symbol>
     <symbol id="ms-wifi" viewBox="0 -960 960 960"><path d="M480-127q-36 0-63-27t-27-63q0-36 27-63t63-27q36 0 63 27t27 63q0 36-27 63t-63 27Zm0-433q78 0 146 27.5T757-451q14 12 15 30.5T759-388q-14 14-32 13t-33-13q-53-44-106.5-63T480-470q-54 0-107.5 19T266-388q-15 12-33 13t-32-13q-14-14-13-32.5t15-30.5q63-54 131-81.5T480-560Zm0-240q128 0 241.5 48.5T926-622q14 13 15.5 31.5T929-558q-14 14-33.5 13.5T861-558q-83-70-178-111t-203-41q-108 0-203 41T99-558q-15 13-34 13.5T32-558q-14-14-13-32.5T34-622q91-81 204.5-129.5T480-800Z"/></symbol>
     <symbol id="ms-language" viewBox="0 -960 960 960"><path d="M480-80q-84 0-157-31.5T196-197q-54-54-85-127.5T80-482q0-84 31-156.5T196-765q54-54 127-84.5T480-880q84 0 157 30.5T764-765q54 54 85 126.5T880-482q0 84-31 157.5T764-197q-54 54-127 85.5T480-80Zm0-58q35-36 58.5-82.5T577-331H384q14 60 37.5 108t58.5 85Zm-85-12q-25-38-43-82t-30-99H172q38 71 88 111.5T395-150Zm171-1q72-23 129.5-69T788-331H639q-13 54-30.5 98T566-151ZM152-391h159q-3-27-3.5-48.5T307-482q0-25 1-44.5t4-43.5H152q-7 24-9.5 43t-2.5 45q0 26 2.5 46.5T152-391Zm221 0h215q4-31 5-50.5t1-40.5q0-20-1-38.5t-5-49.5H373q-4 31-5 49.5t-1 38.5q0 21 1 40.5t5 50.5Zm275 0h160q7-24 9.5-44.5T820-482q0-26-2.5-45t-9.5-43H649q3 35 4 53.5t1 34.5q0 22-1.5 41.5T648-391Zm-10-239h150q-33-69-90.5-115T565-810q25 37 42.5 80T638-630Zm-254 0h194q-11-53-37-102.5T480-820q-32 27-54 71t-42 119Zm-212 0h151q11-54 28-96.5t43-82.5q-75 19-131 64t-91 115Z"/></symbol>
@@ -196,6 +197,7 @@
           <li><button class="settings-row" type="button" data-page="orders" data-keywords="orders counter kitchen preparation prep time schedule scheduled pre-order preorder ready minutes"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-receipt-long"/></svg></span><span class="settings-row-copy"><strong>Orders</strong><span id="settings-orders-summary">Preparation time 30 min</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="counter" data-keywords="counter menu display style layout categories category grid pills on top vertical rail items cards billing tiles per row"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-point-of-sale"/></svg></span><span class="settings-row-copy"><strong>Counter</strong><span id="settings-counter-summary">Menu: Pills on top</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="billing" data-keywords="billing charges discount dish discount service charge packaging parcel delivery rounding round off gst cgst sgst tax quick picks"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-currency-rupee"/></svg></span><span class="settings-row-copy"><strong>Billing &amp; charges</strong><span id="settings-billing-summary">Packaging off · Delivery off</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="kitchen" data-keywords="kitchen"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-skillet"/></svg></span><span class="settings-row-copy"><strong>Kitchen</strong></span></button></li>
           <li><button class="settings-row" type="button" data-page="security" data-keywords="staff security lock auto-lock idle pin password sign in manager"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-shield-person"/></svg></span><span class="settings-row-copy"><strong>Staff &amp; security</strong><span id="settings-security-summary">Auto-lock after 5 min</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-wifi"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary">Managed by this device</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-language"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary">Checking connection…</span></span></button></li>
@@ -243,6 +245,7 @@
               <div id="settings-tiles-per-row" class="theme-options counter-styles tiles-options" role="radiogroup" aria-label="Tiles per row"></div></div>
           </section>
           <section class="settings-page" data-page="billing" data-title="Billing &amp; charges" hidden><div id="settings-billing" class="st-built"></div></section>
+          <section class="settings-page" data-page="kitchen" data-title="Kitchen" hidden><div id="settings-kitchen" class="st-built"></div></section>
           <section class="settings-page" data-page="security" data-title="Staff &amp; security" hidden><div id="settings-security" class="st-built"></div></section>
           <section class="settings-page" data-page="wifi" data-title="Wi-Fi" hidden>
             <div id="settings-wifi-slot" class="st-card settings-device-slot"></div>

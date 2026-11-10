@@ -723,6 +723,11 @@
     window.dispatchEvent(new CustomEvent('restro:screen-unlocked'));
   }
   document.querySelector('#system-lock').addEventListener('click',lockScreen);
+  // The keyboard (Update Pack 2): while the tablet's keyboard is up (a field that takes typing has the focus), the round
+  // lock button of swipe mode is out of sight, as it would sit on a key. The navigation bar's stays.
+  const typingField=el=>el instanceof HTMLTextAreaElement||(el instanceof HTMLInputElement&&!el.readOnly&&!el.disabled&&el.inputMode!=='none'&&/^(text|search|email|tel|url|number|password)$/.test(el.type))||Boolean(el?.isContentEditable);
+  const keyboard=()=>root.toggleAttribute('data-keyboard',typingField(document.activeElement));
+  document.addEventListener('focusin',keyboard);document.addEventListener('focusout',()=>setTimeout(keyboard,0));
   // Go dark: our own black screen over everything (inside the lock screen, which is over everything), the backlight at
   // its minimum where the RESTRO Android app lets us (RESTRODevice.setScreenDark). The power button still turns the
   // display fully off.

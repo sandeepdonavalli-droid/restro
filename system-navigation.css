@@ -21,6 +21,8 @@ html[data-home-theme="aurora"]:not([data-app-open]) .home-indicator{background:r
 .system-lock{position:absolute;right:calc(16 * var(--fu));bottom:calc(14 * var(--fu));width:calc(60 * var(--fu));height:calc(60 * var(--fu));min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:50%;
   display:grid;place-items:center;background:rgba(0,0,0,.82);color:#F5F5F4;box-shadow:0 4px 12px rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation}
 .system-lock:active{background:#000000}
+/* (hidden while the keyboard is up: it would sit on a key) */
+html[data-keyboard]:not([data-nav="bar"]) .system-lock{visibility:hidden}
 .system-lock:focus-visible{outline:2px solid #2F6FDE;outline-offset:3px}
 #system-navigation .system-lock .system-glyph{width:calc(31 * var(--fu));height:calc(31 * var(--fu))}
 /* Back, Home and Recent apps: in swipe mode, buttons for the keyboard and screen readers only, out of sight until focused */

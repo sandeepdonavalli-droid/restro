@@ -44,7 +44,7 @@
   // "CGST 2.5%", "SGST 2.5%", "GST 5%" and the half rate "2.5%" for a GST rate (0.05)
   const labels = taxRate => { const h = `${halfOf(taxRate) / 100}%`; return { cgst: `CGST ${h}`, sgst: `SGST ${h}`, gst: `GST ${halfOf(taxRate) * 2 / 100}%`, half: h }; };
   // A charge as set in Settings › Billing & charges (prefs.js) for an order of this type, in paise. Packaging: a flat
-  // amount for the order, or each dish's own (`packagingOf(id)`, rupees, from the Menu app) × its quantity.
+  // amount for the order, or each dish's own (`packagingOf(id)`, rupees, set on the dish in Inventory) × its quantity.
   function charges(type, lines, billing, packagingOf = () => 0) {
     const pk = billing?.packaging, dl = billing?.delivery;
     let packaging = 0;

@@ -777,15 +777,15 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
    tall, 8 apart (a box 26, the name 17/700, × 8 15/600 grey, the total 16/700 at the end); picked: light blue, the box
    blue with a tick. Step 2: 600 wide; ‹ · the dish and its sum · ✕; the percentage 76 tall; keys 50 tall; at 100% the
    reasons. Both centred on the menu; so are a void and Change server. */
-.cx-pu.dish,.cx-pu.void,.cx-pu.server{left:calc(620 * var(--u));top:50%;max-height:calc(100% - calc(23.333 * var(--u)));padding:calc(22 * var(--u)) calc(26 * var(--u));transform:translateY(-50%)}
+.cx-pu.dish,.cx-pu.server{left:calc(620 * var(--u));top:50%;max-height:calc(100% - calc(23.333 * var(--u)));padding:calc(22 * var(--u)) calc(26 * var(--u));transform:translateY(-50%)}
 .cx-pu.dish.pick{width:calc(620 * var(--u))}
-.cx-pu.dish.pct,.cx-pu.void{width:calc(600 * var(--u))}
+.cx-pu.dish.pct{width:calc(600 * var(--u))}
 .cx-pu.server{width:calc(560 * var(--u))}
-.cx-pu.dish.typing,.cx-pu.void.typing{top:calc(14 * var(--u));transform:none}
+.cx-pu.dish.typing{top:calc(14 * var(--u));transform:none}
 .cx-pu.dish.pick>.cx-pu-head{margin-bottom:0} /* (the design's 6 under it and 12 over the list fold into 12) */
 .cx-pu.dish.pick .cx-steph b{line-height:normal}
 .cx-pu.dish.pct>.cx-pu-head{margin-bottom:calc(14 * var(--u))}
-.cx-pu.void>.cx-pu-head,.cx-pu.server>.cx-pu-head{margin-bottom:calc(16 * var(--u))}
+.cx-pu.server>.cx-pu-head{margin-bottom:calc(16 * var(--u))}
 .cx-steph{min-width:0;display:flex;flex-direction:column}
 .cx-steph small{margin-bottom:calc(2 * var(--u));font-size:calc(13.5 * var(--u));font-weight:800;line-height:normal;letter-spacing:.03em;text-transform:uppercase;color:#2F6FDE}
 .cx-steph b{font-size:calc(24 * var(--u));font-weight:800;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -816,20 +816,29 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-rsn>button.oth{color:#615C57;font-weight:600}
 .cx-rsn>button.oth.on{color:#1E4FB8}
 .cx-rsn-other{flex:1 1 100%;margin-top:calc(4 * var(--u))}
-/* A void: the red ⊖ on #FEE2E2; what will print in a red box (#FEF2F2, #991B1B 15/600); "Why? (required)" over the
-   reason line (a note's line); the learned reasons 18 under it, as the reason chips; the red button #DC2626 64 tall, 22
-   under them, grey #E7E5E4 until there is a reason. Typing the reason: the reasons in one row that scrolls, and Clear
-   reason ........ Done (a note's) in place of the red button. */
+/* A void (Update Pack 2, void pop-up v2): where the note pop-up is, 940 wide, 14 under the top of the menu (keyboard or
+   not); the red ⊖ on #FEE2E2, the title 24/800 and beside it what the kitchen has 17/600 grey; what will print in a red
+   box (#FEF2F2, #991B1B 15.5/600), gone while typing; "Reason (required)" and its line, blue 2 (soft red 1.8 while
+   empty and not typed in); "Top reasons": quick-note chips 56 tall, 3 a row, 10 apart, their words centred (one row
+   that slides while typing), or the day-one box (#F1F3F6, 15.5/600 grey); Clear (#C9C5C1 while empty) ........ the red
+   button 300 x 64, #DC2626, grey #E7E5E4 until there are words */
+.cx-pu.void{left:calc(620 * var(--u));top:calc(14 * var(--u));width:calc(940 * var(--u));max-height:calc(100% - calc(28 * var(--u)));padding:calc(24 * var(--u)) calc(26 * var(--u)) calc(22 * var(--u))}
+.cx-pu.void>.cx-pu-head{margin-bottom:calc(14 * var(--u))}
 .cx-dh.void>i{background:#FEE2E2;color:#DC2626}
-.cx-pu.void .cx-nf>.cx-lab3{display:block}
-.cx-pu.void .cx-rsn{margin:calc(18 * var(--u)) 0 0}
-.cx-pu.void .cx-rsn>button{flex:none;max-width:100%}
-.cx-pu.void.typing .cx-rsn{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
-.cx-pu.void.typing .cx-rsn::-webkit-scrollbar{display:none}
-.cx-pu.void>.cx-btnr{margin-top:calc(22 * var(--u))}
-.cx-pu.void:not(.typing)>.cx-nf-foot,.cx-pu.void.typing>.cx-btnr{display:none}
-.cx-vinfo{display:flex;align-items:flex-start;gap:calc(12 * var(--u));margin:0 0 calc(18 * var(--u));padding:calc(14 * var(--u)) calc(16 * var(--u));border-radius:calc(16 * var(--u));background:#FEF2F2;color:#991B1B;font-size:calc(15 * var(--u));font-weight:600;line-height:1.4}
-.cx-vinfo svg{margin-top:calc(1 * var(--u));color:#DC2626}
+.cx-dh.void>b{flex:none}
+.cx-dh.void>span{min-width:0;font-size:calc(17 * var(--u));font-weight:600;line-height:normal;color:#78716C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-vinfo{flex:none;display:flex;align-items:center;gap:calc(12 * var(--u));margin:0 0 calc(16 * var(--u));padding:calc(12 * var(--u)) calc(16 * var(--u));border-radius:calc(16 * var(--u));background:#FEF2F2;color:#991B1B;font-size:calc(15.5 * var(--u));font-weight:600;line-height:normal}
+.cx-vinfo svg{flex:none;color:#DC2626}
+.cx-pu.void.typing .cx-vinfo{display:none}
+.cx-pu.void .cx-nf-line{border-bottom:calc(2 * var(--u)) solid #2F6FDE}
+.cx-pu.void .cx-nf-line.empty:not(:focus-within){border-bottom:calc(1.8 * var(--u)) solid #F0A8A8}
+.cx-vr{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(10 * var(--u))}
+.cx-vr .cx-qn-chip{justify-content:center;text-align:center}
+.cx-pu.void.typing .cx-vr{display:flex;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.cx-pu.void.typing .cx-vr::-webkit-scrollbar{display:none}
+.cx-vempty{flex:none;padding:calc(18 * var(--u)) calc(20 * var(--u));border-radius:calc(18 * var(--u));background:#F1F3F6;color:#78716C;font-size:calc(15.5 * var(--u));font-weight:600;line-height:normal;text-align:center;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06)}
+.cx-pu.void .cx-btnr{width:calc(300 * var(--u))}
+.cx-clear.off,.cx-clear:disabled{color:#C9C5C1;cursor:default}
 .cx-btnr{flex:none;width:100%;height:calc(64 * var(--u));margin:0;padding:0;border:0;border-radius:calc(18 * var(--u));display:flex;align-items:center;justify-content:center;background:#DC2626;color:#FFFFFF;font:inherit;font-size:calc(19 * var(--u));font-weight:800;line-height:normal;cursor:pointer}
 .cx-btnr.off{background:#E7E5E4;color:#A8A29E;cursor:default}
 /* Change server: the staff as rows, their initials in a light blue circle */
