@@ -4,7 +4,7 @@
 // its title ("Settings", or "Settings › Display" on a page inside another) and its settings in cards.
 // New in this update: Business details (printed on the bill), Billing & charges, Kitchen (empty for now: kitchen and
 // receipt styles later, Update Pack 2), Staff & security (auto-lock), Display › Navigation (swipe gestures or the
-// navigation bar, button order, Go dark) and Devices & sync › each printer (role, KOT language, copies). Their values are
+// navigation bar, button order, Go dark) and Settings › Printers › each printer (role, KOT language, copies). Their values are
 // kept by prefs.js.
 (() => {
   const dialog = document.querySelector('#settings-dialog');
@@ -451,7 +451,7 @@
     ];
   });
 
-  // ---------- Devices & sync › Printers (Counter Update 7) ----------
+  // ---------- Settings › Printers (Counter Update 7; Update Pack 3: its own page) ----------
   // The printers are the main system's, found by the RESTRO Android app (RESTRODevice.printer.list()). Each has a role
   // (bills, kitchen tickets or both), the language its kitchen tickets print in and how many copies of each.
   let printers = [], printerId = null;

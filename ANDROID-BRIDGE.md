@@ -1,46 +1,197 @@
 # RESTRO Android bridge
 
-Browsers cannot list or join Wi-Fi networks, and they show Bluetooth devices only in
-their own picker. The RESTRO Android app fills that gap by defining these optional
-objects on `window.RESTRODevice` before the page loads. The web screens detect them
-automatically; nothing else needs to change.
+RESTRO runs in the RESTRO Android app's WebView. Browsers cannot list or join Wi-Fi networks, show Bluetooth devices
+only in their own picker, and have no printers, pagers or texting, so the app fills those gaps in three ways:
+
+- **Methods** on `window.RESTRODevice`, defined before the page loads. Every one is optional: the page checks for each
+  and does without it (as noted). Any of them may return a Promise. Throw (or reject) with an `Error` and its message is
+  shown to staff where a section says so.
+- **Window events** the app dispatches into the page (`window.dispatchEvent(new CustomEvent(name, { detail }))`).
+- **Calls into the page:** Android's Back, Home and Recent apps go to `window.RestroSystem`.
+
+`python3 tools/check_bridge_doc.py` lists everything the page's code asks of the app and checks this file covers it.
+Run it after any change to how the page talks to the app.
+
+## Contents
+
+| What | Kind | Section |
+| --- | --- | --- |
+| `wifi.isEnabled`, `wifi.setEnabled`, `wifi.scan`, `wifi.connect`, `wifi.disconnect` | methods | Wi-Fi |
+| `bluetooth.isEnabled`, `bluetooth.setEnabled`, `bluetooth.startScan`, `bluetooth.connect`, `bluetooth.disconnect`, `bluetooth.getPairedDevices` | methods | Bluetooth |
+| `getConnectivityStatus`, `subscribeConnectivityStatus`, `restro:connectivity-status` | methods, event | Connectivity |
+| `getBatteryStatus`, `subscribeBatteryStatus`, `restro:battery-status` | methods, event | Battery |
+| `setBrightness` | method | Brightness |
+| `setVolume` | method | Sound |
+| `openSettings` | method | Android's own settings screens |
+| `getNotifications`, `subscribeNotifications`, `restro:notification`, `restro:notification-removed`, `restro:notifications` | methods, events | Notifications |
+| `uninstallApp` | method | Uninstalling an app |
+| `localSync.start`, `localSync.send` | methods | Sync between tablets |
+| `sms.send`, `pager.buzz`, `restro:pager-docked`, `restro:pager-tapped`, `getPazzerDevices` | methods, events | Texting customers and buzzing pagers |
+| `whatsapp.send`, `printer.newRoll`, `restro:printer-cover`, `integrations.markReady` | methods, event | Orders |
+| `restro:device-locked`, `restro:device-unlocked` | events | Screen lock |
+| `restro:keyboard` | event | The keyboard |
+| `printer.printBill` | method | Printing the bill |
+| `printer.printKot` | method | The kitchen printer |
+| `printer.list` | method | The printers |
+| `recommendedTimeout` | method | Messages |
+| `printer.paperStatus`, `printer.subscribePaperStatus`, `restro:printer-paper` | methods, event | The bill printer's paper |
+| `RestroSystem.back`, `RestroSystem.home`, `RestroSystem.recents`, `goHome`, `goBack`, `openRecentApps` | page calls, methods | Back, Home and Recent apps |
+| `setScreenDark` | method | Going dark |
+| `restro:device-ready` | event | The WebView |
+
+## The WebView
+
+- Load the page over **https**: the website, or the app's own copy of it through `WebViewAssetLoader`. The page uses
+  WebCrypto (`crypto.subtle`) for the staff PINs' hashes and to seal sync messages, and it works only in a secure page.
+- Turn on JavaScript and DOM storage: this tablet's orders, customers and settings live in `localStorage` until the
+  backend exists (Phase 2).
+- **Camera** (quick controls › Camera, `getUserMedia`): grant `VIDEO_CAPTURE` in `WebChromeClient.onPermissionRequest`,
+  with Android's `CAMERA` permission.
+- **Printing:** `window.print()` does nothing in a WebView. Provide `printer.printBill` (below); without it the page
+  falls back to the browser's printing.
+- `addJavascriptInterface` objects take and return only strings, numbers and booleans. Wrap them in a small script that
+  builds `RESTRODevice` (Promises, callbacks and the stop functions included), run before the page's own scripts.
+- **`restro:device-ready`:** if `RESTRODevice` can only be set up after the page has started, dispatch this event (no
+  `detail`) once it is there. The battery, connectivity, notifications and paper level then connect to it; Wi-Fi,
+  Bluetooth, printing, pagers and messages look `RESTRODevice` up each time they are used. Sync between tablets starts
+  only when the page loads, so `localSync` must be there from the start.
 
 ## Wi-Fi: `RESTRODevice.wifi`
+
+The Wi-Fi switch and networks in Settings › Wi-Fi and in quick controls › Wi-Fi. The page uses the app's Wi-Fi when
+both `scan` and `connect` are there; otherwise it says this device's own settings manage its Wi-Fi.
 
 | Method | Returns | Android API |
 | --- | --- | --- |
 | `isEnabled()` | `true` / `false` | `WifiManager.isWifiEnabled()` |
-| `setEnabled(on)` | — | Drives the Wi-Fi switches in Settings. `WifiManager.setWifiEnabled` works for system/device-owner apps; otherwise open `Settings.Panel.ACTION_WIFI` |
-| `scan()` | `[{ ssid, level, secure, connected, saved }]` | `WifiManager.startScan()` + `getScanResults()`; `level` = `calculateSignalLevel(rssi, 5)` (0–4) |
-| `connect(ssid, password?)` | `true` / `false` | `WifiNetworkSuggestion` or `WifiNetworkSpecifier` (Android 10+) |
+| `setEnabled(on)` | — | Drives the Wi-Fi switches in Settings. `WifiManager.setWifiEnabled` works for system/device-owner apps; otherwise open `Settings.Panel.ACTION_WIFI`. Without it the switch can't be changed here |
+| `scan()` | `[{ ssid, level, secure, connected, saved }]` | `WifiManager.startScan()` + `getScanResults()`; `level` = `calculateSignalLevel(rssi, 5)` (0–4). Listed connected first, then by signal |
+| `connect(ssid, password?)` | `true` / `false` | `WifiNetworkSuggestion` or `WifiNetworkSpecifier` (Android 10+). `password` is left out for an open or saved network; `false` shows "Couldn’t connect. Check the password and try again." |
 | `disconnect()` | — | `ConnectivityManager.unregisterNetworkCallback` / remove suggestion |
 
-Status bar: keep sending connectivity through the existing
-`RESTRODevice.subscribeConnectivityStatus(callback)` with
-`{ wifi: { connected, level }, internetAvailable }`. `level` (0–4) drives the bars.
+Under the networks, **Open Android Wi-Fi settings** calls `openSettings('wifi')` (below) when the app has it.
+
+The top bar's Wi-Fi icon and its signal bars come from Connectivity (below), not from these methods.
 
 Permissions: `ACCESS_FINE_LOCATION` (or `NEARBY_WIFI_DEVICES` on Android 13+),
 `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`.
 
 ## Bluetooth: `RESTRODevice.bluetooth`
 
+Settings › Bluetooth and quick controls › Bluetooth. The page uses the app's Bluetooth when both `startScan` and
+`connect` are there; otherwise it uses the browser's Web Bluetooth where there is one.
+
 | Method | Returns | Android API |
 | --- | --- | --- |
 | `isEnabled()` | `true` / `false` | `BluetoothAdapter.isEnabled()` |
 | `setEnabled(on)` | — | Drives the Bluetooth switches. `BluetoothAdapter.enable()/disable()` for system/device-owner apps; otherwise `ACTION_REQUEST_ENABLE` |
-| `startScan(onDevice)` | a `stop()` function | `BluetoothLeScanner.startScan` and/or `BluetoothAdapter.startDiscovery()`; call `onDevice({ id, name, rssi })` per device |
-| `connect(id)` | `true` / `false` | `BluetoothDevice.createBond()` / `connectGatt()` / RFCOMM for printers |
+| `startScan(onDevice)` | a `stop()` function (or an object with `stop()`) | `BluetoothLeScanner.startScan` and/or `BluetoothAdapter.startDiscovery()`; call `onDevice({ id, name, rssi })` per device. The page stops the scan after 15 seconds, or when staff tap Stop |
+| `connect(id)` | `true` / `false` | `BluetoothDevice.createBond()` / `connectGatt()` / RFCOMM for printers. `false` (or an `Error`) shows that it didn't connect |
 | `disconnect(id)` | — | `BluetoothGatt.disconnect()` / close socket |
-| `getPairedDevices()` | `[{ id, name, connected }]` | `BluetoothAdapter.getBondedDevices()` |
+| `getPairedDevices()` | `[{ id, name, connected }]` | `BluetoothAdapter.getBondedDevices()`; read when the panel opens. Those with `connected: true` show as connected, the others under Previously connected |
+
+`rssi` (dBm) shows as Strong signal (above −60), Good signal (above −80) or Weak signal.
 
 Permissions: `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT` (Android 12+), `ACCESS_FINE_LOCATION` (older).
 
 All methods may return promises. Throw an `Error` with a short message to show it to the user.
 
+## Connectivity: `RESTRODevice.getConnectivityStatus()` and `subscribeConnectivityStatus(callback)`
+
+The top bar's Online / Offline pill, its Wi-Fi and mobile-signal icons, and Settings › Network & internet.
+
+| Member | Returns | Notes |
+| --- | --- | --- |
+| `getConnectivityStatus()` | a status (or a Promise of it) | Read at start, every 5 seconds while the page is on screen, when it comes back on screen, when the tablet comes back online, and when staff tap Check now (Settings › Network & internet) |
+| `subscribeConnectivityStatus(callback)` | a function that stops it | Call `callback(status)` on every change |
+
+Or dispatch `restro:connectivity-status` with the status as `detail` (or call `RestroConnectivity.update(status)`).
+A status is plain data (a JSON string of it is fine too):
+
+```js
+{
+  internetAvailable: true,          // the tablet can reach the internet (NET_CAPABILITY_VALIDATED): Online / Offline
+  transport: 'wifi',                // what the internet goes through: 'wifi', 'cellular', 'ethernet' ...
+  wifi: { connected: true, level: 3, internetAvailable: true },  // level 0-4: the bars; false: the "no internet" mark
+  hasCellular: true,                // the tablet has a SIM: the mobile signal icon shows
+  cellular: { connected: false, level: 2 }                       // level 0-4, or null when not known
+}
+```
+
+Send only what you know: a field left out keeps its last value. The flat names `wifiConnected`, `wifiLevel`,
+`wifiInternetAvailable`, `cellularLevel` and `validated` (for `internetAvailable`) are read too. Settings › Network &
+internet shows Connected through **Wi-Fi** or **Mobile data** from `wifi.connected` and `cellular.connected`.
+
+Without these, the page checks the internet itself every 30 seconds (and whenever the connection changes) by loading
+`connectivity-check.txt` from its own server, and takes Wi-Fi or mobile data from Capacitor's Network plugin when the
+app has one (`Capacitor.Plugins.Network`, or one passed to `RestroConnectivity.attachNetworkSource(plugin)`).
+
+## Battery: `RESTRODevice.getBatteryStatus()` and `subscribeBatteryStatus(callback)`
+
+The battery in the top bar (Settings › Display › Battery: Percentage or Fill). 20% or less and not charging, it turns
+red; charging, green with a bolt.
+
+| Member | Returns | Notes |
+| --- | --- | --- |
+| `getBatteryStatus()` | a status (or a Promise of it) | Read at start and whenever the page comes back on screen |
+| `subscribeBatteryStatus(callback)` | a function that stops it | Call `callback(status)` on every change (`ACTION_BATTERY_CHANGED`) |
+
+Or dispatch `restro:battery-status` with the status as `detail` (or call `RestroBattery.update(status)`). A status:
+`{ percentage: 78, plugged: false }`, where `percentage` is 0–100 (or `level`, 0–1) and `plugged` is `true` / `false`
+or `BatteryManager.EXTRA_PLUGGED` (more than 0: plugged in; or `charging`, `true` / `false`). `{ hasBattery: false }`
+hides the battery. Without any of these the page uses the browser's battery, when it has one.
+
+## Brightness: `RESTRODevice.setBrightness(level)`
+
+Optional. `level` is 20–100 from the Brightness sliders (Settings › Display and quick controls). Set the screen's
+brightness: the window's `screenBrightness` (`level / 100`), or `Settings.System.SCREEN_BRIGHTNESS` with
+`WRITE_SETTINGS`. Until it resolves the page dims itself with a black layer; once it has resolved, the page's layer
+goes and the real brightness does the work. Reject, and the page keeps its own layer.
+
 ## Sound: `RESTRODevice.setVolume(level)`
 
 Optional. `level` is 0–100 from the Volume sliders (Settings › Sound and quick controls).
 Map it to `AudioManager.setStreamVolume(STREAM_MUSIC, level * max / 100, 0)`.
+
+## Android's own settings screens: `RESTRODevice.openSettings(kind)`
+
+Opens one of Android's (or a hardware maker's) settings screens over RESTRO:
+
+| `kind` | Where staff tap it |
+| --- | --- |
+| `"wifi"` | **Open Android Wi-Fi settings**, under the networks (Settings › Wi-Fi, quick controls › Wi-Fi) |
+| `"pazzer"` | **Pazzer settings** in Pager Hub (quick controls), for the pager hardware |
+
+Return `false` (or throw) when it couldn't open: Pager Hub then shows "Device settings could not be opened. Please
+try again." (or the `Error`'s message). Without it, Pager Hub says to open these controls on the RESTRO Android device.
+
+## Notifications: `RESTRODevice.getNotifications()` and `subscribeNotifications(callback)`
+
+Android's notifications, listed in quick controls (pull down from the top banner) with their count. Each is plain data:
+
+```js
+{ id: 'n-42', title: 'Low storage', message: 'Free up space ...', source: 'System', appId: 'orders', timestamp: 1762510680000 }
+```
+
+`title` is needed (up to 240 characters); `message` (or `body`, up to 2,400), `source` (up to 80, "System" when left
+out), `appId` (one of RESTRO's apps, to show its icon; otherwise a bell) and `timestamp` (or `receivedAt`: milliseconds
+or a date string; now when left out) are optional. `id` replaces the one with the same id; without it each is new.
+
+| Member | Returns | Notes |
+| --- | --- | --- |
+| `getNotifications()` | every notification now, `[...]` | Replaces the list. Read at start and each time quick controls open |
+| `subscribeNotifications(callback)` | a function that stops it | `callback(notification)` adds one; `callback({ type: 'remove', id })` takes one off; `callback([...])` or `callback({ type: 'snapshot', notifications: [...] })` replaces them all |
+
+Or dispatch `restro:notification` (`detail`: one), `restro:notification-removed` (`detail`: `{ id }` or the id) and
+`restro:notifications` (`detail`: all of them).
+
+## Uninstalling an app: `RESTRODevice.uninstallApp(id)`
+
+On the home screen, while the apps are being arranged (hold an app), staff can uninstall an app: "Uninstall "…"?" ·
+Yes. With this method the app removes the app's package first: `id` is RESTRO's id for the app. Return `false` or
+`{ success: false }` (or throw) when it couldn't: the page shows "The app could not be uninstalled. Please try again."
+(or the `Error`'s message) and keeps it. Otherwise the app goes from the home screen. Without this method it just goes
+from the home screen.
 
 ## Sync between tablets: `RESTRODevice.localSync`
 
@@ -49,31 +200,42 @@ seals every message itself; the app only finds the other tablets and carries tex
 
 | Method | Returns | What the app does |
 | --- | --- | --- |
-| `start(info, onMessage, onPeers)` | a `stop()` function | Nearby Connections with `Strategy.P2P_STAR` and `info.service` as the service id: the main system (`info.main`) advertises and accepts, the other tablets discover and connect to it. Put `{ deviceId, name, main }` in the endpoint info so each side knows the other's device id. Calling `start` again replaces the previous session (the device name or role changed) |
-| `send(text, toDeviceId)` | — (may be a promise) | Sends `text` to one tablet, or to every connected tablet when `toDeviceId` is `null`. Messages can reach about 300 kB: use `Payload.Type.STREAM`, or split into 32 kB byte payloads and join them before `onMessage` |
+| `start(info, onMessage, onPeers)` | a `stop()` function (or an object with `stop()`) | Nearby Connections with `Strategy.P2P_STAR` and `info.service` as the service id: the main system (`info.main`) advertises and accepts, the other tablets discover and connect to it. Put `{ deviceId, name, main }` in the endpoint info so each side knows the other's device id. Calling `start` again replaces the previous session (the device name or role changed) |
+| `send(text, toDeviceId)` | — (may be a promise) | Sends `text` to one tablet, or to every connected tablet when `toDeviceId` is `null`. Messages can reach about 300 kB: use `Payload.Type.STREAM`, or split into 32 kB byte payloads and join them before `onMessage`. Reject when it can't send |
 
 `info` is `{ deviceId, name, main, service, protocol }`.
 
 - `onMessage(fromDeviceId, text)`: call it for every whole message received, with the sender's device id.
 - `onPeers([{ id, name, main }])`: call it with the connected tablets whenever that list changes (`[]` for none).
 
-Accept connections automatically: the page drops anything not sealed with the restaurant's key. Keep the session
-running while the app is open (a foreground service) and reconnect after network changes. A LAN version (NSD discovery
-and a WebSocket) can sit behind the same two methods.
+The page calls `start` when it loads, and again when this tablet's name, its Main system switch or its pairing changes
+(Settings › Devices). Accept connections automatically: the page drops anything not sealed with the restaurant's key.
+Keep the session running while the app is open (a foreground service) and reconnect after network changes. A LAN
+version (NSD discovery and a WebSocket) can sit behind the same two methods.
 
 Permissions: `NEARBY_WIFI_DEVICES` (Android 13+); `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`
 (Android 12+); `ACCESS_FINE_LOCATION` (older); `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`.
 
 ## Texting customers and buzzing pagers: `RESTRODevice.sms` and `RESTRODevice.pager`
 
-Optional. Orders has two round buttons on every order: one texts the customer (when the order has their phone number),
-the other buzzes the order's pager (when it has one), whatever the payment status. Without these, the buttons say that
-texting or pagers start with the Android app.
+Optional. Orders has a **Notify** button and a **Buzz** button on every order, whatever the payment status (a delivery
+app's order has **Ready** in Notify's place): Notify texts the customer, on WhatsApp or SMS, when the order has their
+phone number; Buzz buzzes the order's pager while it is out. Without these, the buttons say that messages or pagers
+start with the RESTRO Android app.
 
 | Method | Returns | What the app does |
 | --- | --- | --- |
-| `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to`, for example "Your order #12 is ready. – AKSHAYAPATRA". `SmsManager` on the tablet (`SEND_SMS`), or an SMS service once the cloud exists. `order` is the order's id, for a log |
-| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system) |
+| `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to` (`code` is the country code, `"91"` unless the customer's number has another). `SmsManager` on the tablet (`SEND_SMS`), or an SMS service once the cloud exists. `order` is the order's id (`uid`), for a log. `false` (or an error) shows "The message didn’t go" with Retry |
+| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system). `false` (or an error) shows "Pager 12 didn’t buzz" with Retry. Pager Hub's tiles on the home screen buzz it too |
+
+The texts (Orders › Notify), with the restaurant's name (Settings › Business details):
+- **Order ready:** "Hi <name>, your order #1015 from <restaurant> is ready." (dine-in); "… is ready and will be with
+  you soon." (delivery); "… is ready for pickup. Please show this message at the counter." (takeaway, phone orders).
+- **Bill:** "Hi <name>, the bill for your order #1015 from <restaurant> is ₹837."
+- **Running late:** "Hi <name>, your order #1015 from <restaurant> is running a little late. We’ll message you as soon as
+  it’s ready."
+
+("Hi," when the order has no name; no "from …" without a restaurant name.)
 
 **When the kitchen marks an order complete** (with the kitchen screen, to build), both go out on their own: the text
 if the order has a phone number, the buzz if it has a pager. With neither, nothing happens. The main system sends them
@@ -112,6 +274,11 @@ With Counter open, the pager goes on the order on screen at once, with Undo (or 
 still has it). Anywhere else it opens that pager's order: in Counter while it isn't paid, in Orders once it is; "Pager
 12 isn't out" when no order has it.
 
+**The pager hardware: `RESTRODevice.getPazzerDevices()`.** Pager Hub (quick controls) lists the restaurant's Pazzer
+hardware: return `[{ name, connected }]` (or a Promise of it), shown as "Connected" or "Disconnected" ("Pazzer device"
+when it has no name; "No Pazzer hardware connected" for none). Its **Pazzer settings** button calls
+`openSettings('pazzer')` (above).
+
 ## Orders (Update Pack 3): WhatsApp, the paper roll, delivery apps
 
 | Method or event | |
@@ -119,7 +286,7 @@ still has it). Anywhere else it opens that pager's order: in Counter while it is
 | `RESTRODevice.whatsapp.send({ to, code, text, order })` | Optional, like `sms.send`: Notify's WhatsApp. Return `true` / `false` (may be a promise); `false` falls back to SMS |
 | `RESTRODevice.printer.newRoll()` | Staff confirmed a new paper roll in the bill printer: reset its paper level to 100% (and tell the other tablets through `restro:printer-paper`) |
 | `restro:printer-cover`, `{ printer, level }` | Dispatch when the bill printer's cover was opened and closed: Orders asks "New paper roll?" (`printer`: its name; `level`: the level before) |
-| `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number), once the integrations exist |
+| `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number; `order` RESTRO's id for the order), once the integrations exist |
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 
@@ -143,30 +310,36 @@ Take it from `WindowInsetsCompat.Type.ime()` (its bottom inset, in CSS pixels: d
 
 ## Printing the bill: `RESTRODevice.printer.printBill(bill)`
 
-Counter's **Print bill** button (the printer, at the end of the order panel's top row) prints the bill. With this
-method present, the bill goes to it, to print on the restaurant's bill printer; without it, the browser's own printing
-opens. Return `false` (or throw) if it didn't print; Counter says so.
+Counter's **Print bill** button (the printer, at the end of the order panel's top row) prints the bill; Orders' Bill /
+Receipt button prints a saved order's bill (not paid yet) or receipt (paid). With this method present, the bill goes to
+it, to print on the printer whose role is **Bills** or **Both** (Settings › Printers); without it, the browser's own
+printing opens. Return `false` (or throw) if it didn't print: Counter says "The bill didn’t print", Orders offers
+Retry. After each bill the page reads the paper level again (below).
 
 Print it as `25_printed-bill` (Counter Update 7, the customer's copy, the same for every kind of order), 80 mm,
 **black only**:
 
 - **Header:** `restaurant` (large), `address`, then the restaurant's phone · email (`phone`, printed `+91 98765
   43210`, and `email`, Settings › Business details; Update Pack 3), then `GSTIN …` · `FSSAI …` (`gstin`, `fssai`: the
-  FSSAI licence number is required on bills in India). A dashed rule, **TAX INVOICE**, then `Bill #B-2045 · Order
-  #1015` (`bill`: the bill's own number, one series for the restaurant starting again at B-1 each financial year,
-  given at the first print or at the payment, `null` before; `number`: the order's ticket, e.g. `"#05"`, or `null` for
-  an order not saved yet) and the date and time (`at`, milliseconds, printed `7 Nov 2026 11:58 AM`), then `type` ·
-  `Table …` (`table`) · `… guests` (`guests`, 0 for none), and `Server: EC` (the initials of `server`).
-- **Dishes:** each of `lines`, `{ name, qty, each, total, modifiers, discount }`: `2 × Sweet lassi` and its `total`;
-  its `modifiers` under it on one line (`"Half · Medium spicy"`); its dish discount, when it has one, as an indented
-  minus line: `discount.label` and −`discount.amount` (`"10% off"` −26.00, `"100% off · Complaint"` −180.00). Dish
-  notes are for the kitchen and are not on the customer's bill. A custom item is a line like any other.
+  FSSAI licence number is required on bills in India). Each is `""` when not set: leave its line out. A dashed rule,
+  **TAX INVOICE**, then `Bill #B-2045 · Order #1015` (`bill`: the bill's own number, `"B-2045"`, one series for the
+  restaurant starting again at B-1 each financial year (1 April), given at the first print or at the payment, `null`
+  before; `number`: the order's ticket, e.g. `"#1015"`, or `null` for an order not saved yet) and the date and time
+  (`at`, milliseconds, printed `7 Nov 2026 11:58 AM`), then `type` (`"Dine-in"`, `"Takeaway"`, `"Delivery"`,
+  `"Phone call"`) · `Table …` (`table`, `""` for none) · `… guests` (`guests`, 0 for none), and `Server: EC` (the
+  initials of `server`, the full name).
+- **Dishes:** each of `lines`, `{ name, qty, each, total, modifiers, note, discount }`: `2 × Sweet lassi` and its
+  `total` (`each` is one's price); its `modifiers` under it on one line (`"Half · Medium spicy"`); its dish discount,
+  when it has one, as an indented minus line: `discount.label` and −`discount.amount` (`"10% off"` −26.00, `"100% off ·
+  Complaint"` −180.00; `discount` also has `percent` and, for 100% off, `reason`). Dish notes (`note`) are for the
+  kitchen and are not on the customer's bill. A custom item is a line like any other.
 - **Sums, in this order:** Subtotal (`subtotal`: after the dish discounts); the order discount (`discount`:
   `{ label, percent, amount }`, `"Discount 10%"`, printed as −84.40); the service charge (`serviceCharge`:
   `{ label, percent, amount }`, `"Service charge 5% (optional)"`); `packaging` and `delivery` (`{ label, amount }`);
   each of `taxes` on its own line (`"CGST 2.5%"` and `"SGST 2.5%"`, with their amounts); `roundOff` when it isn't 0
-  (`"Round off −0.46"`); then **GRAND TOTAL** `total` (to the rupee). Each of these is `null` when the order hasn't
-  got it. (`tax` and `taxLabel` are the two taxes together, `"GST 5%"`.)
+  (`"Round off −0.46"`; `+` when it rounds up); then **GRAND TOTAL** `total` (to the rupee). `discount`,
+  `serviceCharge`, `packaging` and `delivery` are `null` when the order hasn't got them; `roundOff` is 0. (`tax` and
+  `taxLabel` are the two taxes together, `"GST 5%"`.)
 - **Footer:** each of `footer` on its own line, centred: the service-charge line when there is a service charge
   (`"Service charge is optional — ask us to remove it."`), then the bill footer
   (`"Thank you! Visit again."`, Settings › Business details).
@@ -181,7 +354,7 @@ Amounts are in rupees.
 | `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is |
 | `at` | the bill's first print (a receipt keeps the bill's date and time when a bill was printed first, otherwise its own first print); a reprint keeps it |
 | `reprint` | `null` on a first print; on every later print of the same bill or receipt `{ at, by }`: a bold black outlined box at the very top, **REPRINT** in large letters, and under it `"Reprinted 7 Nov 2026 12:20 PM · by RK"` (`by`: the staff's initials) |
-| `paid` | receipts only: `{ method, amount, at, ref }`, a boxed line above the footer, `"PAID · UPI ₹837"` and under it `"7 Nov 2026 12:41 PM · Ref 4318 9920 1187"` (`ref` only when the payment has one) |
+| `paid` | receipts only: `{ method, amount, at, ref }`, a boxed line above the footer, `"PAID · UPI ₹837"` and under it `"7 Nov 2026 12:41 PM · Ref 4318 9920 1187"` (`method`: `"Cash"`, `"UPI"`, `"Card"`, `"Swiggy"` or `"Zomato"`; `ref` only when the payment has one) |
 
 Each print is kept on the order (`bills`, `receipts`: `{ at, by, total }`), so the next one is a REPRINT on every tablet.
 
@@ -192,8 +365,10 @@ Counter Update 7. **Save sends the KOT, and so does Pay**; each KOT has only the
 restaurant: the day's first KOT is #1, starting again at 4 AM with the order numbers. After a KOT has gone, taking a
 dish off or reducing it prints a **VOID** slip, deleting the order prints **ORDER CANCELLED** (both with the reason
 staff gave), changing a dish's choices or note prints a **CHANGED** slip, and marking the order as priority prints a
-short **★ PRIORITY** notice. **Reprint KOT** (the order menu) sends the last KOT again, as it was. A scheduled order's
-KOT goes at its kitchen time, from the tablet that saved it last.
+short **★ PRIORITY** notice. Counter's **Reprint KOT** (the order menu) sends the order's last KOT again, as it was.
+Orders' KOT button reprints the KOTs staff tick, each with the REPRINT box (`reprint`, below); a KOT that never printed
+prints as it was. Orders can also send the dishes the kitchen doesn't have yet as a new KOT. A scheduled order's KOT goes
+at its kitchen time, from the tablet that saved it last.
 
 Print each slip on every printer whose role is **Kitchen** or **Both**. Return `true` (or a Promise of it) when it
 printed, `false` (or throw, or reject) when it didn't: Counter then shows "Kitchen printer offline / KOT #3 not sent"
@@ -210,16 +385,18 @@ that sent it tries again by itself every 30 seconds until it prints.
 | Field | |
 | --- | --- |
 | `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"` or `"cancel-bulk"` (below) |
-| `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"` (`type` is the order type) |
-| `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"`, `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"` |
-| `title`, `where` | bold: `"KOT #3 · Order #1015"`, then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `order` the ticket) |
-| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway and phone orders the customer and a masked phone; on a void `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #141, #152 · 12:05 PM · By: EC"` |
-| `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT; `""` for none |
-| `lines` | `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null` |
-| `footer` | small, at the end: `"KOT #141, #152 sent earlier · only new dishes on this KOT"`, or `"Reason: Customer changed mind"` |
+| `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"` (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
+| `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"` (also on every KOT of an order marked as priority), `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"` |
+| `title`, `where` | bold: `"KOT #3 · Order #1015"` (on VOID and CHANGED, the KOT the dish was on; on ORDER CANCELLED `"Order #1015 · Table 12"` and `where` is `""`), then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `order` the ticket) |
+| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway, delivery and phone orders the customer's name and masked phone (`"98xxxxxx10"`), the time and the server's initials; on VOID and CHANGED `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #141, #152 · 12:05 PM · By: EC"` |
+| `at` | when it happened, milliseconds |
+| `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT and the priority notice; `""` for none |
+| `lines` | `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |
+| `footer` | small, at the end: `"KOT #141, #152 sent earlier · only new dishes on this KOT"`, `"Priority · cook this order first"`, or `"Reason: Customer changed mind"` |
+| `reason`, `by` | the reason staff gave (`""` for none) and who did it (their full name, or `null`) |
 | `priority` | true when the ★ PRIORITY box is on it |
-| `printers` | Settings › Devices › Printers: `[{ id, language, copies }]` for the kitchen printers |
-| `reprint` | KOTs reprinted from Orders (Update Pack 3): `{ at, by }`, the red **REPRINT** box with the time and initials, and **(R)** after every dish (Update Pack 1); `undefined` otherwise |
+| `printers` | Settings › Printers: `[{ id, language, copies }]` for the kitchen printers |
+| `reprint` | KOTs reprinted from Orders (Update Pack 3): `{ at, by }` (`by`: initials), the red **REPRINT** box with the time and initials, and **(R)** after every dish (Update Pack 1); `undefined` otherwise |
 
 - **Red** (modifiers, dish notes, the order note, the action box, the **REPRINT** box) prints red on two-colour printers
   (red/black ribbon or two-colour thermal paper) and black on black-only printers: the same slip, only the colour
@@ -238,35 +415,38 @@ instead of one ORDER CANCELLED each: `kind: "cancel-bulk"`, `band` (`"ORDERS CAN
 (`"BULK DELETE · 5 ORDERS"`, the red outlined box), `at` (printed `Mon 9 Nov 2026 · 11:58 PM`), `info` (`"By: EC ·
 Reason: End of day – not collected"`), `orders` (`{ order, kots, at }` each, newest first, as a table ORDER · KOT ·
 TIME: `"#1031"`, `"141 · 152"` or `"—"` for an order that never reached the kitchen, `7:24 pm`), `footer` (`"— = order
-never reached the kitchen."`) and `printers`. A single order deleted prints its ORDER CANCELLED slip as before.
+never reached the kitchen."`), `reason`, `by` (as above) and `printers`. A single order deleted prints its ORDER
+CANCELLED slip as before; none prints when none of the orders reached the kitchen.
 
 ## The printers: `RESTRODevice.printer.list()`
 
-Settings › Devices › Printers lists the printers the app knows (the main system's): return `[{ id, name, connection }]`
-(or a Promise of it), `connection` e.g. `"Bluetooth"`, `"Wi-Fi"`, `"USB"`. Each printer's role (Bills, Kitchen or Both),
-KOT language and copies are set there and kept in `restro.printers.v1` (`{ <id>: { role, language, copies } }`), which
-the page passes with each slip.
+Settings › Printers lists the printers the app knows (the main system's): return `[{ id, name, connection }]` (or a
+Promise of it), `connection` e.g. `"Bluetooth"`, `"Wi-Fi"`, `"USB"`. Each printer's role (`"bills"`, `"kitchen"` or
+`"both"`: Bills, Kitchen (KOT) or Both), KOT language and copies are set there and kept in `restro.printers.v1`
+(`{ <id>: { role, language, copies } }`, the same on every tablet), which the page passes with each slip. A printer not
+set yet is Both, English, 1 copy.
 
 ## Messages: `RESTRODevice.recommendedTimeout(ms, hasControls)`
 
 Counter's messages go after 2 s (a confirmation) or 4 s (one with Undo); errors stay. Return Android's
 `AccessibilityManager.getRecommendedTimeoutMillis(ms, flags)` (with `FLAG_CONTENT_TEXT`, plus `FLAG_CONTENT_CONTROLS`
-when `hasControls` is true), so the "Time to take action" accessibility setting is respected. Without it the times are
-as above.
+when `hasControls` is true), so the "Time to take action" accessibility setting is respected. Return the number
+straight away (not a Promise); one shorter than `ms` is not used. Without it the times are as above.
 
 ## The bill printer's paper: `RESTRODevice.printer.paperStatus()` and `subscribePaperStatus(callback)`
 
-The Print bill button shows how much paper the bill printer has left: its light blue drains from the top as the roll is
-used; at 20% or less (or when the printer's near-end sensor says so) the whole button turns amber; out of paper (or the
-cover open) it turns red with a "!"; with the printer offline it is grey, crossed out. A tap still prints.
+The Print bill button (Counter) and the Bill / Receipt buttons (Orders) show how much paper the bill printer has left:
+the light blue drains from the top as the roll is used; at 20% or less (or when the printer's near-end sensor says so)
+the whole button turns amber; out of paper (or the cover open) it turns red with a "!"; with the printer offline it is
+grey, crossed out. A tap still prints.
 
-Report it for the printer whose role is **Bills & receipts** or **Both** (Settings → Printers); a kitchen-only printer
-is never shown. Each status is plain data, `{ level, state }`: `level` the paper left, 0–100 (%); `state` one of
-`"ok"`, `"low"`, `"out"`, `"offline"`.
+Report it for the printer whose role is **Bills** or **Both** (Settings › Printers); a kitchen-only printer is never
+shown. Each status is plain data, `{ level, state }`: `level` the paper left, 0–100 (%); `state` one of `"ok"`,
+`"low"`, `"out"`, `"offline"`.
 
 | Member | Returns | Notes |
 | --- | --- | --- |
-| `paperStatus()` | `{ level, state }` (or a Promise of it) | Read when Counter opens and after each bill |
+| `paperStatus()` | `{ level, state }` (or a Promise of it) | Read when the page starts, each time Orders opens, and after each bill |
 | `subscribePaperStatus(callback)` | a function that stops it | Call `callback({ level, state })` on every change |
 
 Or dispatch a `restro:printer-paper` window event with the same `detail`. Without any of these the button shows a full
@@ -279,7 +459,7 @@ Work the level out as `PaperEstimator` does (Counter Update 5, `CounterUpdate5.k
 - Poll the printer's status (ESC/POS `DLE EOT`) every 10 seconds and after every job: near-end means `"low"`, paper-end
   or the cover open `"out"`, no answer `"offline"`.
 - Start again at 100% when paper-end was reported and the cover was then opened and closed, or when staff tap **New roll
-  fitted** in the printer's settings.
+  fitted** in the printer's settings (or confirm "New paper roll?" in Orders: `printer.newRoll()`, above).
 
 ## Back, Home and Recent apps: `RestroSystem.back()`, `.home()`, `.recents()`
 
@@ -290,12 +470,18 @@ swipe in from the left or right edge for Back) or a **navigation bar** (56 px, b
 the left or the right), with a lock button in both. When Android's gesture navigation still reaches the app first,
 forward it: the back gesture (`OnBackPressedCallback`) to `RestroSystem.back()`, Home (`onNewIntent` with
 `CATEGORY_HOME`) to `RestroSystem.home()`, and Recent apps to `RestroSystem.recents()`. Each does exactly what RESTRO's
-own navigation does. Going the other way, the page still calls `RESTRODevice.goHome()`, `goBack()` and
-`openRecentApps()` when the app provides them.
+own navigation does.
+
+Going the other way, the page calls these when the app provides them:
+
+- `goBack()`: when Back has nothing left to do in RESTRO (no keyboard, pop-up or app open, on the first home page).
+- `goHome()`: after RESTRO has gone to its home screen.
+- `openRecentApps()`: first, whenever Recent apps is asked for. Anything but `false` means the app showed its own
+  Recent apps and RESTRO doesn't show its; in kiosk mode leave it out (or return `false`) so RESTRO's own shows.
 
 ## Going dark: `RESTRODevice.setScreenDark(on)`
 
-After the idle time in Settings › Display (Go dark after, 5 minutes unless changed) the screen locks and goes black;
+After the idle time in Settings › Display › Navigation (Go dark after, 5 minutes unless changed) the screen locks and goes black;
 a double tap wakes it to the PIN pad. The black is the page's own, so it works on every device; call
 `setScreenDark(true)` to turn the backlight down to its minimum and `setScreenDark(false)` to bring it back. The power
 button still turns the display fully off (see Screen lock above).

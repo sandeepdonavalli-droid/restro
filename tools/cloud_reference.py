@@ -10,10 +10,13 @@ Endpoints (every request carries `Authorization: Bearer <token>`):
     POST /v1/restaurants/<id>/sync/push    { device, protocol, changes: [{ c, i, h, b, doc | x }] } -> { results }
     GET  /v1/restaurants/<id>/sync/pull?since=<seq>&limit=<n>                                  -> { seq, changes, more }
     POST /v1/restaurants/<id>/numbers/next { device, day, after }                                  -> { day, number }
+    POST /v1/restaurants/<id>/numbers/next { device, day, after, series: 'bill', year }            -> { year, number }
 
 Ticket numbers are one sequence a day for the whole restaurant, starting again at 1 every business day: each order
 carries its day (YYYY-MM-DD). The cloud keeps the count (numbers/next); the main system keeps it while the restaurant's
 internet is down, and every request carries the highest number the asking device knows of the day.
+Bill numbers (series 'bill') are one sequence a financial year (from 1 April; year as "2026-27"), the same way: the
+tax invoice's own number, kept on the order as billNo and billYear.
 """
 import argparse, json, re, threading, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -30,6 +33,7 @@ class Restaurant:
     """One restaurant's records: each record's latest version, in the order they changed (seq)."""
     def __init__(self):
         self.seq, self.log, self.records, self.days = 0, {}, {}, {}   # days: business day -> after the highest number seen
+        self.bill_years = {}                                           # financial year -> after the highest bill number seen
         self.clock = [0, 0]
         self.lock = threading.Lock()
 
@@ -58,6 +62,17 @@ class Restaurant:
             number = max(self.days.get(day, 1), max(self.numbers_on(day), default=0) + 1, after + 1)
             self.days[day] = number + 1
             return {'day': day, 'number': number}
+
+    # The next bill number of a financial year ("2026-27"): after every bill number the cloud has given or seen that year
+    def next_bill(self, year, after=0):
+        with self.lock:
+            year = str(year or '')
+            after = after if isinstance(after, int) and not isinstance(after, bool) else 0
+            seen = [r['doc']['billNo'] for key, r in self.records.items() if key.startswith('orders/') and 'doc' in r
+                    and isinstance(r['doc'].get('billNo'), int) and r['doc'].get('billYear') == year]
+            number = max(self.bill_years.get(year, 1), max(seen, default=0) + 1, after + 1)
+            self.bill_years[year] = number + 1
+            return {'year': year, 'number': number}
 
     # Ticket numbers, as on the main system, within the order's day. Numbers come from one count (numbers/next), so this
     # only settles a device's own orders from before it joined (marked provisional): a provisional number
@@ -145,7 +160,9 @@ def make_handler(cloud):
             if what == 'sync/pull' and method == 'GET':
                 q = parse_qs(url.query)
                 return self.reply(200, r.pull(int(q.get('since', ['0'])[0] or 0), max(1, min(300, int(q.get('limit', ['300'])[0] or 300)))))
-            if what == 'numbers/next' and method == 'POST': return self.reply(200, r.next_number(body.get('day'), body.get('after')))
+            if what == 'numbers/next' and method == 'POST':
+                if body.get('series') == 'bill': return self.reply(200, r.next_bill(body.get('year'), body.get('after')))
+                return self.reply(200, r.next_number(body.get('day'), body.get('after')))
             return self.reply(405, {'error': 'method'})
         def do_GET(self): self.route('GET')
         def do_POST(self): self.route('POST')

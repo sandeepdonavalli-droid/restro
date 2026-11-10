@@ -950,7 +950,7 @@
     syncNow() { const up = upstream(); return up === 'hub' ? Local.sync() : up === 'cloud' ? Cloud.sync() : Promise.resolve(); }
   });
 
-  // ---------- Settings › Devices & sync ----------
+  // ---------- Settings › Devices ----------
   const ago = t => { const m = Math.round((now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`; };
   function localText(st) {
     const l = st.local;

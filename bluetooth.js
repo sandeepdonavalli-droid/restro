@@ -119,7 +119,7 @@
     say(`Connecting to ${entry.name}…`);
     try {
       if (hasHost()) {
-        await host().connect(id);
+        if ((await host().connect(id)) === false) throw new Error('Couldn’t connect. Try again.');
         connected.set(id, { id, name: entry.name }); available.delete(id); remember(id, entry.name);
         message = `${entry.name} connected.`; changed(); return;
       }

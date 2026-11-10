@@ -3,19 +3,27 @@
 How the restaurant's tablets share their data. Over the restaurant's own network they sync with each other, without the
 internet. Once the cloud is set up, they also sync with the cloud.
 
-The code is in `sync.js`. The screens only make two calls:
+The code is in `sync.js`. The screens save through two calls:
 - `RestroSync.wrote(key)` after saving.
 - `RestroSync.removed(collection, id)` before deleting a record on purpose.
+
+They also ask it for a new order's ticket number (`RestroSync.takeNumber()`, Ticket numbers below) and a bill's own
+number (`RestroSync.takeBillNumber()`, Bill numbers below).
 
 ## What syncs
 
 | Shared by all the restaurant's tablets | Stays on each tablet |
 | --- | --- |
-| Orders (`restro.counter.orders.v1`) | Theme, sounds, brightness, the Counter’s menu display style |
-| Held tickets (`restro.counter.held.v1`) | Home screen and tile order |
-| Customers (`restro.customers.v1`) | The order being rung up |
-| Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | Who is signed in |
-| Restaurant name, profile, preparation time | The pairing code and the cloud sign-in |
+| Orders (`restro.counter.orders.v1`), with their bill numbers | Theme, home screen background, sounds, brightness, battery style |
+| Held tickets (`restro.counter.held.v1`) | Navigation (swipe or bar) and Go dark |
+| Customers (`restro.customers.v1`) | Home screen and tile order |
+| Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | The Orders display and the Counter's look when set for This tablet only |
+| The restaurant's name, profile and Business details (`restro.business.v1`) | The order being rung up |
+| Billing & charges (`restro.billing.v1`), Staff & security (`restro.security.v1`) | Who is signed in |
+| The printers' settings: role, KOT language, copies (`restro.printers.v1`) | The pairing code and the cloud sign-in |
+| Kitchen prep time (`restro.kitchen.prep.v1`, and the older `restro.counter.prepMinutes.v1`) | |
+| What is sold out (`restro.menu.availability.v1`) | |
+| The Orders display and the Counter's look set for All tablets (`restro.ordersLook.shared.v1`, `restro.counterLook.shared.v1`): the restaurant's default | |
 
 Card data never exists in RESTRO, because payments go through the provider's hosted checkout. So it never syncs.
 
@@ -55,7 +63,7 @@ Every record has an id:
 | Orders | `uid` |
 | Held tickets | `heldId` |
 | Customers and staff | `id` |
-| Settings | `restaurantName`, `profile` or `prepMinutes` |
+| Settings | `restaurantName`, `profile`, `business`, `billing`, `security`, `printers`, `prepMinutes`, `kitchenPrep`, `availability`, `ordersLook` or `counterLook` |
 
 Every record also has a version `h`, a hybrid-clock stamp `ttttttttt.cccc.<device id>`:
 - the first part is the time in milliseconds, in base 36;
@@ -128,6 +136,7 @@ A merge starts from the version both sides started from:
   - Quantities add up both sides' changes: mine + theirs − what both started from.
   - An item taken off on one side, and left alone on the other, goes.
 - **Kitchen tickets.** The tickets from both sides are kept. For what was sent to the kitchen, the larger count wins.
+- **Track history** (`events`: discounts, moves, priority and the like, Update Pack 3). Kept from both sides, by id.
 - **Payments.** A payment taken on either side stays. If both sides took one, the earlier stays.
 - **Totals.** The order's totals are worked out again from its lines.
 - **Deletion against an edit.** The later of the two wins.
@@ -176,11 +185,20 @@ when it takes them, within the order's day:
   "Order #03 is now #12".
 - The same happens to an open order whose number another order that day has. In normal use this can't happen.
 
+## Bill numbers
+
+**A bill's own number, apart from the order's** (Update Pack 3): the tax invoice's serial, printed "Bill #B-2045 ·
+Order #1015". One sequence for the whole restaurant, every number given once, starting again at B-1 each financial
+year (1 April). It is kept like the ticket numbers: by the cloud, and by the main system while the restaurant's internet
+is down; a tablet on its own counts by itself. An order is given its bill number the first time its bill (or receipt)
+prints, or when it is paid, whichever comes first, and keeps it: `billNo` (2045) and `billYear` (`"2026-27"`). A paired
+tablet that can reach neither the main system nor the cloud can't print the bill, or take the payment, until it can.
+
 ## Joining
 
-- **The main system:** turn on Settings › Devices & sync › Main system. It makes a 6-character pairing code. The code
+- **The main system:** turn on Settings › Devices › Main system. It makes a 6-character pairing code. The code
   uses only letters and digits that can't be confused with each other: no I, L, O, 0 or 1.
-- **Other tablets:** enter the code once, in Settings › Devices & sync.
+- **Other tablets:** enter the code once, in Settings › Devices.
 - **The cloud:** after the restaurant signs in, call `RestroSync.configureCloud({ endpoint, restaurantId, token })`.
   The sign-in screen comes with the cloud.
 
@@ -207,6 +225,7 @@ message is dropped.
 | `{ t: 'pull', rid, since }` | tablet → main | `{ t: 'batch', re: rid, server, seq, changes, more }` |
 | `{ t: 'push', rid, changes }` (up to 200 records, about 200 kB) | tablet → main | `{ t: 'ack', re: rid, results }` |
 | `{ t: 'number', rid, after }` (firing a new order; answered within 3 seconds or asked of the cloud) | tablet → main | `{ t: 'number', re: rid, day, number }` |
+| `{ t: 'number', rid, after, series: 'bill' }` (a bill number; `after`: the highest of the year this tablet knows) | tablet → main | `{ t: 'number', re: rid, year, number }` |
 | `{ t: 'batch', server, from, seq, changes }` | main → all | None. A tablet whose cursor is behind `from − 1` pulls. |
 
 A tablet pushes and pulls:
@@ -228,6 +247,7 @@ Every request carries these headers:
 | `POST /sync/push` | `{ device, protocol, changes }` | `{ results: [{ c, i, h, ok } \| { c, i, h, conflict, current }] }` |
 | `GET /sync/pull?since=<seq>&limit=300` | none | `{ seq, changes, more }` |
 | `POST /numbers/next` (firing a new order) | `{ device, day, after }` | `{ day, number }`, past `after` and every number of the day |
+| `POST /numbers/next` (a bill number) | `{ device, day, after, series: 'bill', year }` | `{ year, number }`, past `after` and every bill number of the financial year |
 | WebSocket `/sync/live` (optional) | First message: `{ t: 'auth', token, device, since }` | `{ from, seq, changes }`, as changes happen |
 
 The rules are the server rules above, the same as the main system's. `tools/cloud_reference.py` implements them in
@@ -238,7 +258,7 @@ The cloud must:
 - store PIN hashes only in its database, never in logs: a 4-digit PIN's hash is only as safe as the database;
 - keep tombstones for at least 30 days;
 - never accept card data (none is ever sent);
-- give ticket numbers one at a time, so two requests never get the same number.
+- give ticket numbers and bill numbers one at a time, so two requests never get the same number.
 
 ## Security
 

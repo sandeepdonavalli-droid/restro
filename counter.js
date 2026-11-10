@@ -2904,7 +2904,7 @@
           el('div', { class: 'c' }, 'Voids', el('b', {}, minus(voids))),
           changes ? el('div', { class: 'c a' }, `${changes} change${changes === 1 ? '' : 's'} after the bill`) : null)));
   }
-  // Pager still out with another order (Update Pack 3): "Pager 5 is still with #1012" · "Anitha · Paid · Ready", then
+  // Pager still out with another order (Update Pack 3): "Pager 5 is still with #1012" · "<customer> · Paid · Ready", then
   // Same customer / Handed back
   function pagerAskCard(hold) {
     const { n, tapped } = pagerAsk, others = pagerOthers(n), first = others[0], nums = others.map(o => ticket(o.number));
