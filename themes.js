@@ -55,6 +55,9 @@
     activeId = id;
     root.dataset.restroTheme = 'W';      // the pages: pure white
     root.dataset.homeTheme = id;         // the home screen: launcher.css, status-bar.css
+    // The apps have two themes, Light and Midnight (Update Pack 2): Home on Aurora Dark gives Midnight, a plain deep navy,
+    // the same in every app; White and Sea breeze give Light. Only the Counter has Midnight so far (counter-midnight.css).
+    root.dataset.appTheme = id === 'aurora' ? 'midnight' : 'light';
     paintBackground();                   // its background, Default or Mirror, in this theme
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', PURE.bar);
     if (persist) {

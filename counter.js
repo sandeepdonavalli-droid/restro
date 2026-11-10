@@ -1378,7 +1378,7 @@
     const search = el('label', { class: `cx-sr${query ? ' typed' : ''}` }, mi('search', 20), el('span', { class: 'visually-hidden' }, 'Search menu items'), field,
       el('button', { type: 'button', class: 'cx-sclr', 'aria-label': 'Clear the search', onpointerdown: e => e.preventDefault(), onclick: e => { e.preventDefault(); query = ''; field.value = ''; search.classList.remove('typed'); renderMenuBody(); } }, mi('close', 20)));
     const top = el('div', { class: 'cx-tb' },
-      el('button', { type: 'button', class: `cx-mb${optionsMenu ? ' lifted' : ''}`, 'aria-label': 'Menu', title: 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': String(optionsMenu), onclick: () => openOptions(!optionsMenu) }, mi('menu', 22)),
+      el('button', { type: 'button', class: 'cx-mb', 'aria-label': 'Menu', title: 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': String(optionsMenu), onclick: () => openOptions(!optionsMenu) }, mi('menu', 22)),
       search,
       // Held opens the held orders in the Orders app; Orders opens the Orders app; Back there returns to Counter as it was.
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter', view: 'held' }); else { sheet = 'held'; render(); } } }, mi('pause_circle', 17), 'Held'),

@@ -1,0 +1,95 @@
+{
+ ".counter-app": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".counter-app::backdrop": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".ctr-sheet-wrap": {
+  "ctx": "plain",
+  "big": true
+ },
+ "dialog.counter-app": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-shell": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-order": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-scrim": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-empty": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-line.sel .cx-mc.nn": {
+  "ctx": "tint"
+ },
+ ".cx-line.sel .cx-mc.pick": {
+  "ctx": "tint"
+ },
+ ".cx-an": {
+  "ctx": "tint"
+ },
+ ".cx-an svg": {
+  "ctx": "tint"
+ },
+ ".cx-pop": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-pdots i": {
+  "ctx": "inv-self"
+ },
+ ".cx-layer": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-layer-menu": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-pu": {
+  "ctx": "plain",
+  "big": true
+ },
+ ".cx-tf input::selection": {
+  "ctx": "plain"
+ },
+ ".cx-onote": {
+  "ctx": "plain"
+ },
+ ".cx-onote-t": {
+  "ctx": "tint"
+ },
+ ".cx-onote-t svg": {
+  "ctx": "tint"
+ },
+ ".cx-nclr": {
+  "ctx": "tint"
+ },
+ ".cx-onote.active": {
+  "ctx": "tint"
+ },
+ ".cx-mc.por": {
+  "ctx": "tint"
+ },
+ ".cx-cclr": {
+  "ctx": "tint"
+ },
+ ".cx-pk.on .cx-cb": {
+  "ctx": "tint"
+ },
+ ".cx-vinfo svg": {
+  "ctx": "tint"
+ }
+}

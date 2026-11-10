@@ -16,11 +16,17 @@ html[data-nav="bar"]{--nav-h:calc(56 * var(--fu))}
 /* Swipe mode: a clear strip along the bottom edge takes the swipes (a stray tap on it does nothing); the handle and the
    lock button are drawn over the app */
 .home-bar{position:fixed;inset:auto 0 0;z-index:40;height:var(--home-bar-height);margin:0;padding:0;border:0;background:transparent;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+/* In an app the handle and the lock button are drawn over everything the app shows, its pop-ups and their dimming too
+   (the Midnight pack, the void pop-up screens) */
+dialog>.home-bar{z-index:55}
 .home-indicator{position:absolute;left:50%;bottom:calc(10 * var(--fu));width:calc(220 * var(--fu));height:calc(6 * var(--fu));border-radius:999px;background:rgba(28,25,23,.35);transform:translateX(-50%);pointer-events:none}
-html[data-home-theme="aurora"]:not([data-app-open]) .home-indicator{background:rgba(255,255,255,.55)}
+html[data-home-theme="aurora"]:not([data-app-open]) .home-indicator{background:rgba(255,255,255,.35)}
 .system-lock{position:absolute;right:calc(16 * var(--fu));bottom:calc(14 * var(--fu));width:calc(60 * var(--fu));height:calc(60 * var(--fu));min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:50%;
   display:grid;place-items:center;background:rgba(0,0,0,.82);color:#F5F5F4;box-shadow:0 4px 12px rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation}
 .system-lock:active{background:#000000}
+/* Home on Aurora Dark: the lock in the Midnight style (Update Pack 2: Home at 1080), a raised navy with a soft white edge */
+html[data-home-theme="aurora"]:not([data-app-open]):not([data-nav="bar"]) .system-lock{background:#1E2A42;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.18),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(0,0,0,.5)}
+html[data-home-theme="aurora"]:not([data-app-open]):not([data-nav="bar"]) .system-lock:active{background:#000000}
 /* (hidden while the keyboard is up: it would sit on a key) */
 html[data-keyboard]:not([data-nav="bar"]) .system-lock{visibility:hidden}
 .system-lock:focus-visible{outline:2px solid #2F6FDE;outline-offset:3px}
