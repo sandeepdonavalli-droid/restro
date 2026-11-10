@@ -143,7 +143,6 @@ label.st-row,.st-link{cursor:pointer}
 .st-opt-copy{min-width:0;display:flex;flex-direction:column;gap:calc(2 * var(--su))}
 .st-opt-copy b,.st-opt-copy strong{display:block;font-size:calc(19 * var(--su));font-weight:800;line-height:1.3;color:var(--st-ink)}
 .st-opt-copy span{font-size:calc(15 * var(--su));font-weight:500;line-height:1.4;color:var(--st-muted)}
-.st-opt-pic{grid-column:1/3;margin-top:calc(12 * var(--su));min-width:0}
 
 /* Choice tiles: one of a few values (Go dark after, Auto-lock, the button order) */
 .st-sgs{display:flex;gap:calc(16 * var(--su))}
@@ -176,16 +175,7 @@ label.st-row,.st-link{cursor:pointer}
 .st-tag.blue{background:#E3ECFC;color:var(--st-blue-ink)}
 .st-tag.green{background:#DCFCE7;color:#15803D}
 
-/* Display › Navigation: each option's picture (a tablet: the top bar, two cards; the swipe handle or the bar) */
-.st-navpic{position:relative;display:block;width:calc(300 * var(--su));height:calc(170 * var(--su));border-radius:calc(14 * var(--su));overflow:hidden;background:linear-gradient(180deg,#EEF0F4,#E4E7EC);box-shadow:inset 0 0 0 1px rgba(17,24,39,.08)}
-.st-navpic>i{display:block;height:calc(16 * var(--su));background:#FFFFFF;border-bottom:1px solid var(--st-line)}
-.st-navpic>span{display:grid;grid-template-columns:1fr 2fr;gap:calc(8 * var(--su));padding:calc(10 * var(--su))}
-.st-navpic>span>i{display:block;height:calc(80 * var(--su));border-radius:calc(8 * var(--su));background:#FFFFFF}
-.st-navpic .handle{display:block;position:absolute;left:50%;bottom:calc(10 * var(--su));width:calc(90 * var(--su));height:calc(5 * var(--su));border-radius:9px;background:#57534E;transform:translateX(-50%)}
-.st-navpic .bar{position:absolute;left:0;right:0;bottom:0;height:calc(34 * var(--su));background:#000000;display:flex;justify-content:center;align-items:center;gap:calc(34 * var(--su));color:#F5F5F4}
 .st-langs .st-sgs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
-.settings-shell .st-navpic .bar svg{width:calc(18 * var(--su));height:calc(18 * var(--su));--nav-icon-under:#000}
-.st-navpic .bar .lk{position:absolute;right:calc(10 * var(--su))}
 
 /* ---------- What other screens put into Settings ---------- */
 /* Battery (battery-status.js) and Touch sound (sound.js): option cards, two to a row */
@@ -380,7 +370,6 @@ label.st-row,.st-link{cursor:pointer}
 .st-opt-copy{gap:calc(2 * var(--su))}
 .st-opt-copy b,.st-opt-copy strong{font-size:calc(19 * var(--su));font-weight:700;line-height:normal}
 .st-opt-copy span{font-size:calc(14.5 * var(--su));font-weight:400;line-height:normal;color:#78716C}
-.st-opt-pic{margin-top:calc(12 * var(--su))}
 .settings-app .battery-style,.settings-app .touch-style{min-height:calc(72 * var(--su));gap:calc(11.5 * var(--su));padding:calc(15 * var(--su)) calc(16 * var(--su));border-radius:calc(22 * var(--su));box-shadow:inset 0 0 0 1.5px #E2E5EA}
 .settings-app .battery-style:has(input:checked),.settings-app .touch-style:has(input:checked){background:#F3F7FE;box-shadow:inset 0 0 0 2.5px #2F6FDE}
 .settings-app :is(.battery-style,.touch-style) .settings-row-copy strong{font-size:calc(19 * var(--su));font-weight:700;line-height:normal}
@@ -416,6 +405,20 @@ label.st-row,.st-link{cursor:pointer}
 .theme-apply-row{margin-top:calc(20 * var(--su));padding-top:calc(20 * var(--su))}
 .theme-apply-row strong{font-size:calc(18 * var(--su));font-weight:600}
 .theme-apply-row .field-note{font-size:calc(15 * var(--su))}
+/* Display › Navigation: each way over the home screen as it is now (settings.js navPic: a still copy at the screen's own
+   size, scaled down to the tile). Swipe: the line (220 x 6, 10 up) and the round lock (60, 16 from the right, 14 up).
+   Bar: 56 tall and black, Back · Home · Recent apps (200 x 48 each, icons 28) in the middle, the lock (120 x 48) at the
+   right; on Aurora the line light and the lock navy, as on the home screen (system-navigation.css). */
+.st-navpill{position:absolute;left:50%;bottom:calc(10 * var(--fu));width:calc(220 * var(--fu));height:calc(6 * var(--fu));border-radius:999px;background:rgba(28,25,23,.35);transform:translateX(-50%)}
+.st-navlock{position:absolute;right:calc(16 * var(--fu));bottom:calc(14 * var(--fu));width:calc(60 * var(--fu));height:calc(60 * var(--fu));border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.82);color:#F5F5F4;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.home-preview[data-home-theme="aurora"] .st-navpill{background:rgba(255,255,255,.35)}
+.home-preview[data-home-theme="aurora"] .st-navlock{background:#1E2A42;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.18),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(0,0,0,.5)}
+.st-navbar{position:absolute;left:0;right:0;bottom:0;height:calc(56 * var(--fu));display:flex;align-items:center;justify-content:center;background:#000000;color:#F5F5F4;--nav-icon-under:#000000}
+.st-navbar .keys{display:flex;align-items:center}
+.settings-shell .st-navbar .keys svg{margin:0 calc(86 * var(--fu))}
+.st-navbar .lk{position:absolute;right:calc(16 * var(--fu));top:calc(4 * var(--fu));width:calc(120 * var(--fu));height:calc(48 * var(--fu));display:grid;place-items:center}
+.settings-shell :is(.st-navbar,.st-navlock) svg{width:calc(28 * var(--fu));height:calc(28 * var(--fu))}
+.settings-shell .st-navlock svg{width:calc(31 * var(--fu));height:calc(31 * var(--fu))}
 
 /* Wi-Fi and Bluetooth (wifi.js, bluetooth.js): the switch in a card of its own (its heading and line, the switch at the
    right); then a card with what this tablet is connected to (the heading), the message (its line) and Scan at the

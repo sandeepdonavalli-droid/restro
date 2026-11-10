@@ -129,6 +129,7 @@
     // (the live pictures are only there while their page is: a copy of a whole screen each)
     if (id !== 'orders') ordersHost?.replaceChildren();
     if (id !== 'counter') counterHost?.replaceChildren();
+    if (id !== 'navigation') navHost?.replaceChildren();
     if (id === 'business') fillBusiness();
     builders[id]?.();
     renderLivePanels(id);
@@ -303,7 +304,7 @@
   syncCounterSummary();
   // (a new size of the screen: the pictures again)
   let relaying = 0;
-  addEventListener('resize', () => { if (!dialog.open || !['orders', 'counter'].includes(current)) return; cancelAnimationFrame(relaying); relaying = requestAnimationFrame(() => builders[current]?.()); });
+  addEventListener('resize', () => { if (!dialog.open || !['orders', 'counter', 'navigation'].includes(current)) return; cancelAnimationFrame(relaying); relaying = requestAnimationFrame(() => builders[current]?.()); });
 
   // ---------- Kitchen: the kitchen prep time (Update Pack 3; before, under Orders) ----------
   // One time for every order, or one per order type (owner, 10 Nov 2026), 5 to 240 minutes in 5s. Past it, an order in
@@ -413,23 +414,32 @@
   const navHost = document.querySelector('#settings-navigation');
   const NAV_ICONS = order => (order === 'back-right' ? ['nav-recent', 'nav-home', 'nav-back'] : ['nav-back', 'nav-home', 'nav-recent']);
   const navIcon = name => ms(name, 'nav-ico');
-  function navPicture(kind, order) {
-    return el('span', { class: 'st-navpic', 'aria-hidden': 'true' }, el('i'), el('span', {}, el('i'), el('i')),
-      kind === 'swipe' ? el('span', { class: 'handle' }) : el('span', { class: 'bar' }, NAV_ICONS(order).map(navIcon), el('span', { class: 'lk' }, navIcon('nav-lock'))));
+  // Each way as the whole screen shrunk to the tile (Update Pack 3, owner 10 Nov): the home screen as it is now (a still
+  // copy of the top bar and the home, in its theme and background, as the Theme pictures), and over it the swipe line and
+  // the round lock, or the black navigation bar (Back · Home · Recent apps in the order chosen, the lock at the right),
+  // the home ending above it as it does with the bar (--nav-h)
+  const stillCopy = node => { const copy = node.cloneNode(true); copy.style.removeProperty('transform');
+    for (const part of [copy, ...copy.querySelectorAll('*')]) for (const name of ['autofocus', 'name', 'title', 'aria-live']) part.removeAttribute(name); return copy; };
+  function navPic(kind, order) {
+    const w = innerWidth, h = innerHeight, root = document.documentElement, banner = document.querySelector('#top-banner'), home = document.querySelector('#home');
+    const box = el('span', { class: 'st-tile-pic home-preview st-navlive', 'aria-hidden': 'true', 'data-w': String(w), 'data-home-theme': root.dataset.homeTheme || 'white', 'data-home-background': root.dataset.homeBackground || 'default' });
+    box.style.aspectRatio = `${w} / ${h}`;
+    const screen = el('span', { class: 'home-live-screen' }), shell = document.querySelector('.app-shell'), look = shell ? getComputedStyle(shell) : null;
+    screen.inert = true; screen.style.width = `${w}px`; screen.style.height = `${h}px`; screen.style.setProperty('--nav-h', kind === 'bar' ? 'calc(56 * var(--fu))' : '0px');
+    if (look) for (const name of inheritedLooks) screen.style.setProperty(name, look.getPropertyValue(name));
+    if (banner && home) screen.append(stillCopy(banner), stillCopy(home));
+    screen.append(...(kind === 'bar'
+      ? [el('span', { class: 'st-navbar' }, el('span', { class: 'keys' }, NAV_ICONS(order).map(navIcon)), el('span', { class: 'lk' }, navIcon('nav-lock')))]
+      : [el('span', { class: 'st-navpill' }), el('span', { class: 'st-navlock' }, navIcon('nav-lock'))]));
+    box.append(screen); fitLive.observe(box);
+    return box;
   }
   builders.navigation = () => rebuild(navHost, () => {
     const n = Prefs.get('navigation'), dark = Prefs.get('screen').goDark, bar = n.mode === 'bar';
-    const opt = (mode, title, text) => el('button', { type: 'button', class: 'st-opt', role: 'radio', 'aria-checked': String(n.mode === mode), tabindex: n.mode === mode ? '0' : '-1',
-      onclick: () => { Prefs.update('navigation', v => { v.mode = mode; }); builders.navigation(); syncSummaries(); } },
-      el('span', { class: 'st-rd' }), el('span', { class: 'st-opt-copy' }, el('b', {}, title), el('span', {}, text)), el('span', { class: 'st-opt-pic' }, navPicture(mode, n.order)));
-    const modes = el('div', { class: 'st-opts', role: 'radiogroup', 'aria-label': 'How staff move between screens and apps' },
-      opt('swipe', 'Swipe gestures', 'Default · swipe up for Home, from the side for Back, up and hold for Recent apps'),
-      opt('bar', 'Navigation bar', 'Back, Home and Recent apps buttons at the bottom · swipes are turned off'));
-    modes.addEventListener('keydown', e => {
-      if (!['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key)) return; e.preventDefault();
-      Prefs.update('navigation', v => { v.mode = v.mode === 'bar' ? 'swipe' : 'bar'; }); builders.navigation(); syncSummaries();
-      navHost.querySelector('.st-opt[aria-checked="true"]')?.focus({ preventScroll: true });
-    });
+    const modes = radioGrid('How staff move between screens and apps', [
+      { id: 'swipe', name: 'Swipe gestures', text: 'Default · swipe up for Home, from the side for Back, up and hold for Recent apps', pic: () => navPic('swipe', n.order) },
+      { id: 'bar', name: 'Navigation bar', text: 'Back, Home and Recent apps buttons at the bottom · swipes are turned off', pic: () => navPic('bar', n.order) }],
+      n.mode, mode => { Prefs.update('navigation', v => { v.mode = mode; }); builders.navigation(); syncSummaries(); });
     const order = o => ({ value: o, aria: o === 'back-left' ? 'Back on the left' : 'Back on the right', label: [el('span', { class: 'ics' }, NAV_ICONS(o).map(navIcon)), el('span', {}, o === 'back-left' ? 'Back on the left' : 'Back on the right')] });
     return [
       card('', lab('How staff move between screens and apps'), sub('Applies to every app on this tablet. Only one can be on at a time.'), modes),
@@ -505,7 +515,7 @@
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
   dialog.addEventListener('close', () => {
     window.RestroThemePicker?.reset();
-    for (const host of [ordersHost, counterHost]) host?.replaceChildren(); // (the pictures go with the page)
+    for (const host of [ordersHost, counterHost, navHost]) host?.replaceChildren(); // (the pictures go with the page)
     if (toastNode.parentElement === dialog) toastHome.append(toastNode);
   });
   new MutationObserver(() => { if (dialog.open && toastNode.parentElement !== dialog) dialog.append(toastNode); })
