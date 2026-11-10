@@ -365,7 +365,7 @@
         }
         touched.add(ch.c);
         const after = d.get(ch.i);
-        if (ch.c === 'orders') sawNumber(after);
+        if (ch.c === 'orders') { sawNumber(after); sawBill(after); }
         if (ch.c === 'orders' && isObj(mine) && isObj(after) && Number.isInteger(mine.number) && Number.isInteger(after.number) && mine.number !== after.number) renumbered.push({ uid: ch.i, from: mine.number, to: after.number });
         if (device.main && state.mode === 'multi') {
           const fin = m[ch.i];
@@ -469,7 +469,7 @@
           entry = { ...entry, h: tick(), s: hash(JSON.stringify(fixed)), pv: ch.h };
           if (isObj(before) && Number.isInteger(before.number) && before.number !== fixed.number) renumbered.push({ uid: ch.i, from: before.number, to: fixed.number });
         }
-        if (ch.c === 'orders') sawNumber(doc);
+        if (ch.c === 'orders') { sawNumber(doc); sawBill(doc); }
         m[ch.i] = entry;
         hub.seq++; hubRecord(ch.c, ch.i, hub.seq);
         accepted.push(ch.x ? { c: ch.c, i: ch.i, h: entry.h, b: entry.pv, x: 1, seq: hub.seq } : { c: ch.c, i: ch.i, h: entry.h, b: entry.pv, doc, seq: hub.seq });
@@ -588,6 +588,47 @@
   // the order is fired and given its number. Another tablet firing first moves it on to the next one.
   const upcomingNumber = () => nextOn(today());
 
+  // ---------- bill numbers (Update Pack 3) ----------
+  // A bill's own number, apart from the order's ("Bill #B-2045 · Order #1015"): the tax invoice's serial, one series for
+  // the whole restaurant, every number once, starting again at B-1 each financial year (1 April, as GST allows). Kept in
+  // one place like the ticket numbers: the cloud while it can be reached, the main system while the internet is down; a
+  // tablet on its own counts by itself. An order keeps its bill number (billNo) and year (billYear, "2026-27").
+  const BILL_KEY = 'restro.sync.billNumber.v1';
+  const yearOf = t => { const d = new Date(t), y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-${String((y + 1) % 100).padStart(2, '0')}`; };
+  const highestBill = (year, docs) => Math.max(0, ...[...(docs || readDocs('orders')).values()].filter(o => o.billYear === year && Number.isInteger(o.billNo)).map(o => o.billNo));
+  function nextBill(year) { const t = load(BILL_KEY, null), seen = isObj(t) && t.year === year ? Number(t.next) || 1 : 1; return Math.max(seen, highestBill(year) + 1); }
+  function sawBill(doc) {
+    if (!isObj(doc) || !Number.isInteger(doc.billNo) || typeof doc.billYear !== 'string' || doc.billYear !== yearOf(now())) return;
+    const t = load(BILL_KEY, null), next = isObj(t) && t.year === doc.billYear ? Number(t.next) || 1 : 1;
+    if (doc.billNo >= next) save(BILL_KEY, { year: doc.billYear, next: doc.billNo + 1 });
+  }
+  const knownBills = () => nextBill(yearOf(now())) - 1;
+  function ownBill(after = 0) {
+    const year = yearOf(now()), number = Math.max(nextBill(year), after + 1);
+    save(BILL_KEY, { year, next: number + 1 });
+    return { year, number };
+  }
+  const validBill = t => isObj(t) && typeof t.year === 'string' && /^\d{4}-\d{2}$/.test(t.year) && Number.isInteger(t.number) && t.number > 0;
+  async function mainBill(after = 0) {
+    after = Math.max(Number.isInteger(after) ? after : 0, knownBills());
+    if (cloudConfig() && Cloud.reachable()) {
+      const t = await Cloud.number(after, 2000, 'bill').catch(() => null);
+      if (validBill(t)) { sawBill({ billNo: t.number, billYear: t.year }); return { year: t.year, number: t.number }; }
+    }
+    return ownBill(after);
+  }
+  // The number for a bill printed (or paid) for the first time: { year, number }, or null if this tablet reaches no one
+  // to give it (then the bill doesn't print)
+  async function takeBillNumber() {
+    if (device.main) return mainBill();
+    if (!upstream()) return ownBill();
+    let t = Local.hubId() ? await Local.number(knownBills(), 'bill') : null;
+    if (!validBill(t) && cloudConfig() && Cloud.reachable()) t = await Cloud.number(knownBills(), 3000, 'bill').catch(() => null);
+    if (!validBill(t)) return null;
+    sawBill({ billNo: t.number, billYear: t.year });
+    return { year: t.year, number: t.number };
+  }
+
   // ---------- tablets nearby: through the Android app (RESTRODevice.localSync) ----------
   // Pairing: the main system makes a code; the other tablets enter it once. A key made from the code (PBKDF2) seals every
   // message (AES-GCM), so only the restaurant's tablets can read one or be believed; the name the tablets look for each
@@ -642,7 +683,7 @@
           const { results, accepted } = hubAccept(Array.isArray(msg.changes) ? msg.changes.slice(0, 500) : []);
           send({ t: 'ack', re: msg.rid, results }, fromId);
           if (accepted.length) broadcast({ t: 'batch', server: device.id, from: accepted[0].seq, seq: hub.seq, changes: accepted });
-        } else if (msg.t === 'number') mainNumber(Number(msg.after)).then(t => send({ t: 'number', re: msg.rid, ...t }, fromId)); // a tablet firing a new order
+        } else if (msg.t === 'number') (msg.series === 'bill' ? mainBill(Number(msg.after)) : mainNumber(Number(msg.after))).then(t => send({ t: 'number', re: msg.rid, ...t }, fromId)); // a tablet firing a new order (or printing a bill)
         return;
       }
       // Other tablets: changes passed on by the main system as they happen
@@ -681,7 +722,10 @@
     async function sync() { await push(); await pull(); await push(); }
     // The next ticket number, through the main system (3 seconds at most, as someone is waiting to fire the order).
     // `after`: the highest number this tablet knows of today.
-    async function number(after) { const r = await request({ t: 'number', after }, hubPeer()?.id, 3000); return r ? { day: r.day, number: r.number } : null; }
+    async function number(after, series) {
+      const r = await request({ t: 'number', after, ...(series ? { series } : {}) }, hubPeer()?.id, 3000);
+      return r ? (series === 'bill' ? { year: r.year, number: r.number } : { day: r.day, number: r.number }) : null;
+    }
     // The main system counts as there until it has been gone a few seconds (and while a tablet starting up looks for it).
     // Gone longer, a tablet signed in to the cloud carries on with the cloud, and comes back when the main system does.
     const HUB_GRACE = 5000;
@@ -770,8 +814,8 @@
     function schedule() { clearTimeout(timer); if (upstream() !== 'cloud') return; timer = setTimeout(sync, Math.min(60000, 15000 * Math.max(1, failures))); }
     // The next ticket number of today, past `after` (the highest number the asking tablet knows of today): { day, number }.
     // A failure counts as the cloud being unreachable until a sync gets through again.
-    async function number(after, wait = 3000) {
-      try { return await call('POST', '/numbers/next', { device: device.id, day: today(), after }, wait); }
+    async function number(after, wait = 3000, series) {
+      try { return await call('POST', '/numbers/next', { device: device.id, day: today(), after, ...(series === 'bill' ? { series: 'bill', year: yearOf(now()) } : {}) }, wait); }
       catch (e) { status = 'offline'; failures++; emitStatus(); schedule(); throw e; }
     }
     // Live changes from the cloud, when it offers them (a WebSocket; the token goes in the first message, never in the
@@ -871,7 +915,7 @@
   }
 
   window.RestroSync = Object.freeze({
-    wrote, removed, takeNumber, canFire, nextNumber, upcomingNumber, newId, mergeRecord, today, orderDay, dayOf,
+    wrote, removed, takeNumber, takeBillNumber, canFire, nextNumber, upcomingNumber, newId, mergeRecord, today, orderDay, dayOf,
     status,
     get device() { return { ...device }; },
     setDeviceName(name) { device.name = String(name || '').trim().slice(0, 30) || device.name; save(DEVICE, device); Local.start(); emitStatus(); },

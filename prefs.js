@@ -14,7 +14,7 @@
       packaging: { on: false, mode: 'flat', flat: 0, types: ['takeaway', 'delivery', 'phone'] },
       delivery: { on: false, flat: 0 }
     },
-    business: { address: '', gstin: '', fssai: '', footer: 'Thank you! Visit again.' },
+    business: { address: '', phone: '', phoneCountry: 'IN', email: '', gstin: '', fssai: '', footer: 'Thank you! Visit again.' },
     printers: {},
     security: { autoLock: 5 },
     navigation: { mode: 'swipe', order: 'back-left' },
@@ -53,7 +53,9 @@
     },
     business(v) {
       const d = DEFAULTS.business;
-      return { address: text(v?.address, 160, ''), gstin: text(v?.gstin, 15, '').toUpperCase().replace(/\s/g, ''), fssai: text(v?.fssai, 14, '').replace(/\D/g, ''), footer: typeof v?.footer === 'string' ? text(v.footer, 80, '') : d.footer };
+      // (Update Pack 3: the restaurant's phone and email, from My Profile, printed under the address)
+      return { address: text(v?.address, 160, ''), phone: text(v?.phone, 15, '').replace(/\D/g, ''), phoneCountry: /^[A-Z]{2}$/.test(v?.phoneCountry) ? v.phoneCountry : 'IN',
+        email: text(v?.email, 120, '').toLowerCase(), gstin: text(v?.gstin, 15, '').toUpperCase().replace(/\s/g, ''), fssai: text(v?.fssai, 14, '').replace(/\D/g, ''), footer: typeof v?.footer === 'string' ? text(v.footer, 80, '') : d.footer };
     },
     printers(v) {
       const out = {};

@@ -587,7 +587,7 @@
     const res = await window.RestroCounter.printSaved(uid);
     const what = res.kind === 'receipt' ? 'Receipt' : 'Bill';
     if (res.ok) say({ bold: `${what} ${res.reprint ? 'reprinted' : 'printed'}`, text: ` · Order ${ticket(r.o.number)}` });
-    else say({ kind: 'error', bold: `The ${what.toLowerCase()} didn’t print`, text: ` · Order ${ticket(r.o.number)}`, retry: () => printOrder(r) });
+    else say({ kind: 'error', bold: `The ${what.toLowerCase()} didn’t print`, text: res.why === 'number' ? ' · can’t reach the main system for its bill number' : ` · Order ${ticket(r.o.number)}`, retry: () => printOrder(r) });
     render();
   }
   function buzzPager(r) {

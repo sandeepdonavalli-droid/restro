@@ -491,6 +491,8 @@ window.RestroProfile=(()=>{
     get email(){return profile.email;},get mobile(){return profile.mobile;},
     get country(){return byIso(profile.country);},
     get international(){return profile.mobile?`+${byIso(profile.country).code} ${pretty(profile.mobile,byIso(profile.country))}`:'';},
+    // A number as it prints: "+91 98765 43210"
+    formatPhone(number,iso){const c=byIso(iso),d=String(number||'').replace(/\D/g,'');return d?`+${c.code} ${pretty(d,c)}`:'';},
     countries:COUNTRIES.map(({iso,name,code})=>({iso,name,code})),
     fill(){select.value=profile.country;describe();$('#profile-email').value=profile.email;$('#profile-mobile').value=pretty(profile.mobile,byIso(profile.country));showError('#profile-email-error','');showError('#profile-mobile-error','');},
     // Returns the cleaned values, or null after showing what to fix.

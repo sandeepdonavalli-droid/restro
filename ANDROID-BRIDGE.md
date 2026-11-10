@@ -150,11 +150,13 @@ opens. Return `false` (or throw) if it didn't print; Counter says so.
 Print it as `25_printed-bill` (Counter Update 7, the customer's copy, the same for every kind of order), 80 mm,
 **black only**:
 
-- **Header:** `restaurant` (large), `address`, then `GSTIN …` · `FSSAI …` (`gstin`, `fssai`: Settings › Business
-  details; the FSSAI licence number is required on bills in India). A dashed rule, **TAX INVOICE**, then the order
-  (`number`, e.g. `"#05"`, or `null` for an order not saved yet) and the date and time (`at`, milliseconds, printed
-  `7 Nov 2026 11:58 AM`), then `type` · `Table …` (`table`) · `… guests` (`guests`, 0 for none), and `Server: EC` (the
-  initials of `server`).
+- **Header:** `restaurant` (large), `address`, then the restaurant's phone · email (`phone`, printed `+91 98765
+  43210`, and `email`, Settings › Business details; Update Pack 3), then `GSTIN …` · `FSSAI …` (`gstin`, `fssai`: the
+  FSSAI licence number is required on bills in India). A dashed rule, **TAX INVOICE**, then `Bill #B-2045 · Order
+  #1015` (`bill`: the bill's own number, one series for the restaurant starting again at B-1 each financial year,
+  given at the first print or at the payment, `null` before; `number`: the order's ticket, e.g. `"#05"`, or `null` for
+  an order not saved yet) and the date and time (`at`, milliseconds, printed `7 Nov 2026 11:58 AM`), then `type` ·
+  `Table …` (`table`) · `… guests` (`guests`, 0 for none), and `Server: EC` (the initials of `server`).
 - **Dishes:** each of `lines`, `{ name, qty, each, total, modifiers, discount }`: `2 × Sweet lassi` and its `total`;
   its `modifiers` under it on one line (`"Half · Medium spicy"`); its dish discount, when it has one, as an indented
   minus line: `discount.label` and −`discount.amount` (`"10% off"` −26.00, `"100% off · Complaint"` −180.00). Dish

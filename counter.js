@@ -177,6 +177,7 @@
       discountPct: window.RestroBill.pct(o.discountPct), servicePct: window.RestroBill.rate(o.servicePct), priority: o.priority === true, note: cleanNote(o.note), guests: cleanGuests(o.guests),
       server: typeof o.server === 'string' && o.server ? o.server.slice(0, 60) : null, serverId: typeof o.serverId === 'string' ? o.serverId : null,
       merged: (Array.isArray(o.merged) ? o.merged : []).filter(u => typeof u === 'string').slice(0, 20), events: cleanEvents(o.events),
+      ...(Array.isArray(o.bills) && o.bills.length ? { bills: o.bills.slice(-20) } : {}), ...(Number.isInteger(o.billNo) && o.billNo > 0 && typeof o.billYear === 'string' ? { billNo: o.billNo, billYear: o.billYear } : {}),
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && (items.has(l.id) || (typeof l.id === 'string' && cleanCustom(l.custom))) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
         .map(l => {
           const custom = items.has(l.id) ? null : cleanCustom(l.custom), off = window.RestroBill.pct(l.off), kit = cleanKit(l.id, l.kit);
@@ -776,7 +777,9 @@
       // (Update Pack 3) the bill and receipt prints (a later print is a REPRINT) and what a delivery app's integration
       // sent with the order
       ...Object.fromEntries(KEPT.filter(k => prev && prev[k] != null).map(k => [k, prev[k]])),
-      ...(!prev && Array.isArray(order.bills) && order.bills.length ? { bills: order.bills } : {}) };
+      ...(!prev && Array.isArray(order.bills) && order.bills.length ? { bills: order.bills } : {}),
+      // the bill's number (Update Pack 3), given at its first print or at the payment
+      ...(order.billNo && !prev?.billNo ? { billNo: order.billNo, billYear: order.billYear } : {}) };
     // Changed on another tablet since it was opened here: both tablets' changes are kept (items added on both, and so on)
     if (prev && opened && window.RestroSync && JSON.stringify(prev) !== opened) entry = window.RestroSync.mergeRecord('orders', JSON.parse(opened), entry, prev);
     // (a pager handed out here is out, even if the one it replaced came back on another tablet meanwhile)
@@ -815,7 +818,7 @@
     if (kot) printSlip(kitchenSlip(entry, kot), null, { uid: entry.uid, id: kot.id });
     return { entry, kot, sentNow: kot ? kot.lines.reduce((n, l) => n + l.qty, 0) : 0, isNew: !prev };
   }
-  const KEPT = ['bills', 'receipts', 'platform', 'platformNo', 'platformType', 'platformLogo', 'pickupAt', 'readyBy', 'callCode', 'handover', 'riderAt', 'platformReadyAt', 'payRef'];
+  const KEPT = ['bills', 'receipts', 'billNo', 'billYear', 'platform', 'platformNo', 'platformType', 'platformLogo', 'pickupAt', 'readyBy', 'callCode', 'handover', 'riderAt', 'platformReadyAt', 'payRef'];
   // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
   // main system or the cloud, as a new order takes its number from them, so no two orders share one. Otherwise it says
   // so and the order stays on screen. Returns what upsertOrder does, or null. A dish that sold out before its KOT went
@@ -838,6 +841,14 @@
       try { given = await sync.takeNumber(); } catch { given = null; } finally { firing = false; }
       if (!given) { toast(cantFire(pay)); return null; }
       if (order !== target || !order.lines.length) return null; // another order took the screen meanwhile
+    }
+    // (Update Pack 3) paid: the bill has its number, if no bill was printed before
+    if (pay && sync?.takeBillNumber && !order.billNo && !savedOf(loadOrders())?.billNo) {
+      firing = true; let bill = null;
+      try { bill = await sync.takeBillNumber(); } catch { bill = null; } finally { firing = false; }
+      if (!bill) { toast(cantFire(pay)); return null; }
+      if (order !== target) return null;
+      order.billNo = bill.number; order.billYear = bill.year;
     }
     return upsertOrder(pay, given);
   }
@@ -1242,7 +1253,7 @@
     try {
       const list = JSON.parse(localStorage.getItem(CANCELLED_KEY) || '[]');
       list.unshift({ uid: idOf(rec), number: rec.number, day: rec.day || null, at: slip.at, reason: slip.reason, by: slip.by, type: rec.type, table: rec.table || '', total: rec.total,
-        kot: kotsOf(rec).length > 0, bill: Array.isArray(rec.bills) && rec.bills.length > 0, lines: rec.lines.map(l => ({ id: l.id, name: l.name, qty: l.qty, price: l.price })) });
+        kot: kotsOf(rec).length > 0, bill: Array.isArray(rec.bills) && rec.bills.length > 0, ...(rec.billNo ? { billNo: billLabel(rec.billNo), billYear: rec.billYear } : {}), lines: rec.lines.map(l => ({ id: l.id, name: l.name, qty: l.qty, price: l.price })) });
       localStorage.setItem(CANCELLED_KEY, JSON.stringify(list.slice(0, 200)));
     } catch {}
   }
@@ -2370,6 +2381,8 @@
     const type = o.type || DEFAULT_TYPE;
     return {
       restaurant: shop && shop !== 'RESTAURANT NAME' ? shop : '', address: biz.address || '', gstin: biz.gstin || '', fssai: biz.fssai || '',
+      // (Update Pack 3: the restaurant's phone and email, printed under the address)
+      phone: biz.phone ? window.RestroProfile?.formatPhone?.(biz.phone, biz.phoneCountry) || biz.phone : '', email: biz.email || '',
       number: o.number ? ticket(o.number) : null, at: Date.now(),
       type: typeLabel[type], table: usesTable(o) ? tableName(o.table) : '', guests: o.guests || 0,
       server: o.server || staffName() || '',
@@ -2407,21 +2420,47 @@
     }
     printPage(bill); return Promise.resolve(true);
   }
+  // The bill's number (Update Pack 3): given at its first print (or at the payment), from the restaurant's one series
+  // (RestroSync.takeBillNumber), and kept on the order at once. Resolves { no, year }, or null when no number could be had.
+  async function billNumber(target) {
+    const rec = savedOf(loadOrders());
+    if (rec?.billNo) return { no: rec.billNo, year: rec.billYear };
+    if (target.billNo) return { no: target.billNo, year: target.billYear };
+    const sync = window.RestroSync; if (!sync?.takeBillNumber) return { no: null, year: null };
+    let t = null; try { t = await sync.takeBillNumber(); } catch { t = null; }
+    if (!t) return null;
+    const list = loadOrders(), now = savedOf(list);
+    if (now && order === target) { now.billNo = t.number; now.billYear = t.year; storeOrders(list); keepOpened(now); }
+    target.billNo = t.number; target.billYear = t.year; if (order === target) saveDraft();
+    return { no: t.number, year: t.year };
+  }
+  const billLabel = no => (no ? `B-${no}` : null);
   async function printBill() {
     if (!order.lines.length) return;
+    const target = order, num = await billNumber(target);
+    if (!num) { toast(cantFire(false).replace('order not saved', 'bill not printed')); return; }
+    if (order !== target) return;
     const list = loadOrders(), rec = savedOf(list), prints = rec ? (Array.isArray(rec.bills) ? rec.bills : []) : (Array.isArray(order.bills) ? order.bills : []);
-    const bill = billDoc(order, 'bill', prints), app = typeof window.RESTRODevice?.printer?.printBill === 'function';
+    const bill = { ...billDoc(order, 'bill', prints), bill: billLabel(num.no) }, app = typeof window.RESTRODevice?.printer?.printBill === 'function';
     const ok = await deliverBill(bill);
     if (app) toast(ok ? 'Bill sent to the printer' : 'The bill didn’t print');
     if (!ok) return;
-    const mark = { at: Date.now(), by: staffName(), total: bill.total };
-    if (rec) { rec.bills = [...prints, mark].slice(-20); storeOrders(list); keepOpened(rec); } else { order.bills = [...prints, mark].slice(-20); saveDraft(); }
+    const mark = { at: Date.now(), by: staffName(), total: bill.total }, now = loadOrders(), r = rec ? now.find(o => idOf(o) === idOf(rec)) : null;
+    if (r) { r.bills = [...(Array.isArray(r.bills) ? r.bills : []), mark].slice(-20); storeOrders(now); if (order.uid === idOf(r)) keepOpened(r); }
+    else if (!rec && order === target) { order.bills = [...prints, mark].slice(-20); saveDraft(); }
   }
   // A saved order's bill (not paid yet) or receipt (paid), from Orders: resolves { ok, kind, reprint }
   async function printSaved(uid) {
-    const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
+    let list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
+    // (its bill number first, when it has none yet)
+    if (!rec.billNo && window.RestroSync?.takeBillNumber) {
+      let t = null; try { t = await window.RestroSync.takeBillNumber(); } catch { t = null; }
+      if (!t) return { ok: false, why: 'number' };
+      list = loadOrders(); rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
+      if (!rec.billNo) { rec.billNo = t.number; rec.billYear = t.year; storeOrders(list); if (order.uid === uid) keepOpened(rec); }
+    }
     const kind = rec.paidAt ? 'receipt' : 'bill', key = kind === 'receipt' ? 'receipts' : 'bills', prints = Array.isArray(rec[key]) ? rec[key] : [];
-    const bill = billDoc(restoreOrder(rec), kind, prints, rec);
+    const bill = { ...billDoc(restoreOrder(rec), kind, prints, rec), bill: billLabel(rec.billNo) };
     const ok = await deliverBill(bill);
     if (ok) {
       const now = loadOrders(), r = now.find(o => idOf(o) === uid);
@@ -2440,9 +2479,10 @@
     page.replaceChildren(...[
       bill.reprint ? el('div', { class: 'reprint' }, el('b', {}, 'REPRINT'), el('span', {}, `Reprinted ${stamp(bill.reprint.at)}${bill.reprint.by ? ` · by ${bill.reprint.by}` : ''}`)) : null,
       bill.restaurant ? el('h1', {}, bill.restaurant) : null,
-      bill.address || bill.gstin || bill.fssai ? el('p', { class: 'small' }, bill.address, bill.address && (bill.gstin || bill.fssai) ? el('br') : null, [bill.gstin ? `GSTIN ${bill.gstin}` : '', bill.fssai ? `FSSAI ${bill.fssai}` : ''].filter(Boolean).join(' · ')) : null,
+      ...(() => { const ls = [bill.address, [bill.phone, bill.email].filter(Boolean).join(' · '), [bill.gstin ? `GSTIN ${bill.gstin}` : '', bill.fssai ? `FSSAI ${bill.fssai}` : ''].filter(Boolean).join(' · ')].filter(Boolean);
+        return ls.length ? [el('p', { class: 'small' }, ...ls.flatMap((t, i) => (i ? [el('br'), t] : [t])))] : []; })(),
       el('hr'), el('p', { class: 'b' }, bill.title || 'TAX INVOICE'),
-      el('table', { class: 'small' }, el('tbody', {}, row(bill.number ? `Order ${bill.number}` : 'Bill', when),
+      el('table', { class: 'small' }, el('tbody', {}, row([bill.bill ? `Bill #${bill.bill}` : '', bill.number ? `Order ${bill.number}` : ''].filter(Boolean).join(' · ') || 'Bill', when),
         row([bill.type, bill.table ? `Table ${bill.table}` : '', bill.guests ? plural(bill.guests, 'guest') : ''].filter(Boolean).join(' · '), bill.server ? `Server: ${initialsOf(bill.server)}` : ''))),
       el('hr'),
       el('table', {}, el('tbody', {}, ...bill.lines.flatMap(l => [
