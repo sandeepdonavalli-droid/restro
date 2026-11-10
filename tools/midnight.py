@@ -167,7 +167,10 @@ def grad_keep(v):   # the pack keeps a gradient only when one of its solid colou
     return any(c[3] >= 1 and 20 <= round(c[0]) <= 49 for c in (parse(m.group(0)) for m in COLOR_RE.finditer(v)) if c)
 KEEP = ('em.veg', 'em.non', '.cx-vn.veg em', '.cx-vn.non em')   # veg / non-veg marks: the edge as it is, the dot turned
 KEEP_BG = ('.cx-sw i',)                                         # a switch's knob stays white
-def scope(s): return f'{P} {s}' if s.startswith(('.counter-app', 'dialog.counter-app')) else f'{P} .counter-app {s}'
+def scope(s):
+    m = re.match(r'html((?:\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*)\s+(.*)', s)       # html[data-nav="bar"] .x
+    if m: return f'{P}{m.group(1)} ' + (m.group(2) if m.group(2).startswith(('.counter-app', 'dialog.counter-app')) else f'.counter-app {m.group(2)}')
+    return f'{P} {s}' if s.startswith(('.counter-app', 'dialog.counter-app')) else f'{P} .counter-app {s}'
 def twin(sel, decls):
     if any(k in sel for k in KEEP):
         return [d for p, v in decls if p == 'color' for c in [parse(v)] for m in [map_text(c)]
