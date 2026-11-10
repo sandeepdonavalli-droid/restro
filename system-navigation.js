@@ -723,11 +723,35 @@
     window.dispatchEvent(new CustomEvent('restro:screen-unlocked'));
   }
   document.querySelector('#system-lock').addEventListener('click',lockScreen);
-  // The keyboard (Update Pack 2): while the tablet's keyboard is up (a field that takes typing has the focus), the round
-  // lock button of swipe mode is out of sight, as it would sit on a key. The navigation bar's stays.
+  // The keyboard (Update Pack 3): the lock stays while typing, so a tablet left with its keyboard up can still be locked.
+  // Android draws its keyboard over every app, so while it covers the bottom of the page --keyboard is how much it
+  // covers, and the lock (in the navigation bar mode, the bar) sits on top of it. How much it covers:
+  // - in a browser, the part of the page in view gets shorter (visualViewport);
+  // - the RESTRO Android app, when it keeps the page full height under its keyboard, says so with a restro:keyboard
+  //   event ({ height } in CSS pixels, 0 when the keyboard goes down);
+  // - where neither tells (the page shown inside another page, as on the tablet link), on a touch screen while a field
+  //   that takes typing has the focus: 45% of the screen, a tablet keyboard's height or a little more.
+  // A page that the keyboard makes shorter already ends at the keyboard.
   const typingField=el=>el instanceof HTMLTextAreaElement||(el instanceof HTMLInputElement&&!el.readOnly&&!el.disabled&&el.inputMode!=='none'&&/^(text|search|email|tel|url|number|password)$/.test(el.type))||Boolean(el?.isContentEditable);
-  const keyboard=()=>root.toggleAttribute('data-keyboard',typingField(document.activeElement));
-  document.addEventListener('focusin',keyboard);document.addEventListener('focusout',()=>setTimeout(keyboard,0));
+  let appKeyboard=0,tells=false,guess=false,guessTimer=0,tallest=window.innerHeight,wide=window.innerWidth;
+  const keyboard=()=>{
+    if(window.innerWidth!==wide){wide=window.innerWidth;tallest=window.innerHeight;}
+    tallest=Math.max(tallest,window.innerHeight);
+    const view=window.visualViewport;
+    const covered=view&&view.scale<1.01?window.innerHeight-view.height-view.offsetTop:0;
+    if(covered>80||appKeyboard>0||window.innerHeight<tallest*.85)tells=true;
+    let px=Math.max(covered,appKeyboard);
+    if(px<=80&&guess&&!tells&&typingField(document.activeElement))px=window.innerHeight*.45;
+    root.style.setProperty('--keyboard',px>80?`${Math.round(px)}px`:'0px');
+  };
+  window.visualViewport?.addEventListener('resize',keyboard);window.visualViewport?.addEventListener('scroll',keyboard);
+  window.addEventListener('resize',keyboard);
+  window.addEventListener('restro:keyboard',event=>{appKeyboard=Math.max(0,Number(event.detail?.height)||0);keyboard();});
+  document.addEventListener('focusin',()=>{
+    clearTimeout(guessTimer);
+    if(!tells&&matchMedia('(pointer: coarse)').matches&&typingField(document.activeElement))guessTimer=setTimeout(()=>{guess=true;keyboard();},500);
+  });
+  document.addEventListener('focusout',()=>setTimeout(()=>{if(!typingField(document.activeElement)){clearTimeout(guessTimer);guess=false;keyboard();}},0));
   // Go dark: our own black screen over everything (inside the lock screen, which is over everything), the backlight at
   // its minimum where the RESTRO Android app lets us (RESTRODevice.setScreenDark). The power button still turns the
   // display fully off.

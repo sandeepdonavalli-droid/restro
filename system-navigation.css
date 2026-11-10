@@ -27,8 +27,10 @@ html[data-home-theme="aurora"]:not([data-app-open]) .home-indicator{background:r
 /* Home on Aurora Dark: the lock in the Midnight style (Update Pack 2: Home at 1080), a raised navy with a soft white edge */
 html[data-home-theme="aurora"]:not([data-app-open]):not([data-nav="bar"]) .system-lock{background:#1E2A42;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.18),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(0,0,0,.5)}
 html[data-home-theme="aurora"]:not([data-app-open]):not([data-nav="bar"]) .system-lock:active{background:#000000}
-/* (hidden while the keyboard is up: it would sit on a key) */
-html[data-keyboard]:not([data-nav="bar"]) .system-lock{visibility:hidden}
+/* The keyboard (Update Pack 3): the lock stays while typing. Android's keyboard is drawn over the app, so while it covers
+   the corner the lock sits 14 above it, and in the navigation bar mode the whole bar does (--keyboard: system-navigation.js) */
+html:not([data-nav="bar"]) .system-lock{bottom:calc(14 * var(--fu) + var(--keyboard, 0px))}
+html[data-nav="bar"] .home-bar{bottom:var(--keyboard, 0px)}
 .system-lock:focus-visible{outline:2px solid #2F6FDE;outline-offset:3px}
 #system-navigation .system-lock .system-glyph{width:calc(31 * var(--fu));height:calc(31 * var(--fu))}
 /* Back, Home and Recent apps: in swipe mode, buttons for the keyboard and screen readers only, out of sight until focused */

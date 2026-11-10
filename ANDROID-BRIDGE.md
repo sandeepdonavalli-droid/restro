@@ -105,6 +105,20 @@ Dispatch these as window events when the tablet's power button locks the screen 
 unlocked (`ACTION_USER_PRESENT`). With staff accounts set up, locking signs the person out and the lock screen asks for
 a PIN.
 
+## The keyboard: `restro:keyboard`
+
+The lock button stays while staff type, so a tablet left with its keyboard up can still be locked. Android draws its
+keyboard over the app, so while the keyboard is up the page lifts the lock to sit just above it (in the navigation bar
+mode, the whole bar). In a browser the page sees the keyboard itself. When the RESTRO Android app keeps the page full
+height under its keyboard (full-screen kiosk mode does), tell the page how much the keyboard covers whenever that
+changes:
+
+```js
+window.dispatchEvent(new CustomEvent('restro:keyboard', { detail: { height: 386 } })); // CSS pixels; 0 when it goes down
+```
+
+Take it from `WindowInsetsCompat.Type.ime()` (its bottom inset, in CSS pixels: device pixels ÷ the WebView's density).
+
 ## Printing the bill: `RESTRODevice.printer.printBill(bill)`
 
 Counter's **Print bill** button (the printer, at the end of the order panel's top row) prints the bill. With this
