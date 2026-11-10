@@ -221,8 +221,9 @@ that sent it tries again by itself every 30 seconds until it prints.
 | `printers` | Settings › Devices › Printers: `[{ id, language, copies }]` for the kitchen printers |
 | `reprint` | KOTs reprinted from Orders (Update Pack 3): `{ at, by }`, the red **REPRINT** box with the time and initials, and **(R)** after every dish (Update Pack 1); `undefined` otherwise |
 
-- **Red** (modifiers, dish notes, the order note, the action box) prints red on two-colour printers (red/black ribbon or
-  two-colour thermal paper) and black on black-only printers.
+- **Red** (modifiers, dish notes, the order note, the action box, the **REPRINT** box) prints red on two-colour printers
+  (red/black ribbon or two-colour thermal paper) and black on black-only printers: the same slip, only the colour
+  changes. (Whether a printer has red will be a setting in Settings › Printers, to come.)
 - **Language:** each printer's KOT language (`"English"`, `"Telugu"`, `"Hindi"`, `"Tamil"`, `"Kannada"`,
   `"Malayalam"`, `"Marathi"`, `"Bengali"`, `"Gujarati"`). Anything but English is printed as an image (raster), as
   thermal printers have no Indic fonts; a dish's name in that language comes from `names` (keyed by the language's code:
