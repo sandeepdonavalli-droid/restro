@@ -436,8 +436,9 @@
   function applyDiscount() { const n = discPop && discOf(discPop); if (!n) return; order.discountPct = n; sheet = null; discPop = null; render(); }
   function cancelDiscount() { sheet = null; discPop = null; render(); }
   // Service charge (Update 7): every dine-in order has it in the order menu, and it is never added by itself (the customer
-  // agrees to it). Its pop-up opens with 5%, or the order's rate to change it; quick picks 2.5 / 5 / 7.5 / 10; a decimal
-  // point; 10% at most. It is charged on what is left after the discounts, with GST on top. (No settings: fixed here.)
+  // agrees to it). Its pop-up opens with 5%, or the order's rate to change it; the quick picks set in Settings › Billing &
+  // charges (2.5 / 5 / 7.5 / 10 until changed); a decimal point; 10% at most. It is charged on what is left after the
+  // discounts, with GST on top.
   let servicePop = null; // { value: what is typed, '7.5' }
   const SERVICE = Object.freeze({ preset: 5, picks: Object.freeze([2.5, 5, 7.5, 10]), max: 10 });
   const serviceMax = () => SERVICE.max;
@@ -2447,7 +2448,7 @@
   function serviceCard(hold) {
     const p = servicePop, n = serviceOf(p), t = totals(), base = t.subtotal - t.discount, max = serviceMax();
     const adds = n ? totalsOf({ ...order, servicePct: n }).service : 0;
-    const picks = SERVICE.picks;
+    const picks = (billing().serviceCharge?.picks?.length ? billing().serviceCharge.picks : SERVICE.picks).filter(q => q > 0 && q <= max).slice(0, 4);
     return el('div', { class: 'cx-pu disc svc', role: 'dialog', 'aria-label': 'Service charge' },
       el('div', { class: 'cx-pu-head' }, el('div', { class: 'cx-dh svc' }, el('i', { 'aria-hidden': 'true' }, mi('room_service', 22)), el('b', {}, 'Service charge')), closeX(cancelService, hold)),
       el('div', { class: 'cx-dd', role: 'status', 'aria-label': n ? `Service charge ${n}%` : 'Type the service charge' }, p.value ? el('span', {}, p.value) : null, el('small', {}, '%'), el('i', { 'aria-hidden': 'true' })),

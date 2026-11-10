@@ -10,6 +10,7 @@
     billing: {
       orderDiscount: { picks: [5, 10, 15, 20, 25] },
       dishDiscount: { picks: [10, 20, 50, 100] },
+      serviceCharge: { picks: [2.5, 5, 7.5, 10] },
       packaging: { on: false, mode: 'flat', flat: 0, types: ['takeaway', 'delivery', 'phone'] },
       delivery: { on: false, flat: 0 }
     },
@@ -31,18 +32,21 @@
   const num = (v, min, max, fallback) => { const n = Number(v); return Number.isFinite(n) && n >= min && n <= max ? n : fallback; };
   const money = (v, fallback) => { const n = num(v, 0, 99999, NaN); return Number.isFinite(n) ? Math.round(n * 100) / 100 : fallback; };
   const text = (v, max, fallback) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : fallback);
-  const picks = (v, min, max, fallback) => {
+  // Quick picks: as many as their pop-up shows (Discount 5, Dish discount 4, Service charge 4), smallest first
+  const picks = (v, min, max, count, fallback) => {
     if (!Array.isArray(v)) return fallback;
     const out = [...new Set(v.map(Number).filter(n => Number.isFinite(n) && n >= min && n <= max).map(n => Math.round(n * 10) / 10))].sort((a, b) => a - b);
-    return out.length ? out.slice(0, 6) : fallback;
+    return out.length ? out.slice(0, count) : fallback;
   };
   const CLEAN = {
     billing(v) {
-      const d = DEFAULTS.billing, od = isObj(v?.orderDiscount) ? v.orderDiscount : {};
+      const d = DEFAULTS.billing, od = isObj(v?.orderDiscount) ? v.orderDiscount : {}, sc = isObj(v?.serviceCharge) ? v.serviceCharge : {};
       const dd = isObj(v?.dishDiscount) ? v.dishDiscount : {}, pk = isObj(v?.packaging) ? v.packaging : {}, dl = isObj(v?.delivery) ? v.delivery : {};
       return {
-        orderDiscount: { picks: picks(od.picks, 1, 100, d.orderDiscount.picks).map(Math.round) },
-        dishDiscount: { picks: picks(dd.picks, 1, 100, d.dishDiscount.picks).map(Math.round) },
+        orderDiscount: { picks: picks(od.picks, 1, 100, 5, d.orderDiscount.picks).map(Math.round) },
+        dishDiscount: { picks: picks(dd.picks, 1, 100, 4, d.dishDiscount.picks).map(Math.round) },
+        // (a service charge rate: up to one decimal place, at most 10%, as in its pop-up)
+        serviceCharge: { picks: picks(sc.picks, 0.1, 10, 4, d.serviceCharge.picks) },
         packaging: { on: pk.on === true, mode: pk.mode === 'dish' ? 'dish' : 'flat', flat: money(pk.flat, 0), types: Array.isArray(pk.types) ? TYPES.filter(t => pk.types.includes(t)) : [...d.packaging.types] },
         delivery: { on: dl.on === true, flat: money(dl.flat, 0) }
       };
