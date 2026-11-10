@@ -884,12 +884,15 @@
 
   window.RestroOrders = Object.freeze({
     // open() from the home screen (or Back from an order opened here: the filters as they were); open({ from: 'counter' })
-    // from Counter's Orders button; open({ from: 'counter', view: 'held' }) from Counter's Held button.
+    // from Counter's Orders button; open({ from: 'counter', view: 'held' }) from Counter's Held button; open({ find: id })
+    // for one order (a pager tapped on the NFC spot: its order number searched, on its day).
     open(options = {}) {
-      const back = returning && !options.from && !options.view;
+      const back = returning && !options.from && !options.view && !options.find;
       returning = false;
       document.querySelectorAll('dialog[open]').forEach(d => { if (d !== dialog) d.close(); });
       if (!back) { resetFilters(); fromCounter = options.from === 'counter'; tab = options.view === 'held' ? 'held' : 'all'; }
+      const found = options.find ? (window.RestroCounter?.orders?.() || []).find(o => (o.uid || `n${o.number}`) === options.find) : null;
+      if (found) { query = ticket(found.number); const d = dayOfOrder(found); day = d === todayKey() ? null : d; }
       dialog.dataset.view = fromCounter && tab === 'held' ? 'held' : 'orders'; // (Recents counts Held as Counter's)
       watchPaper(); render();
       if (!dialog.open) dialog.showModal();

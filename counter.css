@@ -790,6 +790,10 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-pu.dish.pick .cx-steph b{line-height:normal}
 .cx-pu.dish.pct>.cx-pu-head{margin-bottom:calc(14 * var(--u))}
 .cx-pu.server>.cx-pu-head{margin-bottom:calc(16 * var(--u))}
+/* (Update Pack 3) a pager still out with another order: Same customer / Handed back */
+.cx-dh.pg>i{background:#EDE7FE;color:#5B21B6}
+.cx-pu.pagerask>.cx-pu-head{margin-bottom:calc(4 * var(--u))}
+.cx-pu.pagerask .cx-pk b{flex:1}
 .cx-steph{min-width:0;display:flex;flex-direction:column}
 .cx-steph small{margin-bottom:calc(2 * var(--u));font-size:calc(13.5 * var(--u));font-weight:800;line-height:normal;letter-spacing:.03em;text-transform:uppercase;color:#2F6FDE}
 .cx-steph b{font-size:calc(24 * var(--u));font-weight:800;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

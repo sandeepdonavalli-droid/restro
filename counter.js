@@ -128,36 +128,36 @@
   // server / serverId: the server, when changed with Change server (otherwise whoever saves it first); merged: the saved
   // orders whose dishes Merge tables brought onto it (they go when it is saved). A line can have off, its dish discount
   // (1–100%; 100 complimentary, with offReason), and kit: what the kitchen has of it ([{ n, mods, note }]).
-  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null,
+  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, pagerShared: false, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null,
     servicePct: null, priority: false, note: '', guests: 0, server: null, serverId: null, merged: [], lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
   const cleanPager = n => Number.isInteger(n) && n >= 1 && n <= 99 ? n : 0;
   // A pager's life on an order: handed out (pagerAt; an order from before this kept its creation time) and back
-  // (pagerBackAt: docked in its docking station, or handed to another order, which it can only be once it is back).
+  // (pagerBackAt: docked in its docking station, or handed back and given to another order). pagerShared (Update Pack
+  // 3, Assign pager's "Same customer"): given to this order while the customer kept it for the order(s) before.
   const pagerTime = o => Number(o.pagerAt) || createdOf(o);
-  // Which order has each pager now: the one it was last handed to, until it comes back. (Never an order it was handed
-  // to before that: it came back from there before it could be handed out again.)
-  function pagerHolders(list) {
-    const holders = new Map();
-    for (const o of [...list].sort((a, b) => pagerTime(b) - pagerTime(a))) { const n = cleanPager(o.pager); if (n && !holders.has(n)) holders.set(n, o); }
-    for (const [n, o] of [...holders]) if (o.pagerBackAt) holders.delete(n);
-    return holders;
-  }
-  const holdsPager = (o, holders = pagerHolders(loadOrders())) => { const h = holders.get(cleanPager(o.pager)); return Boolean(h) && idOf(h) === idOf(o); };
-  // When each order's pager came back (an order from before this, given the same pager as a later one: when the later
-  // one was given it)
-  function pagersBack(list) {
-    const back = new Map(), later = new Map();
-    for (const o of [...list].sort((a, b) => pagerTime(b) - pagerTime(a))) {
-      const n = cleanPager(o.pager); if (!n) continue;
-      const at = Number(o.pagerBackAt) || (later.has(n) ? pagerTime(later.get(n)) : 0);
-      if (at) back.set(idOf(o), at);
-      later.set(n, o);
+  // Who has each pager now and when each order's pager came back: the pager is with the order it was last handed to,
+  // until it comes back. An order before that had it until it was handed on (handed back), or, when it was shared with
+  // the next order (same customer), until it comes back from that one; a pager docked comes back from every order that
+  // has it. → { holders: Map(number → the orders that have it, newest first), back: Map(order id → when) }
+  function pagerState(list) {
+    const holders = new Map(), back = new Map(), byNumber = new Map();
+    for (const o of list) { const n = cleanPager(o.pager); if (n) { if (!byNumber.has(n)) byNumber.set(n, []); byNumber.get(n).push(o); } }
+    for (const [n, os] of byNumber) {
+      let later = null, laterBack = 0;
+      for (const o of os.sort((a, b) => pagerTime(b) - pagerTime(a))) {
+        const at = Number(o.pagerBackAt) || (later ? (later.pagerShared ? laterBack : pagerTime(later)) : 0);
+        if (at) back.set(idOf(o), at); else { if (!holders.has(n)) holders.set(n, []); holders.get(n).push(o); }
+        later = o; laterBack = at;
+      }
     }
-    return back;
+    return { holders, back };
   }
+  const pagerHolders = list => pagerState(list).holders;
+  const pagersBack = list => pagerState(list).back;
+  const holdsPager = (o, holders = pagerHolders(loadOrders())) => (holders.get(cleanPager(o.pager)) || []).some(h => idOf(h) === idOf(o));
   const cleanTime = t => Number.isFinite(t) && t > 0 ? t : null;
   const cleanGuests = n => (Number.isInteger(n) && n >= 1 && n <= 99 ? n : 0);
   const cleanReason = r => (typeof r === 'string' ? r.replace(/\s+/g, ' ').trim().slice(0, 80) : '');
@@ -168,7 +168,7 @@
   const restoreOrder = o => {
     const type = TYPES.includes(o.type) ? o.type : null;
     return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
-      pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
+      pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), pagerShared: o.pagerShared === true && cleanPager(o.pager) > 0, readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
       discountPct: window.RestroBill.pct(o.discountPct), servicePct: window.RestroBill.rate(o.servicePct), priority: o.priority === true, note: cleanNote(o.note), guests: cleanGuests(o.guests),
       server: typeof o.server === 'string' && o.server ? o.server.slice(0, 60) : null, serverId: typeof o.serverId === 'string' ? o.serverId : null,
@@ -197,7 +197,7 @@
   // handed to another order) is no longer the order's: the pager slot is empty, so whatever pager is there when the
   // order is saved again is its pager (the same one handed back, another one, or none: then it keeps the number of the
   // one it had, for the record).
-  const onScreen = saved => { const r = withKitchen(restoreOrder(saved), saved); if (r.pager && !holdsPager(saved)) { r.pager = 0; r.pagerAt = null; } return r; };
+  const onScreen = saved => { const r = withKitchen(restoreOrder(saved), saved); if (r.pager && !holdsPager(saved)) { r.pager = 0; r.pagerAt = null; r.pagerShared = false; } return r; };
   // An order with no type chosen goes as Dine in, with no table: a table chosen earlier is set aside (as when the type
   // changes to Takeaway) and comes back if Dine in is chosen again.
   const DEFAULT_TYPE = 'dine-in';
@@ -206,7 +206,7 @@
   const typeOf = (o, line) => (o.split ? line.type || o.type : o.type) || DEFAULT_TYPE;
   const lineType = line => typeOf(order, line);
   // What a saved order looks like, to tell whether the copy on screen has changes not saved yet.
-  const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.readyAt || 0, o.discountPct || 0, o.servicePct || 0, o.priority === true, o.note || '', o.guests || 0, o.serverId || o.server || '',
+  const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.pagerShared === true, o.readyAt || 0, o.discountPct || 0, o.servicePct || 0, o.priority === true, o.note || '', o.guests || 0, o.serverId || o.server || '',
     o.lines.map(l => [l.id, l.qty, typeOf(o, l), modsKey(l.mods), l.note || '', l.off || 0, l.offReason || ''])]);
   // (A line whose choices are being changed in its pop-up is "edit": it stays a line of its own until the pop-up closes,
   // even when its choices match another line's; then they are merged. A dish discount makes a line of its own too.)
@@ -218,7 +218,7 @@
   let qtyPop = null;                                    // quantity: { key, value (typed so far) }
   let notePop = null;                                   // note: { key, draft, back (return to the modifier pop-up), typing (the note line has the keyboard) }
                                                         // (Update 7: key null for the order note)
-  const POPS = ['mods', 'qty', 'note', 'custom', 'discount', 'service', 'dish', 'void', 'server']; // (the pop-ups; customPop, a custom
+  const POPS = ['mods', 'qty', 'note', 'custom', 'discount', 'service', 'dish', 'void', 'server', 'pagerask']; // (the pop-ups; customPop, a custom
                                                         // item's, discPop, the discount's (Update 6), and Update 7's service
                                                         // charge, dish discount, void and Change server ones are with their code below)
   let cashInput = '';                                   // cash typed on the payment sheet
@@ -544,6 +544,24 @@
       say({ b: `Order ${ticket(other.number)}`, t: ` (table ${tableName(table.id)}) merged · Save to keep it` });
     } });
   }
+  // Assign pager (Update Pack 3): a pager still out with another order (not docked) asks first: Same customer (they
+  // kept it for this order too: both orders have it, Buzz on either rings it, and it comes back from both when docked)
+  // or Handed back (it moves here: that order's pager is back). A pager tapped on the tablet's NFC spot goes on the order
+  // on screen at once, with Undo (restro:pager-tapped).
+  let pagerAsk = null; // { n, tapped } while the question is open
+  const isMine = o => (order.uid ? idOf(o) === order.uid : order.number != null && o.number === order.number);
+  const pagerOthers = n => (pagerHolders(loadOrders()).get(n) || []).filter(o => !isMine(o));
+  function givePager(n, shared, tapped = false) {
+    const was = { pager: order.pager, pagerAt: order.pagerAt, pagerShared: order.pagerShared }, target = order;
+    order.pager = n; order.pagerAt = n ? Date.now() : null; order.pagerShared = Boolean(n && shared); // handed out now (even the same number again)
+    sheet = null; pagerAsk = null; render();
+    if (tapped && n) say({ b: `Pager ${n}`, t: ' assigned', undo: () => { if (order !== target) return; Object.assign(order, was); render(); } });
+  }
+  function choosePager(n, tapped = false) {
+    if (n && n !== order.pager && pagerOthers(n).length) { pagerAsk = { n, tapped }; sheet = 'pagerask'; render(); return; }
+    givePager(n, n === order.pager && order.pagerShared, tapped);
+  }
+  function cancelPagerAsk() { sheet = null; pagerAsk = null; render(); }
   let serverPop = null; // { } while Change server is open
   function openServer() {
     closeMenu();
@@ -697,7 +715,7 @@
     const untouched = onScreenPager && prev && cleanPager(prev.pager) === onScreenPager && (Number(prev.pagerAt) || 0) === (Number(order.pagerAt) || 0);
     const record = !onScreenPager && prev && cleanPager(prev.pager) && !holdsPager(prev, holders);
     const pagerFields = onScreenPager
-      ? { pager: onScreenPager, pagerAt: order.pagerAt || prev?.pagerAt || (prev ? createdOf(prev) : now), ...(untouched && prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) }
+      ? { pager: onScreenPager, pagerAt: order.pagerAt || prev?.pagerAt || (prev ? createdOf(prev) : now), ...(order.pagerShared ? { pagerShared: true } : {}), ...(untouched && prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) }
       : record ? { pager: prev.pager, ...(prev.pagerAt ? { pagerAt: prev.pagerAt } : {}), ...(prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) } : { pager: 0 };
     let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, ...pagerFields, readyAt: order.readyAt || null,
       // each line's price is one with its add-ons (a choice that sets the price: that price); its choices and note; its
@@ -742,12 +760,16 @@
     // more for the kitchen: not complete any more; the kitchen's timer (Orders, Update Pack 3) starts with the KOT that
     // takes the order into the kitchen
     if (kot) { entry.kitchenAt = entry.kitchenDoneAt ? now : entry.kitchenAt || entry.sentAt || now; delete entry.kitchenDoneAt; }
-    // A pager handed out or given up here: every other order that had that number is back from it (a pager can only be
-    // handed out once it is back), each keeping when it came back for the record (the one that had it till now: now)
+    // A pager handed out or given up here: every other order that had that number and is back from it keeps when it came
+    // back, for the record (handed back: when this order was given it; shared with this order, same customer: not back)
     const others = list.filter(o => idOf(o) !== entry.uid && !gone.includes(o));
     if (!untouched && !record) {
-      const back = pagersBack(list), numbers = new Set([cleanPager(prev?.pager), cleanPager(entry.pager)].filter(Boolean));
-      for (const o of others) if (numbers.has(cleanPager(o.pager)) && !o.pagerBackAt) o.pagerBackAt = back.get(idOf(o)) || now;
+      const was = cleanPager(prev?.pager), before = pagersBack(list), after = pagersBack([entry, ...others]), numbers = new Set([was, cleanPager(entry.pager)].filter(Boolean));
+      for (const o of others) {
+        const n = cleanPager(o.pager); if (!numbers.has(n) || o.pagerBackAt) continue;
+        const at = after.get(idOf(o)) || (n === was && n !== cleanPager(entry.pager) ? before.get(idOf(o)) : 0);
+        if (at) o.pagerBackAt = at;
+      }
     }
     storeOrders([entry, ...others]);
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
@@ -814,11 +836,11 @@
     // A held copy of a saved order carries on with that order (unless it has been paid since). A new order comes back
     // without a table or a pager: they were released when it was held.
     const saved = order.number ? loadOrders().find(o => (order.uid ? idOf(o) === order.uid : o.number === order.number) && !o.paidAt) : null;
-    if (!saved) { order.number = null; order.uid = null; order.table = ''; order.pager = 0; order.pagerAt = null; }
+    if (!saved) { order.number = null; order.uid = null; order.table = ''; order.pager = 0; order.pagerAt = null; order.pagerShared = false; }
     else {
       order.number = saved.number;
       // (the saved order's pager came back meanwhile: no longer on screen, as when the order is opened)
-      if (order.pager && order.pager === cleanPager(saved.pager) && !holdsPager(saved)) { order.pager = 0; order.pagerAt = null; }
+      if (order.pager && order.pager === cleanPager(saved.pager) && !holdsPager(saved)) { order.pager = 0; order.pagerAt = null; order.pagerShared = false; }
     }
     baseline = saved ? signature(onScreen(saved)) : null; opened = saved ? JSON.stringify(saved) : null;
     sheet = null; selected = null; render(); toast('Order resumed');
@@ -868,14 +890,27 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sweep(); });
   window.addEventListener('restro:prep-time-changed', () => { sweep(); if (dialog.open && (sheet === 'orders' || sheet === 'schedule')) render(); });
   // A pager docked back in its docking station: the docking station is connected to the main system, whose Android app
-  // reports it (restro:pager-docked, { number }). The order that had the pager lets it go (pagerBackAt): its Buzz goes
+  // reports it (restro:pager-docked, { number }). The orders that had the pager let it go (pagerBackAt): their Buzz goes
   // grey (the number stays, for the record), and the pager is free for another order. The mark syncs to the other
   // tablets. Opened again, the order shows no pager.
   window.addEventListener('restro:pager-docked', e => {
-    const n = cleanPager(Number(e.detail?.number)), list = loadOrders(), holder = n ? pagerHolders(list).get(n) : null;
-    if (!holder) return;
-    holder.pagerBackAt = Date.now(); storeOrders(list);
+    const n = cleanPager(Number(e.detail?.number)), list = loadOrders(), hs = n ? pagerHolders(list).get(n) || [] : [];
+    if (!hs.length) return;
+    const at = Date.now(); for (const h of hs) h.pagerBackAt = at;
+    storeOrders(list);
     if (dialog.open) render();
+  });
+  // A pager tapped on the tablet's NFC spot (Update Pack 3; the RESTRO Android app reads it: restro:pager-tapped,
+  // { number }). With Counter open it goes on the order on screen at once, with Undo (still out with another order: the
+  // same question as Assign pager's; not while another pop-up is open). Elsewhere it opens that pager's order: in Counter
+  // while it isn't paid, in Orders once it is.
+  window.addEventListener('restro:pager-tapped', e => {
+    const n = cleanPager(Number(e.detail?.number)); if (!n) return;
+    if (dialog.open) { if (!sheet || sheet === 'pager') choosePager(n, true); return; }
+    const o = (pagerHolders(loadOrders()).get(n) || [])[0];
+    if (!o) { toast(`Pager ${n} isn’t out`); return; }
+    if (o.paidAt) { window.RestroOrders?.open({ find: idOf(o) }); return; }
+    openCounter(); fromFloor = false; fromOrders = false; openOrder(idOf(o));
   });
   // Changes from another tablet (sync.js): Held and Orders show them at once, and so does the saved order on screen.
   window.addEventListener('restro:data-changed', e => {
@@ -2452,6 +2487,7 @@
     if (kind === 'dish') return layer(dishCard(hold), () => {});
     if (kind === 'void') return layer(voidCard(hold), () => {});
     if (kind === 'server') return layer(serverCard(hold), () => { sheet = null; serverPop = null; render(); });
+    if (kind === 'pagerask') return layer(pagerAskCard(hold), cancelPagerAsk);
     const done = (fn, wide) => el('button', { type: 'button', class: `cx-done${wide ? ' wide' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: fn }, 'Done');
     if (kind === 'note' && notePop.key === null) {
       // "Order note · Order #1015 · Table 12", the whole order's quick notes (no + Add), Clear note, Done
@@ -2667,6 +2703,24 @@
     // (the keyboard's Enter puts it away; sending is the red button's)
     field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); field.blur(); } });
     return card;
+  }
+  // Pager still out with another order (Update Pack 3): "Pager 5 is still with #1012" · "Anitha · Paid · Ready", then
+  // Same customer / Handed back
+  function pagerAskCard(hold) {
+    const { n, tapped } = pagerAsk, others = pagerOthers(n), first = others[0], nums = others.map(o => ticket(o.number));
+    const title = `Pager ${n} is still with ${nums.length > 2 ? `${nums[0]} and ${nums.length - 1} more` : nums.join(' and ')}`;
+    const who = o => o.customer?.name || (usesTable(o) ? `Table ${tableName(o.table)}` : typeLabel[o.type] || '');
+    const kitchen = o => o.kitchenDoneAt ? 'Ready' : o.sentAt ? 'In kitchen' : cleanTime(o.readyAt) ? `Scheduled ${timeOf(o.readyAt).toUpperCase()}` : '';
+    const sub = !first ? [] : others.length === 1 ? [who(first), first.paidAt ? 'Paid' : 'Not paid', kitchen(first)] : [who(first), `${others.length} orders`];
+    const tile = (icon, name, what, shared) => el('button', { type: 'button', class: 'cx-pk', onpointerdown: hold, onmousedown: hold, onclick: () => givePager(n, shared, tapped) },
+      el('span', { class: 'cx-av', 'aria-hidden': 'true' }, mi(icon, 20)), el('b', {}, name), el('small', {}, what));
+    return el('div', { class: 'cx-pu server pagerask', role: 'dialog', 'aria-label': title },
+      el('div', { class: 'cx-pu-head' },
+        el('div', { class: 'cx-dh pg' }, el('i', { 'aria-hidden': 'true' }, mi('vibration', 22)), el('div', { class: 'cx-steph' }, el('b', {}, title), el('span', {}, sub.filter(Boolean).join(' · ')))),
+        closeX(cancelPagerAsk, hold)),
+      el('div', { class: 'cx-pkl' },
+        tile('person', 'Same customer', others.length > 1 ? 'All keep it' : 'Both keep it', true),
+        tile('move_table', 'Handed back', 'Moves to this order', false)));
   }
   // Change server: the restaurant's staff (Staff app), the one serving it light blue
   function serverCard(hold) {
@@ -2914,7 +2968,7 @@
     let body;
     // The pop-ups over the menu (Counter Update 4): modifiers, quantity, note; a custom item (Update 5)
     if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop) || (sheet === 'custom' && customPop) || (sheet === 'discount' && discPop)
-      || (sheet === 'service' && servicePop) || (sheet === 'dish' && dishPop) || (sheet === 'void' && voidPop) || (sheet === 'server' && serverPop)) return popView();
+      || (sheet === 'service' && servicePop) || (sheet === 'dish' && dishPop) || (sheet === 'void' && voidPop) || (sheet === 'server' && serverPop) || (sheet === 'pagerask' && pagerAsk)) return popView();
 
     if (sheet === 'pay') {
       const options = cashOptions(t.total);
@@ -2960,14 +3014,14 @@
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet', role: 'dialog', 'aria-label': 'Held orders' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Held orders'), close), list));
     }
-    // Assign Pager: the pagers by number; a pager on another open order shows "In use" (it can still be chosen). A held
-    // order's pager was released when it was held (a saved order's held copy has the saved order's).
+    // Assign Pager: the pagers by number; a pager on another open order shows "In use" (it can still be chosen: Update
+    // Pack 3 asks first whether the customer kept it or handed it back). A held order's pager was released when it was
+    // held (a saved order's held copy has the saved order's).
     if (sheet === 'pager') {
       // (a pager is in use while another order has it, until the pager is docked back, whether that order is open or
       // closed; a saved order's held copy has the saved order's)
-      const mine = o => (order.uid ? idOf(o) === order.uid : o.number === order.number);
-      const inUse = new Set([...held.filter(h => h.number).map(h => cleanPager(h.pager)), ...[...pagerHolders(loadOrders())].filter(([, o]) => !mine(o)).map(([n]) => n)].filter(Boolean));
-      const choose = n => { order.pager = n; order.pagerAt = n ? Date.now() : null; sheet = null; render(); }; // handed out now (even the same number again)
+      const inUse = new Set([...held.filter(h => h.number).map(h => cleanPager(h.pager)), ...[...pagerHolders(loadOrders())].filter(([, os]) => os.some(o => !isMine(o))).map(([n]) => n)].filter(Boolean));
+      const choose = n => choosePager(n);
       const grid = el('div', { class: 'ctr-pagers', role: 'radiogroup', 'aria-label': 'Pagers' },
         ...Array.from({ length: PAGERS }, (_, i) => i + 1).map(n => {
           const on = order.pager === n, busy = !on && inUse.has(n);
@@ -3322,7 +3376,7 @@
     // Every saved order (Save or Pay), newest first, as kept on this device; pagerOut: the order still has its pager (not
     // docked back, not given to a newer order); pagerBackAt: when its pager came back.
     orders() {
-      const list = loadOrders(), out = new Set([...pagerHolders(list).values()].map(idOf)), back = pagersBack(list);
+      const list = loadOrders(), { holders, back } = pagerState(list), out = new Set([...holders.values()].flat().map(idOf));
       return JSON.parse(JSON.stringify(allOrders())).map(o => ({ ...o, pagerOut: out.has(idOf(o)), pagerBackAt: back.get(idOf(o)) || null }));
     },
     // The held orders, newest first (as the Orders app's Held view shows them): when each was held, its type, its table

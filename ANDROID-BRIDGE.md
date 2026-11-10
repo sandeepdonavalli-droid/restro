@@ -92,12 +92,24 @@ now; subscription levels will decide it later, and without it orders are just Op
 window.dispatchEvent(new CustomEvent('restro:pager-docked', { detail: { number: 12 } }));
 ```
 
-Only then is the pager released from its order: the order that has it (the one it was last handed to) is marked
-`pagerBackAt`, its Buzz button goes grey with the number kept on it, and the pager shows as free in Counter's Assign
-Pager. The mark syncs to the other tablets. Opened again in Counter, the order shows no pager: whatever pager is on it
-when it is saved again is its pager, the same one handed back or another (then out with the customer, `pagerAt`), or
-none (then it keeps the old number, still back, for the record). Handing a pager to an order also marks it back from
-the order that had it (it can only be handed out once it is back). A held order's pager is released when it is held.
+Only then is the pager released from its orders: every order that has it is marked `pagerBackAt`, its Buzz button goes
+grey with the number kept on it, and the pager shows as free in Counter's Assign Pager. The mark syncs to the other
+tablets. Opened again in Counter, the order shows no pager: whatever pager is on it when it is saved again is its
+pager, the same one handed back or another (then out with the customer, `pagerAt`), or none (then it keeps the old
+number, still back, for the record). A pager still out with another order, picked in Assign Pager or tapped on the NFC
+spot, asks first (Update Pack 3): **Same customer** (they kept it for this order too: both orders have it,
+`pagerShared` on the newer one, and docking it releases both) or **Handed back** (it moves to this order and is marked
+back from the other). A held order's pager is released when it is held.
+
+**When a pager is tapped on the tablet's NFC spot** (Update Pack 3), dispatch on that tablet:
+
+```js
+window.dispatchEvent(new CustomEvent('restro:pager-tapped', { detail: { number: 12 } }));
+```
+
+With Counter open, the pager goes on the order on screen at once, with Undo (or the question above, when another order
+still has it). Anywhere else it opens that pager's order: in Counter while it isn't paid, in Orders once it is; "Pager
+12 isn't out" when no order has it.
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 

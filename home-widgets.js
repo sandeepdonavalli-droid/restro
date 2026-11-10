@@ -92,7 +92,10 @@
   }
 
   function pagersCard(orders, now) {
-    const out = orders.filter(o => o.pagerOut && o.pager).sort((a, b) => (a.pagerAt || a.createdAt) - (b.pagerAt || b.createdAt));
+    // (one tile a pager: shared by a customer's orders, the newest one's wait)
+    const since = o => o.pagerAt || o.createdAt, newest = new Map();
+    for (const o of orders) if (o.pagerOut && o.pager && (!newest.has(o.pager) || since(o) > since(newest.get(o.pager)))) newest.set(o.pager, o);
+    const out = [...newest.values()].sort((a, b) => since(a) - since(b));
     const buzz = n => {
       const pager = window.RESTRODevice?.pager;
       if (typeof pager?.buzz !== 'function') { toast('Pagers start with the RESTRO Android app'); return; }

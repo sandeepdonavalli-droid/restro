@@ -306,6 +306,7 @@ html[data-app-theme="midnight"] .counter-app .cx-msg .xs{color:#9B9DA1;--ink2:#9
 html[data-app-theme="midnight"] .counter-app .cx-dh.svc>i{background-color:#142C57;background-image:none;color:#AFC8FD;--ink2:#AFC8FD}
 html[data-app-theme="midnight"] .counter-app .cx-dpv.svc b{color:#8DABEC;--ink2:#8DABEC}
 html[data-app-theme="midnight"] .counter-app .cx-legal{color:#B4B3B2;--ink2:#9E9E9E}
+html[data-app-theme="midnight"] .counter-app .cx-dh.pg>i{background-color:#261457;background-image:none;color:#CEAFFD;--ink2:#CEAFFD}
 html[data-app-theme="midnight"] .counter-app .cx-steph small{color:#8DB0ED;--ink2:#8DB0ED}
 html[data-app-theme="midnight"] .counter-app .cx-steph span{color:#B4B3B2;--ink2:#9E9E9E}
 html[data-app-theme="midnight"] .counter-app .cx-pk{border-color:currentcolor;background-color:#121B2D;background-image:none;color:#F8F7F7;--ink2:#F8F7F7;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08)}
