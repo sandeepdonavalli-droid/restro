@@ -152,11 +152,12 @@ Amounts are in rupees.
 ## The kitchen printer: `RESTRODevice.printer.printKot(slip)`
 
 Counter Update 7. **Save sends the KOT, and so does Pay**; each KOT has only the dishes the kitchen doesn't have yet
-(KOT #2 has what was added after KOT #1). After a KOT has gone, taking a dish off or reducing it prints a **VOID**
-slip, deleting the order prints **ORDER CANCELLED** (both with the reason staff gave), changing a dish's choices or
-note prints a **CHANGED** slip, and marking the order as priority prints a short **★ PRIORITY** notice. **Reprint KOT**
-(the order menu) sends the last KOT again, as it was. A scheduled order's KOT goes at its kitchen time, from the tablet
-that saved it last.
+(a later KOT has only what was added after the earlier ones). KOT numbers run through the business day for the whole
+restaurant: the day's first KOT is #1, starting again at 4 AM with the order numbers. After a KOT has gone, taking a
+dish off or reducing it prints a **VOID** slip, deleting the order prints **ORDER CANCELLED** (both with the reason
+staff gave), changing a dish's choices or note prints a **CHANGED** slip, and marking the order as priority prints a
+short **★ PRIORITY** notice. **Reprint KOT** (the order menu) sends the last KOT again, as it was. A scheduled order's
+KOT goes at its kitchen time, from the tablet that saved it last.
 
 Print each slip on every printer whose role is **Kitchen** or **Both**. Return `true` (or a Promise of it) when it
 printed, `false` (or throw, or reject) when it didn't: Counter then shows "Kitchen printer offline / KOT #3 not sent"
@@ -171,10 +172,10 @@ order only.
 | `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"` (`type` is the order type) |
 | `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"`, `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"` |
 | `title`, `where` | bold: `"KOT #3 · Order #1015"`, then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `order` the ticket) |
-| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway and phone orders the customer and a masked phone; on a void `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #1–#2 · 12:05 PM · By: EC"` |
+| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway and phone orders the customer and a masked phone; on a void `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #141, #152 · 12:05 PM · By: EC"` |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT; `""` for none |
 | `lines` | `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null` |
-| `footer` | small, at the end: `"KOT #1, #2 sent earlier · only new dishes on this KOT"`, or `"Reason: Customer changed mind"` |
+| `footer` | small, at the end: `"KOT #141, #152 sent earlier · only new dishes on this KOT"`, or `"Reason: Customer changed mind"` |
 | `priority` | true when the ★ PRIORITY box is on it |
 | `printers` | Settings › Devices › Printers: `[{ id, language, copies }]` for the kitchen printers |
 

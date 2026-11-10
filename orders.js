@@ -108,14 +108,16 @@
 
   // ---------- an order as a row shows it ----------
   // The order status: Open until it is paid and complete in the kitchen (the kitchen screen marks the order
-  // kitchenDoneAt), in either order; then Closed. Under Open: Scheduled 8:30 PM (plum) while a scheduled order waits for
+  // kitchenDoneAt), in either order, and its pager is docked back when it had one (owner, 10 Nov: a pager handed to a
+  // newer order counts as back); then Closed. Under Open: Scheduled 8:30 PM (plum) while a scheduled order waits for
   // its kitchen time, even when paid; In kitchen · N min once its KOT went (from the KOT that took it into the kitchen),
-  // orange with Open after the kitchen prep time; Ready · N min (green) once the kitchen completed it. Without the
-  // kitchen screen (a later subscription choice) an order is Open until paid, then Closed.
+  // orange with Open after the kitchen prep time; Ready · N min (green) once the kitchen completed it, until its pager is
+  // docked when paid. Without the kitchen screen (a later subscription choice) an order is Open until paid (and its
+  // pager docked), then Closed.
   const KITCHEN_SCREEN = true;
   function statusOf(o, now = Date.now()) {
     const waiting = !o.sentAt && Boolean(o.readyAt), screen = KITCHEN_SCREEN && Boolean(o.sentAt), ready = screen && Boolean(o.kitchenDoneAt);
-    if (o.paidAt && !waiting && (!screen || ready)) return { text: 'Closed', cls: 'closed', rank: 1 };
+    if (o.paidAt && !waiting && (!screen || ready) && !o.pagerOut) return { text: 'Closed', cls: 'closed', rank: 1 };
     if (waiting) return { text: 'Open', cls: 'open', sub: `Scheduled ${clockOf(o.readyAt)}`, base: `Scheduled ${clockOf(o.readyAt)}`, subCls: 'sch', rank: 0 };
     if (ready) return { text: 'Open', cls: 'open', sub: `Ready · ${minutes(now - o.kitchenDoneAt)} min`, base: 'Ready', subCls: 'rd', rank: 0 };
     if (screen) {

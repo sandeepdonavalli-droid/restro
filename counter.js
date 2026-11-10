@@ -618,13 +618,26 @@
   const initialsOf = name => (typeof name === 'string' && name.trim() ? name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() : '');
   const newKotId = () => window.RestroSync?.newId?.('k') || `k${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
   const kotsOf = o => (Array.isArray(o?.kots) ? o.kots : []).filter(k => k && (k.kind || 'kot') === 'kot');
+  // KOT numbers run through the business day for the whole restaurant (owner, 10 Nov 2026): the day's first KOT is #1,
+  // starting again at 4 AM with the order numbers. This tablet counts past every KOT it gave or saw that day (on any
+  // tablet's order, as they come in).
+  const KOT_NO_KEY = 'restro.counter.kotNumber.v1';
+  const businessDay = t => window.RestroSync?.dayOf?.(t) || (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date(t - 4 * 3600000));
+  function nextKotNo() {
+    const now = Date.now(), day = businessDay(now), kept = load(KOT_NO_KEY, null);
+    let next = kept && kept.day === day ? Number(kept.next) || 1 : 1;
+    for (const o of loadOrders()) for (const k of kotsOf(o)) if (Number.isInteger(k.no) && k.no >= next && businessDay(Number(k.at) || 0) === day) next = k.no + 1;
+    store(KOT_NO_KEY, { day, next: next + 1 });
+    return next;
+  }
   // The number of the KOT a dish (kitchen key) last went on
   const kotOfKey = (o, key) => { const k = [...kotsOf(o)].reverse().find(t => (t.lines || []).some(l => kitchenKey(l.id, l.type, l.mods) === key)); return k ? k.no || kotsOf(o).indexOf(k) + 1 : null; };
   // A line's choices as kept on a saved order and its slips (with their names, for the bill and the kitchen)
   const modObjs = mods => (mods || []).map(m => ({ id: m, label: optionOf.get(m)?.label || m, kind: optionOf.get(m)?.kind || 'other', price: optionOf.get(m)?.price || 0, ...(optionOf.get(m)?.mode === 'set' ? { sets: true } : {}) }));
   const thisDevice = () => window.RestroSync?.status?.()?.device?.id || null;
-  // Sends the dishes the kitchen doesn't have yet as one KOT (numbered #1, #2 … on the order). Returns the KOT, or null.
-  function sendToKitchen(entry, now = Date.now()) {
+  // Sends the dishes the kitchen doesn't have yet as one KOT (the day's next KOT number; none when only working out what
+  // would go). Returns the KOT, or null.
+  function sendToKitchen(entry, now = Date.now(), numbered = true) {
     if (!entry.sent || typeof entry.sent !== 'object') entry.sent = {};
     const groups = new Map();
     for (const l of entry.lines) {
@@ -639,7 +652,7 @@
       entry.sent[k] = g.qty;
     }
     if (!lines.length) return null;
-    const kot = { id: newKotId(), at: now, kind: 'kot', no: kotsOf(entry).length + 1, lines, ...(entry.priority ? { priority: true } : {}), by: staffName() };
+    const kot = { id: newKotId(), at: now, kind: 'kot', no: numbered ? nextKotNo() : null, lines, ...(entry.priority ? { priority: true } : {}), by: staffName() };
     entry.sentAt = entry.sentAt || now; entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), kot].slice(-60);
     return kot;
   }
@@ -827,20 +840,22 @@
     const keep = held.filter(h => !(cleanTime(h.holdUntil) && h.holdUntil <= now)), heldChanged = keep.length !== held.length;
     if (heldChanged) { held = keep; store(HELD_KEY, held); }
     const list = loadOrders(); let sent = 0;
-    // the ticket carries its kitchen time, so tablets sending the same scheduled order make the same ticket (sync keeps one)
+    // (the ticket carries its kitchen time)
     const printing = [];
     for (const o of list) {
       if (!(cleanTime(o.readyAt) && kitchenTime(o) <= now)) continue;
+      // (sent and printed by the tablet that saved it last, or this one when there is only one: Update 7; so the KOT
+      // has one number. The others only announce it.)
+      if (window.RestroSync && o.savedOn && o.savedOn !== thisDevice()) { if (!o.sentAt && !announced.has(idOf(o))) { announced.add(idOf(o)); announceKitchen(o); } continue; }
       const kot = sendToKitchen(o, kitchenTime(o)); if (!kot) continue;
       o.kitchenAt = o.kitchenDoneAt ? kot.at : o.kitchenAt || o.sentAt || kot.at; delete o.kitchenDoneAt;
-      announceKitchen(o); sent++;
-      // (printed by the tablet that saved it last, or this one when there is only one: Update 7)
-      if (!window.RestroSync || !o.savedOn || o.savedOn === thisDevice()) printing.push([o, kot]);
+      announceKitchen(o); sent++; printing.push([o, kot]);
     }
     if (sent) storeOrders(list);
     for (const [o, kot] of printing) printSlip(kitchenSlip(o, kot), null, { uid: idOf(o), id: kot.id });
     if (dialog.open && (heldChanged || (sent && sheet === 'orders'))) render();
   }
+  const announced = new Set();
   function announceKitchen(o) {
     const count = o.lines.reduce((n, l) => n + l.qty, 0);
     const message = [`Ready by ${whenShort(o.readyAt)}`, describe(o), `${count} item${count === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
@@ -1013,11 +1028,12 @@
     const at = timeOf(k.at || Date.now()), by = initialsOf(k.by || staffName()), server = initialsOf(o.server);
     const kotNo = kind === 'void' || kind === 'changed' ? k.lines?.[0]?.kot || k.lines?.[0]?.was?.kot || null : no;
     const who = o.customer ? [o.customer.name, maskPhone(o.customer.mobile)].filter(Boolean).join(' · ') : '';
-    const info = kind === 'cancel' ? [`VOID ALL${nos.length ? ` · KOT #${nos[0]}${nos.length > 1 ? `–#${nos[nos.length - 1]}` : ''}` : ''}`, at, by ? `By: ${by}` : '']
+    const info = kind === 'cancel' ? [`VOID ALL${nos.length ? ` · KOT ${nos.map(n => `#${n}`).join(', ')}` : ''}`, at, by ? `By: ${by}` : '']
       : kind === 'void' || kind === 'changed' ? [at, by ? `By: ${by}` : '']
       : type === 'dine-in' ? [o.guests ? plural(o.guests, 'guest') : '', at, server ? `Server: ${server}` : '']
       : [who, at, server];
-    const earlier = nos.filter(n => n < (no || 0));
+    const place = kotsOf(o).findIndex(x => x === k || (k.id && x.id === k.id));
+    const earlier = (place < 0 ? kotsOf(o).filter(x => (Number(x.at) || 0) < (Number(k.at) || 0)) : kotsOf(o).slice(0, place)).map(x => x.no).filter(Boolean);
     return {
       kind, type, band: BAND[type], action, kot: kotNo, order: ticket(o.number), title: kind === 'cancel' ? `Order ${ticket(o.number)}${where ? ` · ${where}` : ''}` : `${kotNo ? `KOT #${kotNo} · ` : ''}Order ${ticket(o.number)}`,
       where: kind === 'cancel' ? '' : where, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(), priority: Boolean(action === '★ PRIORITY'),
@@ -3231,7 +3247,7 @@
   const dishesOf = k => (k.lines || []).filter(l => l.qty > 0).map(l => `${l.name}${l.qty > 1 ? ` ×${l.qty}` : ''}`).join(', ');
   function kitchenOf(uid) {
     const rec = loadOrders().find(o => idOf(o) === uid); if (!rec) return null;
-    const next = sendToKitchen(JSON.parse(JSON.stringify(rec)));
+    const next = sendToKitchen(JSON.parse(JSON.stringify(rec)), Date.now(), false);
     return {
       kots: kotsOf(rec).map((k, i) => ({ id: k.id, no: k.no || i + 1, at: k.at, dishes: dishesOf(k), failed: Boolean(k.failed), why: k.failWhy || '' })),
       unsent: next ? next.lines.map(l => ({ qty: l.qty, name: l.name, mods: (l.mods || []).map(labelOf).join(' · ') })) : [],

@@ -871,7 +871,7 @@
   }
 
   window.RestroSync = Object.freeze({
-    wrote, removed, takeNumber, canFire, nextNumber, upcomingNumber, newId, mergeRecord, today, orderDay,
+    wrote, removed, takeNumber, canFire, nextNumber, upcomingNumber, newId, mergeRecord, today, orderDay, dayOf,
     status,
     get device() { return { ...device }; },
     setDeviceName(name) { device.name = String(name || '').trim().slice(0, 30) || device.name; save(DEVICE, device); Local.start(); emitStatus(); },
