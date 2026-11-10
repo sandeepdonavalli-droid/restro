@@ -23,7 +23,8 @@
   // (assets/home-backgrounds) in place of its own background. The smallest picture that covers the screen is used. Home
   // screen only (launcher.css); kept on this device like the theme, and kept when the theme changes.
   const backgroundKey = 'restro.homeBackground.v1';
-  const BACKGROUNDS = Object.freeze([Object.freeze({ id: 'default', name: 'Default' }), Object.freeze({ id: 'mirror', name: 'Mirror' })]);
+  const BACKGROUNDS = Object.freeze([Object.freeze({ id: 'default', name: 'Default', line: 'The theme’s own colours.' }),
+    Object.freeze({ id: 'mirror', name: 'Mirror', line: 'The theme’s colours as faceted glass, across the whole screen.' })]);
   const MIRROR_SIZES = [[1440, 900], [1920, 1200], [2560, 1600], [2880, 1800], [4320, 2700]];
   let backgroundId = 'default', mirrorSize = null;
   try { if (localStorage.getItem(backgroundKey) === 'mirror') backgroundId = 'mirror'; } catch {}
@@ -145,14 +146,14 @@
       for (const [id, button] of buttons) {
         button.setAttribute('aria-checked', String(id === pendingId));
         button.tabIndex = id === pendingId ? 0 : -1;
-        button.querySelector('.theme-state').textContent = id === activeId ? 'Applied' : id === pendingId ? 'Selected' : id === defaultId ? 'Default' : '';
+        button.querySelector('.theme-state').textContent = id === activeId ? 'Applied' : '';
       }
       // Each theme is shown with the background selected; each background in the theme selected
       for (const [, button] of buttons) button.querySelector('.home-live').dataset.homeBackground = pendingBackground;
       for (const [id, button] of backgroundButtons) {
         button.setAttribute('aria-checked', String(id === pendingBackground));
         button.tabIndex = id === pendingBackground ? 0 : -1;
-        button.querySelector('.theme-state').textContent = id === backgroundId ? 'Applied' : id === pendingBackground ? 'Selected' : '';
+        button.querySelector('.theme-state').textContent = id === backgroundId ? 'Applied' : '';
         button.querySelector('.home-live').dataset.homeTheme = pendingId;
       }
     }
@@ -171,16 +172,22 @@
       focusCurrent() { const button = buttons.get(pendingId); button?.focus({ preventScroll: true }); button?.scrollIntoView({ block: 'nearest' }); }
     });
 
+    // An option's top: the radio, its name with "Applied" at the end, and its line
+    function tileTop(name, line) {
+      const top = document.createElement('span'); top.className = 'st-tile-top';
+      const radio = document.createElement('span'); radio.className = 'st-rd';
+      const title = document.createElement('b'); title.textContent = name;
+      const state = document.createElement('span'); state.className = 'theme-state';
+      const text = document.createElement('span'); text.className = 'theme-line'; text.textContent = line || '';
+      top.append(radio, title, state, text); return top;
+    }
     // Each theme as this home screen in it
     for (const theme of catalog) {
       const button = document.createElement('button');
-      button.type = 'button'; button.className = 'theme-option'; button.dataset.themeOption = theme.id;
+      button.type = 'button'; button.className = 'theme-option st-tile'; button.dataset.themeOption = theme.id;
       button.setAttribute('role', 'radio'); button.setAttribute('aria-label', theme.name);
       const preview = previewBox(theme.id, pendingBackground);
-      const caption = document.createElement('span'); caption.className = 'theme-option-caption';
-      const name = document.createElement('strong'); name.textContent = theme.name;
-      const state = document.createElement('span'); state.className = 'theme-state';
-      caption.append(name, state); button.append(preview, caption);
+      button.append(tileTop(theme.name, theme.line), preview);
       button.addEventListener('click', () => select(theme.id));
       buttons.set(theme.id, button); options.append(button);
     }
@@ -199,13 +206,10 @@
     // Home screen background: Default and Mirror, each as this home screen in the selected theme with it
     for (const background of BACKGROUNDS) {
       const button = document.createElement('button');
-      button.type = 'button'; button.className = 'theme-option'; button.dataset.backgroundOption = background.id;
+      button.type = 'button'; button.className = 'theme-option st-tile'; button.dataset.backgroundOption = background.id;
       button.setAttribute('role', 'radio'); button.setAttribute('aria-label', `${background.name} background`);
       const preview = previewBox(pendingId, background.id);
-      const caption = document.createElement('span'); caption.className = 'theme-option-caption';
-      const name = document.createElement('strong'); name.textContent = background.name;
-      const state = document.createElement('span'); state.className = 'theme-state';
-      caption.append(name, state); button.append(preview, caption);
+      button.append(tileTop(background.name, background.line), preview);
       button.addEventListener('click', () => selectBackground(background.id));
       backgroundButtons.set(background.id, button); backgroundOptions.append(button);
     }

@@ -35,21 +35,21 @@
   }
   const ms = (name, cls = 'ms') => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', cls); s.setAttribute('aria-hidden', 'true'); s.innerHTML = `<use href="#${name}"/>`; return s; };
   const line = path => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.innerHTML = path; return s; };
-  const X = '<path d="m7 7 10 10M17 7 7 17"/>';
+  const X = '<path d="m7 7 10 10M17 7 7 17"/>', CHECK = '<path d="m5.5 12.5 4.2 4.2L18.5 7.8"/>';
   const toast = message => { if (typeof window.toast === 'function') window.toast(message); };
   const card = (cls, ...children) => el('div', { class: `st-card${cls ? ` ${cls}` : ''}` }, ...children);
   const lab = (text, id) => el('p', { class: 'st-lab', id }, text);
   const sub = text => el('p', { class: 'st-sub' }, text);
   const note = text => el('p', { class: 'st-note' }, text);
-  // A row with a switch at its end
-  const switchRow = (id, title, detail, on, change) => el('label', { class: 'st-row', for: id },
-    el('span', { class: 'st-row-copy' }, el('strong', {}, title), detail ? el('span', {}, detail) : null),
+  // A card's heading and its line with a switch at the right (Update Pack 3: a card's control at the top right of its heading)
+  const switchHead = (id, title, text, on, change) => el('label', { class: 'st-sec-head st-sec-switch', for: id },
+    el('span', {}, el('span', { class: 'st-lab' }, title), el('span', { class: 'st-sub' }, text)),
     el('input', { id, class: 'st-switch', type: 'checkbox', role: 'switch', checked: on, onchange: e => change(e.target.checked) }));
   // Choice tiles, one of them on (role radio); arrow keys move along them
   function tiles(label, choices, value, pick, { tall = false, disabled = false } = {}) {
     const group = el('div', { class: 'st-sgs', role: 'radiogroup', 'aria-label': label });
     choices.forEach(c => group.append(el('button', { type: 'button', class: `st-sg${tall ? ' tall' : ''}`, role: 'radio', 'aria-checked': String(c.value === value), tabindex: c.value === value ? '0' : '-1', disabled,
-      'aria-label': c.aria || null, onclick: () => pick(c.value) }, ...(Array.isArray(c.label) ? c.label : [c.label]))));
+      'aria-label': c.aria || null, onclick: () => pick(c.value) }, c.value === value && !tall ? line(CHECK) : null, ...(Array.isArray(c.label) ? c.label : [c.label]))));
     group.addEventListener('keydown', e => {
       const i = choices.findIndex(c => c.value === value), d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
       if (!d || disabled) return; e.preventDefault();
@@ -167,6 +167,8 @@
     const set = (id, text) => { const node = document.getElementById(id); if (node) node.textContent = text; };
     set('settings-network-summary', (online ? 'Online' : 'Offline') + (through ? ` · ${through}` : ''));
     set('settings-internet-status', online ? 'Connected to the internet' : 'No internet connection');
+    document.getElementById('settings-internet-status')?.classList.toggle('ok', Boolean(online));
+    document.getElementById('settings-internet-status')?.classList.toggle('bad', !online);
     set('settings-network-type', through || (status?.source === 'browser' ? 'Not reported by this browser' : 'Not connected'));
     const mobile = document.querySelector('#settings-mobile-row');
     mobile.hidden = !status?.hasCellular;
@@ -220,7 +222,6 @@
   });
 
   // ---------- Update Pack 3: Use on, and option tiles with a live preview ----------
-  const CHECK = '<path d="m5.5 12.5 4.2 4.2L18.5 7.8"/>';
   // "Use on · This tablet only | All tablets", at the top right of a card's heading where a setting can differ per tablet
   function useOn(scope, set) {
     const b = (value, label) => el('button', { type: 'button', role: 'radio', 'aria-checked': String(scope === value), onclick: () => { if (scope !== value) set(value); } }, scope === value ? line(CHECK) : null, label);
@@ -368,9 +369,8 @@
         lab('Service charge'), sub('The quick picks in the Service charge pop-up.'),
         chips({ id: 'bill-sc-pick', label: 'Service charge quick picks', items: b.serviceCharge.picks, text: pctText, parse: parsePct(0.1, 10, 0.1), placeholder: 'Add a rate, like 7.5', inputmode: 'decimal', max: 4,
           change: list => setBilling(v => { v.serviceCharge.picks = list; }) })),
-      card('st-rowcard',
-        lab('Packaging charge'),
-        el('div', { class: 'st-rows' }, switchRow('bill-pk-on', 'Charge for packaging', pkOn ? 'On' : 'Off', pkOn, on => setBilling(v => { v.packaging.on = on; })))),
+      card('',
+        switchHead('bill-pk-on', 'Packaging charge', 'Charge for packaging on the bill.', pkOn, on => setBilling(v => { v.packaging.on = on; }))),
       card(pkOn ? '' : 'dis',
         lab('Packaging details'), sub('Added to the bill before GST, and taxed at the food GST rate.'),
         el('div', { class: 'st-opts', role: 'radiogroup', 'aria-label': 'Packaging charge' }, [
@@ -382,11 +382,10 @@
         el('div', { class: 'st-field' }, el('span', { class: 'st-flabel' }, 'Applies to'),
           el('div', { class: 'st-sgs', role: 'group', 'aria-label': 'Packaging applies to' }, [['takeaway', 'Takeaway'], ['delivery', 'Delivery'], ['phone', 'Phone order']].map(([t, name]) =>
             el('button', { type: 'button', class: 'st-sg', role: 'checkbox', 'aria-checked': String(pk.types.includes(t)), disabled: !pkOn,
-              onclick: () => setBilling(v => { v.packaging.types = v.packaging.types.includes(t) ? v.packaging.types.filter(x => x !== t) : [...v.packaging.types, t]; }) }, name))))),
-      card('st-rowcard',
-        lab('Delivery charge'),
-        el('div', { class: 'st-rows' }, switchRow('bill-dl-on', 'Charge for delivery', dl.on ? `On · ${rupees(dl.flat)} on every delivery order` : 'Off', dl.on, on => setBilling(v => { v.delivery.on = on; }))),
-        dl.on ? el('div', { class: 'st-two', style: 'padding-bottom:calc(22 * var(--su))' }, amountField({ id: 'bill-dl-flat', label: 'Amount per delivery order', value: dl.flat, change: n => setBilling(v => { v.delivery.flat = n; }) })) : null),
+              onclick: () => setBilling(v => { v.packaging.types = v.packaging.types.includes(t) ? v.packaging.types.filter(x => x !== t) : [...v.packaging.types, t]; }) }, pk.types.includes(t) ? line(CHECK) : null, name))))),
+      card('',
+        switchHead('bill-dl-on', 'Delivery charge', 'Charge for delivery on every delivery order.', dl.on, on => setBilling(v => { v.delivery.on = on; })),
+        dl.on ? el('div', { class: 'st-two' }, amountField({ id: 'bill-dl-flat', label: 'Amount per delivery order', value: dl.flat, change: n => setBilling(v => { v.delivery.flat = n; }) })) : null),
       card('',
         lab('Rounding and GST'), sub('Fixed for every restaurant.'),
         el('div', { class: 'st-fixed' },
@@ -498,8 +497,8 @@
   dialog.querySelector('[data-open="navigation"]').addEventListener('click', () => show('navigation', { focus: true }));
   back.addEventListener('click', () => { if (parentOf(current)) show(parentOf(current), { focus: true }); else showList(); });
   document.querySelector('#settings-internet-check').addEventListener('click', async event => {
-    const button = event.currentTarget; button.disabled = true; button.textContent = 'Checking…';
-    try { await window.RestroConnectivity?.refresh?.(); } finally { button.disabled = false; button.textContent = 'Check now'; syncSummaries(); }
+    const button = event.currentTarget, text = button.querySelector('span') || button; button.disabled = true; text.textContent = 'Checking…';
+    try { await window.RestroConnectivity?.refresh?.(); } finally { button.disabled = false; text.textContent = 'Check now'; syncSummaries(); }
   });
   document.querySelector('#settings-brightness-range').addEventListener('input', event => window.RestroDeviceControls?.setBrightness(event.target.value));
 

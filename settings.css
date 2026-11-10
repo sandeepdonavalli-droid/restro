@@ -108,7 +108,7 @@ label.st-row,.st-link{cursor:pointer}
 .st-sub+.st-field,.st-sub+.st-two .st-field{margin-top:0}
 .st-field>label,.st-field>.st-flabel{font-size:calc(15 * var(--su));font-weight:700;color:#57534E}
 .st-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 calc(18 * var(--su));align-items:start}
-.settings-app :is(input:not([type=checkbox]):not([type=range]):not([type=search]):not([type=radio]),textarea,select.st-select){width:100%;min-height:calc(56 * var(--su));padding:0 calc(18 * var(--su));border:0;border-radius:calc(16 * var(--su));
+.settings-app :where(input:not([type=checkbox]):not([type=range]):not([type=search]):not([type=radio]),textarea,select.st-select){width:100%;min-height:calc(56 * var(--su));padding:0 calc(18 * var(--su));border:0;border-radius:calc(16 * var(--su));
   background:#FFFFFF;box-shadow:inset 0 0 0 1.5px var(--st-line);color:var(--st-ink);font-size:calc(18 * var(--su));font-weight:500;outline:none}
 .settings-app textarea{padding:calc(15 * var(--su)) calc(18 * var(--su));resize:none;line-height:1.4;min-height:calc(84 * var(--su))}
 .settings-app :is(input,textarea,select):focus{box-shadow:inset 0 0 0 2px var(--st-blue)!important}
@@ -239,11 +239,6 @@ label.st-row,.st-link{cursor:pointer}
 .theme-option:hover{box-shadow:inset 0 0 0 1.5px #CFD3DA}
 .theme-option[aria-checked="true"]{background:var(--st-wash);box-shadow:inset 0 0 0 2px var(--st-blue)}
 .theme-option:focus-visible{outline:2px solid var(--st-blue);outline-offset:3px}
-.theme-option-caption{display:flex;align-items:center;gap:calc(12 * var(--su));padding:0 calc(4 * var(--su))}
-.theme-option-caption::before{content:"";flex:none;width:calc(24 * var(--su));height:calc(24 * var(--su));border-radius:50%;box-shadow:inset 0 0 0 2px #A8A29E;background:#FFFFFF}
-.theme-option[aria-checked="true"] .theme-option-caption::before{box-shadow:inset 0 0 0 calc(7 * var(--su)) var(--st-blue)}
-.theme-option-caption strong{flex:1;min-width:0;font-size:calc(17 * var(--su));line-height:1.3;font-weight:800;overflow-wrap:anywhere}
-.theme-number{display:none}
 .theme-state{flex:none;font-size:calc(13 * var(--su));font-weight:700;color:var(--st-blue-ink)}
 .theme-background-label{margin-top:calc(26 * var(--su))!important;margin-bottom:calc(14 * var(--su))!important}
 .background-options{overflow:visible}
@@ -267,35 +262,6 @@ label.st-row,.st-link{cursor:pointer}
 .counter-live-app{position:relative;flex:1;min-height:0;display:block;background:#F3F4F7}
 .counter-live-app>.ctr-root{height:100%}
 
-/* Wi-Fi and Bluetooth (wifi.js, bluetooth.js, device-controls.js): the same panels as quick controls, in a card here */
-.settings-device-slot{display:block}
-.settings-device-slot .device-section{display:flex;flex-direction:column;gap:calc(14 * var(--su));padding:0;margin:0;background:none;border:0;box-shadow:none}
-.settings-app .radio-master{display:flex;align-items:center;gap:calc(16 * var(--su));min-height:calc(76 * var(--su));padding:calc(14 * var(--su)) calc(20 * var(--su));border-radius:calc(20 * var(--su));background:#F7F8FA;box-shadow:inset 0 0 0 1.5px var(--st-line);cursor:pointer}
-.settings-app .radio-master.on{background:var(--st-wash);box-shadow:inset 0 0 0 2px var(--st-blue)}
-.settings-app .radio-master-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(3 * var(--su))}
-.settings-app .radio-master-copy strong{font-size:calc(19 * var(--su));font-weight:800;color:var(--st-ink)}
-.settings-app .radio-master.on .radio-master-copy strong{color:var(--st-ink)}
-.settings-app .radio-master-copy span{font-size:calc(15 * var(--su));font-weight:500;color:var(--st-muted)}
-.settings-app .radio-master .settings-switch{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:calc(62.4 * var(--su));height:calc(36 * var(--su));margin:0;border:0;border-radius:999px;background:#D6D3D1;cursor:pointer;transition:background .2s}
-.settings-app .radio-master .settings-switch::before{content:"";position:absolute;top:calc(3.6 * var(--su));left:calc(3.6 * var(--su));width:calc(28.8 * var(--su));height:calc(28.8 * var(--su));border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.25);transform:none;transition:left .2s}
-.settings-app .radio-master .settings-switch:checked{background:var(--st-blue)}
-.settings-app .radio-master .settings-switch:checked::before{left:calc(30 * var(--su))}
-.settings-app .radio-master .settings-switch:disabled{opacity:.45;cursor:default}
-.settings-app .bt-head-copy strong{font-size:calc(17 * var(--su));font-weight:700;color:var(--st-ink)}
-.settings-app .bt-head-copy span,.settings-app .bt-message{font-size:calc(14.5 * var(--su));color:var(--st-muted)}
-.settings-app .bt-head-icon,.settings-app .bt-device-icon{background:#F1F3F6;color:#44403C}
-.settings-app .bt-section h4{font-size:calc(15 * var(--su));font-weight:800;letter-spacing:0;color:#57534E}
-.settings-app :is(.bt-device,.bt-empty){background:#F7F8FA;border-radius:calc(16 * var(--su));color:var(--st-ink)}
-.settings-app .bt-device-copy strong,.settings-app .wifi-network-copy strong{font-weight:700}
-.settings-app .wifi-network{background:#F7F8FA;border-radius:calc(16 * var(--su))}
-.settings-app .wifi-network.connected{box-shadow:inset 0 0 0 2px var(--st-blue);background:var(--st-wash)}
-.settings-app .wifi-network-row:hover{background:#EEF0F4}
-.settings-app .wifi-network.connected .wifi-network-copy span{color:var(--st-blue-ink)}
-.settings-app .wifi-network-icon{color:#44403C}
-.settings-app .wifi-join input{box-shadow:inset 0 0 0 1.5px var(--st-line);border:0}
-.settings-app :is(.primary-button.bt-scan,.bt-action){height:calc(44 * var(--su));min-height:0;padding:0 calc(20 * var(--su));border:0;border-radius:999px;background:#F3F4F7;color:var(--st-ink);font-size:calc(15 * var(--su));font-weight:700;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10)}
-.settings-app .bt-action-primary{background:var(--st-blue);color:#FFFFFF;box-shadow:none}
-.settings-app .bt-action:disabled{opacity:.5}
 
 /* ---------- Update Pack 3 (03_Settings): every page in the pattern of Settings › Orders (Orders display) ----------
    The categories in a white column (360) with a hairline at its edge: the raised round Back (60) and "Settings", then
@@ -359,6 +325,147 @@ label.st-row,.st-link{cursor:pointer}
 /* Orders' own look inside a preview (orders.css styles the app as a full-screen dialog) */
 .settings-app .st-live.orders-app{position:absolute;inset:auto;left:0;top:0;display:block;width:auto;height:auto;max-width:none;max-height:none;background:#F3F4F7}
 
+/* ---------- Update Pack 3 §2, plain settings (switches, numbers, pickers): rows in the same cards, the label on the
+   left, the control on the right, grey help under the label. Drafted in the look of Orders display: its greys and its
+   hairline between rows; buttons and choices as its Use on buttons (a check on the one chosen); option cards as its
+   tiles. A card of rows ends with its last row (the row's own space under it). ---------- */
+.st-rowcard{padding-top:calc(20 * var(--su));padding-bottom:calc(24 * var(--su))}
+.st-rowcard>.st-lab{margin-top:0!important;margin-bottom:calc(4 * var(--su))!important}
+.st-card:has(>.st-rows:last-child),.st-card:has(>.st-fixed:last-child),.dev-body.st-card:has(>.bt-section:last-child){padding-bottom:calc(10 * var(--su))}
+.st-rows{margin-top:0}
+.st-row{min-height:calc(72 * var(--su));gap:calc(20 * var(--su));padding:calc(14 * var(--su)) 0}
+.st-row+.st-row{border-top:1px solid #ECEEF2}
+.st-row-copy{gap:calc(3 * var(--su))}
+.st-row-copy strong{font-size:calc(18 * var(--su));font-weight:600;line-height:normal;color:#1C1917}
+.st-row-copy>span{font-size:calc(15 * var(--su));font-weight:400;line-height:1.4;color:#78716C}
+.st-row-copy>span.ok{color:#15803D;font-weight:600}
+.st-row-copy>span.bad{color:#B91C1C;font-weight:600}
+.st-row>.settings-row-icon{color:#44403C}
+.settings-shell .st-chev{width:calc(24 * var(--su));height:calc(24 * var(--su));color:#A8A29E}
+.st-value{font-size:calc(16 * var(--su));font-weight:600;color:#44403C}
+.st-note,.st-foot{font-size:calc(15 * var(--su));font-weight:400;line-height:1.45;color:#78716C}
+/* a heading with its value at the right (Brightness, Volume), the slider under it */
+.st-head-value{flex:none;align-self:center;font-size:calc(20 * var(--su));font-weight:700;font-variant-numeric:tabular-nums;color:#1E4FB8}
+.st-slidecard .settings-slider-line{gap:calc(16 * var(--su))}
+.settings-shell .st-slidecard .slider-glyph{width:calc(24 * var(--su));height:calc(24 * var(--su));color:#44403C}
+/* a card that opens a page (Display › Navigation): its heading and line, › at the right */
+.st-linkcard{width:100%;display:flex;align-items:center;gap:calc(24 * var(--su));border:0;color:inherit;text-align:left;font:inherit;cursor:pointer}
+.st-linkcard:hover{background:#FCFCFD}
+.st-linkcard:focus-visible{outline:2px solid var(--st-blue);outline-offset:3px}
+:is(.st-linkcard,.st-sec-switch)>span:first-child{flex:1;min-width:0;display:flex;flex-direction:column}
+:is(.st-linkcard,.st-sec-switch) :is(.st-lab,.st-sub){display:block}
+.st-linkcard .st-sub{margin-bottom:0!important}
+/* a switch at the top right of a card's heading (Touch sounds) */
+.st-sec-switch{cursor:pointer}
+.st-sec-switch .st-switch{align-self:center}
+.st-sec-head:last-child{margin-bottom:0}
+.st-sec-head+.st-field,.st-sec-head+.st-two .st-field{margin-top:0}
+/* buttons: as Use on (white, the grey edge); the main one blue */
+.st-secondary{height:calc(48 * var(--su));gap:calc(10 * var(--su));padding:0 calc(18 * var(--su));border-radius:calc(16 * var(--su));background:#FFFFFF;color:#1C1917;font-size:calc(16 * var(--su));font-weight:700;box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.st-secondary:hover:not(:disabled){background:#F7F8FA}
+.settings-shell .st-secondary svg{width:calc(20 * var(--su));height:calc(20 * var(--su))}
+.st-primary{height:calc(56 * var(--su));min-width:calc(150 * var(--su));padding:0 calc(28 * var(--su));border-radius:calc(16 * var(--su));background:#2F6FDE;font-size:calc(17 * var(--su));font-weight:700;box-shadow:none}
+/* one of a few values: as Use on, side by side */
+.st-sgs{flex-wrap:wrap;gap:calc(12 * var(--su))}
+.st-sg{flex:none;flex-direction:row;height:calc(48 * var(--su));gap:calc(10 * var(--su));padding:0 calc(18 * var(--su));border-radius:calc(16 * var(--su));background:#FFFFFF;color:#1C1917;font-size:calc(16 * var(--su));font-weight:700;box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.st-sg[aria-checked="true"]{background:#F3F7FE;color:#1E4FB8;box-shadow:inset 0 0 0 2.5px #2F6FDE}
+.settings-shell .st-sg>svg{width:calc(20 * var(--su));height:calc(20 * var(--su));stroke-width:2.6}
+.st-sg.tall{flex:1 1 0;flex-direction:column;height:calc(96 * var(--su));gap:calc(8 * var(--su));border-radius:calc(22 * var(--su));font-size:calc(16 * var(--su))}
+.st-langs .st-sgs{display:flex}
+/* option cards (Packaging details, Battery, Touch sound, Navigation): as the tiles */
+.st-opts{gap:calc(14 * var(--su))}
+.st-opt{gap:calc(4 * var(--su)) calc(11.5 * var(--su));padding:calc(15 * var(--su)) calc(15 * var(--su)) calc(15 * var(--su)) calc(16 * var(--su));border-radius:calc(22 * var(--su));box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.st-opt[aria-checked="true"],.st-opt.on,label.st-opt:has(input:checked){background:#F3F7FE;box-shadow:inset 0 0 0 2.5px #2F6FDE}
+.st-opt .st-rd{margin:0}
+.st-opt-copy{gap:calc(2 * var(--su))}
+.st-opt-copy b,.st-opt-copy strong{font-size:calc(19 * var(--su));font-weight:700;line-height:normal}
+.st-opt-copy span{font-size:calc(14.5 * var(--su));font-weight:400;line-height:normal;color:#78716C}
+.st-opt-pic{margin-top:calc(12 * var(--su))}
+.settings-app .battery-style,.settings-app .touch-style{min-height:calc(72 * var(--su));gap:calc(11.5 * var(--su));padding:calc(15 * var(--su)) calc(16 * var(--su));border-radius:calc(22 * var(--su));box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.settings-app .battery-style:has(input:checked),.settings-app .touch-style:has(input:checked){background:#F3F7FE;box-shadow:inset 0 0 0 2.5px #2F6FDE}
+.settings-app :is(.battery-style,.touch-style) .settings-row-copy strong{font-size:calc(19 * var(--su));font-weight:700;line-height:normal}
+.settings-app .touch-style .settings-row-copy>span{font-size:calc(14.5 * var(--su));font-weight:400;line-height:normal;color:#78716C}
+/* fields */
+.st-field>label,.st-field>.st-flabel{font-size:calc(16 * var(--su));font-weight:600;color:#44403C}
+.settings-app :where(input:not([type=checkbox]):not([type=range]):not([type=search]):not([type=radio]),textarea,select.st-select),.settings-app .phone-country{box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.settings-app :is(input,textarea,select):focus{box-shadow:inset 0 0 0 2.5px #2F6FDE!important}
+.settings-app .field-note{font-size:calc(14.5 * var(--su));font-weight:400;color:#78716C}
+.st-chip{box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.settings-app .st-add>input{min-height:calc(48 * var(--su))}
+.st-add .st-secondary{height:calc(48 * var(--su))}
+/* facts that can't be changed: rows too */
+.st-fixed{gap:0}
+.st-fixed p{padding:calc(14 * var(--su)) 0;font-size:calc(16 * var(--su));font-weight:400;line-height:1.45;color:#44403C}
+.st-fixed p+p{border-top:1px solid #ECEEF2}
+.st-fixed p b{font-size:calc(18 * var(--su));font-weight:600;color:#1C1917}
+/* the stepper (Kitchen prep time) */
+.settings-step{background:#FFFFFF;color:#1C1917;box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.settings-step:hover:not(:disabled){background:#F7F8FA}
+.settings-stepper output{font-size:calc(18 * var(--su));font-weight:700;color:#1C1917}
+/* Display › Theme and Home screen background (themes.js): option tiles, two to a row, the home screen under each */
+.settings-themes .theme-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(14 * var(--su))}
+.theme-option.st-tile{gap:0;padding:calc(15 * var(--su));border-radius:calc(22 * var(--su));background:#FFFFFF;box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.theme-option.st-tile:hover{box-shadow:inset 0 0 0 1.5px #CFD3DA}
+.theme-option.st-tile[aria-checked="true"]{background:#F3F7FE;box-shadow:inset 0 0 0 2.5px #2F6FDE}
+.theme-option .st-tile-top{grid-template-columns:calc(24 * var(--su)) minmax(0,1fr) auto}
+.theme-option .theme-state{grid-column:3;grid-row:1;align-self:center;font-size:calc(15 * var(--su));font-weight:600;color:#1E4FB8}
+.theme-option .st-tile-top .theme-line{grid-column:2/4}
+.theme-option .theme-preview.home-preview{margin-top:calc(16 * var(--su));border-radius:calc(14 * var(--su))}
+.theme-option .theme-preview.home-preview::after{border:0;box-shadow:inset 0 0 0 1px #E1E5ED}
+.theme-background-label{margin-top:calc(24 * var(--su))!important;margin-bottom:calc(4 * var(--su))!important}
+.theme-apply-row{margin-top:calc(20 * var(--su));padding-top:calc(20 * var(--su))}
+.theme-apply-row strong{font-size:calc(18 * var(--su));font-weight:600}
+.theme-apply-row .field-note{font-size:calc(15 * var(--su))}
+
+/* Wi-Fi and Bluetooth (wifi.js, bluetooth.js): the switch in a card of its own (its heading and line, the switch at the
+   right); then a card with what this tablet is connected to (the heading), the message (its line) and Scan at the
+   right, and the lists: a Material Symbol, the name and its line, a hairline between them. In the quick-control
+   dialogs the panels stay as they were (below). */
+.settings-device-slot{display:block}
+.settings-device-slot .device-section{display:block;padding:0;margin:0;background:none;border:0;box-shadow:none}
+.settings-app :is(.wifi-panel-inner,.bt-panel-inner),.settings-app :is(.wifi-panel-inner,.bt-panel-inner)>:is(.dev-top,.dev-body){display:block}
+.settings-app .radio-master{min-height:0;gap:calc(24 * var(--su));padding:0;border-radius:0;background:none;box-shadow:none}
+.settings-app .radio-master.on{background:none;box-shadow:none}
+.settings-app .radio-master-copy{gap:0}
+.settings-app .radio-master-copy strong,.settings-app .radio-master.on .radio-master-copy strong{margin-bottom:calc(4 * var(--su));font-size:calc(20 * var(--su));font-weight:700;line-height:normal;color:#1C1917}
+.settings-app .radio-master-copy span{font-size:calc(16 * var(--su));font-weight:400;line-height:normal;color:#78716C}
+.settings-app .radio-master .settings-switch{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:calc(62.4 * var(--su));height:calc(36 * var(--su));margin:0;border:0;border-radius:999px;background:#D6D3D1;cursor:pointer;transition:background .2s}
+.settings-app .radio-master .settings-switch::before{content:"";position:absolute;top:calc(3.6 * var(--su));left:calc(3.6 * var(--su));width:calc(28.8 * var(--su));height:calc(28.8 * var(--su));border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.25);transform:none;transition:left .2s}
+.settings-app .radio-master .settings-switch:checked{background:#2F6FDE}
+.settings-app .radio-master .settings-switch:checked::before{left:calc(30 * var(--su))}
+.settings-app .radio-master .settings-switch:disabled{opacity:.45;cursor:default}
+.settings-app .dev-top .bt-message{margin-top:calc(14 * var(--su))}
+.settings-app .bt-head{min-height:0;align-items:flex-start;gap:calc(24 * var(--su))}
+.settings-app .bt-head-icon{display:none}
+.settings-app .bt-head-copy strong{font-size:calc(20 * var(--su));font-weight:700;line-height:normal;color:#1C1917}
+.settings-app .bt-message{margin:0;font-size:calc(16 * var(--su));font-weight:400;line-height:1.45;color:#78716C}
+.settings-app .bt-head-copy{gap:calc(4 * var(--su))}
+.settings-app .bt-section{gap:0;margin-top:calc(14 * var(--su))}
+.settings-app .bt-section h4{margin:calc(4 * var(--su)) 0 calc(2 * var(--su));font-size:calc(16 * var(--su));font-weight:600;letter-spacing:0;color:#44403C}
+.settings-app .bt-list{gap:0}
+.settings-app .bt-list>li+li{border-top:1px solid #ECEEF2}
+.settings-app :is(.wifi-network,.wifi-network.connected,.bt-device,.bt-empty){background:none;border-radius:0;box-shadow:none}
+.settings-app .wifi-network-row{min-height:calc(72 * var(--su));gap:calc(16 * var(--su));padding:calc(14 * var(--su)) 0;background:none;color:inherit}
+.settings-app .wifi-network-row:hover{background:none}
+.settings-app .bt-device{min-height:calc(72 * var(--su));gap:calc(16 * var(--su));padding:calc(14 * var(--su)) 0}
+.settings-app :is(.wifi-network-icon,.bt-device-icon){width:calc(24 * var(--su));height:calc(24 * var(--su));border-radius:0;background:none;color:#44403C}
+.settings-shell :is(.wifi-network-icon,.bt-device-icon) svg{width:calc(24 * var(--su));height:calc(24 * var(--su))}
+.settings-app :is(.wifi-network-copy,.bt-device-copy){gap:calc(3 * var(--su))}
+.settings-app :is(.wifi-network-copy,.bt-device-copy) strong{font-size:calc(18 * var(--su));font-weight:600;line-height:normal;color:#1C1917}
+.settings-app :is(.wifi-network-copy,.bt-device-copy) span{font-size:calc(15 * var(--su));font-weight:400;line-height:normal;color:#78716C}
+.settings-app :is(.wifi-network.connected,.bt-device.connected) :is(.wifi-network-icon,.bt-device-icon),.settings-app .wifi-network.connected .wifi-network-copy span{color:#1E4FB8}
+.settings-app .wifi-network.connected .wifi-network-copy span{font-weight:600}
+.settings-app .bt-empty{min-height:0;padding:calc(14 * var(--su)) 0;font-size:calc(16 * var(--su));color:#78716C}
+.settings-app .wifi-join{gap:calc(12 * var(--su));padding:0 0 calc(16 * var(--su)) calc(40 * var(--su))}
+.settings-app .wifi-join input{min-height:calc(48 * var(--su));padding:0 calc(18 * var(--su));border:0;border-radius:calc(16 * var(--su));background:#FFFFFF;box-shadow:inset 0 0 0 1.5px #E2E5EA;font-size:calc(16 * var(--su))}
+.settings-app :is(.primary-button.bt-scan,.bt-action){flex:none;display:inline-flex;align-items:center;justify-content:center;gap:calc(10 * var(--su));height:calc(48 * var(--su));min-height:0;margin:0;padding:0 calc(18 * var(--su));border:0;border-radius:calc(16 * var(--su));
+  background:#FFFFFF;color:#1C1917;font-size:calc(16 * var(--su));font-weight:700;box-shadow:inset 0 0 0 1.5px #E2E5EA}
+.settings-shell .bt-scan svg{width:calc(20 * var(--su));height:calc(20 * var(--su))}
+.settings-app .bt-action.bt-action-primary{background:#2F6FDE;color:#FFFFFF;box-shadow:none}
+.settings-app .bt-action:disabled,.settings-app .bt-scan:disabled{opacity:.5}
+.settings-app .wifi-advanced{margin-top:calc(16 * var(--su))}
+
+
 /* ---------- Narrow screens: one column, like a phone ---------- */
 @media (max-width:1000px){.theme-options,.tiles-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:759px){
@@ -371,13 +478,14 @@ label.st-row,.st-link{cursor:pointer}
   .settings-row.selected{background:transparent;box-shadow:none}
   .settings-row.selected .settings-row-icon{background:#F1F3F6;color:#44403C}
   .st-opts,.st-two{grid-template-columns:minmax(0,1fr)}
-  .st-sgs{flex-wrap:wrap}.st-sg{flex:1 1 30%}
+  .st-sgs{flex-wrap:wrap}.st-sg.tall{flex:1 1 30%}
+  .st-sec-head{flex-wrap:wrap}
 }
-@media (max-width:480px){.theme-options,.tiles-options{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.theme-options,.tiles-options,.settings-themes .theme-options,.st-tiles{grid-template-columns:minmax(0,1fr)}}
 @media (prefers-reduced-motion:reduce){.st-switch,.st-switch::before,.settings-app .radio-master .settings-switch,.settings-app .radio-master .settings-switch::before{transition:none}}
 
 /* ---------- Wi-Fi and Bluetooth panels in the quick-control dialogs (outside Settings): as before ---------- */
-.wifi-panel-inner,.bt-panel-inner{display:flex;flex-direction:column;gap:14px}
+.wifi-panel-inner,.bt-panel-inner,.wifi-panel-inner>:is(.dev-top,.dev-body),.bt-panel-inner>:is(.dev-top,.dev-body){display:flex;flex-direction:column;gap:14px}
 .bt-head{display:flex;align-items:center;gap:16px;min-height:52px}
 .bt-head-icon{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--palette-accent-wash);color:var(--palette-accent-ink)}
 .bt-head-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -436,6 +544,9 @@ label.st-row,.st-link{cursor:pointer}
 .settings-switch:checked::before{left:24px;width:24px;height:24px;background:var(--palette-on-accent)}
 .settings-switch:focus-visible{outline:2px solid var(--palette-accent);outline-offset:3px}
 .settings-switch:disabled{opacity:.4;cursor:default}
+/* (in the quick-control dialogs, over the dialogs' own field look, which had stretched the switch across the row) */
+.dialog .radio-master input.settings-switch{width:52px;height:32px;min-height:0;padding:0;border:2px solid var(--palette-muted);border-radius:16px;background:var(--palette-bg)}
+.dialog .radio-master input.settings-switch:checked{background:var(--palette-accent);border-color:var(--palette-accent)}
 .quick-volume{margin-top:8px!important}
 .quick-volume .icon{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .field-error{margin:0;font-size:14px;line-height:1.45;color:#b42318;font-weight:600}

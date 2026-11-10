@@ -108,12 +108,18 @@
     return `<svg class="wifi-signal" viewBox="0 0 24 24" aria-hidden="true">${arcs}${lock}</svg>`;
   }
   const strength = level => ['No signal', 'Weak', 'Fair', 'Good', 'Excellent'][level] || '';
+  // In Settings (Update Pack 3): the switch, and what the tablet is connected to with the networks, each a card of the
+  // page; the icons are Material Symbols, as on the rest of Settings (the Wi-Fi fan by signal, a lock when secured)
+  const inSettings = () => Boolean(panel?.closest('.settings-app'));
+  const msIcon = id => `<svg class="ms" aria-hidden="true"><use href="#${id}"/></svg>`;
+  const msSignal = (level, secure) => msIcon(`ms-wifi-${Math.max(0, Math.min(4, level))}${secure && level > 0 ? '-lock' : ''}`);
+  const group = cls => { const node = document.createElement('div'); node.className = cls + (inSettings() ? ' st-card' : ''); return node; };
 
   function networkRow(network) {
     const li = document.createElement('li'); li.className = 'wifi-network' + (network.connected ? ' connected' : '');
     const row = document.createElement('button'); row.type = 'button'; row.className = 'wifi-network-row';
     row.setAttribute('aria-expanded', String(open === network.ssid));
-    row.innerHTML = `<span class="wifi-network-icon">${signalIcon(network.level, network.secure)}</span><span class="wifi-network-copy"><strong></strong><span></span></span>`;
+    row.innerHTML = `<span class="wifi-network-icon">${inSettings() ? msSignal(network.level, network.secure) : signalIcon(network.level, network.secure)}</span><span class="wifi-network-copy"><strong></strong><span></span></span>`;
     row.querySelector('strong').textContent = network.ssid;
     row.querySelector('.wifi-network-copy span').textContent = network.connected ? 'Connected' : [network.saved ? 'Saved' : '', network.secure ? 'Secured' : 'Open', strength(network.level)].filter(Boolean).join(' · ');
     row.addEventListener('click', () => { open = open === network.ssid ? null : network.ssid; message = ''; render(); });
@@ -146,20 +152,23 @@
     head.querySelector('.bt-head-copy strong').textContent = current ? `Connected to ${current.ssid}${preview() ? ' (sample)' : ''}`
       : hasHost() ? (enabled ? 'Not connected' : 'Off')
       : status?.wifi?.connected ? 'Connected (network name not shared by this browser)' : 'Managed by this device';
-    root.append(masterSwitch('Wi-Fi', hasHost() ? (enabled ? 'On' : 'Off') : 'Preview · your device’s real Wi-Fi is unchanged', isOn(), canToggle(), setEnabled));
+    const top = group('dev-top'), body = group('dev-body');
+    top.append(masterSwitch('Wi-Fi', hasHost() ? (enabled ? 'On' : 'Off') : 'Preview · your device’s real Wi-Fi is unchanged', isOn(), canToggle(), setEnabled));
+    root.append(top);
     if (!isOn() && hasHost()) { panel.replaceChildren(root); return; }
     if (hasHost() || preview()) {
       const refresh = document.createElement('button'); refresh.type = 'button'; refresh.className = 'primary-button bt-scan';
       refresh.textContent = scanning ? 'Searching…' : 'Scan'; refresh.disabled = scanning || !enabled;
+      if (inSettings()) refresh.insertAdjacentHTML('afterbegin', msIcon('ms-refresh'));
       refresh.addEventListener('click', scan); head.append(refresh);
     }
-    root.append(head);
+    body.append(head);
 
     const note = document.createElement('p'); note.className = 'bt-message'; note.setAttribute('role', 'status');
     note.textContent = message || (hasHost() ? (networks.length ? 'Tap a network to connect.' : '')
       : preview() ? 'Sample networks for testing the screens and status bar icon. Your device’s real Wi-Fi is unchanged.'
       : 'Web browsers can’t switch, search for or join Wi-Fi networks, on any website, so this device’s own settings manage its Wi-Fi. In the RESTRO Android app, this switch turns Wi-Fi on and off and nearby networks are listed here. Turn on Wi-Fi above to preview these screens with sample networks.');
-    if (note.textContent) root.append(note);
+    if (note.textContent) (inSettings() ? head.querySelector('.bt-head-copy') : body).append(note);
 
     if (hasHost() || preview()) {
       const section = document.createElement('section'); section.className = 'bt-section';
@@ -167,13 +176,14 @@
       const ul = document.createElement('ul'); ul.className = 'bt-list wifi-list';
       if (!networks.length) { const li = document.createElement('li'); li.className = 'bt-empty'; li.textContent = scanning ? 'Looking for networks…' : 'Tap Scan to find networks'; ul.append(li); }
       else networks.forEach(n => ul.append(networkRow(n)));
-      section.append(ul); root.append(section);
+      section.append(ul); body.append(section);
     }
     if (typeof window.RESTRODevice?.openSettings === 'function') {
       const advanced = document.createElement('button'); advanced.type = 'button'; advanced.className = 'bt-action wifi-advanced'; advanced.textContent = 'Open Android Wi-Fi settings';
       advanced.addEventListener('click', async () => { try { await window.RESTRODevice.openSettings('wifi'); } catch {} });
-      root.append(advanced);
+      body.append(advanced);
     }
+    root.append(body);
     panel.replaceChildren(root);
   }
 

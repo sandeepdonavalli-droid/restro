@@ -146,9 +146,14 @@
 
   // ---------- Rendering ----------
   const bluetoothIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10-5 4.5V2.5L17 7 7 17"/></svg>';
-  function item(entry, actions, detail) {
-    const li = document.createElement('li'); li.className = 'bt-device';
-    const icon = document.createElement('span'); icon.className = 'bt-device-icon'; icon.innerHTML = bluetoothIcon;
+  // In Settings (Update Pack 3): the switch, and the devices with Scan, each a card of the page; the icons are Material
+  // Symbols, as on the rest of Settings
+  const inSettings = () => Boolean(panel?.closest('.settings-app'));
+  const msIcon = id => `<svg class="ms" aria-hidden="true"><use href="#${id}"/></svg>`;
+  const group = cls => { const node = document.createElement('div'); node.className = cls + (inSettings() ? ' st-card' : ''); return node; };
+  function item(entry, actions, detail, isConnected = false) {
+    const li = document.createElement('li'); li.className = 'bt-device' + (isConnected ? ' connected' : '');
+    const icon = document.createElement('span'); icon.className = 'bt-device-icon'; icon.innerHTML = inSettings() ? msIcon(isConnected ? 'ms-bluetooth-connected' : 'ms-bluetooth') : bluetoothIcon;
     const copy = document.createElement('span'); copy.className = 'bt-device-copy';
     const name = document.createElement('strong'); name.textContent = entry.name;
     copy.append(name);
@@ -206,11 +211,12 @@
     await refreshState();
     const reason = reasonCache;
     const root = document.createElement('div'); root.className = 'bt-panel-inner';
-    root.append(masterSwitch());
+    const top = group('dev-top'), body = group('dev-body');
+    top.append(masterSwitch()); root.append(top);
     if (!isOn()) {
       const off = document.createElement('p'); off.className = 'bt-message'; off.setAttribute('role', 'status');
       off.textContent = reason || message || (hasHost() ? 'Bluetooth is off.' : 'Bluetooth is off. RESTRO won’t connect to devices.');
-      root.append(off); panel.replaceChildren(root); return;
+      top.append(off); panel.replaceChildren(root); return;
     }
 
     const head = document.createElement('div'); head.className = 'bt-head';
@@ -219,22 +225,24 @@
     const scanButton = document.createElement('button'); scanButton.type = 'button'; scanButton.className = 'primary-button bt-scan';
     scanButton.textContent = scanning ? 'Stop' : hasHost() || canLiveScan() ? 'Scan for devices' : 'Pair new device';
     scanButton.disabled = Boolean(reason) && !scanning;
+    if (inSettings() && !scanning) scanButton.insertAdjacentHTML('afterbegin', msIcon(hasHost() || canLiveScan() ? 'ms-refresh' : 'ms-add'));
     scanButton.addEventListener('click', () => scanning ? finishScan() : scan());
-    head.append(scanButton); root.append(head);
+    head.append(scanButton); body.append(head);
 
     const note = document.createElement('p'); note.className = 'bt-message'; note.setAttribute('role', 'status');
     note.textContent = reason || message || (hasHost() || canLiveScan() ? 'Scan to list nearby devices, then tap Connect.' : 'Tap Pair new device. Your browser lists the devices nearby; choose one to connect.');
-    root.append(note);
+    (inSettings() ? head.querySelector('.bt-head-copy') : body).append(note);
 
-    root.append(list('Connected', [...connected.values()].map(d => item(d, [['Disconnect', () => disconnect(d.id)]], 'Connected')), 'No devices connected'));
+    body.append(list('Connected', [...connected.values()].map(d => item(d, [['Disconnect', () => disconnect(d.id)]], 'Connected', true)), 'No devices connected'));
     if (hasHost() || canLiveScan() || available.size) {
-      root.append(list(scanning ? 'Available devices · searching…' : 'Available devices',
+      body.append(list(scanning ? 'Available devices · searching…' : 'Available devices',
         [...available.values()].map(d => item(d, [['Connect', () => connect(d.id), 'primary']], signal(d.rssi))),
         scanning ? 'Looking for devices…' : 'Tap Scan for devices'));
     }
     const previous = known.filter(d => !connected.has(d.id));
-    if (previous.length) root.append(list('Previously connected', previous.map(d => item(d, [['Connect', () => connect(d.id), 'primary'], ['Forget', () => forget(d.id)]])), ''));
+    if (previous.length) body.append(list('Previously connected', previous.map(d => item(d, [['Connect', () => connect(d.id), 'primary'], ['Forget', () => forget(d.id)]])), ''));
 
+    root.append(body);
     panel.replaceChildren(root);
   }
 
