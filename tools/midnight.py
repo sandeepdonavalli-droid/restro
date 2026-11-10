@@ -261,12 +261,12 @@ def tokens():
     rule('.cx-stp', [('gap', U(2))])
     rule('.cx-rs output', [('width', U(52)), ('min-width', U(52)), ('height', U(52))] + circle)
     # unselected options in pop-ups: raised, a faint edge, white text
-    for s in ('.cx-pu .cx-mo:not(.on)', '.cx-pu .cx-dqp button:not(.on)', '.cx-pu .cx-qn-chip:not(.on)', '.cx-pu .cx-rsn>button:not(.on)',
+    for s in ('.cx-pu .cx-mo:not(.on)', '.cx-pu .cx-dqp button:not(.on)', '.cx-pu .cx-qn-chip:not(.on)',
               '.cx-pu .cx-pk:not(.on)', '.cx-pu .cx-x'): T(s, RAISE, '#FFFFFF', EDGE)
     T('.cx-pu .cx-key', RAISE, None, EDGE)
     T('.cx-dd,.cx-qd', '#0F1829', '#FFFFFF', EDGE)                       # number displays
     # white = what you picked or typed
-    for s in ('.cx-dqp button.on', '.cx-rsn>button.on', '.cx-qn-chip.on', '.cx-mo.on', '.cx-pk.on'): T(s, SEL, SELT, None)
+    for s in ('.cx-dqp button.on', '.cx-qn-chip.on', '.cx-mo.on', '.cx-pk.on'): T(s, SEL, SELT, None)
     T('.cx-pk.on .cx-cb', '#2F6FDE', '#FFFFFF', None)
     T('.cx-nf-line', None, '#FFFFFF')
     T('.cx-onote:not(.empty) .cx-onote-t>span', None, '#FFFFFF')

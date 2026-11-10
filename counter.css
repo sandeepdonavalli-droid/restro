@@ -812,14 +812,8 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-qk.cx-dk.sm .cx-key{height:calc(50 * var(--u));font-size:calc(23 * var(--u))}
 .cx-qk.cx-dk.sm .cx-key.fn{font-size:calc(23 * var(--u))}
 .cx-pu.dish.pct>.cx-done.wide{margin-top:0}
-/* The reasons: chips 50 tall (16.5/700), the one picked light blue; Other… grey 600 (it opens the keyboard) */
+/* (Update 7's labels over a group: the custom item's) */
 .cx-lab3{margin:0 0 calc(10 * var(--u));font-size:calc(15 * var(--u));font-weight:700;line-height:normal;color:#57534E}
-.cx-rsn{display:flex;flex-wrap:wrap;gap:calc(10 * var(--u));margin-bottom:calc(16 * var(--u))}
-.cx-rsn>button{height:calc(50 * var(--u));margin:0;padding:0 calc(18 * var(--u));border:0;border-radius:999px;display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font:inherit;font-size:calc(16.5 * var(--u));font-weight:700;line-height:normal;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 1px 2px rgba(15,23,42,.06);cursor:pointer}
-.cx-rsn>button.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #9DBCF2}
-.cx-rsn>button.oth{color:#615C57;font-weight:600}
-.cx-rsn>button.oth.on{color:#1E4FB8}
-.cx-rsn-other{flex:1 1 100%;margin-top:calc(4 * var(--u))}
 /* A void (Update Pack 2, void pop-up v2): where the note pop-up is, 940 wide, 14 under the top of the menu (keyboard or
    not); the red ⊖ on #FEE2E2, the title 24/800 and beside it what the kitchen has 17/600 grey; what will print in a red
    box (#FEF2F2, #991B1B 15.5/600), gone while typing; "Reason (required)" and its line, blue 2 (soft red 1.8 while
@@ -834,12 +828,19 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-vinfo{flex:none;display:flex;align-items:center;gap:calc(12 * var(--u));margin:0 0 calc(16 * var(--u));padding:calc(12 * var(--u)) calc(16 * var(--u));border-radius:calc(16 * var(--u));background:#FEF2F2;color:#991B1B;font-size:calc(15.5 * var(--u));font-weight:600;line-height:normal}
 .cx-vinfo svg{flex:none;color:#DC2626}
 .cx-pu.void.typing .cx-vinfo{display:none}
-.cx-pu.void .cx-nf-line{border-bottom:calc(2 * var(--u)) solid #2F6FDE}
-.cx-pu.void .cx-nf-line.empty:not(:focus-within){border-bottom:calc(1.8 * var(--u)) solid #F0A8A8}
+.cx-pu:is(.void,.dish) .cx-nf-line{border-bottom:calc(2 * var(--u)) solid #2F6FDE}
+.cx-pu:is(.void,.dish) .cx-nf-line.empty:not(:focus-within){border-bottom:calc(1.8 * var(--u)) solid #F0A8A8}
 .cx-vr{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(10 * var(--u))}
 .cx-vr .cx-qn-chip{justify-content:center;text-align:center}
-.cx-pu.void.typing .cx-vr{display:flex;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
-.cx-pu.void.typing .cx-vr::-webkit-scrollbar{display:none}
+.cx-pu:is(.void,.dish).typing .cx-vr{display:flex;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.cx-pu:is(.void,.dish).typing .cx-vr::-webkit-scrollbar{display:none}
+/* A dish made free (Update Pack 3): the reason where the number pad was, as the void pop-up asks it, 16 over Apply. The
+   pop-up is narrower, so the top reasons keep their own widths, several a row, as its reasons did (one row that slides
+   while typing); the percentage, set, shows no cursor. */
+.cx-pu.dish :is(.cx-vr,.cx-vempty){margin-bottom:calc(16 * var(--u))}
+.cx-pu.dish .cx-vr{display:flex;flex-wrap:wrap}
+.cx-pu.dish.typing .cx-vr{flex-wrap:nowrap}
+.cx-dd.set i{visibility:hidden}
 .cx-vempty{flex:none;padding:calc(18 * var(--u)) calc(20 * var(--u));border-radius:calc(18 * var(--u));background:#F1F3F6;color:#78716C;font-size:calc(15.5 * var(--u));font-weight:600;line-height:normal;text-align:center;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06)}
 .cx-pu.void .cx-btnr{width:calc(300 * var(--u))}
 .cx-clear.off,.cx-clear:disabled{color:#C9C5C1;cursor:default}

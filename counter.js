@@ -461,22 +461,22 @@
   // they all get the same percentage) · then the percentage (quick picks 10 / 20 / 50 / 100, the number pad; at 100%, a
   // reason is needed). 0% (or Clear) takes a picked dish's discount off. The same discount on several lines is one
   // line's worth each: a line keeps its own.
-  let dishPop = null; // { step: 1 | 2, picked: [line keys], value, reason, other (the reason typed after Other…), typing }
+  // At 100% (the dish made free) the reason is asked the way the void pop-up asks it, its top reasons learned the same
+  // way (Update Pack 3, the owner's decision): the 9 this restaurant gives most, the list "@free" (see voids).
+  let dishPop = null; // { step: 1 | 2, picked: [line keys], value, reason (what is on the reason line), typing }
   const dishPicks = () => billing().dishDiscount?.picks?.length ? billing().dishDiscount.picks : [10, 20, 50, 100];
-  const DISH_REASONS = Object.freeze(['Staff meal', 'Complaint', 'Owner’s guest', 'Regular customer', 'Birthday', 'Other']);
-  const dishReasons = () => DISH_REASONS;
+  const dishReasons = () => learnedReasons(FREE_QUICK);
   function openDish() {
     closeMenu();
     const picked = order.lines.filter(l => l.off).map(keyOf);
-    dishPop = { step: 1, picked, value: '', reason: '', other: '', typing: false }; selected = null; sheet = 'dish'; render();
+    dishPop = { step: 1, picked, value: '', reason: '', typing: false }; selected = null; sheet = 'dish'; render();
   }
   function dishNext() {
     const p = dishPop; if (!p || !p.picked.length) return;
     const lines = p.picked.map(lineOf).filter(Boolean), offs = [...new Set(lines.map(l => l.off || 0))];
     p.step = 2; p.value = offs.length === 1 && offs[0] ? String(offs[0]) : '';
     const reasons = [...new Set(lines.map(l => l.offReason || ''))];
-    p.reason = reasons.length === 1 ? reasons[0] : ''; p.other = '';
-    if (p.reason && !dishReasons().some(r => r === p.reason)) { p.other = p.reason; p.reason = 'Other'; }
+    p.reason = reasons.length === 1 ? reasons[0] : '';
     render();
   }
   const dishValue = p => { const n = Number(p.value); return p.value !== '' && Number.isInteger(n) && n >= 0 && n <= 100 ? n : null; };
@@ -486,7 +486,7 @@
     if (next !== '' && Number(next) > 100) return;
     p.value = next; render();
   }
-  const dishReason = p => (p.reason === 'Other' || p.reason === 'Other…' ? cleanReason(p.other) : cleanReason(p.reason));
+  const dishReason = p => cleanReason(p.reason);
   function applyDish() {
     const p = dishPop; if (!p) return;
     const n = dishValue(p); if (n == null) return;
@@ -1038,18 +1038,18 @@
   // order. (No manager PIN for now.)
   // The reasons are learned (Update Pack 2, void pop-up v2; not a setting): the 9 this restaurant gives most, of all
   // time, worked out by the backend from the reasons kept on its orders every 15 days, at the close of day (near-same
-  // ones merged, no fewest number of uses), and published with the quick notes as two lists: "@void" (a dish taken off
-  // or lowered) and "@cancel" (an order deleted). There is no starting set: a new restaurant has none until its first
-  // lists come, and the reason is typed.
+  // ones merged, no fewest number of uses), and published with the quick notes as lists: "@void" (a dish taken off or
+  // lowered), "@cancel" (an order deleted) and "@free" (a dish made free, 100% off: the reasons kept on its lines,
+  // offReason; Update Pack 3). There is no starting set: a new restaurant has none until its first lists come, and the
+  // reason is typed.
   let voidPop = null; // { key (the line; null: the whole order), to (the quantity it goes to), reason (what is on the reason line), typing }
-  const VOID_QUICK = '@void', CANCEL_QUICK = '@cancel';
+  const VOID_QUICK = '@void', CANCEL_QUICK = '@cancel', FREE_QUICK = '@free';
   function learnedReasons(id) {
     const kept = load(QUICK_KEY, null), list = kept && typeof kept === 'object' && Array.isArray(kept.lists?.[id]) ? kept.lists[id] : [];
     const out = new Map();
     for (const x of list) { const t = cleanReason(typeof x === 'string' ? x : x?.text); if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t); }
     return [...out.values()].slice(0, 9);
   }
-  const isOther = r => /^other/i.test(r || '');
   function openVoid(key, to) {
     if (key != null && !lineOf(key)) return;
     voidPop = { key, to, reason: '', typing: false }; modPop = null; qtyPop = null; notePop = null; optionsMenu = false; deleteArmed = false;
@@ -2097,7 +2097,8 @@
   const QUICK_START = ['Less spicy', 'Extra spicy', 'Less oil', 'Less salt', 'No onion', 'No garlic', 'Pack separately', 'Serve first',
     'Extra gravy', 'Allergy: nuts', 'Jain', 'Kids portion', 'Well done', 'No ice', 'Less sugar'];
   // (Update 7: the order note's quick notes, for the whole order, from the same engine: the list "@order", or orderDefaults.
-  // The void pop-ups' reasons come with them too, as "@void" and "@cancel": the top 9, with no starting set; see voids.)
+  // The void pop-ups' reasons come with them too, as "@void" and "@cancel", and a dish made free's as "@free": the top 9,
+  // with no starting set; see voids.)
   const ORDER_QUICK = '@order';
   const ORDER_QUICK_START = ['Birthday celebration', 'Serve all together', 'Starters first', 'Kids at the table', 'Anniversary', 'Bring extra plates', 'Senior citizens',
     'Jain food', 'Allergy: nuts', 'Pack leftovers', 'No onion, no garlic', 'Serve slowly', 'Business meeting', 'Extra spoons', 'High chair needed'];
@@ -2481,42 +2482,50 @@
     const lines = p.picked.map(lineOf).filter(Boolean), one = lines.length === 1 ? lines[0] : null, n = dishValue(p);
     const gross = lines.reduce((sum, l) => sum + eachOf(l) * l.qty * 100, 0), off = n ? lines.reduce((sum, l) => sum + window.RestroBill.lineOff(eachOf(l) * l.qty * 100, n), 0) : 0;
     const removing = !n, had = lines.some(l => l.off), needReason = n === 100, reason = dishReason(p);
-    const reasons = needReason ? reasonChips(dishReasons(), p, 'counter-dish-reason', 'Reason') : null;
     const ok = removing ? had : !needReason || Boolean(reason);
+    const apply = el('button', { ...press(applyDish), class: 'cx-done wide', disabled: !ok }, removing ? 'Remove dish discount' : `Apply ${n}% off`);
     const card = el('div', { class: `cx-pu dish pct${p.typing ? ' typing' : ''}`, role: 'dialog', 'aria-label': 'Dish discount, step 2 of 2' },
       el('div', { class: 'cx-pu-head' },
         el('div', { class: 'cx-pu-lead' }, el('button', { ...press(() => { p.step = 1; p.typing = false; render(); }), class: 'cx-x', 'aria-label': 'Back to the dishes', title: 'Back' }, mi('chevron_left', 28)),
           el('div', { class: 'cx-steph' }, el('small', {}, 'Dish discount · Step 2 of 2'), el('b', {}, one ? itemOf(one).name : `${lines.length} dishes`),
             el('span', {}, one ? `${one.qty} × ${rupees(eachOf(one))} = ${rupees(eachOf(one) * one.qty)}` : `${lines.map(l => itemOf(l).name).join(', ')} · ${amount(gross)}`))),
         closeX(cancelDish, hold)),
-      el('div', { class: 'cx-dd sm', role: 'status', 'aria-label': n != null ? `${n}% off` : 'Type the percentage' }, p.value ? el('span', {}, p.value) : null, el('small', {}, '%'), el('i', { 'aria-hidden': 'true' })),
+      el('div', { class: `cx-dd sm${needReason ? ' set' : ''}`, role: 'status', 'aria-label': n != null ? `${n}% off` : 'Type the percentage' }, p.value ? el('span', {}, p.value) : null, el('small', {}, '%'), el('i', { 'aria-hidden': 'true' })),
       el('p', { class: 'cx-dpv' }, amount(gross), n ? [' → ', el('b', {}, `${amount(gross - off)} · ${n}% off`)] : n === 0 ? ' · no discount' : null),
       el('div', { class: 'cx-dqp c4', role: 'group', 'aria-label': 'Quick picks' }, ...dishPicks().slice(0, 4).map(q =>
         el('button', { ...press(() => { p.value = String(q); render(); }), class: n === q ? 'on' : null, 'aria-pressed': String(n === q) }, `${q}%`))),
-      numberKeys(pressDish, ' cx-dk sm'),
-      reasons ? el('div', { class: 'cx-lab3' }, 'Reason (asked only at 100%)') : null, reasons,
-      el('button', { ...press(applyDish), class: 'cx-done wide', disabled: !ok }, removing ? 'Remove dish discount' : `Apply ${n}% off`));
+      needReason ? freeReason(p, apply, hold) : numberKeys(pressDish, ' cx-dk sm'),
+      apply);
     return card;
   }
-  // A dish made free's reasons (100% off), as chips (one at a time, light blue when picked); Other… opens the keyboard for
-  // one typed in
-  function reasonChips(list, p, id, label) {
-    const wrap = el('div', { class: 'cx-rsn', role: 'radiogroup', 'aria-label': label });
-    for (const r of list) {
-      const other = isOther(r), on = other ? isOther(p.reason) : p.reason === r;
-      wrap.append(el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), class: `${on ? 'on' : ''}${other ? ' oth' : ''}`.trim() || null,
-        onpointerdown: e => e.preventDefault(), onclick: () => { p.reason = r; p.typing = other; render(); if (other) dialog.querySelector(`#${id}`)?.focus(); } }, other ? 'Other…' : r));
-    }
-    if (isOther(p.reason)) {
-      const tf = textField({ id, value: p.other, hint: 'Type the reason', max: 80, label: 'Reason' });
-      const line = el('span', { class: `cx-nf-line${p.other ? '' : ' empty'}` }, mi('edit', 20), tf.box);
-      tf.input.addEventListener('input', () => { p.other = tf.input.value; line.classList.toggle('empty', !tf.input.value); const btn = wrap.closest('.cx-pu')?.querySelector('.cx-done.wide, .cx-btnr'); if (btn) { const ok = Boolean(cleanReason(p.other)); btn.disabled = !ok; btn.classList.toggle('off', !ok); } });
-      tf.input.addEventListener('focus', () => { p.typing = true; wrap.closest('.cx-pu')?.classList.add('typing'); line.classList.add('on'); });
-      tf.input.addEventListener('blur', () => { p.typing = false; wrap.closest('.cx-pu')?.classList.remove('typing'); line.classList.remove('on'); });
-      tf.input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tf.input.blur(); } });
-      wrap.append(el('label', { class: 'cx-nf cx-rsn-other' }, line));
-    }
-    return wrap;
+  // At 100% the number pad steps aside for the reason, asked as the void pop-up asks it (Update Pack 3): "Reason (asked
+  // only at 100%)" and its line (a soft red line while empty; blue, its cursor at the end, once it has words) · "Top
+  // reasons": the restaurant's 9 most given, 3 a row (a tap puts that reason on the line, where it can be changed; the
+  // one on the line light blue), or before its first list "Your most-used reasons will show up here after 15 days." The
+  // keyboard comes up only when the line is tapped: the pop-up moves up and the reasons become one row that slides.
+  // 10% 20% 50% bring the pad back.
+  function freeReason(p, apply, hold) {
+    const reasons = dishReasons();
+    const tf = textField({ id: 'counter-dish-reason', value: p.reason, hint: 'Type the reason here', max: 80, label: 'Reason', idle: true }), field = tf.input;
+    const line = el('span', { class: 'cx-nf-line' }, mi('edit', 22), tf.box);
+    const chips = reasons.map(r => el('button', { type: 'button', class: 'cx-qn-chip', onpointerdown: hold, onmousedown: hold,
+      onclick: () => { p.reason = r; field.value = r; sync(); tf.place(); } }, el('span', { class: 'cx-qn-t' }, r)));
+    const sync = () => {
+      const said = dishReason(p).toLowerCase();
+      chips.forEach((b, i) => { const on = Boolean(said) && reasons[i].toLowerCase() === said; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+      line.classList.toggle('empty', !p.reason);
+      apply.disabled = !dishReason(p);
+    };
+    sync();
+    field.addEventListener('input', () => { p.reason = field.value; sync(); });
+    field.addEventListener('focus', () => { if (dishPop !== p) return; p.typing = true; field.closest('.cx-pu')?.classList.add('typing'); });
+    field.addEventListener('blur', () => { if (dishPop !== p || !field.isConnected) return; p.typing = false; field.closest('.cx-pu')?.classList.remove('typing'); });
+    field.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); field.blur(); } });
+    return [
+      el('label', { class: 'cx-nf' }, el('span', { class: 'cx-nf-label' }, 'Reason (asked only at 100%)'), line),
+      el('div', { class: 'cx-nf-q' }, 'Top reasons'),
+      chips.length ? el('div', { class: 'cx-vr', role: 'group', 'aria-label': 'Top reasons' }, ...chips)
+        : el('div', { class: 'cx-vempty' }, 'Your most-used reasons will show up here after 15 days.')];
   }
   // A void (Update Pack 2, void pop-up v2, screens V1–V6), where the note pop-up is (940 wide, 14 under the top of the
   // menu, keyboard or not): the red ⊖, "Remove Chicken biryani?" / "Reduce Chicken noodles 8 → 7?" / "Delete order
