@@ -876,5 +876,12 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
   #print-bill .mod,#print-bill tr.sub td{font-size:calc(14.5 * var(--p))}
   #print-bill .mod{padding-left:calc(22 * var(--p))}
   #print-bill table.gt td{padding-top:calc(6 * var(--p));font-size:calc(22 * var(--p));font-weight:900}
+  /* Update Pack 3: a later print of the same bill or receipt (the black REPRINT box at the top), and the receipt's PAID line */
+  #print-bill .reprint,#print-bill .paid{display:flex;flex-direction:column;align-items:center;text-align:center;border:calc(3 * var(--p)) solid #000}
+  #print-bill .reprint{margin:0 0 calc(12 * var(--p));padding:calc(6 * var(--p)) calc(10 * var(--p)) calc(8 * var(--p))}
+  #print-bill .reprint b{font-size:calc(30 * var(--p));font-weight:900;letter-spacing:.2em;line-height:1.25}
+  #print-bill .paid{margin:calc(12 * var(--p)) 0 calc(8 * var(--p));padding:calc(6 * var(--p)) calc(10 * var(--p));border-width:calc(2 * var(--p))}
+  #print-bill .paid b{font-size:calc(18 * var(--p));font-weight:900}
+  #print-bill .reprint span,#print-bill .paid span{font-size:calc(13.5 * var(--p));font-weight:700}
 }
 

@@ -702,9 +702,13 @@
       // (the tablet that saved it last sends its KOT at the kitchen time, when it is scheduled)
       ...(thisDevice() ? { savedOn: thisDevice() } : {}),
       // kept from the kitchen screen: the kitchen's "complete" (until more items go to the kitchen)
-      ...(prev?.kitchenDoneAt ? { kitchenDoneAt: prev.kitchenDoneAt } : {}),
+      ...(prev?.kitchenDoneAt ? { kitchenDoneAt: prev.kitchenDoneAt } : {}), ...(prev?.kitchenAt ? { kitchenAt: prev.kitchenAt } : {}),
       // an order this tablet had from before it joined the others keeps its own number until the main system settles it
-      ...(prev?.numberProvisional ? { numberProvisional: true } : {}), ...(prev && Number.isInteger(prev.numberWas) ? { numberWas: prev.numberWas } : {}) };
+      ...(prev?.numberProvisional ? { numberProvisional: true } : {}), ...(prev && Number.isInteger(prev.numberWas) ? { numberWas: prev.numberWas } : {}),
+      // (Update Pack 3) the bill and receipt prints (a later print is a REPRINT) and what a delivery app's integration
+      // sent with the order
+      ...Object.fromEntries(KEPT.filter(k => prev && prev[k] != null).map(k => [k, prev[k]])),
+      ...(!prev && Array.isArray(order.bills) && order.bills.length ? { bills: order.bills } : {}) };
     // Changed on another tablet since it was opened here: both tablets' changes are kept (items added on both, and so on)
     if (prev && opened && window.RestroSync && JSON.stringify(prev) !== opened) entry = window.RestroSync.mergeRecord('orders', JSON.parse(opened), entry, prev);
     // (a pager handed out here is out, even if the one it replaced came back on another tablet meanwhile)
@@ -722,7 +726,9 @@
     const goesNow = !entry.readyAt || kitchenTime(entry) <= now;
     const changed = goesNow ? changedSlip(entry, order, now) : null;
     const kot = goesNow ? sendToKitchen(entry, now) : null;
-    if (kot) delete entry.kitchenDoneAt; // more for the kitchen: not complete any more
+    // more for the kitchen: not complete any more; the kitchen's timer (Orders, Update Pack 3) starts with the KOT that
+    // takes the order into the kitchen
+    if (kot) { entry.kitchenAt = entry.kitchenDoneAt ? now : entry.kitchenAt || entry.sentAt || now; delete entry.kitchenDoneAt; }
     // A pager handed out or given up here: every other order that had that number is back from it (a pager can only be
     // handed out once it is back), each keeping when it came back for the record (the one that had it till now: now)
     const others = list.filter(o => idOf(o) !== entry.uid && !gone.includes(o));
@@ -734,9 +740,10 @@
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     // The kitchen printer: the CHANGED slip, then the KOT
     if (changed) printSlip(kitchenSlip(entry, changed));
-    if (kot) printSlip(kitchenSlip(entry, kot));
+    if (kot) printSlip(kitchenSlip(entry, kot), null, { uid: entry.uid, id: kot.id });
     return { entry, kot, sentNow: kot ? kot.lines.reduce((n, l) => n + l.qty, 0) : 0, isNew: !prev };
   }
+  const KEPT = ['bills', 'receipts', 'platform', 'platformNo', 'platformType', 'platformLogo', 'pickupAt', 'readyBy', 'callCode', 'handover', 'riderAt', 'platformReadyAt', 'payRef'];
   // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
   // main system or the cloud, as a new order takes its number from them, so no two orders share one. Otherwise it says
   // so and the order stays on screen. Returns what upsertOrder does, or null. A dish that sold out before its KOT went
@@ -825,12 +832,13 @@
     for (const o of list) {
       if (!(cleanTime(o.readyAt) && kitchenTime(o) <= now)) continue;
       const kot = sendToKitchen(o, kitchenTime(o)); if (!kot) continue;
+      o.kitchenAt = o.kitchenDoneAt ? kot.at : o.kitchenAt || o.sentAt || kot.at; delete o.kitchenDoneAt;
       announceKitchen(o); sent++;
       // (printed by the tablet that saved it last, or this one when there is only one: Update 7)
       if (!window.RestroSync || !o.savedOn || o.savedOn === thisDevice()) printing.push([o, kot]);
     }
     if (sent) storeOrders(list);
-    for (const [o, kot] of printing) printSlip(kitchenSlip(o, kot));
+    for (const [o, kot] of printing) printSlip(kitchenSlip(o, kot), null, { uid: idOf(o), id: kot.id });
     if (dialog.open && (heldChanged || (sent && sheet === 'orders'))) render();
   }
   function announceKitchen(o) {
@@ -1023,13 +1031,38 @@
   }
   // A slip to the kitchen printer; a printer that doesn't answer is an error with Retry ("Kitchen printer offline /
   // KOT #3 not sent"). Without the app (a browser) there is no kitchen printer: the slip is kept on the order only.
-  function printSlip(slip, ok) {
-    const printer = window.RESTRODevice?.printer;
-    if (typeof printer?.printKot !== 'function') { ok?.(); return; }
+  // `mark` ({ uid, id }): the KOT on the saved order, which keeps whether its print failed (Orders shows KOT !).
+  function printSlip(slip, ok, mark) {
     const what = slip.kind === 'kot' ? `KOT #${slip.kot}` : slip.kind === 'void' ? 'VOID slip' : slip.kind === 'changed' ? 'CHANGED slip' : slip.kind === 'cancel' ? 'ORDER CANCELLED slip' : 'Priority notice';
-    const fail = () => say({ kind: 'error', b: 'Kitchen printer offline', sub: `${what} not sent`, retry: () => printSlip(slip, ok) });
-    try { Promise.resolve(printer.printKot(slip)).then(r => (r === false ? fail() : ok?.()), fail); } catch { fail(); }
+    sendSlip(slip, mark).then(r => { if (r.ok) ok?.(); else say({ kind: 'error', b: 'Kitchen printer offline', sub: `${what} not sent`, retry: () => printSlip(slip, ok, mark) }); });
   }
+  // Prints a slip and resolves { ok, why }: why the kitchen printer didn't print it, when the RESTRO Android app says
+  // ("paper", "offline", "cover"). A KOT that fails is kept as failed on its saved order until a print of it goes, and
+  // this tablet prints it again on its own every 30 seconds meanwhile (Update Pack 3).
+  function sendSlip(slip, mark) {
+    const printer = window.RESTRODevice?.printer;
+    if (typeof printer?.printKot !== 'function') return Promise.resolve({ ok: true });
+    const done = (ok, why = '') => { if (mark) markKot(mark.uid, mark.id, !ok, why); return { ok, why }; };
+    try {
+      return Promise.resolve(printer.printKot(slip)).then(r => (r === false || r?.ok === false ? done(false, cleanWhy(r?.reason)) : done(true)), e => done(false, cleanWhy(e?.reason)));
+    } catch (e) { return Promise.resolve(done(false, cleanWhy(e?.reason))); }
+  }
+  const cleanWhy = why => (['paper', 'offline', 'cover'].includes(why) ? why : '');
+  function markKot(uid, id, failed, why = '') {
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid), k = rec && (Array.isArray(rec.kots) ? rec.kots : []).find(x => x && x.id === id);
+    if (!k || (Boolean(k.failed) === failed && (k.failWhy || '') === why)) return;
+    if (failed) { k.failed = true; if (why) k.failWhy = why; else delete k.failWhy; } else { delete k.failed; delete k.failWhy; }
+    storeOrders(list); if (order.uid === uid) keepOpened(rec);
+  }
+  // (the KOTs this tablet printed that failed, every 30 seconds)
+  function retryKots() {
+    if (typeof window.RESTRODevice?.printer?.printKot !== 'function') return;
+    for (const o of loadOrders()) {
+      if (window.RestroSync && o.savedOn && o.savedOn !== thisDevice()) continue;
+      for (const k of kotsOf(o)) if (k.failed) sendSlip(kitchenSlip(o, k), { uid: idOf(o), id: k.id });
+    }
+  }
+  setInterval(retryKots, 30000);
 
   // ---------- voids (Update 7) ----------
   // After a KOT has gone, taking a dish off or below what the kitchen has, or deleting the order, asks why first (a
@@ -1065,13 +1098,7 @@
     const list = loadOrders(), rec = savedOf(list), now = Date.now(), by = staffName();
     if (p.key == null) {
       // The whole order: ORDER CANCELLED (VOID ALL), everything the kitchen has, with minus quantities
-      const lines = [];
-      if (rec) for (const [k, n] of Object.entries(rec.sent || {})) {
-        if (!(n > 0)) continue;
-        const l = rec.lines.find(x => kitchenKey(x.id, x.type, x.mods) === k) || [...kotsOf(rec)].reverse().flatMap(x => x.lines || []).find(x => kitchenKey(x.id, x.type, x.mods) === k);
-        if (l) lines.push({ id: l.id, name: l.name, qty: -n, type: l.type, ...(l.mods?.length ? { mods: l.mods } : {}) });
-      }
-      const slip = { id: newKotId(), at: now, kind: 'cancel', lines, reason, by };
+      const slip = rec ? cancelSlipOf(rec, reason, by, now) : null;
       if (rec) { rec.kots = [...(rec.kots || []), slip]; keepCancelled(rec, slip); printSlip(kitchenSlip(rec, slip)); }
       const n = order.number;
       dropSaved(); fresh();
@@ -1114,10 +1141,20 @@
   // An order deleted after its KOT went is kept on this tablet for the record (who, when, why, what the kitchen had), until
   // the backend keeps it (the latest 200).
   const CANCELLED_KEY = 'restro.counter.cancelled.v1';
+  function cancelSlipOf(rec, reason, by, now) {
+    const lines = [];
+    for (const [k, n] of Object.entries(rec.sent || {})) {
+      if (!(n > 0)) continue;
+      const l = rec.lines.find(x => kitchenKey(x.id, x.type, x.mods) === k) || [...kotsOf(rec)].reverse().flatMap(x => x.lines || []).find(x => kitchenKey(x.id, x.type, x.mods) === k);
+      if (l) lines.push({ id: l.id, name: l.name, qty: -n, type: l.type, ...(l.mods?.length ? { mods: l.mods } : {}) });
+    }
+    return { id: newKotId(), at: now, kind: 'cancel', lines, reason, by };
+  }
   function keepCancelled(rec, slip) {
     try {
       const list = JSON.parse(localStorage.getItem(CANCELLED_KEY) || '[]');
-      list.unshift({ uid: idOf(rec), number: rec.number, day: rec.day || null, at: slip.at, reason: slip.reason, by: slip.by, type: rec.type, table: rec.table || '', total: rec.total, lines: rec.lines.map(l => ({ id: l.id, name: l.name, qty: l.qty, price: l.price })) });
+      list.unshift({ uid: idOf(rec), number: rec.number, day: rec.day || null, at: slip.at, reason: slip.reason, by: slip.by, type: rec.type, table: rec.table || '', total: rec.total,
+        kot: kotsOf(rec).length > 0, bill: Array.isArray(rec.bills) && rec.bills.length > 0, lines: rec.lines.map(l => ({ id: l.id, name: l.name, qty: l.qty, price: l.price })) });
       localStorage.setItem(CANCELLED_KEY, JSON.stringify(list.slice(0, 200)));
     } catch {}
   }
@@ -2257,23 +2294,60 @@
       footer: [t.servicePct ? SERVICE_FOOTER : '', biz.footer || ''].filter(Boolean)
     };
   }
-  function printBill() {
-    if (!order.lines.length) return;
-    const bill = billOf(), printer = window.RESTRODevice?.printer;
+  // Update Pack 3 (04_Printed-slips): the first print of a bill, and of a receipt, is plain; every later print of the
+  // same one has a bold black REPRINT box at the top ("Reprinted 7 Nov 2026 12:20 PM · by RK"), black only. The receipt
+  // after payment is a document of its own: TAX INVOICE · RECEIPT, and a boxed "PAID · UPI ₹837" line with the time
+  // (and the payment's reference) above the footer. Each print is kept on the order (`bills`, `receipts`).
+  const PAID_AS = { cash: 'Cash', upi: 'UPI', card: 'Card', swiggy: 'Swiggy', zomato: 'Zomato' };
+  function billDoc(o, kind, prints, rec = null) {
+    const now = Date.now(), last = prints.length ? { at: now, by: initialsOf(staffName()) } : null;
+    const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : 'TAX INVOICE', at: prints[0]?.at || now, reprint: last };
+    if (kind === 'receipt' && rec) bill.paid = { method: PAID_AS[rec.method] || 'Cash', amount: bill.total, at: Date.parse(rec.paidAt) || now, ref: typeof rec.payRef === 'string' ? rec.payRef : '' };
+    return bill;
+  }
+  // To the bill printer (RESTRODevice.printer.printBill), or the browser's printing; resolves whether it printed
+  function deliverBill(bill) {
+    const printer = window.RESTRODevice?.printer;
     if (typeof printer?.printBill === 'function') {
-      Promise.resolve(printer.printBill(bill)).then(ok => toast(ok === false ? 'The bill didn’t print' : 'Bill sent to the printer'), () => toast('The bill didn’t print')).finally(readPaper);
-      return;
+      try { return Promise.resolve(printer.printBill(bill)).then(ok => ok !== false, () => false).finally(readPaper); } catch { return Promise.resolve(false); }
     }
+    printPage(bill); return Promise.resolve(true);
+  }
+  async function printBill() {
+    if (!order.lines.length) return;
+    const list = loadOrders(), rec = savedOf(list), prints = rec ? (Array.isArray(rec.bills) ? rec.bills : []) : (Array.isArray(order.bills) ? order.bills : []);
+    const bill = billDoc(order, 'bill', prints), app = typeof window.RESTRODevice?.printer?.printBill === 'function';
+    const ok = await deliverBill(bill);
+    if (app) toast(ok ? 'Bill sent to the printer' : 'The bill didn’t print');
+    if (!ok) return;
+    const mark = { at: Date.now(), by: staffName(), total: bill.total };
+    if (rec) { rec.bills = [...prints, mark].slice(-20); storeOrders(list); keepOpened(rec); } else { order.bills = [...prints, mark].slice(-20); saveDraft(); }
+  }
+  // A saved order's bill (not paid yet) or receipt (paid), from Orders: resolves { ok, kind, reprint }
+  async function printSaved(uid) {
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
+    const kind = rec.paidAt ? 'receipt' : 'bill', key = kind === 'receipt' ? 'receipts' : 'bills', prints = Array.isArray(rec[key]) ? rec[key] : [];
+    const bill = billDoc(restoreOrder(rec), kind, prints, rec);
+    const ok = await deliverBill(bill);
+    if (ok) {
+      const now = loadOrders(), r = now.find(o => idOf(o) === uid);
+      if (r) { r[key] = [...(Array.isArray(r[key]) ? r[key] : []), { at: Date.now(), by: staffName(), total: bill.total }].slice(-20); storeOrders(now); if (order.uid === uid) keepOpened(r); }
+    }
+    return { ok, kind, reprint: prints.length > 0 };
+  }
+  function printPage(bill) {
     let page = document.querySelector('#print-bill');
     if (!page) { page = el('div', { id: 'print-bill', 'aria-hidden': 'true' }); document.body.append(page); }
     const r = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), minus = n => `−${r(n)}`;
     const row = (label, value, cls) => el('tr', cls ? { class: cls } : {}, el('td', {}, ...[label].flat()), el('td', {}, value));
     const at = new Date(bill.at), hour = at.getHours(); // "7 Nov 2026 11:58 AM"
     const when = `${at.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][at.getMonth()]} ${at.getFullYear()} ${hour % 12 || 12}:${String(at.getMinutes()).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
+    const stamp = t => { const d = new Date(t), h = d.getHours(); return `${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getFullYear()} ${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
     page.replaceChildren(...[
+      bill.reprint ? el('div', { class: 'reprint' }, el('b', {}, 'REPRINT'), el('span', {}, `Reprinted ${stamp(bill.reprint.at)}${bill.reprint.by ? ` · by ${bill.reprint.by}` : ''}`)) : null,
       bill.restaurant ? el('h1', {}, bill.restaurant) : null,
       bill.address || bill.gstin || bill.fssai ? el('p', { class: 'small' }, bill.address, bill.address && (bill.gstin || bill.fssai) ? el('br') : null, [bill.gstin ? `GSTIN ${bill.gstin}` : '', bill.fssai ? `FSSAI ${bill.fssai}` : ''].filter(Boolean).join(' · ')) : null,
-      el('hr'), el('p', { class: 'b' }, 'TAX INVOICE'),
+      el('hr'), el('p', { class: 'b' }, bill.title || 'TAX INVOICE'),
       el('table', { class: 'small' }, el('tbody', {}, row(bill.number ? `Order ${bill.number}` : 'Bill', when),
         row([bill.type, bill.table ? `Table ${bill.table}` : '', bill.guests ? plural(bill.guests, 'guest') : ''].filter(Boolean).join(' · '), bill.server ? `Server: ${initialsOf(bill.server)}` : ''))),
       el('hr'),
@@ -2290,6 +2364,7 @@
         bill.roundOff ? row('Round off', `${bill.roundOff < 0 ? '−' : '+'}${r(Math.abs(bill.roundOff))}`) : null)),
       el('hr'),
       el('table', { class: 'gt' }, el('tbody', {}, row('GRAND TOTAL', `₹${bill.total.toLocaleString('en-IN')}`))),
+      bill.paid ? el('div', { class: 'paid' }, el('b', {}, `PAID · ${bill.paid.method} ₹${bill.paid.amount.toLocaleString('en-IN')}`), el('span', {}, [stamp(bill.paid.at), bill.paid.ref ? `Ref ${bill.paid.ref}` : ''].filter(Boolean).join(' · '))) : null,
       bill.footer.length ? [el('hr'), el('p', { class: 'small' }, ...bill.footer.flatMap((f, i) => (i ? [el('br'), f] : [f])))] : null].flat().filter(Boolean));
     try { window.print(); } catch { toast('Printing isn’t available here'); }
   }
@@ -3148,6 +3223,78 @@
   // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
   // (It opens on the view of the pills, or the part of the rail, with the selected category.)
   function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; pillView = null; railScroll = null; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
+
+  // ---------- for the Orders app (Update Pack 3) ----------
+  // A saved order's kitchen, for its KOT button: its KOTs (number, time, dishes; failed when the print didn't go, and
+  // why), the dishes the kitchen doesn't have yet (what a new KOT would send: "2 × Butter naan", "Medium spicy") and,
+  // for an order scheduled for later, when it goes to the kitchen.
+  const dishesOf = k => (k.lines || []).filter(l => l.qty > 0).map(l => `${l.name}${l.qty > 1 ? ` ×${l.qty}` : ''}`).join(', ');
+  function kitchenOf(uid) {
+    const rec = loadOrders().find(o => idOf(o) === uid); if (!rec) return null;
+    const next = sendToKitchen(JSON.parse(JSON.stringify(rec)));
+    return {
+      kots: kotsOf(rec).map((k, i) => ({ id: k.id, no: k.no || i + 1, at: k.at, dishes: dishesOf(k), failed: Boolean(k.failed), why: k.failWhy || '' })),
+      unsent: next ? next.lines.map(l => ({ qty: l.qty, name: l.name, mods: (l.mods || []).map(labelOf).join(' · ') })) : [],
+      kitchenAt: cleanTime(rec.readyAt) && !rec.sentAt ? kitchenTime(rec) : null
+    };
+  }
+  // Reprints a saved order's KOTs (ids), each with the red REPRINT box and (R) after every dish; one that never printed
+  // prints as it was. Resolves { ok, failed: [{ no, why }] }.
+  async function reprintKots(uid, ids) {
+    const rec = loadOrders().find(o => idOf(o) === uid); if (!rec) return { ok: false, failed: [] };
+    const failed = [], at = Date.now(), by = initialsOf(staffName());
+    for (const k of kotsOf(rec).filter(x => ids.includes(x.id))) {
+      const r = await sendSlip({ ...kitchenSlip(rec, k), ...(k.failed ? {} : { reprint: { at, by } }) }, { uid, id: k.id });
+      if (!r.ok) failed.push({ no: k.no, why: r.why });
+    }
+    return { ok: !failed.length, failed };
+  }
+  // Sends a saved order's dishes the kitchen doesn't have yet as a new KOT. Resolves { ok, why, no, count }.
+  async function sendKitchen(uid) {
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
+    const now = Date.now(), kot = sendToKitchen(rec, now); if (!kot) return { ok: true, no: null, count: 0 };
+    rec.kitchenAt = rec.kitchenDoneAt ? now : rec.kitchenAt || rec.sentAt || now;
+    delete rec.kitchenDoneAt; rec.savedAt = now; storeOrders(list); if (order.uid === uid) keepOpened(rec);
+    const r = await sendSlip(kitchenSlip(rec, kot), { uid, id: kot.id });
+    return { ...r, no: kot.no, count: kot.lines.reduce((n, l) => n + l.qty, 0) };
+  }
+  // Deletes saved orders not paid yet (Orders: one, or several picked together), with the reason. They come off Orders
+  // and the Counter for good (there are no grey Cancelled rows), their tables and pagers are free, and each is kept for
+  // the record (Analytics: who, when, why, the amount, whether a KOT or the bill had printed). The kitchen gets one slip:
+  // ORDER CANCELLED for one order, or one compact ORDERS CANCELLED slip for several (each order's number, its KOTs and
+  // its time; "—" for one that never reached the kitchen); none when none of them reached it. Paid orders and
+  // delivery-app orders are never deleted here.
+  function deleteOrders(uids, reason) {
+    const list = loadOrders(), now = Date.now(), by = staffName(), why = cleanReason(reason);
+    const gone = list.filter(o => uids.includes(idOf(o)) && !o.paidAt && !o.platform);
+    if (!gone.length || !why) return { count: 0, kitchen: 0 };
+    const reached = gone.filter(o => kotsOf(o).length);
+    for (const rec of gone) { keepCancelled(rec, { at: now, reason: why, by }); window.RestroSync?.removed('orders', idOf(rec)); }
+    storeOrders(list.filter(o => !gone.includes(o)));
+    const ids = new Set(gone.map(idOf)), numbers = new Set(gone.map(o => o.number));
+    const keep = held.filter(h => !(h.uid ? ids.has(h.uid) : h.number && numbers.has(h.number)));
+    if (keep.length !== held.length) { held.filter(h => !keep.includes(h)).forEach(h => window.RestroSync?.removed('held', h.heldId)); held = keep; store(HELD_KEY, held); }
+    if (order.uid && ids.has(order.uid)) fresh();
+    if (reached.length === 1 && gone.length === 1) {
+      const rec = reached[0]; sendSlip(kitchenSlip(rec, cancelSlipOf(rec, why, by, now)));
+    } else if (reached.length) {
+      sendSlip({ kind: 'cancel-bulk', band: 'ORDERS CANCELLED', action: `BULK DELETE · ${gone.length} ORDERS`, at: now, by: by || null, reason: why,
+        info: [`By: ${initialsOf(by) || '—'}`, `Reason: ${why}`].join(' · '),
+        orders: [...gone].sort((a, b) => createdOf(b) - createdOf(a)).map(o => ({ order: ticket(o.number), kots: kotsOf(o).map((k, i) => k.no || i + 1).join(' · ') || '—', at: createdOf(o) })),
+        footer: '— = order never reached the kitchen.',
+        printers: Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'kitchen' || p.role === 'both')).map(([id, p]) => ({ id, language: p.language || 'English', copies: p.copies || 1 })) });
+    }
+    if (dialog.open) render();
+    return { count: gone.length, kitchen: reached.length };
+  }
+  // A delivery app's order marked ready (its third button in Orders: Ready, then Marked): the platform is told through
+  // its integration (RESTRODevice.integrations.markReady), once the integration exists.
+  function markReady(uid) {
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec || !rec.platform) return false;
+    if (!rec.platformReadyAt) { rec.platformReadyAt = Date.now(); storeOrders(list); }
+    try { window.RESTRODevice?.integrations?.markReady?.({ platform: rec.platform, id: rec.platformNo || null, order: uid }); } catch {}
+    return true;
+  }
   window.RestroCounter = Object.freeze({
     open() { fromFloor = false; fromOrders = false; openCounter(); },
     // Back from an app Counter opened (Orders): Counter as it was, where it came from unchanged.
@@ -3175,6 +3322,8 @@
     // if it has anything not saved).
     resumeHeld(id) { if (typeof id !== 'string' || !held.some(h => h.heldId === id)) return; openCounter(); fromFloor = false; fromOrders = false; resume(id); },
     goBack,
+    // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
+    kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: () => prepMinutes(),
     tablesInUse() {
       // (a held order's table was freed when it was held; a saved order's held copy has the saved order's)
       const used = [...loadOrders().filter(o => !o.paidAt), ...held.filter(h => h.number)].filter(usesTable).map(o => o.table);
