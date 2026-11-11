@@ -3557,12 +3557,11 @@
     if (dialog.open) render();
     return { count: gone.length, kitchen: reached.length };
   }
-  // A delivery app's order marked ready (its third button in Orders: Ready, then Marked): the platform is told through
-  // its integration (RESTRODevice.integrations.markReady), once the integration exists.
+  // A delivery app's order marked ready (its third button in Orders: Ready, then Marked). Orders tells the platform
+  // first (RESTRODevice.integrations.markReady) and keeps it here once the platform answered (Update Pack 4, C7).
   function markReady(uid) {
     const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec || !rec.platform) return false;
     if (!rec.platformReadyAt) { rec.platformReadyAt = Date.now(); storeOrders(list); }
-    try { window.RESTRODevice?.integrations?.markReady?.({ platform: rec.platform, id: rec.platformNo || null, order: uid }); } catch {}
     return true;
   }
   // Orders (Update Pack 4): a message sent to the customer (Notify) and a pager buzzed (once its dock confirmed it), kept

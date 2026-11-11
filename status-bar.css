@@ -4,8 +4,8 @@
    with white text in Aurora; over an open app the same bar in the same sizes (White's, Sea breeze's, or Aurora's dark
    one, solid #394147). Left: the restaurant's mark (the first letter of its name, 36 square, radius 10.8, 18 bold), its
    name (21.6 bold), then the date and time (18.6 bold). Right, 14.4 apart: our status icons as the tablet reports them (Bluetooth, Wi-Fi, signal:
-   they work as before), the battery pill (Counter Update 5), the Online pill (38.4 high, grey with a fine edge, a 10.8 dot: green online, grey
-   "Offline") and the signed-in server's profile circle (38.4, their initials; a person outline while nobody is signed
+   they work as before), the battery pill (Counter Update 5), the Online pill (38.4 high, grey with a fine edge, a 10.8 dot: green online; "Offline" amber,
+   Update Pack 4) and the signed-in server's profile circle (38.4, their initials; a person outline while nobody is signed
    in). Over an app its shadow falls on the top of the app as on a plain page. Pull it down for quick controls, as before.
    Sizes in the bar's unit (--bn-u, launcher.css: the Counter pack's 40-high bar drawn at 1.2). */
 :root{--top-banner-height:calc(40 * var(--bn-u))}
@@ -34,7 +34,10 @@
 #top-banner .system-status .network-slot[hidden],#top-banner .battery-status[hidden]{display:none!important}
 #top-banner .online-pill{flex:none;height:calc(32 * var(--bn-u));min-width:0;padding:0 calc(13 * var(--bn-u));box-sizing:border-box;display:flex;align-items:center;gap:calc(7 * var(--bn-u));border-radius:999px;background:var(--bar-pill-bg);box-shadow:inset 0 0 0 1px var(--bar-pill-edge);font-size:calc(14 * var(--bn-u));font-weight:600;color:var(--bar-pill-text);white-space:nowrap}
 #top-banner .online-pill .status-dot{flex:none;width:calc(9 * var(--bn-u));height:calc(9 * var(--bn-u));border-radius:999px;background:var(--bar-dot);box-shadow:none}
-#top-banner .online-pill .status-dot.offline{background:var(--bar-muted)}
+/* Offline (Update Pack 4: G7, K5, K6): the pill turns amber, an orange dot and "Offline" in brown; on Aurora's dark bar the
+   dark pill with light orange, as the low battery does (the --bar-off-* values, launcher.css) */
+html[data-internet-status="offline"] #top-banner .online-pill{background:var(--bar-off-bg);box-shadow:inset 0 0 0 1px var(--bar-off-edge);color:var(--bar-off-text)}
+#top-banner .online-pill .status-dot.offline{background:var(--bar-off-dot)}
 #top-banner .server-profile{flex:none;width:calc(32 * var(--bn-u));height:calc(32 * var(--bn-u));border-radius:50%;background:var(--bar-mark-bg);color:var(--bar-mark-text);display:flex;align-items:center;justify-content:center;font-size:calc(13.5 * var(--bn-u));font-weight:600;letter-spacing:.02em;line-height:1}
 #top-banner .server-glyph{width:58%;height:58%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 #top-banner .server-profile:not(.signed-out) .server-glyph,#top-banner .server-profile.signed-out .server-initial{display:none}

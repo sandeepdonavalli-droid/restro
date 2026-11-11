@@ -21,7 +21,10 @@
 // - Long-press starts picking orders to delete: only Not paid orders that aren't a delivery app's.
 // Delivery apps (Swiggy, Zomato…) show what their integration sends with the order: platform, platformNo, platformType
 // ('delivery' or 'pickup'), pickupAt / readyBy, callCode, handover, riderAt, platformLogo; and when the app cancels it,
-// cancelledBy ('Swiggy'), payout ('awaiting', 'paid' or 'unpaid') and payoutAmount.
+// cancelledBy ('Swiggy'), payout ('awaiting', 'paid' or 'unpaid') and payoutAmount. Orders from the restaurant's own
+// website or app (to come) carry online: true and source ('Website' or 'App'), shown where the cashier would be. A bill
+// paid in part (the Pay screen, to come) carries paidAmount (paise) and paidAmountAt; refunds carry refundedAt,
+// refundAmount (paise; less than the total: a partial refund) and refundMethod.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
@@ -44,14 +47,14 @@
     search: ['m', 'M380-320q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z'],
     calendar: ['m', 'M180-80q-24 0-42-18t-18-42v-620q0-24 18-42t42-18h65v-28q0-13.6 9.2-22.8 9.2-9.2 22.8-9.2 14.02 0 23.51 9.2Q310-861.6 310-848v28h340v-28q0-13.6 9.2-22.8 9.2-9.2 22.8-9.2 14.03 0 23.51 9.2Q715-861.6 715-848v28h65q24 0 42 18t18 42v620q0 24-18 42t-42 18H180Zm0-60h600v-430H180v430Z'],
     expand: ['m', 'M480-362q-8 0-15-2.5t-13-8.5L268-557q-11-11-11-28t11-28q11-11 28-11t28 11l156 156 156-156q11-11 28-11t28 11q11 11 11 28t-11 28L508-373q-6 6-13 8.5t-15 2.5Z'],
-    expandLess: ['m', 'M480-529 324-373q-11 11-28 11t-28-11q-11-11-11-28t11-28l184-184q6-6 13-8.5t15-2.5q8 0 15 2.5t13 8.5l184 184q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-529Z'],
     tag: ['m', 'M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Z'],
     sortDown: ['m', 'M450-274v-496q0-13 8.5-21.5T480-800q13 0 21.5 8.5T510-770v496l227-227q9-9 21-9t21 9q9 9 9 21t-9 21L501-181q-5 5-10 7t-11 2q-6 0-11-2t-10-7L181-459q-9-9-9-21t9-21q9-9 21-9t21 9l227 227Z'],
     sortBoth: ['m', 'm480-208 114-114q9.13-9 22.07-9 12.93 0 21.93 9.1 9 9.11 9 22 0 12.9-9 21.9L501-141q-5 5-10.13 7-5.14 2-11 2-5.87 0-10.87-2-5-2-10-7L322-278q-9-9.13-9-22.07 0-12.93 9.1-21.93 9.11-9 22-9 12.9 0 21.9 9l114 114Zm0-540L366-634q-9.13 9-22.07 9-12.93 0-21.93-9.1-9-9.11-9-22 0-12.9 9-21.9l137-137q5-5 10.13-7 5.14-2 11-2 5.87 0 10.87 2 5 2 10 7l137 137q9 9.13 9 22.07 0 12.93-9.1 21.93-9.11 9-22 9-12.9 0-21.9-9L480-748Z'],
     phone: ['m', 'M798-120q-125 0-247-54.5T329-329Q229-429 174.5-551T120-798q0-18 12-30t30-12h162q14 0 25 9.5t13 22.5l26 140q2 16-1 27t-11 19l-97 98q20 37 47.5 71.5T387-386q31 31 65 57.5t72 48.5l94-94q9-9 23.5-13.5T670-390l138 28q14 4 23 14.5t9 23.5v162q0 18-12 30t-30 12Z'],
     dinein: ['m', 'M672-520H289l-11 80h404l-10-80ZM166-205l43-315h-89q-20 0-31.5-16T82-571l57-200q4-13 14-21t24-8h606q14 0 24 8t14 21l57 200q5 19-6.5 35T840-520h-88l42 315q2 18-9.5 31.5T755-160q-15 0-26.5-9.5T715-194l-22-166H267l-22 166q-2 15-13.5 24.5T205-160q-18 0-29.5-13.5T166-205Z'],
     takeaway: ['m', 'M240-80q-33 0-56.5-23.5T160-160v-480q0-33 23.5-56.5T240-720h80q0-66 47-113t113-47q66 0 113 47t47 113h80q33 0 56.5 23.5T800-640v480q0 33-23.5 56.5T720-80H240Zm160-640h160q0-33-23.5-56.5T480-800q-33 0-56.5 23.5T400-720Zm200 200q17 0 28.5-11.5T640-560v-80h-80v80q0 17 11.5 28.5T600-520Zm-240 0q17 0 28.5-11.5T400-560v-80h-80v80q0 17 11.5 28.5T360-520Z'],
-    moped: ['m', 'M280-200q-50 0-85-35t-35-85h-40q-17 0-28.5-11.5T80-360v-80q0-66 47-113t113-47h80q33 0 56.5 23.5T400-520v120h140l140-174v-106h-80q-17 0-28.5-11.5T560-720q0-17 11.5-28.5T600-760h80q33 0 56.5 23.5T760-680v106q0 14-4.5 26.5T743-524L604-350q-11 14-28 22t-35 8H400q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T320-320h-80q0 17 11.5 28.5T280-280Zm80-360H240q-17 0-28.5-11.5T200-680q0-17 11.5-28.5T240-720h120q17 0 28.5 11.5T400-680q0 17-11.5 28.5T360-640Zm400 440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T800-320q0-17-11.5-28.5T760-360q-17 0-28.5 11.5T720-320q0 17 11.5 28.5T760-280Z'],
+    // (Delivery: Material Icons Round two_wheeler, Apache 2.0, as in the designs)
+    moped: ['w', 'M20 11c-.18 0-.36.03-.53.05L17.41 9H19c.55 0 1-.45 1-1v-.38c0-.74-.78-1.23-1.45-.89l-2.28 1.14L13.7 5.3A.976.976 0 0 0 13 5h-3c-.55 0-1 .45-1 1s.45 1 1 1h2.17c.27 0 .52.11.71.29L14.59 9h-3.35c-.16 0-.31.04-.45.11l-3.14 1.57a.99.99 0 0 1-1.15-.19l-1.2-1.2C5.11 9.11 4.85 9 4.59 9H1c-.55 0-1 .45-1 1s.45 1 1 1h3a4 4 0 0 0-3.89 4.94 3.96 3.96 0 0 0 2.95 2.95A4 4 0 0 0 8 15l1.41 1.41c.38.38.89.59 1.42.59h1.01c.72 0 1.38-.38 1.74-1.01l2.91-5.09 1.01 1.01a3.974 3.974 0 0 0-1.38 4.05c.34 1.44 1.51 2.61 2.95 2.94A4.01 4.01 0 0 0 24 15c0-2.21-1.79-4-4-4zM4 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm16 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z'],
     print: ['w', 'M19 8c1.66 0 3 1.34 3 3v6h-4v4H6v-4H2v-6c0-1.66 1.34-3 3-3h1V3h12v5zM8 5v3h8V5zm8 14v-4H8v4zm2-4h2v-4c0-.55-.45-1-1-1H5c-.55 0-1 .45-1 1v4h2v-2h12zm1-3.5c0 .55-.45 1-1 1s-1-.45-1-1 .45-1 1-1 1 .45 1 1'],
     printOff: ['m', 'M763-84 640-206h80v6q0 33-23.5 56.5T640-120H320q-33 0-56.5-23.5T240-200v-80h-80q-33 0-56.5-23.5T80-360v-160q0-51 35-85.5t85-34.5h6L83-763q-12-12-12-28.5T83-820q12-12 28.5-12t28.5 12l680 680q12 12 12 28t-12 28q-12 12-28.5 12T763-84ZM320-200h320v-6L486-360H320v160Zm522-91q-16 9-34 8t-32-15L502-572q-19-19-8.5-43.5T531-640h229q50 0 85 35t35 85v160q0 25-11 42.5T842-291ZM427-680q-16 0-30.5-6T371-703l-69-69q-19-19-8.5-43.5T331-840h309q33 0 56.5 23.5T720-760v40q0 17-11.5 28.5T680-680H427Zm293 220q17 0 28.5-11.5T760-500q0-17-11.5-28.5T720-540q-17 0-28.5 11.5T680-500q0 17 11.5 28.5T720-460Z'],
     kot: ['w', 'M19.5 3.5 18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2 4.5 3.5 3 2v20l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2zM19 19H5V5h14zM6 15h12v2H6m0-6h12v2H6m0-6h12v2H6z'],
@@ -71,6 +74,8 @@
     restaurant: ['m', 'M280-600v-240q0-17 11.5-28.5T320-880q17 0 28.5 11.5T360-840v240h40v-240q0-17 11.5-28.5T440-880q17 0 28.5 11.5T480-840v240q0 56-34.5 98T360-446v326q0 17-11.5 28.5T320-80q-17 0-28.5-11.5T280-120v-326q-51-14-85.5-56T160-600v-240q0-17 11.5-28.5T200-880q17 0 28.5 11.5T240-840v240h40Zm400 200h-80q-17 0-28.5-11.5T560-440v-240q0-70 51.5-135T718-880q18 0 30 14t12 33v713q0 17-11.5 28.5T720-80q-17 0-28.5-11.5T680-120v-280Z'],
     person: ['m', 'M480-481q-66 0-108-42t-42-108q0-66 42-108t108-42q66 0 108 42t42 108q0 66-42 108t-108 42ZM160-220v-34q0-38 19-65t49-41q67-30 128.5-45T480-420q62 0 123 15.5T731-360q31 14 50 41t19 65v34q0 25-17.5 42.5T740-160H220q-25 0-42.5-17.5T160-220Z'],
     alert: ['m', 'M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm0-160q17 0 28.5-11.5T520-480v-160q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640v160q0 17 11.5 28.5T480-440Zm0 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z'],
+    // (the messages' printer: Material Icons filled print, Apache 2.0)
+    printFill: ['w', 'M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z'],
     cloudOff: ['m', 'M260-160q-92 0-156-64T40-380q0-77 47.5-137T210-594q3-8 6-15.5t6-16.5L84-764q-11-11-11-28t11-28q11-11 28-11t28 11l680 680q11 11 11.5 27.5T820-84q-11 11-27.5 11.5T764-83l-78-77H260Zm604-50L322-751q35-24 74.5-36.5T480-800q117 0 198.5 81.5T760-520q69 8 114.5 59.5T920-340q0 39-15 72.5T864-210Z'],
     add: ['m', 'M440-440H240q-17 0-28.5-11.5T200-480q0-17 11.5-28.5T240-520h200v-200q0-17 11.5-28.5T480-760q17 0 28.5 11.5T520-720v200h200q17 0 28.5 11.5T760-480q0 17-11.5 28.5T720-440H520v200q0 17-11.5 28.5T480-200q-17 0-28.5-11.5T440-240v-200Z'],
     check: ['m', 'm382-354 339-339q12-12 28-12t28 12q12 12 12 28.5T777-636L410-268q-12 12-28 12t-28-12L182-440q-12-12-11.5-28.5T183-497q12-12 28.5-12t28.5 12l142 143Z'],
@@ -147,9 +152,11 @@
   // after its ready-by time); Ready · N min (green) once the kitchen completed it. Cancelled (red, "by Swiggy") when a
   // delivery app cancels it. Without the kitchen screen (a later subscription choice) an order is Open until paid.
   const KITCHEN_SCREEN = true;
+  // (the day the page shows: "Scheduled 1:00 pm" on that order's own day, "Tomorrow 1:00 pm" the day before; OS5, OS6)
+  let refDay = null;
   function schedLine(t, now) {
-    const d = dayOf(t), today = dayOf(now);
-    return d === today ? `Scheduled ${timeOf(t)}` : d === addDays(today, 1) ? `Tomorrow ${timeOf(t)}` : `${shortDay(t)} ${timeOf(t)}`;
+    const d = dayOf(t), ref = refDay || dayOf(now);
+    return d === ref ? `Scheduled ${timeOf(t)}` : d === addDays(ref, 1) ? `Tomorrow ${timeOf(t)}` : `${shortDay(t)} ${timeOf(t)}`;
   }
   function statusOf(o, now = Date.now()) {
     if (o.cancelledBy) return { text: 'Cancelled', cls: 'cancelled', sub: `by ${o.cancelledBy}`, subCls: 'can', closed: true, rank: 2 };
@@ -213,14 +220,14 @@
     const dine = !platform && o.table && (o.type === 'dine-in' || o.split);
     const who = dine
       ? { l1: `Table ${tableName(o.table)}${o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : ''}`, l2: server ? `Server: ${server}` : '' }
-      : { l1: name || (platform ? 'Customer' : 'Guest'), l2: platform ? phone : [phone, phone ? initialsOf(server) : server ? `Server: ${server}` : ''].filter(Boolean).join(' · ') };
+      : { l1: name || (platform ? 'Customer' : 'Guest'), l2: platform ? phone : [phone, type.key === 'online' ? (o.source === 'App' ? 'App' : 'Website') : phone ? initialsOf(server) : server ? `Server: ${server}` : ''].filter(Boolean).join(' · ') };
     if (platform && (o.callCode || o.handover || (o.platformType !== 'pickup' && o.riderAt))) who.codes = { call: o.callCode || '', handover: o.handover || '', rider: o.platformType !== 'pickup' && o.riderAt ? timeOf(o.riderAt) : '' };
     const status = statusOf(o, now), pay = payOf(o);
     const tags = { disc: Boolean(o.discountPct) || (o.lines || []).some(l => Number(l.off) > 0), void: (Array.isArray(o.kots) ? o.kots : []).some(k => k && (k.kind === 'void' || k.kind === 'changed')) };
     // the four buttons
     const kots = kotsOf(o), queued = !platform && !o.sentAt && Boolean(o.readyAt), kotAt = queued ? kotTimeOf(o) : 0;
     const kot = past ? { look: 'off', label: 'KOT' } : kots.some(k => k.failed) ? { look: 'err', label: 'KOT !' }
-      : queued ? { look: 'q', at: kotAt, label: dayOf(kotAt) === dayOf(now) ? timeOf(kotAt) : weekday(kotAt) } : { look: kots.length ? 'on' : 'off', label: 'KOT' };
+      : queued ? { look: 'q', at: kotAt, label: dayOf(kotAt) === (refDay || dayOf(now)) ? timeOf(kotAt) : weekday(kotAt) } : { look: kots.length ? 'on' : 'off', label: 'KOT' };
     const third = platform ? { kind: o.platformReadyAt || status.closed ? 'marked' : 'ready', on: !past }
       : { kind: 'notify', on: !past && Boolean(phone), sent: Boolean(o.notifiedAt) };
     const buzz = { no: o.pager ? String(o.pager) : '', on: !past && !status.closed && Boolean(o.pager) && Boolean(o.pagerOut), sent: Boolean(o.buzzedAt) };
@@ -267,10 +274,13 @@
   function rowsNow() {
     if (sampleRows) return sampleRows;
     const now = Date.now(), { from, to } = period(), past = pastNow(), out = [];
-    for (const o of window.RestroCounter?.orders?.() || []) {
-      const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
-      if ((taken >= from && taken <= to) || (forDay && forDay >= from && forDay <= to)) out.push(infoOf(o, now, { past }));
-    }
+    refDay = from === to ? from : null;
+    try {
+      for (const o of window.RestroCounter?.orders?.() || []) {
+        const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
+        if ((taken >= from && taken <= to) || (forDay && forDay >= from && forDay <= to)) out.push(infoOf(o, now, { past }));
+      }
+    } finally { refDay = null; }
     return out;
   }
   const heldCount = () => (isToday() ? (window.RestroCounter?.held?.() || []).length : 0);
@@ -317,6 +327,11 @@
     const digits = map.map(i => s[i]).join(''), k = digits.indexOf(d); if (k < 0) return s;
     const a = map[k], b = map[k + d.length - 1] + 1;
     return [s.slice(0, a), el('mark', {}, s.slice(a, b)), s.slice(b)].filter(x => x !== '');
+  }
+  // (K3) a pager search names what matched: "Matched pager 5 · P5, B5, buzz 5 and pager 5 all find it"
+  function matchHint() {
+    const q = parsed(); if (q?.kind !== 'pager') return null;
+    return el('p', { class: 'or-mhint' }, 'Matched ', el('b', {}, `pager ${q.n}`), ` · P${q.n}, B${q.n}, buzz ${q.n} and pager ${q.n} all find it`);
   }
   const numbersOf = r => (r.type.platform ? [`${r.type.name} #`, hl(r.o.platformNo || '—', 'platform'), ' · ', hl(`Order ${ticket(r.o.number)}`, 'number')] : [hl(r.numbers, 'number')]);
 
@@ -366,8 +381,11 @@
     if (typeof p === 'string') { try { p = JSON.parse(p); } catch { return; } }
     if (!p || typeof p !== 'object') return;
     const level = Number(p.level), state = ['ok', 'low', 'out', 'offline'].includes(p.state) ? p.state : 'ok';
+    const was = paperLook();
     paper = { level: Number.isFinite(level) ? Math.max(0, Math.min(100, Math.round(level))) : 100, state };
     if (dialog.open) dialog.querySelectorAll('.or-b.pr').forEach(b => paintPaper(b));
+    // (P07) the bill printer's paper has just run low: "Bill printer paper low · 18% left · keep a new roll ready" until ✕
+    if (dialog.open && was === 'ok' && paperLook() === 'low') say({ kind: 'warn', ic: 'printFill', bold: `Bill printer paper low · ${paper.level}% left`, text: ' · keep a new roll ready' });
   }
   const paperLook = () => (paper.state === 'offline' ? 'off' : paper.state === 'out' || paper.level <= 0 ? 'out' : paper.state === 'low' || paper.level <= 20 ? 'low' : 'ok');
   function paintPaper(b) {
@@ -404,18 +422,18 @@
   function say(m) {
     if (typeof m === 'string') m = { text: m };
     if (msg?.timer) clearTimeout(msg.timer);
-    msg = { ...m, ms: m.kind === 'error' || m.kind === 'busy' ? 0 : m.undo ? 4000 : 2000 };
+    msg = { ...m, ms: m.kind === 'error' || m.kind === 'busy' || m.kind === 'warn' ? 0 : m.undo ? 4000 : 2000 };
     paintMsg(); runMsg();
   }
   function runMsg() { if (!msg || !msg.ms || msg.held) return; clearTimeout(msg.timer); msg.timer = setTimeout(() => { msg = null; paintMsg(); }, msg.ms); }
   function paintMsg() {
     if (!msg) { bar.hidden = true; bar.replaceChildren(); return; }
-    const act = msg.undo ? ['UNDO', msg.undo] : msg.retry ? ['RETRY', msg.retry] : null, error = msg.kind === 'error', busy = msg.kind === 'busy';
-    bar.className = `or-msg${error ? ' error' : busy ? ' busy' : ''}`;
-    bar.replaceChildren(...[el('span', { class: 'or-msg-i', 'aria-hidden': 'true' }, busy ? null : error ? el('b', {}, '!') : icon('check')),
+    const act = msg.undo ? ['UNDO', msg.undo] : msg.retry ? ['RETRY', msg.retry] : null, error = msg.kind === 'error', busy = msg.kind === 'busy', warn = msg.kind === 'warn';
+    bar.className = `or-msg${error ? ' error' : busy ? ' busy' : warn ? ' warn' : ''}`;
+    bar.replaceChildren(...[msg.ic ? el('span', { class: 'or-msg-g', 'aria-hidden': 'true' }, icon(msg.ic)) : el('span', { class: 'or-msg-i', 'aria-hidden': 'true' }, busy ? null : error ? el('b', {}, '!') : icon('check')),
       el('span', { class: 'or-msg-t' }, msg.lead || '', msg.bold ? el('b', {}, msg.bold) : null, msg.text || ''),
       act ? el('button', { type: 'button', class: 'or-msg-a', onclick: () => { const run = act[1]; clearTimeout(msg?.timer); msg = null; paintMsg(); run(); } }, act[0]) : null,
-      error ? el('button', { type: 'button', class: 'or-msg-x', 'aria-label': 'Close', onclick: () => { msg = null; paintMsg(); } }, icon('close')) : null].filter(Boolean));
+      error || warn ? el('button', { type: 'button', class: 'or-msg-x', 'aria-label': 'Close', onclick: () => { msg = null; paintMsg(); } }, icon('close')) : null].filter(Boolean));
     bar.hidden = false;
     if (bar.parentElement !== dialog) dialog.append(bar);
   }
@@ -459,7 +477,7 @@
   // A dropdown pill (the day, the four filters): its icon, its words and the chevron; blue-tinted while a filter is on
   function pill(key, lead, label, on, cls = '') {
     return el('button', { type: 'button', class: `or-dd${cls ? ` ${cls}` : ''}${on ? ' on' : ''}${menu === key ? ' open' : ''}`, 'data-menu': key, 'aria-haspopup': 'menu', 'aria-expanded': String(menu === key),
-      onclick: e => toggleMenu(key, e.currentTarget) }, lead ? icon(lead) : null, el('span', { class: 'or-dd-t' }, label), el('span', { class: 'or-cv' }, icon(menu === key ? 'expandLess' : 'expand')));
+      onclick: e => toggleMenu(key, e.currentTarget) }, lead ? icon(lead) : null, el('span', { class: 'or-dd-t' }, label), el('span', { class: 'or-cv' }, icon('expand'))); // (the chevron stays down while the menu is open: E1, E5, D5)
   }
   const datePill = cls => pill('date', 'calendar', periodLabel(), false, cls);
   function filterPills(cls) {
@@ -537,7 +555,7 @@
     }));
     listEl = el('div', { class: 'or-scroll', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } },
       el('div', { class: 'or-rows', role: 'rowgroup' }, ...v.shown.map(rowEl)), !v.shown.length ? emptyOf(v) : null);
-    return el('div', { class: `or-sheet ${rowStyle()}${picking ? ' picking' : ''}`, role: 'table', 'aria-label': 'Orders' }, head, listEl);
+    return el('div', { class: `or-sheet ${rowStyle()}${picking ? ' picking' : ''}`, role: 'table', 'aria-label': 'Orders' }, matchHint(), head, listEl);
   }
   // The type tile: our icon in its colour on a light tint of it, or the delivery app's logo on its tint
   function tileOf(r, cls = 'or-tt') {
@@ -562,8 +580,14 @@
   };
   const tagsOf = r => [r.tags.disc ? el('span', { class: 'or-mk', title: 'Discount', 'aria-label': 'Discount' }, icon('tag')) : null, r.tags.void ? el('span', { class: 'or-mk', title: 'Voided after KOT', 'aria-label': 'Voided after KOT' }, icon('void')) : null];
   const statusCellOf = r => el('div', { class: `or-c st ${r.status.cls}`, role: 'cell' }, el('div', { class: 'l1' }, el('b', {}, r.status.text)), el('div', { class: `l2 ${r.status.subCls || ''}`.trim() }, r.status.sub || '\u00A0'));
-  const payCellOf = r => el('div', { class: `or-c pm ${r.pay.cls || ''}`.trim(), role: 'cell' }, el('div', { class: 'l1' }, el('b', {}, r.pay.text)),
-    el('div', { class: 'l2' }, el('span', {}, r.pay.key === 'prf' ? `${money(r.pay.refunded)} refunded` : money(Number(r.o.total) || 0)), ...tagsOf(r)));
+  // the amount under the payment status: the order's total; what is still due on Partially paid (K1); what was
+  // refunded on Partial refund (Y1)
+  const payAmount = r => (r.pay.key === 'prf' ? `${money(r.pay.refunded)} refunded` : r.pay.key === 'part' ? `${money(r.pay.due)} due` : money(Number(r.o.total) || 0));
+  // The payment status; a long one ("Partial refund - Card") is drawn smaller in every view, as the designs do (Classic
+  // 16.5, Split and Cards 15.5)
+  const payLabel = r => el('b', r.pay.text.length >= 19 ? { class: 'long' } : {}, r.pay.text);
+  const payCellOf = r => el('div', { class: `or-c pm ${r.pay.cls || ''}`.trim(), role: 'cell' }, el('div', { class: 'l1' }, payLabel(r)),
+    el('div', { class: 'l2' }, el('span', {}, payAmount(r)), ...tagsOf(r)));
   const labelOf = r => `Order ${r.o.number != null ? ticket(r.o.number) : ''}, ${timeOf(r.when)}, ${r.type.label}, ${r.who.l1}, ${r.status.text}${r.status.sub ? ` ${r.status.sub}` : ''}, ${r.pay.text}, ${money(Number(r.o.total) || 0)}`;
   function tappable(r, cls, ...children) {
     const picked = picking?.has(r.id);
@@ -638,7 +662,8 @@
       ? b(`nt${th.sent ? ' sent' : ''}`, th.on, th.on ? `Notify ${r.name || 'the customer'}` : 'Notify: no phone number', btn => openNotify(r, btn), icon('notify'), el('span', {}, 'Notify'))
       : b('nt', th.on, th.kind === 'marked' ? 'Marked ready' : 'Mark ready', () => markReady(r), icon(th.kind === 'marked' ? 'marked' : 'ready'), el('span', {}, th.kind === 'marked' ? 'Marked' : 'Ready'));
     const state = flash.get(r.id);
-    const buzz = b(`bz${r.buzz.sent ? ' sent' : ''}${state === 'buzzing' ? ' busy' : ''}`, r.buzz.on, r.buzz.on ? `Buzz pager ${r.buzz.no}` : r.buzz.no ? `Pager ${r.buzz.no}: back in its dock` : 'Buzz: no pager', () => buzzPager(r),
+    const pq = parsed(), pagerHit = pq?.kind === 'pager' && pq.n === Number(r.buzz.no);
+    const buzz = b(`bz${r.buzz.sent ? ' sent' : ''}${state === 'buzzing' ? ' busy' : ''}${pagerHit ? ' hit' : ''}`, r.buzz.on, r.buzz.on ? `Buzz pager ${r.buzz.no}` : r.buzz.no ? `Pager ${r.buzz.no}: back in its dock` : 'Buzz: no pager', () => buzzPager(r),
       r.buzz.no ? el('em', {}, r.buzz.no) : null, el('span', {}, 'Buzz'));
     return el('div', { class: 'or-bt', role: 'cell' }, pr, kot, third, buzz);
   }
@@ -658,7 +683,8 @@
     sort = key === 'status' ? { key, mode: STATUS_MODES[i] } : key === 'when' ? (i ? { key, dir: 1 } : SORT0) : { key, dir: i ? -1 : 1 };
   }
   // (the arrow points up only for the second of two choices: Oldest first, Z to A, Paid first; D4, D5, OS10)
-  const sortUp = () => sort.key !== 'status' && sortChoice() === 1;
+  // the arrow: up for Oldest first, Z to A, Paid first and Order status · Open first (F1–F3, as on Classic's heading)
+  const sortUp = () => (sort.key === 'status' ? sort.mode === 'open' : sortChoice() === 1);
   // "Date & time", "Order status" for a key's first choice; "Order status · Scheduled first" otherwise
   function sortWords() {
     const [, name, choices] = SORTS.find(x => x[0] === sort.key), i = sortChoice();
@@ -697,8 +723,8 @@
     return tappable(r, `or-li${!picking && chosen === r.id ? ' sel' : ''}`,
       picking ? el('span', { class: `or-cb${picked ? ' on' : ''}`, 'aria-hidden': 'true' }, picked ? icon('check') : null) : null,
       tileOf(r, 'or-tt s52'), el('div', { class: 'or-lm' }, ...lines),
-      el('div', { class: `or-lr ${r.pay.cls || ''}`.trim() }, el('div', { class: 'l1' }, el('b', {}, r.pay.text)),
-        el('div', { class: 'l2' }, r.pay.key === 'prf' ? `${money(r.pay.refunded)} refunded` : money(Number(r.o.total) || 0), ...tagsOf(r)),
+      el('div', { class: `or-lr ${r.pay.cls || ''}`.trim() }, el('div', { class: 'l1' }, payLabel(r)),
+        el('div', { class: 'l2' }, payAmount(r), ...tagsOf(r)),
         picking && r.lock ? el('span', { class: 'or-lock' }, r.lock) : null));
   }
   // The order picked, on the right (Split): its tile and title, what it is, the status and payment, the delivery
@@ -713,15 +739,17 @@
   }
   function detailEl(r) {
     const o = r.o, { items, sub, labels, b } = sumsOf(o), queued = r.kot.look === 'q';
-    const title = r.type.platform ? numbersOf(r) : r.dine ? [hl(r.who.l1.split(' · ')[0], 'name'), ' · ', hl(`Order ${ticket(o.number)}`, 'number')] : [hl(r.name || r.type.label, 'name'), ' · ', hl(`Order ${ticket(o.number)}`, 'number')];
+    // (a word found in the name or table is marked in the list, not in this title; a number found is marked in both: F2, K4)
+    const title = r.type.platform ? numbersOf(r) : r.dine ? [r.who.l1.split(' · ')[0], ' · ', hl(`Order ${ticket(o.number)}`, 'number')] : [r.name || r.type.label, ' · ', hl(`Order ${ticket(o.number)}`, 'number')];
     const meta = r.type.platform ? [`${r.type.label} · ${r.name || 'Customer'}`, r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null]
       : r.dine ? [r.type.label, o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.server ? ` · Server: ${r.server}` : '']
         : [r.type.label, r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null];
-    const kots = queued ? ` · KOT prints at ${timeOf(r.kot.at)}` : kotsOf(o).length ? ` · KOT ${kotNos(o)}` : '';
+    // (OS4, OS7) "KOT prints at 8:00 pm" today; "KOT prints Tue 10 Nov, 12:20 pm" on another day
+    const kots = queued ? (dayOf(r.kot.at) === todayKey() ? ` · KOT prints at ${timeOf(r.kot.at)}` : ` · KOT prints ${shortDay(r.kot.at)}, ${timeOf(r.kot.at)}`) : kotsOf(o).length ? ` · KOT ${kotNos(o)}` : '';
     const c = r.who.codes, cbx = (cls, label, value) => el('div', { class: `cb ${cls}` }, el('span', {}, label), el('b', {}, value));
     const sumRow = (label, value, cls) => [el('span', cls ? { class: cls } : {}, label), el(cls ? 'span' : 'b', cls ? { class: cls } : {}, value)];
     const lines = (Array.isArray(o.lines) ? o.lines : []).filter(l => l.qty > 0);
-    return el('div', { class: 'or-dt' },
+    return el('div', { class: 'or-dt', 'data-id': r.id },
       el('div', { class: 'or-dh' }, tileOf(r, 'or-tt s64'), el('div', { class: 'dhm' }, el('div', { class: 'dtt' }, ...title.flat()),
         el('div', { class: 'dmeta' }, ...meta.flat().filter(Boolean), ` · ${timeOf(o.createdAt)} · ${dateOf(o.createdAt)}${kots}`))),
       el('div', { class: 'or-stp' }, statusCellOf(r), payCellOf(r)),
@@ -750,7 +778,11 @@
         n ? el('div', { class: 'pr tot' }, el('b', {}, `Not paid · ${n} order${n === 1 ? '' : 's'}`), el('b', {}, money(sum))) : null),
       el('div', { class: 'or-pfoot' }, cancelPick(), deletePick()));
   }
+  // (a new tab, search, filter, sort or day shows the first order of the new list: OS10, F2)
+  let lastListKey = '';
+  const listKey = () => JSON.stringify([tab, query.trim(), [...payF], dv, [...typesF], staffF, dueOnly, sort, range]);
   function splitLayout(v, search) {
+    const key = listKey(); if (key !== lastListKey) { lastListKey = key; if (!picking) chosen = null; }
     if (!picking && !v.shown.some(r => r.id === chosen)) chosen = v.shown[0]?.id || null;
     const r = v.shown.find(x => x.id === chosen);
     listEl = el('div', { class: 'or-ls', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...v.shown.map(liEl), !v.shown.length ? emptyOf(v) : null);
@@ -760,6 +792,7 @@
       : [slot(r1, 'r1'), el('div', { class: 'or-r2' }, search, slot(clearBtn('or-clr2'), 'clear')), slot(el('div', { class: 'or-r3' }, ...filterPills('or-dd2')), 'filters'), offlineNote()];
     return el('div', { class: `or-split ${rowStyle()}${picking ? ' picking' : ''}`, 'data-kind': 'split' }, slot(railEl(v), 'rail'),
       el('div', { class: 'or-pane' }, el('div', { class: 'or-ph' }, ...head),
+        slot(el('div', { class: 'or-mh-slot' }, matchHint()), 'mhint'),
         slot(el('div', { class: 'or-sorth' }, el('span', {}, `${v.shown.length} order${v.shown.length === 1 ? '' : 's'}`),
           el('button', { type: 'button', class: `or-so${menu === 'sort' ? ' open' : ''}`, 'aria-haspopup': 'menu', onclick: e => toggleMenu('sort', e.currentTarget) }, el('span', {}, 'Sort'), ...sortWords(), icon('sortDown', sortUp() ? 'up' : ''))), 'sorth'),
         slot(listEl, 'list'), slot(totsBar(v, 'foot'), 'tots')),
@@ -788,8 +821,8 @@
       el('div', { class: 'or-cmain' }, el('div', { class: 'or-top3' }, el('div', { class: 'or-c1' }, ...r1),
         slot(el('div', { class: 'or-c2' }, ...filterPills('or-dd2'),
           el('button', { type: 'button', class: `or-dd or-dd2 or-sortd${menu === 'sort' ? ' open' : ''}`, 'aria-haspopup': 'menu', onclick: e => toggleMenu('sort', e.currentTarget) },
-            el('span', { class: 'sl' }, 'Sort'), el('span', { class: 'or-dd-t' }, ...sortWords()), icon('sortDown', `ar${sortUp() ? ' up' : ''}`), el('span', { class: 'or-cv' }, icon(menu === 'sort' ? 'expandLess' : 'expand'))),
-          totsBar(v, 'bar')), 'c2'), offlineNote()),
+            el('span', { class: 'sl' }, 'Sort'), el('span', { class: 'or-dd-t' }, ...sortWords()), icon('sortDown', `ar${sortUp() ? ' up' : ''}`), el('span', { class: 'or-cv' }, icon('expand'))),
+          totsBar(v, 'bar')), 'c2'), offlineNote(), slot(el('div', { class: 'or-mh-slot' }, matchHint()), 'mhint')),
       slot(listEl, 'list')));
   }
 
@@ -831,8 +864,12 @@
     if (typeof window.RestroCounter?.printSaved !== 'function') return;
     const res = await window.RestroCounter.printSaved(r.id);
     const what = res.kind === 'receipt' ? 'Receipt' : 'Bill';
+    const look = paperLook();
     if (res.ok) say({ bold: `${what} ${res.reprint ? 'reprinted' : 'printed'}`, text: ` · Order ${ticket(r.o.number)}` });
-    else say({ kind: 'error', bold: `${what} didn’t print`, text: res.why === 'number' ? ' · can’t reach the main system for its bill number' : ` · Order ${ticket(r.o.number)}`, retry: () => printOrder(r) });
+    else if (res.why === 'number') say({ kind: 'error', bold: `${what} didn’t print`, text: ' · can’t reach the main system for its bill number', retry: () => printOrder(r) });
+    else if (look === 'off') say({ kind: 'error', ic: 'printOff', bold: 'Bill printer offline', text: ' · check its power and cable', retry: () => printOrder(r) });
+    else if (look === 'out') say({ kind: 'error', ic: 'printFill', bold: 'Bill printer is out of paper' });
+    else say({ kind: 'error', bold: `${what} didn’t print`, text: ` · Order ${ticket(r.o.number)}`, retry: () => printOrder(r) });
     renderRest();
   }
   // Buzz: two steps (P02): "Buzzing pager 7… · ‹customer or table›, Order #15" while the Buzz button keeps a blue ring, then "Pager 7
@@ -852,16 +889,25 @@
     };
     try { Promise.resolve(pager.buzz(Number(n))).then(res => done(res !== false), () => done(false)); } catch { done(false); }
   }
-  function markReady(r) {
+  // Ready (a delivery app's order): no "are you sure"; the app is told through its integration, then Marked. Offline it
+  // can't go (P13); the app not answering is an error with RETRY (C8).
+  async function markReady(r) {
     if (r.third.kind === 'marked') return;
-    if (window.RestroCounter?.markReady?.(r.id)) { say({ bold: 'Order ready sent', text: ` to ${r.type.name} · ${r.type.name} #${r.o.platformNo || ''} · Order ${ticket(r.o.number)}` }); renderRest(); }
+    const app = r.type.name, nos = `${app} #${r.o.platformNo || ''} · Order ${ticket(r.o.number)}`, retry = () => markReady(r);
+    if (!readOnline()) { say({ kind: 'error', ic: 'cloudOff', bold: `Offline · couldn’t send “Ready” to ${app}`, text: ` · Order ${ticket(r.o.number)}`, retry }); return; }
+    const tell = window.RESTRODevice?.integrations?.markReady;
+    let ok = true;
+    if (typeof tell === 'function') { try { ok = (await tell({ platform: r.o.platform, id: r.o.platformNo || null, order: r.o.uid || null })) !== false; } catch { ok = false; } }
+    if (!ok) { say({ kind: 'error', bold: `${app} didn’t receive “Ready”`, text: ` · ${nos}`, retry }); return; }
+    window.RestroCounter?.markReady?.(r.id);
+    say({ bold: `Order ready sent to ${app}`, text: ` · ${nos}` }); renderRest();
   }
 
   // ---------- pop-ups ----------
   // Notify (OR-P01): the customer's name, phone, order and type · the message · Order ready / Bill / Running late
   // (Order scheduled first while a scheduled order's KOT waits) · WhatsApp / SMS. Through the RESTRO Android app
   // (RESTRODevice.whatsapp, RESTRODevice.sms; WhatsApp falls back to SMS). Sent: kept on the order (notifiedAt).
-  function openNotify(r, btn) { pop = { kind: 'notify', id: r.id, template: r.kot.look === 'q' ? 'scheduled' : 'ready', anchor: anchorOf(btn) }; renderLayer(); }
+  function openNotify(r, btn) { pop = { kind: 'notify', id: r.id, from: 'nt', template: r.kot.look === 'q' ? 'scheduled' : 'ready', anchor: anchorOf(btn) }; renderLayer(); }
   function message(r, template) {
     const hi = r.name ? `Hi ${r.name}, ` : 'Hi, ', no = ticket(r.o.number), shop = shopName(), from = shop ? [' from ', shop] : [];
     const type = r.type.key;
@@ -874,9 +920,10 @@
     return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready for pickup'), '. Please show this message at the counter.'];
   }
   const plain = nodes => nodes.map(n => (typeof n === 'string' ? n : n.textContent)).join('');
-  const TEMPLATE_NAME = { scheduled: 'Order scheduled', ready: 'Order ready', bill: 'Bill', late: 'Running late' };
-  async function sendNotify(r, channel) {
-    const template = pop?.template || 'ready', text = plain(message(r, template)), dev = window.RESTRODevice, to = r.o.customer?.mobile, code = r.o.customer?.code || '91';
+  const sentWords = (r, template) => template === 'scheduled' ? `booked for ${timeOf(r.o.readyAt)}` : template === 'bill' ? 'bill' : template === 'late' ? 'running late'
+    : ['dine-in', 'dine-in+takeaway', 'delivery'].includes(r.type.key) ? 'ready' : 'ready for pickup';
+  async function sendNotify(r, channel, template = pop?.template || 'ready') {
+    const text = plain(message(r, template)), dev = window.RESTRODevice, to = r.o.customer?.mobile, code = r.o.customer?.code || '91';
     const sms = typeof dev?.sms?.send === 'function', wa = typeof dev?.whatsapp?.send === 'function';
     if (!sms && !wa) { say('Messages go through the RESTRO Android app'); return; }
     pop = null; renderLayer();
@@ -884,8 +931,8 @@
     let used = channel === 'whatsapp' && wa ? 'whatsapp' : sms ? 'sms' : null;
     let ok = used ? await send(used) : false;
     if (!ok && used === 'whatsapp' && sms) { used = 'sms'; ok = await send('sms'); }
-    if (ok) { window.RestroCounter?.markNotified?.(r.id); say({ bold: `Sent to ${r.name || 'the customer'} on ${used === 'whatsapp' ? 'WhatsApp' : 'SMS'}`, text: ` · Order ${ticket(r.o.number)} ${TEMPLATE_NAME[template].toLowerCase()}` }); renderRest(); }
-    else say({ kind: 'error', bold: `Couldn’t send the ${used === 'whatsapp' ? 'WhatsApp message' : 'SMS'} to ${r.name || 'the customer'}`, text: ` · Order ${ticket(r.o.number)}`, retry: () => sendNotify(r, channel) });
+    if (ok) { window.RestroCounter?.markNotified?.(r.id); say({ bold: `Sent to ${r.name || 'the customer'} on ${used === 'whatsapp' ? 'WhatsApp' : 'SMS'}`, text: ` · Order ${ticket(r.o.number)} ${sentWords(r, template)}` }); renderRest(); }
+    else say({ kind: 'error', bold: `Couldn’t send the ${used === 'whatsapp' ? 'WhatsApp message' : 'SMS'} to ${r.name || 'the customer'}`, text: ` · Order ${ticket(r.o.number)} · ${used === 'whatsapp' ? 'WhatsApp' : 'the SMS service'} didn’t answer`, retry: () => sendNotify(r, channel, template) });
   }
   function notifyCard(r) {
     const tpl = pop.template, queued = r.kot.look === 'q';
@@ -904,16 +951,16 @@
   function openKot(r, btn) {
     const k = window.RestroCounter?.kitchenOf?.(r.id); if (!k) return;
     const failed = k.kots.filter(x => x.failed);
-    pop = { kind: r.kot.look === 'q' ? 'queued' : 'kot', id: r.id, uid: r.id, k, picked: new Set(failed.map(x => x.id)), anchor: anchorOf(btn) };
+    pop = { kind: r.kot.look === 'q' ? 'queued' : 'kot', id: r.id, from: 'kot', uid: r.id, k, picked: new Set(failed.map(x => x.id)), anchor: anchorOf(btn) };
     renderLayer();
   }
   const WHY = { paper: 'Kitchen printer was out of paper', offline: 'Kitchen printer was offline', cover: 'Kitchen printer’s cover was open' };
   const whoOf = r => (r.dine ? r.who.l1.split(' · ')[0] : r.name || r.type.label);
   function kotCard(r) {
-    const { k, picked } = pop, failed = k.kots.filter(x => x.failed), shown = failed.length ? failed : k.kots;
+    const { k, picked } = pop, failed = k.kots.filter(x => x.failed), shown = [...failed, ...k.kots.filter(x => !x.failed)];
     const tick = x => el('button', { type: 'button', class: `or-kotc${picked.has(x.id) ? ' on' : ''}${x.failed ? ' failed' : ''}`, role: 'checkbox', 'aria-checked': String(picked.has(x.id)),
       onclick: () => { if (picked.has(x.id)) picked.delete(x.id); else picked.add(x.id); renderLayer(); } },
-    el('span', { class: 'or-cb', 'aria-hidden': 'true' }, picked.has(x.id) ? icon('check') : null),
+    el('span', { class: `or-cb${picked.has(x.id) ? ' on' : ''}`, 'aria-hidden': 'true' }, picked.has(x.id) ? icon('check') : null),
     el('span', { class: 'or-kotc-t' }, el('b', {}, `KOT ${x.no}`, x.failed ? el('i', {}, ' · didn’t print') : null), el('small', {}, x.dishes)), el('span', { class: 'or-kotc-at' }, timeOf(x.at)));
     const n = picked.size, red = failed.length > 0 && n > 0 && [...picked].every(id => failed.some(f => f.id === id));
     const label = !n ? 'Reprint' : n === 1 ? `Reprint KOT ${k.kots.find(x => picked.has(x.id)).no}` : n === k.kots.length && n > 2 ? `Reprint all ${n} KOTs` : `Reprint ${n} KOTs`;
@@ -926,21 +973,28 @@
       shown.length ? el('div', { class: 'or-kots' }, ...shown.map(tick)) : el('p', { class: 'or-none' }, 'Nothing has gone to the kitchen yet.'),
       el('button', { type: 'button', class: `or-go${red ? ' red' : ''}`, disabled: !n, onclick: () => runKot(r) }, icon('kot'), label));
   }
+  // A scheduled KOT still waiting (OS1): when it prints by itself and why, its dishes, Keep schedule or Send now
   function queuedCard(r) {
-    const { k } = pop, at = r.kot.at;
+    const { k } = pop, at = r.kot.at, ready = r.o.readyAt, mins = Math.round((ready - at) / 60000), other = dayOf(at) !== dayOf(Date.now());
     return el('div', { class: 'or-pop kot queued', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Scheduled KOT, ${whoOf(r)}` },
-      el('div', { class: 'or-pop-head' }, el('div', {}, el('h3', {}, `Scheduled KOT · ${whoOf(r)}`), el('p', {}, `Order ${ticket(r.o.number)} · ${r.type.label} · ready by ${timeOf(r.o.readyAt)}`)), closeX()),
-      el('p', { class: 'or-why sch' }, icon('kot'), `Prints by itself at ${timeOf(at)}${dayOf(at) === dayOf(Date.now()) ? '' : ` on ${shortDay(at)}`}`),
+      el('div', { class: 'or-pop-head' }, el('div', {}, el('h3', {}, `Scheduled KOT · ${whoOf(r)}`), el('p', {}, `Order ${ticket(r.o.number)} · ${r.type.label} · ready by ${timeOf(ready)}`)), closeX()),
+      el('div', { class: 'or-qwhen' }, el('span', { class: 'qi', 'aria-hidden': 'true' }, icon('clock')),
+        el('div', {}, el('b', {}, `Prints by itself at ${timeOf(at)}${other ? ` on ${shortDay(at)}` : ''}`), el('span', {}, `${mins} min before ${timeOf(ready)} · kitchen prep time. Nothing to do.`))),
+      el('p', { class: 'or-lab' }, 'Dishes on this KOT'),
       el('div', { class: 'or-unsent' }, ...k.unsent.map(l => el('p', {}, el('b', {}, `${l.qty} ×`), ` ${l.name}`, l.mods ? el('span', { class: 'mod' }, ` · ${l.mods}`) : null))),
       el('div', { class: 'or-chs' },
         el('button', { type: 'button', class: 'or-ch grey', onclick: () => { pop = null; renderLayer(); } }, 'Keep schedule'),
-        el('button', { type: 'button', class: 'or-ch grey', onclick: () => sendNow(r) }, 'Send now')));
+        el('button', { type: 'button', class: 'or-ch grey', onclick: () => sendNow(r) }, icon('kot'), 'Send now')));
   }
   async function sendNow(r) {
     const uid = pop.uid; pop = null; renderLayer();
     const res = await window.RestroCounter?.sendKitchen?.(uid); if (!res) return;
     if (res.ok) say({ bold: `KOT ${res.no} sent`, text: ` · Order ${ticket(r.o.number)}` });
-    else say({ kind: 'error', bold: `Kitchen printer offline`, text: ` · KOT ${res.no} didn’t print · Order ${ticket(r.o.number)}`, retry: () => openKotById(r.id) });
+    else {
+      const kot = window.RestroCounter?.kitchenOf?.(uid)?.kots?.find(x => x.no === res.no);
+      const again = async () => { const rr = kot ? await window.RestroCounter.reprintKots(uid, [kot.id]) : { ok: false }; if (rr.ok) say({ bold: `KOT ${res.no} sent`, text: ` · Order ${ticket(r.o.number)}` }); else say({ kind: 'error', bold: 'Kitchen printer offline', text: ` · KOT ${res.no} didn’t print · Order ${ticket(r.o.number)}`, retry: again }); render(); };
+      say({ kind: 'error', bold: 'Kitchen printer offline', text: ` · KOT ${res.no} didn’t print · Order ${ticket(r.o.number)}`, retry: again });
+    }
     render();
   }
   async function runKot(r) {
@@ -1102,9 +1156,13 @@
       }
     }
     if (menu === 'date' && datePick) {
-      const box3 = root.getBoundingClientRect(), at = menuAt, u = fu(), w = 840 * u, classic = viewKind() === 'classic';
+      // (E1–E8) Classic: under the sidebar, flush with the pill's left; Split: 14 in from the list pane's left edge;
+      // Cards: flush with the right end of the toolbar
+      const box3 = root.getBoundingClientRect(), at = menuAt, u = fu(), w = 840 * u, kind = viewKind();
+      const pane = kind === 'split' ? root.querySelector('.or-pane')?.getBoundingClientRect() : null, tools = kind === 'cards' ? root.querySelector('.or-tools')?.getBoundingClientRect() : null;
+      const x = !at ? 0 : kind === 'classic' ? at.left : pane ? pane.left + 14 * u : (tools ? tools.right : at.right) - w;
       const pop = datePop();
-      pop.style.cssText = at ? `top:${at.bottom - box3.top + (classic ? 33 : 10) * u}px;left:${Math.max(16 * u, Math.min(box3.width - w - 16 * u, (classic ? at.left : at.right - w) - box3.left))}px` : '';
+      pop.style.cssText = at ? `top:${at.bottom - box3.top + (kind === 'classic' ? 33 : kind === 'cards' ? 7 : 10) * u}px;left:${Math.max(16 * u, Math.min(box3.width - w - 16 * u, x - box3.left))}px` : '';
       return el('div', { class: 'or-menu-wrap', onclick: e => { if (e.target === e.currentTarget) { menu = null; datePick = null; render(); } } }, pop);
     }
     const keep = ['pay', 'type', 'staff', 'sort'].includes(menu); // (several can be ticked, or a choice under the row: the menu stays open)
@@ -1112,13 +1170,13 @@
     const box2 = root.getBoundingClientRect(), at = menuAt, right = at ? at.right - box2.left : 0, u = fu();
     let style = at ? `top:${at.bottom - box2.top + 8 * u}px;${right > box2.width * .6 ? `right:${box2.right - at.right}px` : `left:${at.left - box2.left}px`}` : '';
     if (at && menu !== 'sort') requestAnimationFrame(() => fitMenu(at));
-    // Sort (D4, D5): wider while Order status (three choices) is picked; in Split over the sort row, flush with the list
-    // pane's edge; in Cards centred under the Sort pill
+    // Sort (D4–D7): wider while Order status (three choices) is picked; in Split over the sort row, flush with the list
+    // pane's edge; in Cards under the Sort pill, 52 left of its middle (as drawn)
     const wide = menu === 'sort' && sort.key === 'status', w = (wide ? 460 : 380) * u;
     if (menu === 'sort' && at) {
       const pane = root.querySelector('.or-pane')?.getBoundingClientRect();
       style = pane ? `top:${at.top - box2.top - 23 * u}px;left:${pane.right - box2.left + 4 * u - w}px;width:${w}px`
-        : `top:${at.bottom - box2.top + 6 * u}px;left:${Math.max(12 * u, Math.min(box2.width - w - 12 * u, (at.left + at.right) / 2 - box2.left - w / 2))}px;width:${w}px`;
+        : `top:${at.bottom - box2.top + 6 * u}px;left:${Math.max(12 * u, Math.min(box2.width - w - 12 * u, (at.left + at.right) / 2 - box2.left - w / 2 - 52 * u))}px;width:${w}px`;
     }
     return el('div', { class: 'or-menu-wrap', onclick: e => { if (e.target === e.currentTarget) { menu = null; render(); } } },
       el('div', { class: `or-menu m-${menu}`, role: 'menu', style }, head ? el('p', { class: 'or-mh' }, head) : null, ...items, foot ? el('p', { class: 'or-mf' }, foot) : null));
@@ -1163,9 +1221,10 @@
   function render() {
     const v = view();
     searchEl = searchBox(viewKind() === 'classic' ? '' : 'or-sb2');
-    layerEl = el('div', { class: 'or-layer' });
+    layerEl = el('div', { class: `or-layer${rowStyle() === 'pills' ? ' pills' : ''}` }); // (Floating pills: menus round off too)
     frame = layout(v, searchEl);
     root.replaceChildren(frame, layerEl, probe);
+    fitLabels();
     if (listEl) listEl.scrollTop = scrollTop;
     fillLayer(v);
     if (msg && bar.parentElement !== dialog) dialog.append(bar);
@@ -1176,11 +1235,22 @@
     const v = view(), next = layout(v, el('span'));
     frame.className = next.className;
     for (const part of next.querySelectorAll('[data-slot]')) frame.querySelector(`[data-slot="${part.dataset.slot}"]`)?.replaceWith(part);
+    fitLabels();
     if (listEl) listEl.scrollTop = scrollTop;
     fillLayer(v);
   }
   function renderLayer() { if (!layerEl) { render(); return; } fillLayer(view()); }
+  // (a payment status too long for its column is set smaller until it fits, as the designs do: "Partial refund - Card";
+  // never under 15)
+  function fitLabels() {
+    for (const b of root.querySelectorAll('.or-c.pm .l1 b, .or-lr .l1 b')) {
+      b.style.fontSize = '';
+      const u = fu(), room = b.parentElement.clientWidth, need = b.scrollWidth;
+      if (need > room + 0.5) { const fs = parseFloat(getComputedStyle(b).fontSize); b.style.fontSize = `${Math.max(15 * u, Math.floor((fs * (room - 6 * u) / need) * 4) / 4)}px`; }
+    }
+  }
   function fillLayer(v) {
+    for (const b of root.querySelectorAll('.or-b.kot, .or-b.nt')) b.classList.toggle('opener', Boolean(pop?.anchor) && b.closest('[data-id]')?.dataset.id === pop.id && b.classList.contains(pop.from));
     const parts = [];
     if (menu) parts.push(menuView(v));
     if (pop) {

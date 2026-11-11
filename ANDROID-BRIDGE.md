@@ -286,7 +286,7 @@ when it has no name; "No Pazzer hardware connected" for none). Its **Pazzer sett
 | `RESTRODevice.whatsapp.send({ to, code, text, order })` | Optional, like `sms.send`: Notify's WhatsApp. Return `true` / `false` (may be a promise); `false` falls back to SMS |
 | `RESTRODevice.printer.newRoll()` | Staff confirmed a new paper roll in the bill printer: reset its paper level to 100% (and tell the other tablets through `restro:printer-paper`) |
 | `restro:printer-cover`, `{ printer, level }` | Dispatch when the bill printer's cover was opened and closed: Orders asks "New paper roll?" (`printer`: its name; `level`: the level before) |
-| `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number; `order` RESTRO's id for the order), once the integrations exist |
+| `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number; `order` RESTRO's id for the order), once the integrations exist. **Return `true` once the platform accepted it, `false` if it didn't** (may be a promise; Update Pack 4): `true` turns the button to Marked and shows "Order ready sent to Swiggy · Swiggy #4521 · Order #1029"; `false` (or an error) keeps Ready and shows "Swiggy didn’t receive “Ready” · Swiggy #4521 · Order #1029" with RETRY. Offline, Orders doesn't call it and shows "Offline · couldn’t send “Ready” to Swiggy · Order #1029" with RETRY. There is no "are you sure" |
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 
@@ -437,8 +437,11 @@ straight away (not a Promise); one shorter than `ms` is not used. Without it the
 
 The Print bill button (Counter) and the Bill / Receipt buttons (Orders) show how much paper the bill printer has left:
 the light blue drains from the top as the roll is used; at 20% or less (or when the printer's near-end sensor says so)
-the whole button turns amber; out of paper (or the cover open) it turns red with a "!"; with the printer offline it is
-grey, crossed out. A tap still prints.
+the button turns amber (in Orders only the paper left is amber, with an amber edge: Update Pack 4, P07) and Orders
+shows "Bill printer paper low · 18% left · keep a new roll ready" once, as it runs low; out of paper (or the cover
+open) the button turns red with a "!"; with the printer offline it is grey, crossed out. A tap still prints; when it
+doesn't, Orders says why from this status: "Bill printer offline · check its power and cable" with RETRY (C5), or
+"Bill printer is out of paper" (C6).
 
 Report it for the printer whose role is **Bills** or **Both** (Settings › Printers); a kitchen-only printer is never
 shown. Each status is plain data, `{ level, state }`: `level` the paper left, 0–100 (%); `state` one of `"ok"`,
