@@ -226,7 +226,7 @@ start with the RESTRO Android app.
 | Method | Returns | What the app does |
 | --- | --- | --- |
 | `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to` (`code` is the country code, `"91"` unless the customer's number has another). `SmsManager` on the tablet (`SEND_SMS`), or an SMS service once the cloud exists. `order` is the order's id (`uid`), for a log. `false` (or an error) shows "The message didn’t go" with Retry |
-| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system). `false` (or an error) shows "Pager 12 didn’t buzz" with Retry. Pager Hub's tiles on the home screen buzz it too |
+| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system). **Resolve only once the pager system confirms the pager buzzed** (Update Pack 4): until then Orders shows "Buzzing pager 12… · ‹customer or table›, Order #1015" and keeps the Buzz button from being tapped again; `true` shows "Pager 12 buzzed · …" and the short green bar under Buzz (kept on the order as `buzzedAt`, synced to every tablet); `false` (or an error) shows "Pager 12 didn’t respond · check it’s charged and in range" with RETRY. Pager Hub's tiles on the home screen buzz it too ("Pager 12 buzzed" / "Pager 12 didn’t buzz") |
 
 The texts (Orders › Notify), with the restaurant's name (Settings › Business details):
 - **Order ready:** "Hi <name>, your order #1015 from <restaurant> is ready." (dine-in); "… is ready and will be with

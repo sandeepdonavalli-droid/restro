@@ -1,0 +1,14 @@
+/* The Sync button (Update Pack 4, A5): one component in every app; each app sets only its size and place (for Orders:
+   .or-sync). --sbu: the app's design pixel. States: normal (white) · syncing (light blue, the arrows turning) · synced
+   (green cloud ✓, 2 s) · pending (amber, the number of changes waiting) · offline (grey crossed-out cloud). */
+.sync-btn{--sbu:var(--fu,1px);position:relative;flex:none;margin:0;padding:0;border:0;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#44403C;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10);font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.sync-btn:focus-visible{outline:2px solid #2F6FDE;outline-offset:2px}
+.sync-btn-i{fill:currentColor;flex:none}
+.sync-btn.syncing{background:#E3ECFC;color:#2F6FDE;box-shadow:inset 0 0 0 1px #C5D6F6}
+.sync-btn.syncing .sync-btn-i{animation:sync-btn-spin 1s linear infinite}
+.sync-btn.synced{background:#DCFCE7;color:#15803D;box-shadow:inset 0 0 0 1px #A7E3BC}
+.sync-btn.pending{background:#FEF3C7;color:#92400E;box-shadow:inset 0 0 0 1px #F5D58A}
+.sync-btn.offline{background:#EEF0F3;color:#78716C;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08)}
+.sync-btn-n{position:absolute;top:calc(-7 * var(--sbu));right:calc(-7 * var(--sbu));min-width:calc(24 * var(--sbu));height:calc(24 * var(--sbu));box-sizing:border-box;padding:0 calc(7 * var(--sbu));border:calc(2.5 * var(--sbu)) solid #F7F6F4;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#D97706;color:#FFFFFF;font-size:calc(14 * var(--sbu));font-weight:800;line-height:1}
+@keyframes sync-btn-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.sync-btn.syncing .sync-btn-i{animation-duration:3s}}

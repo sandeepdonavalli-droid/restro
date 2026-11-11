@@ -1537,7 +1537,7 @@
       el('button', { type: 'button', class: 'cx-mb', 'aria-label': 'Menu', title: 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': String(optionsMenu), onclick: () => openOptions(!optionsMenu) }, mi('menu', 22)),
       search,
       // Held opens the held orders in the Orders app; Orders opens the Orders app; Back there returns to Counter as it was.
-      el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter', view: 'held' }); else { sheet = 'held'; render(); } } }, mi('pause_circle', 17), 'Held'),
+      el('button', { type: 'button', class: 'cx-tc', onclick: () => { sheet = 'held'; render(); } }, mi('pause_circle', 17), 'Held'),
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, mi('receipt_long', 17), 'Orders'),
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { sheet = 'payments'; render(); } }, mi('history', 17), 'Payment history'),
       syncButton());
@@ -3565,6 +3565,13 @@
     try { window.RESTRODevice?.integrations?.markReady?.({ platform: rec.platform, id: rec.platformNo || null, order: uid }); } catch {}
     return true;
   }
+  // Orders (Update Pack 4): a message sent to the customer (Notify) and a pager buzzed (once its dock confirmed it), kept
+  // on the order so every tablet shows the short green bar under that button. Orders shows no times (the Pager app will
+  // keep when each happened).
+  function markSent(uid, field) {
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return false;
+    rec[field] = Date.now(); storeOrders(list); return true;
+  }
   window.RestroCounter = Object.freeze({
     open() { fromFloor = false; fromOrders = false; openCounter(); },
     // Back from an app Counter opened (Orders): Counter as it was, where it came from unchanged.
@@ -3594,6 +3601,9 @@
     goBack,
     // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
     kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type),
+    markNotified: uid => markSent(uid, 'notifiedAt'), markBuzzed: uid => markSent(uid, 'buzzedAt'),
+    // Orders' Held link: the Counter's Held list until the Held page exists (Back returns to Orders, its filters kept)
+    openHeld() { openCounter(); fromFloor = false; fromOrders = true; sheet = 'held'; render(); },
     tablesInUse() {
       // (a held order's table was freed when it was held; a saved order's held copy has the saved order's)
       const used = [...loadOrders().filter(o => !o.paidAt), ...held.filter(h => h.number)].filter(usesTable).map(o => o.table);

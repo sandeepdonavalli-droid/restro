@@ -1,21 +1,27 @@
 'use strict';
-// Orders (Update Pack 3, 01_Orders): where staff find any order of the day and act on it without opening it — print the
-// bill or receipt, resend the KOT, notify the customer, buzz the pager. Tapping an order opens it where it is worked on
-// next: in Counter while it isn't paid (Back comes back here, filters kept), its receipt once it is, a held order carries
-// on in Counter.
-// - Top: Home (or "‹ Counter" when opened from there), the title, one search box (customer, phone, order #, table,
-//   server, dish), the summary pill (Orders · Total · Due, following the tab, filters and day: "Due ₹12,430 · 7 orders"
-//   is the Not paid tab) and the day (Today; an earlier day shows that day's orders).
-// - Tabs All · Open · Not paid · Closed · Held with their counts (All = Open + Closed + Held), the dropdowns Discounts &
-//   voids · order types · staff, and Clear filters while a filter or the search is on. Filters reset when the app is
-//   left, the tablet locks or another person signs in; opening an order and coming back keeps them.
-// - One row per order (96 tall): date & time, order type, customer / table · server, order status, payment status, and
-//   four buttons: Bill / Receipt (with the bill printer's paper level), KOT, Notify (Ready → Marked for delivery apps),
-//   Buzz. Headings sort (tap again to reverse; newest first by default). Colour only for exceptions.
-// - Long-press starts picking orders to delete: only orders not paid yet, with a reason.
-// Row style (Settings › Orders, to come): Classic rows (one white panel) or Floating pills. Delivery apps (Swiggy,
-// Zomato…) show the fields their integration sends with the order: platform, platformNo, platformType ('delivery' or
-// 'pickup'), pickupAt / readyBy, callCode, handover, riderAt, platformLogo.
+// Orders (Update Pack 4, 01_Orders, the final spec): where staff find any order of the day and act on it without
+// opening it — print the bill or receipt, reprint a KOT, notify the customer, buzz the pager, send a scheduled KOT
+// early. Tapping an order opens it where it is worked on next: the Counter while it is Not paid or Partially paid (Back
+// comes back here, the filters kept); any other order its details page (to come; its receipt until then).
+// Three views (Settings › Orders display, branch-wide): Classic (the default: a light sidebar with Home, the title,
+// the day, the tabs, the Held link, the filters and the totals card, then the order table), Split detail (an icon
+// rail, a 650 list and the order picked) and Cards (an icon rail, a two-row toolbar, four cards a row); each in
+// Classic rows or Floating pills. Board is gone: a tablet that had it shows Classic.
+// - Tabs All · Open · Closed (All = Open + Closed), and Held as a link with the day's count to the Held page (the
+//   Counter's Held list until that page exists): held orders are never listed here.
+// - Filters: Payment status (several) · Discounts & voids · Order types (several) · Staff. Clear filters is always
+//   there, greyed until something differs from the start (the search, a filter, the tab, the sort or the day).
+// - Search: customer name, phone, order number (ours and the delivery app's), table, pager and handover code; not the
+//   servers, the dishes or the call code. Letters then a number = a table or pager ("table 12", "T12", "P5", "buzz 5");
+//   letters alone = the name as typed; digits alone = phone, order numbers and handover code, all together.
+// - Totals: Total = the money already taken that day; Due = what is still to take (Not paid, and what is left on
+//   Partially paid), "Due · N orders"; refunds count in neither. Tapping Due lists exactly the orders behind it.
+// - Days are business days (RestroSync.dayOf). One day or a range; an order taken one day for another is listed on
+//   both, in Due only on its own day. Past days and ranges: only Bill / Receipt works.
+// - Long-press starts picking orders to delete: only Not paid orders that aren't a delivery app's.
+// Delivery apps (Swiggy, Zomato…) show what their integration sends with the order: platform, platformNo, platformType
+// ('delivery' or 'pickup'), pickupAt / readyBy, callCode, handover, riderAt, platformLogo; and when the app cancels it,
+// cancelledBy ('Swiggy'), payout ('awaiting', 'paid' or 'unpaid') and payoutAmount.
 (() => {
   const dialog = document.querySelector('#orders-dialog');
   if (!dialog) return;
@@ -32,7 +38,7 @@
     for (const child of children.flat()) if (child != null && child !== false) node.append(child.nodeType ? child : document.createTextNode(String(child)));
     return node;
   }
-  // Icons: the pack's own (Update Pack 3, 06_html-reference) and Material Symbols Rounded (Apache 2.0) for the rest;
+  // Icons: the pack's own (Update Pack 4, 05_html-reference) and Material Symbols Rounded (Apache 2.0) for the rest;
   // m: on the 960 grid, w: on the 24 grid
   const ICON = {
     search: ['m', 'M380-320q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z'],
@@ -51,11 +57,19 @@
     kot: ['w', 'M19.5 3.5 18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2 4.5 3.5 3 2v20l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2zM19 19H5V5h14zM6 15h12v2H6m0-6h12v2H6m0-6h12v2H6z'],
     notify: ['w', 'm4 6.03 7.5 3.22-7.5-1zm7.5 8.72L4 17.97v-2.22zM2 3v7l15 2-15 2v7l21-9z'],
     ready: ['w', 'M.41 13.41 6 19l1.41-1.42L1.83 12m20.41-6.42L11.66 16.17 7.5 12l-1.43 1.41L11.66 19l12-12M18 7l-1.41-1.42-6.35 6.35 1.42 1.41z'],
-    marked: ['w', 'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8z'],
+    marked: ['w', 'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2m0 18c-4.41 0-8-3.590-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m4.59-12.42L10 14.17l-2.59-2.58L6 13l4 4 8-8z'],
     void: ['w', 'M12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-18C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2m2.59 6L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41z'],
     edit: ['m', 'M160-120q-17 0-28.5-11.5T120-160v-97q0-16 6-30.5t17-25.5l505-504q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L313-143q-11 11-25.5 17t-30.5 6h-97Zm544-528 56-56-56-56-56 56 56 56Z'],
     receipt: ['m', 'M240-80q-50 0-85-35t-35-85v-80q0-17 11.5-28.5T160-320h80v-536q0-7 6-9.5t11 2.5l29 29q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l29-29q5-5 11-2.5t6 9.5v656q0 50-35 85t-85 35H240Zm480-80q17 0 28.5-11.5T760-200v-560H320v440h320q17 0 28.5 11.5T680-280v80q0 17 11.5 28.5T720-160ZM400-680h160q17 0 28.5 11.5T600-640q0 17-11.5 28.5T560-600H400q-17 0-28.5-11.5T360-640q0-17 11.5-28.5T400-680Zm0 120h160q17 0 28.5 11.5T600-520q0 17-11.5 28.5T560-480H400q-17 0-28.5-11.5T360-520q0-17 11.5-28.5T400-560Zm280-40q-17 0-28.5-11.5T640-640q0-17 11.5-28.5T680-680q17 0 28.5 11.5T720-640q0 17-11.5 28.5T680-600Zm0 120q-17 0-28.5-11.5T640-520q0-17 11.5-28.5T680-560q17 0 28.5 11.5T720-520q0 17-11.5 28.5T680-480Z'],
-    filterOff: ['m', 'm592-481-57-57 143-182H353l-80-80h487q25 0 36 22t-4 42L592-481Zm-32 194v87q0 17-11.5 28.5T520-160h-80q-17 0-28.5-11.5T400-200v-247L84-763q-11-11-11-27.5T84-819q12-12 28.5-12t28.5 12l679 679q12 12 11.5 28T819-84q-12 11-28 11.5T763-84L560-287Zm-25-251Z'],
+    all: ['m', 'M240-80q-50 0-85-35t-35-85v-80q0-17 11.5-28.5T160-320h80v-536q0-7 6-9.5t11 2.5l29 29q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l29-29q5-5 11-2.5t6 9.5v656q0 50-35 85t-85 35H240Zm480-80q17 0 28.5-11.5T760-200v-560H320v440h320q17 0 28.5 11.5T680-280v80q0 17 11.5 28.5T720-160ZM400-680h160q17 0 28.5 11.5T600-640q0 17-11.5 28.5T560-600H400q-17 0-28.5-11.5T360-640q0-17 11.5-28.5T400-680Zm0 120h160q17 0 28.5 11.5T600-520q0 17-11.5 28.5T560-480H400q-17 0-28.5-11.5T360-520q0-17 11.5-28.5T400-560Zm280-40q-17 0-28.5-11.5T640-640q0-17 11.5-28.5T680-680q17 0 28.5 11.5T720-640q0 17-11.5 28.5T680-600Zm0 120q-17 0-28.5-11.5T640-520q0-17 11.5-28.5T680-560q17 0 28.5 11.5T720-520q0 17-11.5 28.5T680-480Z'],
+    clock: ['m', 'M520-496v-144q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640v159q0 8 3 15.5t9 13.5l132 132q11 11 28 11t28-11q11-11 11-28t-11-28L520-496ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z'],
+    doneCircle: ['m', 'm424-408-86-86q-11-11-28-11t-28 11q-11 11-11 28t11 28l114 114q12 12 28 12t28-12l226-226q11-11 11-28t-11-28q-11-11-28-11t-28 11L424-408Zm56 328q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z'],
+    pauseCircle: ['m', 'M400-320q17 0 28.5-11.5T440-360v-240q0-17-11.5-28.5T400-640q-17 0-28.5 11.5T360-600v240q0 17 11.5 28.5T400-320Zm160 0q17 0 28.5-11.5T600-360v-240q0-17-11.5-28.5T560-640q-17 0-28.5 11.5T520-600v240q0 17 11.5 28.5T560-320ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z'],
+    chevron: ['m', 'M504-480 348-636q-11-11-11-28t11-28q11-11 28-11t28 11l184 184q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L404-268q-11 11-28 11t-28-11q-11-11-11-28t11-28l156-156Z'],
+    payments: ['m', 'M120-160q-33 0-56.5-23.5T40-240v-400q0-17 11.5-28.5T80-680q17 0 28.5 11.5T120-640v400h640q17 0 28.5 11.5T800-200q0 17-11.5 28.5T760-160H120Zm160-160q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80q0-33-23.5-56.5T280-480v80h80Zm400 0h80v-80q-33 0-56.5 23.5T760-400Zm-200-40q50 0 85-35t35-85q0-50-35-85t-85-35q-50 0-85 35t-35 85q0 50 35 85t85 35ZM280-640q33 0 56.5-23.5T360-720h-80v80Zm560 0v-80h-80q0 33 23.5 56.5T840-640Z'],
+    filterOff: ['m', 'M580-465 245-800h527q21 0 31 19t-4 36L580-465Zm-20 151v114q0 17-11.5 28.5T520-160h-80q-17 0-28.5-11.5T400-200v-274L82-792q-9-9-9-21.5t9-21.5q9-9 21.5-9t21.5 9l710 710q9 9 9 21t-9 21q-9 9-21.5 9T792-83L560-314Z'],
+    restaurant: ['m', 'M280-600v-240q0-17 11.5-28.5T320-880q17 0 28.5 11.5T360-840v240h40v-240q0-17 11.5-28.5T440-880q17 0 28.5 11.5T480-840v240q0 56-34.5 98T360-446v326q0 17-11.5 28.5T320-80q-17 0-28.5-11.5T280-120v-326q-51-14-85.5-56T160-600v-240q0-17 11.5-28.5T200-880q17 0 28.5 11.5T240-840v240h40Zm400 200h-80q-17 0-28.5-11.5T560-440v-240q0-70 51.5-135T718-880q18 0 30 14t12 33v713q0 17-11.5 28.5T720-80q-17 0-28.5-11.5T680-120v-280Z'],
+    person: ['m', 'M480-481q-66 0-108-42t-42-108q0-66 42-108t108-42q66 0 108 42t42 108q0 66-42 108t-108 42ZM160-220v-34q0-38 19-65t49-41q67-30 128.5-45T480-420q62 0 123 15.5T731-360q31 14 50 41t19 65v34q0 25-17.5 42.5T740-160H220q-25 0-42.5-17.5T160-220Z'],
     check: ['m', 'm382-354 339-339q12-12 28-12t28 12q12 12 12 28.5T777-636L410-268q-12 12-28 12t-28-12L182-440q-12-12-11.5-28.5T183-497q12-12 28.5-12t28.5 12l142 143Z'],
     close: ['m', 'M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'],
     back: ['m', 'm432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z'],
@@ -81,183 +95,267 @@
   };
 
   // ---------- words and numbers ----------
-  const TYPES = { 'dine-in': ['Dine-in', 'dinein', '#9A6B1F'], takeaway: ['Takeaway', 'takeaway', '#2E7D4F'], phone: ['Phone call', 'phone', '#2F5FB3'], delivery: ['Delivery', 'moped', '#6D4BC4'] };
-  // Delivery apps: the partner's own logo comes with the integration (platformLogo); until then a plain letter tile
+  // Our order types (the type tile: our own icon in its colour) and the delivery apps (their logo, from the integration)
+  const TYPES = { 'dine-in': ['Dine-in', 'dinein', '#9A6B1F'], 'dine-in+takeaway': ['Dine-in + Takeaway', 'dinein', '#9A6B1F'], takeaway: ['Takeaway', 'takeaway', '#2E7D4F'],
+    online: ['Online', 'takeaway', '#2E7D4F'], phone: ['Phone call', 'phone', '#2F5FB3'], delivery: ['Delivery', 'moped', '#6D4BC4'] };
   const PLATFORMS = { swiggy: ['Swiggy', '#E8711F'], zomato: ['Zomato', '#C8303B'] };
   const PAID_BY = { cash: 'Cash', upi: 'UPI', card: 'Card', swiggy: 'Swiggy', zomato: 'Zomato' };
+  // Payment status (the filter, in this order) and the order of "Not paid first"
+  const PAYS = [['paid', 'Paid'], ['np', 'Not paid'], ['part', 'Partially paid'], ['rf', 'Refunded'], ['prf', 'Partial refund'], ['comp', 'Complimentary'], ['await', 'Awaiting payout'], ['npp', 'Not paid by platform']];
+  const PAY_RANK = { np: 0, part: 1, await: 2, npp: 3, paid: 4, comp: 5, prf: 6, rf: 7 };
   const money = paise => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const rupees = paise => `₹${Math.round(paise / 100).toLocaleString('en-IN')}`;
   const ticket = n => `#${String(n).padStart(2, '0')}`;
+  // "7:24 pm" (am and pm always lower-case)
   const timeOf = t => new Date(t).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?m\.?/i, (m, x) => ` ${x.toLowerCase()}m`);
-  const clockOf = t => timeOf(t).replace(/ ([ap])m$/, (m, x) => ` ${x.toUpperCase()}M`);
   const dateOf = t => new Date(t).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const shortDay = t => new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+  const weekday = t => new Date(t).toLocaleDateString('en-GB', { weekday: 'short' });
   const minutes = ms => Math.max(0, Math.floor(ms / 60000));
-  const initialsOf = name => (typeof name === 'string' && name.trim() ? name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => Array.from(w)[0]).join('').toUpperCase() : '');
+  // A person's initials: of the first and last name (one name: its first letter); a name typed as initials (two or
+  // three capitals) as it is
+  const initialsOf = name => {
+    const words = typeof name === 'string' ? name.trim().split(/\s+/).filter(Boolean) : [];
+    if (words.length === 1 && /^[A-Z]{2,3}$/.test(words[0])) return words[0];
+    return (words.length > 1 ? [words[0], words.at(-1)] : words).map(w => Array.from(w)[0]).join('').toLocaleUpperCase('en-IN');
+  };
   const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
-  // "+91 98480 22321"; other lengths as typed
-  const phoneOf = c => {
-    const m = typeof c?.mobile === 'string' ? c.mobile.replace(/\s+/g, '') : ''; if (!m) return '';
-    return `+${c.code || '91'} ${/^\d{10}$/.test(m) ? `${m.slice(0, 5)} ${m.slice(5)}` : m}`;
+  // "+91 90000 00000"; other lengths as typed; a delivery app's number as the app sends it ("+91 80 0000 0000")
+  const phoneOf = (c, asSent = false) => {
+    const raw = typeof c?.mobile === 'string' ? c.mobile.trim().replace(/\s+/g, ' ') : '', m = raw.replace(/\s+/g, ''); if (!m) return '';
+    return `+${c.code || '91'} ${asSent ? raw : /^\d{10}$/.test(m) ? `${m.slice(0, 5)} ${m.slice(5)}` : m}`;
   };
   const localDay = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-  const todayKey = () => window.RestroSync?.today?.() || localDay(Date.now());
-  const dayOfOrder = o => window.RestroSync?.orderDay?.(o) || o.day || localDay(o.createdAt || Date.now());
+  // Business days (Update Pack 4, A1: the day runs to its cut-off, not midnight)
+  const dayOf = t => window.RestroSync?.dayOf?.(t) || localDay(t - 4 * 3600000);
+  const todayKey = () => window.RestroSync?.today?.() || dayOf(Date.now());
+  const dayOfOrder = o => window.RestroSync?.orderDay?.(o) || o.day || dayOf(o.createdAt || Date.now());
+  const addDays = (key, n) => { const d = new Date(`${key}T12:00:00`); d.setDate(d.getDate() + n); return localDay(d); };
+  const keyDate = key => new Date(`${key}T12:00:00`);
   const shopName = () => { const n = (localStorage.getItem('restro.restaurantName') || '').trim(); return n && n !== 'RESTAURANT NAME' ? n : ''; };
   const prepMinutes = type => window.RestroCounter?.prepMinutes?.(type) || 30;
   const toast = message => say({ text: message });
 
   // ---------- an order as a row shows it ----------
   // The order status: Open until it is paid and complete in the kitchen (the kitchen screen marks the order
-  // kitchenDoneAt), in either order, and its pager is docked back when it had one (owner, 10 Nov: a pager handed to a
-  // newer order counts as back); then Closed. Under Open: Scheduled 8:30 PM (plum) while a scheduled order waits for
-  // its kitchen time, even when paid; In kitchen · N min once its KOT went (from the KOT that took it into the kitchen),
-  // orange with Open after the kitchen prep time; Ready · N min (green) once the kitchen completed it, until its pager is
-  // docked when paid. Without the kitchen screen (a later subscription choice) an order is Open until paid (and its
-  // pager docked), then Closed.
+  // kitchenDoneAt), in either order, and its pager is docked back when it had one; then Closed. Under Open: Scheduled
+  // 8:30 pm (plum) while a scheduled order's KOT waits ("Tomorrow 1:00 pm", "Wed 11 Nov 1:00 pm" for another day);
+  // In kitchen · N min once its KOT printed, orange with Open past its order type's prep time (a scheduled order only
+  // after its ready-by time); Ready · N min (green) once the kitchen completed it. Cancelled (red, "by Swiggy") when a
+  // delivery app cancels it. Without the kitchen screen (a later subscription choice) an order is Open until paid.
   const KITCHEN_SCREEN = true;
+  function schedLine(t, now) {
+    const d = dayOf(t), today = dayOf(now);
+    return d === today ? `Scheduled ${timeOf(t)}` : d === addDays(today, 1) ? `Tomorrow ${timeOf(t)}` : `${shortDay(t)} ${timeOf(t)}`;
+  }
   function statusOf(o, now = Date.now()) {
+    if (o.cancelledBy) return { text: 'Cancelled', cls: 'cancelled', sub: `by ${o.cancelledBy}`, subCls: 'can', closed: true, rank: 2 };
     const waiting = !o.sentAt && Boolean(o.readyAt), screen = KITCHEN_SCREEN && Boolean(o.sentAt), ready = screen && Boolean(o.kitchenDoneAt);
-    if (o.paidAt && !waiting && (!screen || ready) && !o.pagerOut) return { text: 'Closed', cls: 'closed', rank: 1 };
-    if (waiting) return { text: 'Open', cls: 'open', sub: `Scheduled ${clockOf(o.readyAt)}`, base: `Scheduled ${clockOf(o.readyAt)}`, subCls: 'sch', rank: 0 };
+    if (o.paidAt && !waiting && (!screen || ready) && !o.pagerOut) return { text: 'Closed', cls: 'closed', closed: true, rank: 2 };
+    if (waiting) return { text: 'Open', cls: 'open', sub: schedLine(o.readyAt, now), base: 'Scheduled', subCls: 'sch', sched: true, rank: 1 };
     if (ready) return { text: 'Open', cls: 'open', sub: `Ready · ${minutes(now - o.kitchenDoneAt)} min`, base: 'Ready', subCls: 'rd', rank: 0 };
     if (screen) {
-      const n = minutes(now - (Number(o.kitchenAt) || Number(o.sentAt))), late = n > prepMinutes(o.type);
+      const n = minutes(now - (Number(o.kitchenAt) || Number(o.sentAt))), late = o.readyAt ? now > o.readyAt : n > prepMinutes(o.type);
       return { text: 'Open', cls: `open${late ? ' late' : ''}`, sub: `In kitchen · ${n} min`, base: 'In kitchen', subCls: late ? 'late' : '', late, rank: 0 };
     }
     return { text: 'Open', cls: 'open', rank: 0 };
   }
-  // Notify works whenever the order has the customer's phone number, until 1 hour 15 minutes after the order is done on
-  // every side (Closed, and its pager docked back when it had one)
-  const NOTIFY_FOR = 75 * 60000;
-  function doneAt(o, status) {
-    if (status.cls !== 'closed' || o.pagerOut) return 0;
-    return Math.max(Date.parse(o.paidAt) || 0, Number(o.kitchenDoneAt) || 0, o.pager ? Number(o.pagerBackAt) || 0 : 0);
-  }
-  // What the kitchen doesn't have yet (the KOT button's "KOT 3"): each dish less what went (sent)
-  const kitchenKey = (o, l) => `${l.id}@${l.type || o.type}${Array.isArray(l.mods) && l.mods.length ? `#${l.mods.map(m => (typeof m === 'string' ? m : m?.id)).join('+')}` : ''}`;
-  function unsentOf(o) {
-    const groups = new Map();
-    for (const l of o.lines || []) { const k = kitchenKey(o, l); groups.set(k, (groups.get(k) || 0) + (Number(l.qty) || 0)); }
-    let n = 0; for (const [k, q] of groups) n += Math.max(0, q - (Number(o.sent?.[k]) || 0)); return n;
+  // The payment status ("Paid - UPI": a hyphen for the payment status only), what of it counts in Total (kept, on the
+  // day it was taken) and what is still due
+  function payOf(o) {
+    const amount = Number(o.total) || 0, app = typeof o.cancelledBy === 'string' ? o.cancelledBy : '';
+    const how = Array.isArray(o.methods) && o.methods.length ? o.methods.map(m => PAID_BY[m] || m).join(' + ') : PAID_BY[o.method] || 'Cash';
+    if (app) {
+      if (o.payout === 'paid') return { key: 'paid', text: `Paid - ${app}`, short: 'Paid', kept: Number.isFinite(o.payoutAmount) ? o.payoutAmount : amount, at: Date.parse(o.payoutAt) || Date.parse(o.paidAt) || 0 };
+      if (o.payout === 'unpaid') return { key: 'npp', text: `Not paid - ${app}`, cls: 'red', short: 'Not paid', kept: 0 };
+      return { key: 'await', text: `Awaiting ${app}`, cls: 'grey', short: 'Awaiting', kept: 0 };
+    }
+    if (o.paidAt) {
+      const at = Date.parse(o.paidAt) || 0;
+      if (o.refundedAt) {
+        const back = Number(o.refundAmount);
+        if (back > 0 && back < amount) return { key: 'prf', text: `Partial refund - ${PAID_BY[o.refundMethod] || how}`, cls: 'red', short: 'Partial refund', kept: amount - back, at, refunded: back };
+        return { key: 'rf', text: `Refunded - ${how}`, cls: 'red', short: 'Refunded', kept: 0, at };
+      }
+      if (amount === 0) return { key: 'comp', text: 'Complimentary', short: 'Complimentary', kept: 0, at };
+      return { key: 'paid', text: `Paid - ${how}`, short: 'Paid', kept: amount, at };
+    }
+    const part = Number(o.paidAmount);
+    if (part > 0 && part < amount) return { key: 'part', text: 'Partially paid', cls: 'red', short: 'Partially paid', kept: part, due: amount - part, at: Number(o.paidAmountAt) || o.createdAt };
+    return { key: 'np', text: 'Not paid', cls: 'np', short: 'Not paid', kept: 0, due: amount };
   }
   const kotsOf = o => (Array.isArray(o.kots) ? o.kots : []).filter(k => k && (k.kind || 'kot') === 'kot');
+  // A scheduled order's KOT waits until its ready-by time less its order type's prep time (kept on the order, kotAt,
+  // once it is worked out: a change of prep time in Settings only ever brings it earlier)
+  const kotTimeOf = o => Number(o.kotAt) || (Number(o.readyAt) - prepMinutes(o.type) * 60000);
 
-  function infoOf(o, held, now) {
-    const id = held ? `h:${o.heldId}` : o.uid || `n${o.number}`, when = held ? o.savedAt : o.createdAt;
-    const platform = !held && PLATFORMS[o.platform] ? o.platform : null;
-    // the type: its icon (in its colour) and name, or the delivery app's logo, "Swiggy · Delivery" and its time
+  // ctx: { past } (a past day or a range: only Bill / Receipt works)
+  function infoOf(o, now, ctx = {}) {
+    const id = o.uid || `n${o.number}`, when = o.createdAt, past = Boolean(ctx.past);
+    const platform = PLATFORMS[o.platform] ? o.platform : null;
+    // the type: its tile (our icon in its colour, or the delivery app's logo), its name and the app's time
     let type;
     if (platform) {
-      const [name, colour] = PLATFORMS[platform], pickup = o.platformType === 'pickup';
-      const at = pickup ? o.readyBy : o.pickupAt;
-      type = { key: platform, label: `${name} · ${pickup ? 'Pickup' : 'Delivery'}`, platform, colour, logo: typeof o.platformLogo === 'string' ? o.platformLogo : '', time: at ? `${pickup ? 'Ready by' : 'Pickup'} ${timeOf(at)}` : '' };
+      const [name, colour] = PLATFORMS[platform], pickup = o.platformType === 'pickup', at = pickup ? o.readyBy : o.pickupAt;
+      type = { key: platform, label: `${name} · ${pickup ? 'Pickup' : 'Delivery'}`, platform, name, colour, logo: typeof o.platformLogo === 'string' ? o.platformLogo : '', time: at ? `${pickup ? 'Ready by' : 'Pickup'} ${timeOf(at)}` : '' };
     } else {
-      const keys = o.split ? [...new Set((o.lines || []).map(l => l.type || o.type))].filter(k => TYPES[k]) : [o.type].filter(k => TYPES[k]);
-      const first = TYPES[keys[0]] || TYPES['dine-in'];
-      type = { key: keys[0] || 'dine-in', keys: keys.length ? keys : ['dine-in'], label: keys.length ? keys.map(k => TYPES[k][0]).join(' + ') : first[0], icon: first[1], colour: first[2] };
+      const kinds = new Set((o.lines || []).map(l => l.type || o.type));
+      const key = o.online === true ? 'online' : o.split && kinds.has('dine-in') && kinds.has('takeaway') ? 'dine-in+takeaway' : TYPES[o.type] ? o.type : 'dine-in';
+      const [label, ic, colour] = TYPES[key];
+      type = { key, label, icon: ic, colour };
     }
-    const numbers = held && !o.number ? 'Held order' : platform ? `${PLATFORMS[platform][0]} #${o.platformNo || '—'} · Order ${ticket(o.number)}` : `Order ${ticket(o.number)}`;
+    const numbers = platform ? `${type.name} #${o.platformNo || '—'} · Order ${ticket(o.number)}` : `Order ${ticket(o.number)}`;
     // who: the table (dine-in) with the guests and the server, or the customer with their phone and who took it
-    const phone = phoneOf(o.customer), name = o.customer?.name || '', server = o.server || '';
+    const phone = phoneOf(o.customer, Boolean(platform)), name = o.customer?.name || '', server = o.server || '';
     const dine = !platform && o.table && (o.type === 'dine-in' || o.split);
     const who = dine
       ? { l1: `Table ${tableName(o.table)}${o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : ''}`, l2: server ? `Server: ${server}` : '' }
       : { l1: name || (platform ? 'Customer' : 'Guest'), l2: platform ? phone : [phone, phone ? initialsOf(server) : server ? `Server: ${server}` : ''].filter(Boolean).join(' · ') };
     if (platform && (o.callCode || o.handover || (o.platformType !== 'pickup' && o.riderAt))) who.codes = { call: o.callCode || '', handover: o.handover || '', rider: o.platformType !== 'pickup' && o.riderAt ? timeOf(o.riderAt) : '' };
-    const status = held ? { text: 'Held', cls: 'held', rank: 2 } : statusOf(o, now);
-    // the payment: Not paid / Partially paid (orange), Paid · how (black), Refunded · how (red), Held (grey)
-    const paid = !held && Boolean(o.paidAt), refunded = !held && Boolean(o.refundedAt);
-    const partial = !held && !paid && Number.isFinite(o.paidAmount) && o.paidAmount > 0 && o.paidAmount < o.total;
-    const how = PAID_BY[o.method] || 'Cash';
-    const pay = held ? { text: 'Held', cls: 'held', rank: 4 } : refunded ? { text: `Refunded · ${how}`, cls: 'rf', rank: 3 } : paid ? { text: `Paid · ${how}`, cls: 'paid', rank: 2 }
-      : partial ? { text: 'Partially paid', cls: 'np', rank: 1 } : { text: 'Not paid', cls: 'np', rank: 0 };
-    const kots = held ? [] : kotsOf(o);
-    const tags = held ? { disc: false, void: false } : {
-      disc: Boolean(o.discountPct) || (o.lines || []).some(l => Number(l.off) > 0),
-      void: (Array.isArray(o.kots) ? o.kots : []).some(k => k && (k.kind === 'void' || k.kind === 'changed'))
-    };
-    const since = held ? 0 : doneAt(o, status), longDone = since > 0 && now - since > NOTIFY_FOR;
-    const notifyOn = !held && !longDone && Boolean(phone);
-    const waiting = !held && !o.sentAt && Boolean(o.readyAt);
-    const unsent = held || waiting ? 0 : unsentOf(o);
-    const kot = held ? { look: 'off' } : unsent > 0 ? { look: 'solid', n: unsent } : kots.some(k => k.failed) ? { look: 'err' } : { look: kots.length || waiting ? 'on' : 'off' };
-    const third = platform ? { kind: o.platformReadyAt ? 'marked' : 'ready', on: !held } : { kind: 'notify', on: notifyOn };
-    const buzz = { no: !held && o.pager ? String(o.pager) : '', on: !held && Boolean(o.pager) && Boolean(o.pagerOut) };
-    // can it be deleted (long-press): only orders not paid yet; never a delivery app's (cancelled on the app) or a held one
-    const lock = held ? 'Held' : platform ? `${PLATFORMS[platform][0]} · cancel on ${PLATFORMS[platform][0]}` : paid ? 'Paid' : '';
-    const hay = [name, o.customer?.mobile || '', phone, o.number != null ? `#${o.number} ${ticket(o.number)} ${o.number}` : '', dine ? `table ${tableName(o.table)}` : '', server,
-      ...(o.lines || []).map(l => l.name || ''), o.platformNo || '', type.label].join(' | ').toLowerCase();
-    return { o, id, held, when, type, numbers, who, status, pay, tags, kot, third, buzz, lock, hay, phone, name, server, unpaid: !held && !paid && !refunded,
-      day: held ? todayKey() : dayOfOrder(o) };
+    const status = statusOf(o, now), pay = payOf(o);
+    const tags = { disc: Boolean(o.discountPct) || (o.lines || []).some(l => Number(l.off) > 0), void: (Array.isArray(o.kots) ? o.kots : []).some(k => k && (k.kind === 'void' || k.kind === 'changed')) };
+    // the four buttons
+    const kots = kotsOf(o), queued = !platform && !o.sentAt && Boolean(o.readyAt), kotAt = queued ? kotTimeOf(o) : 0;
+    const kot = past ? { look: 'off', label: 'KOT' } : kots.some(k => k.failed) ? { look: 'err', label: 'KOT !' }
+      : queued ? { look: 'q', at: kotAt, label: dayOf(kotAt) === dayOf(now) ? timeOf(kotAt) : weekday(kotAt) } : { look: kots.length ? 'on' : 'off', label: 'KOT' };
+    const third = platform ? { kind: o.platformReadyAt || status.closed ? 'marked' : 'ready', on: !past }
+      : { kind: 'notify', on: !past && Boolean(phone), sent: Boolean(o.notifiedAt) };
+    const buzz = { no: o.pager ? String(o.pager) : '', on: !past && !status.closed && Boolean(o.pager) && Boolean(o.pagerOut), sent: Boolean(o.buzzedAt) };
+    // can it be deleted (long-press): only Not paid orders, and never a delivery app's (it is cancelled on the app)
+    const lock = platform ? `${type.name} · cancel on ${type.name}` : pay.key === 'np' ? '' : pay.key === 'part' ? 'Partially paid' : 'Paid';
+    const forDay = o.readyAt ? dayOf(o.readyAt) : null, taken = dayOfOrder(o);
+    return { o, id, when, type, numbers, who, status, pay, tags, kot, third, buzz, lock, phone, name, server, dine,
+      taken, forDay: forDay && forDay !== taken ? forDay : null, paidDay: pay.at ? dayOf(pay.at) : null,
+      find: { name: name.toLowerCase(), l1: who.l1.toLowerCase(), phone: (o.customer?.mobile || '').replace(/\D/g, ''), number: o.number, platformNo: String(o.platformNo || ''),
+        table: dine ? String(tableName(o.table)).toLowerCase() : '', pager: Number(o.pager) || 0, handover: String(o.handover || '') } };
   }
 
   // ---------- state ----------
   let fromCounter = false;
-  let tab = 'all';                       // all · open · unpaid · closed · held
+  let tab = 'all';                       // all · open · closed
   let query = '';
-  let dv = 'all';                        // Discounts & voids: all · disc · void · both
-  let typeF = 'all';                     // all, or an order type / delivery app
-  let staffF = 'all';                    // all, or a server's name
-  let sort = { key: 'when', dir: -1 };   // newest first
-  let day = null;                        // null: today
-  let menu = null;                       // the dropdown open: dv · type · staff · day
+  let payF = new Set();                  // Payment status: none ticked = all payments
+  let dv = null;                         // Discounts & voids: disc · void · both, or none
+  let typesF = new Set();                // Order types: none ticked = all order types
+  let staffF = null;                     // a person's name, or all staff
+  let dueOnly = false;                   // Due was tapped: only the orders behind the Due number
+  const SORT0 = { key: 'when', dir: -1 };
+  let sort = SORT0;                      // newest first; Order status: { key: 'status', mode: open · sched · closed }
+  let range = null;                      // null: today; { from, to } business days
+  let menu = null;                       // the menu open: date · pay · dv · type · staff · sort
   let picking = null;                    // picking orders to delete: a Set of ids
   let pop = null;                        // a pop-up: { kind, id, … }
-  let flash = new Map();                 // id → 'buzzed' (the Buzz button's 2 s "Buzzed")
+  let flash = new Map();                 // id → 'buzzing' | 'buzzed' (the Buzz button while the dock answers)
   let returning = false;                 // an order was opened from here: coming back keeps the filters
   let scrollTop = 0, scrolledAt = 0;
-  const filtering = () => Boolean(query.trim()) || dv !== 'all' || typeF !== 'all' || staffF !== 'all';
-  function resetFilters() { tab = 'all'; query = ''; dv = 'all'; typeF = 'all'; staffF = 'all'; sort = { key: 'when', dir: -1 }; day = null; menu = null; picking = null; pop = null; scrollTop = 0; }
-  // The view and the row style (Settings › Orders › Order list view, Row style; to come): Classic and Classic rows until then
-  // (Settings › Orders; Update Pack 3: this tablet's own or every tablet's, prefs.js; lookOverride: a preview's)
+  const period = () => range || { from: todayKey(), to: todayKey() };
+  const isToday = () => !range || (range.from === todayKey() && range.to === todayKey());
+  const pastNow = () => { const p = period(); return p.from !== p.to || p.to < todayKey(); };
+  const changed = () => Boolean(query.trim()) || payF.size > 0 || Boolean(dv) || typesF.size > 0 || Boolean(staffF) || dueOnly || tab !== 'all' || sort !== SORT0 || !isToday();
+  function resetFilters() { tab = 'all'; query = ''; payF = new Set(); dv = null; typesF = new Set(); staffF = null; dueOnly = false; sort = SORT0; range = null; menu = null; picking = null; pop = null; scrollTop = 0; }
+  // The view and the row style (Settings › Orders display, branch-wide; lookOverride: a preview's)
   let lookOverride = null, sampleRows = null;
   const look = () => { if (lookOverride) return lookOverride; try { return window.RestroPrefs?.get?.('orders') || {}; } catch { return {}; } };
   const rowStyle = () => (look().rows === 'pills' ? 'pills' : 'classic');
-  const viewKind = () => (['split', 'cards', 'board'].includes(look().view) ? look().view : 'classic');
+  // (Split and Cards follow in Update Pack 4's next part; until then every view shows Classic)
+  const viewKind = () => 'classic';
   let chosen = null;                     // Split detail: the order shown on the right
-  let closedOpen = false;                // Board: the Closed strip unfolded
 
-  // The day's orders as rows (and the held ones, today), and what the filters and search leave
+  // The orders of the day (or range): taken that day, or taken another day for that day
   function rowsNow() {
     if (sampleRows) return sampleRows;
-    const now = Date.now(), d = day || todayKey(), today = d === todayKey();
-    const orders = (window.RestroCounter?.orders?.() || []).map(o => infoOf(o, false, now)).filter(r => r.day === d);
-    const held = today ? (window.RestroCounter?.held?.() || []).map(o => infoOf(o, true, now)) : [];
-    return [...orders, ...held];
+    const now = Date.now(), { from, to } = period(), past = pastNow(), out = [];
+    for (const o of window.RestroCounter?.orders?.() || []) {
+      const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
+      if ((taken >= from && taken <= to) || (forDay && forDay >= from && forDay <= to)) out.push(infoOf(o, now, { past }));
+    }
+    return out;
   }
-  const qOf = () => query.trim().toLowerCase();
-  function matches(r) {
-    const q = qOf();
-    if (q) { const digits = q.replace(/[\s+]/g, ''); if (!r.hay.includes(q) && !(/^\d{3,}$/.test(digits) && r.hay.replace(/\s+/g, '').includes(digits))) return false; }
-    if (dv === 'disc' && !r.tags.disc) return false;
-    if (dv === 'void' && !r.tags.void) return false;
-    if (dv === 'both' && !(r.tags.disc && r.tags.void)) return false;
-    if (typeF !== 'all' && !(r.type.platform ? r.type.platform === typeF : r.type.keys.includes(typeF))) return false;
-    if (staffF !== 'all' && r.server !== staffF) return false;
+  const heldCount = () => (isToday() ? (window.RestroCounter?.held?.() || []).length : 0);
+
+  // ---------- search ----------
+  // Letters then a number (the space optional) = a table or a pager; letters alone = a name as typed; digits alone =
+  // phone, order numbers (ours and the delivery app's) and handover code, all together. No fuzzy matching otherwise.
+  const TABLE_WORDS = new Set(['table', 't', 'tavle', 'tabel', 'tabl', 'tble', 'tabe']);
+  const PAGER_WORDS = new Set(['pager', 'buzzer', 'buzz', 'buz', 'p', 'b', 'pagr', 'peger', 'pagar', 'buzzr', 'buzer']);
+  function parsed() {
+    const s = query.trim().toLowerCase(); if (!s) return null;
+    const m = s.match(/^([a-z]+)\s*(\d+)$/);
+    if (m && TABLE_WORDS.has(m[1])) return { kind: 'table', n: String(Number(m[2])) };
+    if (m && PAGER_WORDS.has(m[1])) return { kind: 'pager', n: Number(m[2]) };
+    if (/^[\d\s+#-]+$/.test(s) && /\d/.test(s)) return { kind: 'digits', d: s.replace(/\D/g, '') };
+    return { kind: 'text', s };
+  }
+  function hit(r, q = parsed()) {
+    if (!q) return true;
+    const f = r.find;
+    if (q.kind === 'table') return f.table === q.n;
+    if (q.kind === 'pager') return f.pager === q.n;
+    if (q.kind === 'digits') {
+      const d = q.d.replace(/^0+(?=\d)/, '');
+      return (q.d.length >= 3 && f.phone.includes(q.d)) || String(f.number) === d || f.platformNo === q.d || f.handover === q.d;
+    }
+    return f.name.includes(q.s) || f.l1.includes(q.s);
+  }
+  // The matched part highlighted (what: 'name' the customer column's first line · 'phone' · 'number' our order number ·
+  // 'platform' the app's number · 'handover' its chip)
+  function hl(text, what) {
+    const s = String(text ?? ''), q = parsed(); if (!q || !s) return s;
+    let at = -1, len = 0;
+    if (q.kind === 'text' && what === 'name') { at = s.toLowerCase().indexOf(q.s); len = q.s.length; }
+    else if (q.kind === 'table' && what === 'name') { const m = s.match(new RegExp(`^Table ${q.n}(?!\\d)`)); if (m) { at = 0; len = m[0].length; } }
+    else if (q.kind === 'digits' && what === 'phone' && q.d.length >= 3) return markDigits(s, q.d);
+    else if (q.kind === 'digits' && what === 'number') { const m = s.match(/#(\d+)$/); if (m && String(Number(m[1])) === q.d.replace(/^0+(?=\d)/, '')) { at = s.length - m[1].length - 1; len = m[1].length + 1; } }
+    else if (q.kind === 'digits' && (what === 'platform' || what === 'handover') && s === q.d) { at = 0; len = s.length; }
+    if (at < 0) return s;
+    return [s.slice(0, at), el('mark', {}, s.slice(at, at + len)), s.slice(at + len)].filter(x => x !== '');
+  }
+  function markDigits(s, d) {
+    const map = []; for (let i = 0; i < s.length; i++) if (/\d/.test(s[i])) map.push(i);
+    const digits = map.map(i => s[i]).join(''), k = digits.indexOf(d); if (k < 0) return s;
+    const a = map[k], b = map[k + d.length - 1] + 1;
+    return [s.slice(0, a), el('mark', {}, s.slice(a, b)), s.slice(b)].filter(x => x !== '');
+  }
+  const numbersOf = r => (r.type.platform ? [`${r.type.name} #`, hl(r.o.platformNo || '—', 'platform'), ' · ', hl(`Order ${ticket(r.o.number)}`, 'number')] : [hl(r.numbers, 'number')]);
+
+  // ---------- filters, tabs, sorting, totals ----------
+  function matches(r, skip = '') {
+    if (!hit(r)) return false;
+    if (skip !== 'pay' && payF.size && !payF.has(r.pay.key)) return false;
+    if (skip !== 'pay' && dueOnly && !dueOf(r)) return false;
+    if (skip !== 'dv' && dv && !(dv === 'disc' ? r.tags.disc : dv === 'void' ? r.tags.void : r.tags.disc && r.tags.void)) return false;
+    if (skip !== 'type' && typesF.size && !typesF.has(r.type.key)) return false;
+    if (skip !== 'staff' && staffF && r.server !== staffF) return false;
     return true;
   }
-  const inTab = (r, t) => t === 'all' ? true : t === 'held' ? r.held : t === 'open' ? r.status.text === 'Open' : t === 'closed' ? r.status.text === 'Closed' : r.unpaid;
-  const SORTS = {
-    when: (a, b) => a.when - b.when,
-    type: (a, b) => a.type.label.localeCompare(b.type.label) || b.when - a.when,
-    status: (a, b) => a.status.rank - b.status.rank || Number(Boolean(b.status.late)) - Number(Boolean(a.status.late)) || b.when - a.when,
-    pay: (a, b) => a.pay.rank - b.pay.rank || b.when - a.when
+  // behind the Due number: Not paid or Partially paid, for this day (an order for another day counts on its own day)
+  function dueOf(r) { const { from, to } = period(); return (r.pay.key === 'np' || r.pay.key === 'part') && (!r.forDay || (r.forDay >= from && r.forDay <= to)); }
+  const inTab = (r, t) => t === 'all' ? true : t === 'open' ? !r.status.closed : r.status.closed;
+  const STATUS_MODES = ['open', 'sched', 'closed'];
+  const STATUS_SORT = {
+    open: (a, b) => (a.status.closed - b.status.closed) || (a.status.rank - b.status.rank) || Number(Boolean(b.status.late)) - Number(Boolean(a.status.late)) || b.when - a.when,
+    sched: (a, b) => Number(Boolean(b.status.sched)) - Number(Boolean(a.status.sched)) || (a.status.sched ? a.o.readyAt - b.o.readyAt : 0) || (a.status.closed - b.status.closed) || b.when - a.when,
+    closed: (a, b) => (b.status.closed - a.status.closed) || b.when - a.when
   };
-  function view() {
-    const all = rowsNow(), base = all.filter(matches);
-    const counts = Object.fromEntries(['all', 'open', 'unpaid', 'closed', 'held'].map(t => [t, base.filter(r => inTab(r, t)).length]));
-    const shown = base.filter(r => inTab(r, tab)).sort((a, b) => sort.dir * SORTS[sort.key](a, b));
-    return { all, base, counts, shown };
+  function sorter() {
+    if (sort.key === 'status') return STATUS_SORT[sort.mode] || STATUS_SORT.open;
+    if (sort.key === 'type') return (a, b) => sort.dir * a.type.label.localeCompare(b.type.label) || b.when - a.when;
+    if (sort.key === 'pay') return (a, b) => sort.dir * (PAY_RANK[a.pay.key] - PAY_RANK[b.pay.key]) || b.when - a.when;
+    return (a, b) => sort.dir * (a.when - b.when);
   }
-
-  // ---------- search highlight ----------
-  function hl(text) {
-    const q = qOf(), s = String(text ?? '');
-    if (!q || !s) return s;
-    const out = [], low = s.toLowerCase(); let at = 0, i;
-    while ((i = low.indexOf(q, at)) !== -1) { if (i > at) out.push(s.slice(at, i)); out.push(el('mark', {}, s.slice(i, i + q.length))); at = i + q.length; }
-    if (at < s.length) out.push(s.slice(at));
-    return out;
+  function totalsOf(rows) {
+    const { from, to } = period(); let total = 0, due = 0, dueN = 0;
+    for (const r of rows) {
+      if (r.paidDay && r.paidDay >= from && r.paidDay <= to) total += r.pay.kept;
+      if (dueOf(r)) { due += r.pay.due || 0; dueN++; }
+    }
+    return { orders: rows.length, total, due, dueN };
+  }
+  function view() {
+    const all = rowsNow(), base = all.filter(r => matches(r));
+    const counts = { all: base.length, open: base.filter(r => inTab(r, 'open')).length, closed: base.filter(r => inTab(r, 'closed')).length };
+    const shown = base.filter(r => inTab(r, tab)).sort(sorter());
+    return { all, base, counts, shown, totals: totalsOf(shown) };
   }
 
   // ---------- the paper in the bill printer (the Bill / Receipt button) ----------
@@ -269,7 +367,7 @@
     paper = { level: Number.isFinite(level) ? Math.max(0, Math.min(100, Math.round(level))) : 100, state };
     if (dialog.open) dialog.querySelectorAll('.or-b.pr').forEach(b => paintPaper(b));
   }
-  const paperLook = () => (paper.state === 'offline' ? 'off' : paper.state === 'out' ? 'out' : paper.state === 'low' || paper.level <= 20 ? 'low' : 'ok');
+  const paperLook = () => (paper.state === 'offline' ? 'off' : paper.state === 'out' || paper.level <= 0 ? 'out' : paper.state === 'low' || paper.level <= 20 ? 'low' : 'ok');
   function paintPaper(b) {
     const look = paperLook();
     b.classList.toggle('low', look === 'low'); b.classList.toggle('out', look === 'out'); b.classList.toggle('poff', look === 'off');
@@ -297,23 +395,25 @@
     renderLayer();
   });
 
-  // ---------- messages: at the bottom, one at a time; a confirmation 2 s, an Undo 4 s, an error stays with Retry; the
-  // timer waits while a finger is on it ----------
+  // ---------- messages (Update Pack 4, A4): a dark bar at the bottom centre that hugs what it says; one at a time; a
+  // confirmation 2 s, an error stays with RETRY and ✕; the timer waits while a finger is on it ----------
   let msg = null;
   const bar = el('div', { class: 'or-msg', role: 'status', 'aria-live': 'polite', hidden: true });
   function say(m) {
     if (typeof m === 'string') m = { text: m };
     if (msg?.timer) clearTimeout(msg.timer);
-    msg = { ...m, ms: m.kind === 'error' ? 0 : m.undo ? 4000 : 2000 };
+    msg = { ...m, ms: m.kind === 'error' || m.kind === 'busy' ? 0 : m.undo ? 4000 : 2000 };
     paintMsg(); runMsg();
   }
   function runMsg() { if (!msg || !msg.ms || msg.held) return; clearTimeout(msg.timer); msg.timer = setTimeout(() => { msg = null; paintMsg(); }, msg.ms); }
   function paintMsg() {
     if (!msg) { bar.hidden = true; bar.replaceChildren(); return; }
-    const act = msg.undo ? ['Undo', msg.undo] : msg.retry ? ['Retry', msg.retry] : null;
-    bar.className = `or-msg${msg.kind === 'error' ? ' error' : ''}`;
-    bar.replaceChildren(...[el('span', { class: 'or-msg-t' }, msg.bold ? el('b', {}, msg.bold) : null, msg.text || ''),
-      act ? el('button', { type: 'button', onclick: () => { const run = act[1]; clearTimeout(msg?.timer); msg = null; paintMsg(); run(); } }, act[0]) : null].filter(Boolean));
+    const act = msg.undo ? ['UNDO', msg.undo] : msg.retry ? ['RETRY', msg.retry] : null, error = msg.kind === 'error', busy = msg.kind === 'busy';
+    bar.className = `or-msg${error ? ' error' : busy ? ' busy' : ''}`;
+    bar.replaceChildren(...[el('span', { class: 'or-msg-i', 'aria-hidden': 'true' }, busy ? null : error ? el('b', {}, '!') : icon('check')),
+      el('span', { class: 'or-msg-t' }, msg.lead || '', msg.bold ? el('b', {}, msg.bold) : null, msg.text || ''),
+      act ? el('button', { type: 'button', class: 'or-msg-a', onclick: () => { const run = act[1]; clearTimeout(msg?.timer); msg = null; paintMsg(); run(); } }, act[0]) : null,
+      error ? el('button', { type: 'button', class: 'or-msg-x', 'aria-label': 'Close', onclick: () => { msg = null; paintMsg(); } }, icon('close')) : null].filter(Boolean));
     bar.hidden = false;
     if (bar.parentElement !== dialog) dialog.append(bar);
   }
@@ -321,235 +421,182 @@
   const letGo = () => { if (msg?.held) { msg.held = false; runMsg(); } };
   bar.addEventListener('pointerup', letGo); bar.addEventListener('pointercancel', letGo); bar.addEventListener('pointerleave', letGo);
 
-  // ---------- the parts ----------
+  // ---------- the pieces every view is made of ----------
   const root = el('div', { class: 'or-root' }); dialog.prepend(root);
-  let topEl = null, restEl = null, layerEl = null, listEl = null;
-
-  function topBar(v) {
-    const back = fromCounter;
-    const home = back
+  let layerEl = null, listEl = null, searchEl = null, frame = null;
+  // Home (a raised white circle, the outline house); "‹ Counter" when Orders was opened from there (Back returns)
+  function homeBtn() {
+    return fromCounter
       ? el('button', { type: 'button', class: 'or-home back', 'aria-label': 'Back to Counter', onclick: () => { if (!goBack()) document.querySelector('#system-home')?.click(); } }, icon('back'), 'Counter')
       : el('button', { type: 'button', class: 'or-home', 'aria-label': 'Home', title: 'Home', onclick: () => document.querySelector('#system-home')?.click() }, house());
-    const input = el('input', { id: 'orders-search', type: 'search', class: 'or-search-in', autocomplete: 'off', enterkeyhint: 'search', spellcheck: 'false', placeholder: 'Search customer, phone, order #, table or dish', 'aria-label': 'Search orders' });
+  }
+  const titleEl = () => el('div', { class: 'or-title' }, appIcon(), el('h2', { id: 'orders-title', tabindex: '-1' }, 'Orders'));
+  // The day: Today / Yesterday / Tomorrow / "Fri 6 Nov" / "2 – 8 Nov"
+  function dayLabel(key) {
+    const today = todayKey();
+    if (key === today) return 'Today';
+    if (key === addDays(today, -1)) return 'Yesterday';
+    if (key === addDays(today, 1)) return 'Tomorrow';
+    return keyDate(key).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+  }
+  function periodLabel() {
+    const { from, to } = period(); if (from === to) return dayLabel(from);
+    const a = keyDate(from), b = keyDate(to), mon = d => d.toLocaleDateString('en-GB', { month: 'short' });
+    return a.getMonth() === b.getMonth() ? `${a.getDate()} – ${b.getDate()} ${mon(b)}` : `${a.getDate()} ${mon(a)} – ${b.getDate()} ${mon(b)}`;
+  }
+  // A dropdown pill (the day, the four filters): its icon, its words and the chevron; blue-tinted while a filter is on
+  function pill(key, lead, label, on, cls = '') {
+    return el('button', { type: 'button', class: `or-dd${cls ? ` ${cls}` : ''}${on ? ' on' : ''}${menu === key ? ' open' : ''}`, 'aria-haspopup': 'menu', 'aria-expanded': String(menu === key),
+      onclick: e => toggleMenu(key, e.currentTarget) }, lead ? icon(lead) : null, el('span', { class: 'or-dd-t' }, label), el('span', { class: 'or-cv' }, icon(menu === key ? 'expandLess' : 'expand')));
+  }
+  const datePill = cls => pill('date', 'calendar', periodLabel(), false, cls);
+  function filterPills(cls) {
+    const first = (set, names) => { const list = [...set]; return list.length ? `${names(list[0])}${list.length > 1 ? ` +${list.length - 1}` : ''}` : null; };
+    const payName = k => PAYS.find(p => p[0] === k)?.[1] || k, typeName = k => TYPES[k]?.[0] || PLATFORMS[k]?.[0] || k;
+    const dvName = { disc: 'Discounted', void: 'Voided after KOT', both: 'Discounted and voided' };
+    return [pill('pay', 'payments', first(payF, payName) || 'All payments', payF.size > 0 || dueOnly, cls),
+      pill('dv', 'tag', dv ? dvName[dv] : 'Discounts & voids', Boolean(dv), cls),
+      pill('type', 'restaurant', first(typesF, typeName) || 'All order types', typesF.size > 0, cls),
+      pill('staff', 'person', staffF || 'All staff', Boolean(staffF), cls)];
+  }
+  // Clear filters: always there; greyed until something differs from the start, then one tap resets it all
+  function clearBtn(cls = '') {
+    const on = changed();
+    return el('button', { type: 'button', class: `or-clear${cls ? ` ${cls}` : ''}${on ? '' : ' off'}`, 'aria-disabled': on ? null : 'true',
+      onclick: () => { if (!changed()) return; resetFilters(); render(); } }, icon('filterOff'), 'Clear filters');
+  }
+  // The search box (built once per full drawing so typing never loses it)
+  function searchBox(cls = '') {
+    const input = el('input', { id: 'orders-search', type: 'search', class: 'or-search-in', autocomplete: 'off', enterkeyhint: 'search', spellcheck: 'false',
+      placeholder: 'Search name, phone, order #, table, pager, code', 'aria-label': 'Search orders' });
     input.value = query;
     const clear = el('button', { type: 'button', class: 'or-search-x', 'aria-label': 'Clear the search', hidden: !query, onclick: () => { query = ''; input.value = ''; syncSearch(); input.focus(); } }, icon('close'));
-    const box = el('label', { class: `or-search${query ? ' typed' : ''}` }, icon('search', 'or-search-i'), input, clear);
-    function syncSearch() { box.classList.toggle('typed', Boolean(query)); clear.hidden = !query; scrollTop = 0; renderRest(); }
     input.addEventListener('input', () => { query = input.value; syncSearch(); });
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
-    const dayBtn = el('button', { type: 'button', class: `or-dd or-day${menu === 'day' ? ' open' : ''}`, 'aria-haspopup': 'menu', 'aria-expanded': String(menu === 'day'), onclick: e => toggleMenu('day', e.currentTarget) },
-      icon('calendar'), dayLabel(day || todayKey()), icon(menu === 'day' ? 'expandLess' : 'expand'));
-    return el('div', { class: 'or-top' }, home,
-      el('div', { class: 'or-title' }, appIcon(), el('h2', { id: 'orders-title', tabindex: '-1' }, 'Orders')),
-      box, summary(v), dayBtn);
+    return el('label', { class: `or-search${cls ? ` ${cls}` : ''}${query ? ' typed' : ''}` }, icon('search', 'or-search-i'), input, clear);
   }
-  // Orders 42 | Total ₹48,250 | Due ₹12,430 · 7 orders (the rows in view: the tab, filters and day)
-  function summary(v) {
-    const due = v.shown.filter(r => r.unpaid), total = v.shown.reduce((n, r) => n + (Number(r.o.total) || 0), 0), dueSum = due.reduce((n, r) => n + (Number(r.o.total) || 0), 0);
-    return el('div', { class: 'or-sum', 'aria-label': `Orders ${v.shown.length}, total ${rupees(total)}, due ${rupees(dueSum)}, ${due.length} orders` },
-      el('span', {}, 'Orders'), el('b', {}, String(v.shown.length)), el('i'),
-      el('span', {}, 'Total'), el('b', {}, rupees(total)), el('i'),
-      el('span', {}, 'Due'), el('b', { class: 'due' }, rupees(dueSum)), el('span', { class: 'dn' }, `· ${due.length} order${due.length === 1 ? '' : 's'}`));
+  function syncSearch() {
+    if (searchEl) { searchEl.classList.toggle('typed', Boolean(query)); searchEl.querySelector('.or-search-x').hidden = !query; }
+    scrollTop = 0; renderRest();
   }
-  function dayLabel(d) {
-    if (d === todayKey()) return 'Today';
-    const t = new Date(`${d}T12:00:00`), y = new Date(`${todayKey()}T12:00:00`); y.setDate(y.getDate() - 1);
-    if (localDay(t) === localDay(y)) return 'Yesterday';
-    return t.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+  const syncBtn = cls => window.RestroSyncButton?.create({ cls: `or-sync${cls ? ` ${cls}` : ''}` }) || null;
+  // Tabs: All · Open · Closed with their counts, and Held as a link (the day's held orders, on their own page)
+  const TABS = [['all', 'All', 'receipt'], ['open', 'Open', 'clock'], ['closed', 'Closed', 'doneCircle']];
+  function pickTab(key) { tab = key; scrollTop = 0; renderRest(); }
+  function tabsPills(v) {
+    return el('div', { class: 'or-tabs', role: 'tablist', 'aria-label': 'Orders' }, ...TABS.map(([key, label, ic]) => el('button', { type: 'button', role: 'tab', class: `or-tab${tab === key ? ' on' : ''}`, 'aria-selected': String(tab === key),
+      onclick: () => pickTab(key) }, icon(ic), el('span', { class: 'or-tab-t' }, label), el('em', {}, String(v.counts[key])))),
+    el('i', { class: 'or-hsep', 'aria-hidden': 'true' }),
+    el('button', { type: 'button', class: 'or-tab or-held', 'aria-label': `Held orders, ${heldCount()}`, onclick: openHeld }, icon('pauseCircle'), el('span', { class: 'or-tab-t' }, 'Held'), el('em', {}, String(heldCount())), el('span', { class: 'or-held-go' }, icon('chevron'))));
   }
-
-  const TABS = [['all', 'All'], ['open', 'Open'], ['unpaid', 'Not paid'], ['closed', 'Closed'], ['held', 'Held']];
-  const DV = [['all', 'All orders', 'receipt'], ['disc', 'Discounted', 'tag'], ['void', 'Voided after KOT', 'void'], ['both', 'Discounted and voided', 'ready']];
-  function filterBar(v) {
-    if (picking) return pickBar(v);
-    const tabs = TABS.map(([key, label]) => el('button', { type: 'button', role: 'tab', class: `or-tab${tab === key ? ' on' : ''}`, 'aria-selected': String(tab === key),
-      onclick: () => { tab = key; scrollTop = 0; dialog.dataset.view = fromCounter && tab === 'held' ? 'held' : 'orders'; renderRest(); } }, label, el('em', {}, String(v.counts[key]))));
-    const dd = (key, label, on, lead) => el('button', { type: 'button', class: `or-dd${on ? ' on' : ''}${menu === key ? ' open' : ''}`, 'aria-haspopup': 'menu', 'aria-expanded': String(menu === key),
-      onclick: e => toggleMenu(key, e.currentTarget) }, lead ? icon(lead) : null, label, icon(menu === key ? 'expandLess' : 'expand'));
-    const typeName = typeF === 'all' ? 'All order types' : PLATFORMS[typeF] ? PLATFORMS[typeF][0] : TYPES[typeF]?.[0] || typeF;
-    return el('div', { class: 'or-filters' },
-      el('div', { class: 'or-tabs', role: 'tablist', 'aria-label': 'Orders' }, ...tabs),
-      el('span', { class: 'or-sp' }),
-      filtering() ? el('button', { type: 'button', class: 'or-clear', onclick: () => { query = ''; dv = 'all'; typeF = 'all'; staffF = 'all'; menu = null; scrollTop = 0; render(); } }, icon('filterOff'), 'Clear filters') : null,
-      dd('dv', 'Discounts & voids', dv !== 'all', 'tag'),
-      dd('type', typeName, typeF !== 'all'),
-      dd('staff', staffF === 'all' ? 'All staff' : staffF, staffF !== 'all'));
-  }
-  // Picking orders to delete (long-press): "3 selected", Select all, why some can't be picked, Cancel, Delete 3 orders
-  function pickBar(v) {
-    const can = v.shown.filter(r => !r.lock), n = picking.size;
-    return el('div', { class: 'or-filters picking' },
-      el('span', { class: 'or-picked' }, `${n} selected`),
-      el('button', { type: 'button', class: 'or-link', onclick: () => { can.forEach(r => picking.add(r.id)); renderRest(); } }, 'Select all'),
-      el('span', { class: 'or-hint' }, 'Paid, Swiggy/Zomato and held orders can’t be deleted'),
-      el('span', { class: 'or-sp' }),
-      el('button', { type: 'button', class: 'or-cancel', onclick: () => { picking = null; renderRest(); } }, 'Cancel'),
-      el('button', { type: 'button', class: 'or-del', disabled: !n, onclick: () => { if (n) { pop = { kind: 'delete', ids: [...picking], reason: '', typing: false }; renderLayer(); } } }, icon('trash'), n === 1 ? 'Delete 1 order' : `Delete ${n} orders`));
+  function openHeld() { returning = true; if (window.RestroCounter?.openHeld) window.RestroCounter.openHeld(); else toast('Held orders are on the Counter'); }
+  // Totals: Orders · Total · Due · N orders › (Due taps to the orders behind it; at ₹0 it is grey and does nothing)
+  function dueTap() { if (!view().totals.due) return; payF = new Set(['np', 'part']); dueOnly = true; tab = 'all'; scrollTop = 0; render(); }
+  function totalsCard(v) {
+    const t = v.totals, live = t.due > 0;
+    return el('div', { class: 'or-tot3' },
+      el('div', {}, el('span', {}, 'Orders'), el('b', {}, String(t.orders))),
+      el('div', {}, el('span', {}, 'Total'), el('b', {}, rupees(t.total))),
+      el(live ? 'button' : 'div', { class: `due${live ? '' : ' zero'}`, ...(live ? { type: 'button', 'aria-label': `Due, ${t.dueN} orders, ${rupees(t.due)}: show them`, onclick: dueTap } : {}) },
+        el('span', {}, `Due · ${t.dueN} order${t.dueN === 1 ? '' : 's'}`), el('b', {}, rupees(t.due)), el('span', { class: 'or-tapc' }, icon('chevron'))));
   }
 
-  // The list: Classic rows (one white panel, thin lines between orders) or Floating pills (each order its own pill)
-  const HEADS = [['when', 'Date & time'], ['type', 'Order type'], [null, 'Customer / table · server'], ['status', 'Order status'], ['pay', 'Payment status'], [null, '']];
-  function list(v) {
+  // ---------- Classic: the sidebar and the order table ----------
+  function sideEl(v) {
+    return el('aside', { class: 'or-side' },
+      el('div', { class: 'or-sh' }, homeBtn(), titleEl()),
+      datePill('or-fd'), tabsPills(v),
+      el('p', { class: 'or-flab' }, 'FILTERS'), ...filterPills('or-fd'), totalsCard(v));
+  }
+  // The heading: tap to sort (again: the other way; Order status goes Open first → Scheduled first → Closed first)
+  const HEADS = [['when', 'Date & time'], [null, ''], ['type', 'Order type'], [null, 'Customer / table · server'], ['status', 'Order status'], ['pay', 'Payment status'], [null, '']];
+  function headTap(key) {
+    if (key === 'status') sort = sort.key === 'status' ? { key, mode: STATUS_MODES[(STATUS_MODES.indexOf(sort.mode) + 1) % 3] } : { key, mode: 'open' };
+    else if (key === 'when') sort = sort.key === 'when' ? (sort.dir < 0 ? { key, dir: 1 } : SORT0) : SORT0;
+    else sort = sort.key === key ? { key, dir: -sort.dir } : { key, dir: 1 };
+    scrollTop = 0; renderRest();
+  }
+  function sheetEl(v) {
     const head = el('div', { class: 'or-hd', role: 'row' }, picking ? el('span', { class: 'or-h' }) : null, ...HEADS.map(([key, label]) => {
       if (!key) return el('span', { class: 'or-h', role: 'columnheader' }, label);
-      const on = sort.key === key;
-      return el('button', { type: 'button', class: `or-h sort${on ? ' on' : ''}`, role: 'columnheader', 'aria-sort': on ? (sort.dir < 0 ? 'descending' : 'ascending') : 'none',
-        onclick: () => { sort = on ? { key, dir: -sort.dir } : { key, dir: key === 'when' ? -1 : 1 }; scrollTop = 0; renderRest(); } },
-      label, icon(on ? 'sortDown' : 'sortBoth', on && sort.dir > 0 ? 'up' : ''));
+      const on = sort.key === key, up = on && (key === 'status' ? sort.mode === 'open' : sort.dir > 0);
+      return el('button', { type: 'button', class: `or-h sort${on ? ' on' : ''}`, role: 'columnheader', 'aria-sort': on ? (up ? 'ascending' : 'descending') : 'none', onclick: () => headTap(key) },
+        label, icon(on ? 'sortDown' : 'sortBoth', up ? 'up' : ''));
     }));
-    const rows = el('div', { class: 'or-rows', role: 'rowgroup' }, ...v.shown.map(rowEl));
-    const empty = !v.shown.length ? emptyOf(v) : null;
-    listEl = el('div', { class: 'or-scroll', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, rows, empty);
-    return el('div', { class: `or-list ${rowStyle()}${picking ? ' picking' : ''}`, role: 'table', 'aria-label': 'Orders' }, head, listEl);
+    listEl = el('div', { class: 'or-scroll', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } },
+      el('div', { class: 'or-rows', role: 'rowgroup' }, ...v.shown.map(rowEl)), !v.shown.length ? emptyOf(v) : null);
+    return el('div', { class: `or-sheet ${rowStyle()}${picking ? ' picking' : ''}`, role: 'table', 'aria-label': 'Orders' }, head, listEl);
   }
-
-  // The parts every view is made of (the same icons, labels, chips, colours, tags and buttons)
-  function typeLine(r) {
+  // The type tile: our icon in its colour on a light tint of it, or the delivery app's logo on its tint
+  function tileOf(r, cls = 'or-tt') {
     const t = r.type;
     return t.platform
-      ? [t.logo ? el('img', { class: 'or-logo', src: t.logo, alt: '' }) : el('span', { class: 'or-logo', style: `background:${t.colour}`, 'aria-hidden': 'true' }, PLATFORMS[t.platform][0][0]), el('b', {}, hl(t.label)), t.time ? el('span', { class: 'pt' }, t.time) : null]
-      : [el('span', { class: 'or-ti', style: `color:${t.colour}` }, icon(t.icon)), el('b', {}, hl(t.label))];
+      ? el('span', { class: `${cls} app`, style: `background:${t.colour}1A`, 'aria-hidden': 'true' }, t.logo ? el('img', { class: 'or-logo', src: t.logo, alt: '' }) : el('span', { class: 'or-logo', style: `background:${t.colour}` }, t.name[0]))
+      : el('span', { class: cls, style: `background:${t.colour}1A;color:${t.colour}`, 'aria-hidden': 'true' }, icon(t.icon));
   }
   function codesLine(r) {
     if (!r.who.codes) return null;
     const c = r.who.codes, out = [];
     if (c.call) out.push('Call code', el('b', { class: 'chip y' }, c.call));
-    if (c.handover) out.push(out.length ? '· Handover' : 'Handover', el('b', { class: 'chip g' }, c.handover));
+    if (c.handover) { const q = parsed(), on = q?.kind === 'digits' && q.d === c.handover; out.push(out.length ? '· Handover' : 'Handover', el('b', { class: `chip g${on ? ' hit' : ''}` }, c.handover)); }
     if (c.rider) out.push(`${out.length ? '· ' : ''}Rider arrival ${c.rider}`);
     return out;
   }
+  // "+91 90000 00000 · AB": the phone never breaks across lines
+  const whoLine = r => {
+    const l2 = r.who.l2; if (!l2) return null;
+    if (r.phone && l2.startsWith(r.phone)) return el('span', {}, el('span', { class: 'nb' }, hl(r.phone, 'phone')), l2.slice(r.phone.length));
+    return l2;
+  };
   const tagsOf = r => [r.tags.disc ? el('span', { class: 'or-mk', title: 'Discount', 'aria-label': 'Discount' }, icon('tag')) : null, r.tags.void ? el('span', { class: 'or-mk', title: 'Voided after KOT', 'aria-label': 'Voided after KOT' }, icon('void')) : null];
-  const statusCellOf = r => el('div', { class: `or-c st ${r.status.cls}`, role: 'cell' }, el('div', { class: 'l1' }, el('b', {}, r.status.text)), el('div', { class: `l2 ${r.status.subCls || ''}`.trim() }, r.status.sub || ' '));
-  const payCellOf = r => el('div', { class: `or-c pm ${r.pay.cls}`, role: 'cell' }, el('div', { class: 'l1' }, el('b', {}, r.pay.text)), el('div', { class: 'l2' }, el('span', {}, money(Number(r.o.total) || 0)), ...tagsOf(r)));
+  const statusCellOf = r => el('div', { class: `or-c st ${r.status.cls}`, role: 'cell' }, el('div', { class: 'l1' }, el('b', {}, r.status.text)), el('div', { class: `l2 ${r.status.subCls || ''}`.trim() }, r.status.sub || '\u00A0'));
+  const payCellOf = r => el('div', { class: `or-c pm ${r.pay.cls || ''}`.trim(), role: 'cell' }, el('div', { class: 'l1' }, el('b', {}, r.pay.text)),
+    el('div', { class: 'l2' }, el('span', {}, r.pay.key === 'prf' ? `${money(r.pay.refunded)} refunded` : money(Number(r.o.total) || 0)), ...tagsOf(r)));
   const labelOf = r => `Order ${r.o.number != null ? ticket(r.o.number) : ''}, ${timeOf(r.when)}, ${r.type.label}, ${r.who.l1}, ${r.status.text}${r.status.sub ? ` ${r.status.sub}` : ''}, ${r.pay.text}, ${money(Number(r.o.total) || 0)}`;
   function tappable(r, cls, ...children) {
     const picked = picking?.has(r.id);
     return el('div', { class: `${cls}${picking ? r.lock ? ' locked' : picked ? ' picked' : '' : ''}`, role: 'row', tabindex: '0', 'data-id': r.id, 'aria-label': labelOf(r),
-      onclick: e => { if (e.target.closest('.or-bt,.or-oc')) return; if (suppressTap) { suppressTap = false; return; } tapRow(r); },
+      onclick: e => { if (e.target.closest('.or-bt,.or-open')) return; if (suppressTap) { suppressTap = false; return; } tapRow(r); },
       onkeydown: e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); tapRow(r); } } }, ...children);
   }
-  // A row: date & time · order type · customer / table · server · order status · payment status · four buttons
+  // A row: date & time · the type tile · order type · customer / table · server · order status · payment status · the
+  // four buttons
   function rowEl(r) {
-    const two = (cls, l1, l2, l3) => el('div', { class: `or-c ${cls}`, role: 'cell' }, el('div', { class: 'l1' }, ...[l1].flat()), l2 != null ? el('div', { class: 'l2' }, ...[l2].flat()) : null, l3 ? el('div', { class: 'l2' }, ...[l3].flat()) : null);
+    const cell = (cls, l1, l2, l3) => el('div', { class: `or-c ${cls}`, role: 'cell' }, el('div', { class: 'l1' }, ...[l1].flat()), l2 != null ? el('div', { class: 'l2' }, ...[l2].flat()) : null, l3 ? el('div', { class: 'l2' }, ...[l3].flat()) : null);
     const picked = picking?.has(r.id);
     return tappable(r, 'or-r',
       picking ? el('span', { class: `or-cb${picked ? ' on' : ''}`, 'aria-hidden': 'true' }, picked ? icon('check') : null) : null,
-      two('tm', el('b', {}, timeOf(r.when)), dateOf(r.when)),
-      two('ty', typeLine(r), hl(r.numbers)),
-      two('cu', el('b', {}, hl(r.who.l1)), r.who.l2 ? hl(r.who.l2) : null, codesLine(r)),
+      cell('tm', el('b', {}, timeOf(r.when)), dateOf(r.when)),
+      tileOf(r),
+      cell('ty', [el('b', {}, r.type.label), r.type.time ? el('span', { class: 'pt' }, r.type.time) : null], numbersOf(r)),
+      cell('cu', el('b', {}, hl(r.who.l1, 'name')), whoLine(r), codesLine(r)),
       statusCellOf(r), payCellOf(r),
       picking ? el('div', { class: 'or-c lock', role: 'cell' }, r.lock ? el('span', { class: 'or-lock' }, r.lock) : null) : buttons(r));
   }
-  // Split detail (OR02, OR03): the list on the left (660), each order its type and payment status, its number, time,
-  // customer or table and amount with its tags, its order status, and the codes for a delivery app; the order picked on
-  // the right: its header, order status and payment status, the delivery app's Call code / Handover / Pickup or Ready by
-  // / Rider arrival, the dishes, the totals worked out from them (the GST line as on the Counter), the four buttons and
-  // Open in Counter (clear of the lock's corner).
-  function splitView(v) {
-    if (!v.shown.some(r => r.id === chosen)) chosen = v.shown[0]?.id || null;
-    const item = r => {
-      const picked = picking?.has(r.id);
-      return tappable(r, `or-li${r.id === chosen ? ' sel' : ''}`,
-        el('div', { class: 'or-c' }, el('div', { class: 'l1' }, ...typeLine(r))),
-        el('div', { class: `or-c pm r1 ${r.pay.cls}` }, el('div', { class: 'l1' }, el('b', {}, r.pay.text))),
-        el('div', { class: 'l2' }, picking ? el('span', { class: `or-cb${picked ? ' on' : ''}`, 'aria-hidden': 'true' }, picked ? icon('check') : null) : null,
-          hl(`${r.numbers} · ${timeOf(r.when)} · `), el('b', { class: 'who' }, hl(r.who.l1)), r.who.l2 ? hl(` · ${r.who.l2}`) : null),
-        el('div', { class: 'or-c pm r2' }, el('div', { class: 'l2' }, money(Number(r.o.total) || 0), ...tagsOf(r))),
-        el('div', { class: `or-c st full ${r.status.cls}` }, el('div', { class: 'l1' }, el('b', {}, r.status.text), r.status.sub ? el('span', { class: `l2 ${r.status.subCls || ''}`.trim() }, r.status.sub) : null)),
-        r.who.codes ? el('div', { class: 'or-c full' }, el('div', { class: 'l2' }, ...codesLine(r))) : null);
-    };
-    listEl = el('div', { class: 'or-ls or-scroll', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...v.shown.map(item),
-      !v.shown.length ? emptyOf(v) : null);
-    const r = v.shown.find(x => x.id === chosen);
-    return el('div', { class: `or-split ${rowStyle()}` }, listEl, r ? detailOf(r) : el('div', { class: 'or-dt' }));
-  }
-  function detailOf(r) {
-    const o = r.o, lines = Array.isArray(o.lines) ? o.lines : [];
-    const sums = window.RestroBill?.order({ lines: lines.map(l => ({ each: Math.round((Number(l.price) || 0) * 100), qty: l.qty, off: l.off })), type: o.type, discountPct: o.discountPct,
-      servicePct: o.servicePct, packaging: o.packaging, delivery: o.delivery }, window.RestroMenu?.taxRate ?? 0.05) || { subtotal: o.subtotal || 0, total: o.total || 0, cgst: 0, sgst: 0, tax: 0, roundOff: 0 };
-    const gst = window.RestroBill?.labels(window.RestroMenu?.taxRate ?? 0.05) || { cgst: 'CGST', sgst: 'SGST', gst: 'GST', half: '' };
-    const count = lines.reduce((n, l) => n + (Number(l.qty) || 0), 0), kots = kotsOf(o).map((k, i) => `#${k.no || i + 1}`);
-    const t = r.type, title = t.platform ? `${PLATFORMS[t.platform][0]} #${o.platformNo || '—'} · Order ${ticket(o.number)}` : r.who.l1.startsWith('Table') ? `${r.who.l1.split(' · ')[0]} · Order ${ticket(o.number)}` : `${r.name || t.label} · Order ${ticket(o.number)}`;
-    const meta = [t.label, ...(r.who.l1.startsWith('Table') ? [o.guests ? `${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.who.l2] : [r.name, r.phone, r.phone ? '' : r.who.l2]),
-      timeOf(r.when), dateOf(r.when), kots.length ? `KOT ${kots.join(', ')}` : ''].filter(Boolean).join(' · ');
-    const box = (cls, label, value) => el('div', { class: `or-cbx ${cls}` }, el('span', {}, label), el('b', {}, value));
-    const c = r.who.codes, pickup = o.platformType === 'pickup';
-    const codes = t.platform ? el('div', { class: 'or-codes' }, box('y', 'Call code', o.callCode || '—'), box('g', 'Handover', o.handover || '—'),
-      box('', pickup ? 'Ready by' : 'Pickup', (pickup ? o.readyBy : o.pickupAt) ? timeOf(pickup ? o.readyBy : o.pickupAt) : '—'), !pickup ? box('', 'Rider arrival', c?.rider || '—') : null) : null;
-    const rupee = p => `₹${Math.round(p / 100).toLocaleString('en-IN')}`;
-    const dish = l => {
-      const each = Math.round((Number(l.price) || 0) * 100), gross = each * (Number(l.qty) || 0), off = window.RestroBill?.lineOff(gross, l.off) || 0;
-      return el('div', { class: 'or-dli' }, el('div', { class: 'q' }, `${l.qty} ×`), el('div', { class: 'n' }, l.name, Array.isArray(l.mods) && l.mods.length ? el('small', {}, l.mods.map(m => m?.label || m).join(' · ')) : null),
-        el('div', { class: 'e' }, off ? `${l.off}% off` : l.qty > 1 ? `${rupee(each)} ea` : ''), el('div', { class: 'p' }, rupee(gross - off)));
-    };
-    const tot = [['Subtotal · ' + `${count} item${count === 1 ? '' : 's'}`, money(sums.subtotal)],
-      sums.discount ? [`Discount ${sums.discountPct}%`, `−${money(sums.discount)}`] : null,
-      sums.service ? [`Service charge ${sums.servicePct}% (optional)`, money(sums.service)] : null,
-      sums.packaging ? ['Packaging', money(sums.packaging)] : null, sums.delivery ? ['Delivery', money(sums.delivery)] : null,
-      [`${gst.gst} (${gst.cgst} ${money(sums.cgst)} + ${gst.sgst} ${money(sums.sgst)})`, money(sums.tax)],
-      sums.roundOff ? ['Round off', `${sums.roundOff > 0 ? '+' : '−'}${money(Math.abs(sums.roundOff))}`] : null].filter(Boolean);
-    return el('div', { class: 'or-dt' },
-      el('div', { class: 'or-dh' }, el('div', { class: 'or-c' }, el('div', { class: 'l1' }, ...typeLine(r).slice(0, 1), el('b', {}, title)), el('div', { class: 'l2' }, meta))),
-      el('div', { class: 'or-stp' }, statusCellOf(r), payCellOf(r)),
-      codes,
-      el('div', { class: 'or-dl' }, ...lines.map(dish)),
-      el('div', { class: 'or-tot' }, ...tot.flatMap(([a, b]) => [el('span', {}, a), el('b', {}, b)]), el('span', { class: 'g' }, 'Total'), el('span', { class: 'g' }, money(sums.total))),
-      el('div', { class: 'or-acts' }, r.held ? null : buttons(r),
-        el('button', { type: 'button', class: 'or-oc', onclick: () => tapRow(r, true) }, 'Open in Counter', icon('back', 'fwd'))));
-  }
-  // Cards (OR04): four columns of cards: type and time, the order numbers, the customer (and codes), order status and
-  // payment status side by side, the four buttons
-  function cardOf(r, board) {
-    return tappable(r, board ? 'or-kc' : 'or-cd',
-      el('div', { class: 'tp' }, el('div', { class: 'or-c' }, el('div', { class: 'l1' }, ...typeLine(r))),
-        board ? el('div', { class: 'tmx' }, timeOf(r.when)) : el('div', { class: 'tmx' }, el('b', {}, timeOf(r.when)), el('span', {}, dateOf(r.when)))),
-      el('div', { class: 'sub' }, hl(r.numbers)),
-      el('div', { class: 'or-c cux' }, el('div', { class: 'l1' }, el('b', {}, hl(r.who.l1))), r.who.l2 ? el('div', { class: 'l2' }, hl(r.who.l2)) : null, r.who.codes ? el('div', { class: 'l2' }, ...codesLine(r)) : null),
-      el('div', { class: 'mid' }, statusCellOf(r), payCellOf(r)),
-      picking ? el('div', { class: 'or-c lock' }, r.lock ? el('span', { class: 'or-lock' }, r.lock) : el('span', { class: `or-cb${picking.has(r.id) ? ' on' : ''}` }, picking.has(r.id) ? icon('check') : null)) : buttons(r));
-  }
-  function cardsView(v) {
-    listEl = el('div', { class: 'or-cg or-scroll', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...v.shown.map(r => cardOf(r, false)), !v.shown.length ? emptyOf(v) : null);
-    return el('div', { class: `or-cards ${rowStyle()}` }, listEl);
-  }
-  // Board (OR05): Scheduled · In kitchen · Ready with their counts (adding up to the Open tab, each column that many
-  // cards), and Closed folded into a narrow strip with its count; › unfolds it
-  function boardView(v) {
-    const open = v.shown.filter(r => !r.held && r.status.text === 'Open'), closed = v.shown.filter(r => r.status.text === 'Closed');
-    const COLS = [['Scheduled', '#8A3F9A', r => r.status.subCls === 'sch'], ['In kitchen', '#78716C', r => r.status.subCls !== 'sch' && r.status.subCls !== 'rd'], ['Ready', '#2F7D4F', r => r.status.subCls === 'rd']];
-    const col = (name, colour, list, fold) => el('div', { class: 'or-col' },
-      el(fold ? 'button' : 'div', { class: 'or-ch2', style: `--c:${colour}`, ...(fold ? { type: 'button', onclick: () => { closedOpen = false; renderRest(); } } : {}) }, el('i'), name, el('em', {}, String(list.length))),
-      el('div', { class: 'or-col-in or-scroll' }, ...list.map(r => cardOf(r, true))));
-    const cols = COLS.map(([name, colour, test]) => col(name, colour, open.filter(test)));
-    const strip = closedOpen ? col('Closed', '#4A9468', closed, true)
-      : el('button', { type: 'button', class: 'or-col or-cz', 'aria-label': `Closed, ${closed.length} orders. Show them`, onclick: () => { closedOpen = true; renderRest(); } },
-        el('span', { class: 'czi' }, el('i'), el('b', {}, 'Closed'), el('em', {}, String(closed.length)), icon('back', 'fwd')));
-    listEl = null;
-    return el('div', { class: `or-bd ${rowStyle()}${closedOpen ? ' unfolded' : ''}` }, ...cols, strip);
-  }
-  const emptyOf = v => el('div', { class: 'or-empty' }, el('strong', {}, v.all.length ? 'No orders match' : day && day !== todayKey() ? 'No orders that day' : 'No orders yet'),
-    el('span', {}, v.all.length ? 'Try another tab, or clear the filters.' : 'Orders show here once they are saved or paid in Counter.'));
+  const emptyOf = v => el('div', { class: 'or-empty' }, el('strong', {}, v.all.length ? 'No orders match' : isToday() ? 'No orders yet today' : 'No orders that day'),
+    el('span', {}, v.all.length ? 'Try another tab, or clear the filters.' : 'Orders taken on the Counter, Floor or from Swiggy and Zomato will show up here as soon as they come in.'));
   // Bill / Receipt (the paper level inside: used part white on top, paper left light blue; amber when low, red with !
-  // when out, grey and crossed when the printer is offline) · KOT (blue; "KOT 3" solid when dishes haven't gone to the
-  // kitchen; "KOT !" red when a print failed) · Notify, or Ready → Marked for a delivery app · Buzz with the pager's
-  // number. Inactive ones are greyed in their place. A tap only does that button's job; a moving finger scrolls.
+  // when out, grey and crossed when the printer is offline) · KOT (blue: reprint; "KOT !" red when a print failed; plum
+  // with its time while a scheduled KOT waits) · Notify, or Ready → Marked for a delivery app · Buzz with the pager's
+  // number. A short green bar under Notify once a message went, and under Buzz once the dock confirmed the buzz.
+  // Inactive ones are greyed in their place. A tap does only that button's job; a moving finger scrolls.
   function buttons(r) {
     const stop = e => e.stopPropagation();
     const b = (cls, on, label, run, ...content) => el('button', { type: 'button', class: `or-b ${cls}${on ? '' : ' off'}`, 'aria-label': label, 'aria-disabled': on ? null : 'true',
       onclick: e => { stop(e); if (on) run(e.currentTarget); }, onpointerdown: stop }, ...content);
-    const paid = r.pay.cls === 'paid' || r.pay.cls === 'rf', look = paperLook();
-    const pr = b('pr', !r.held, paid ? 'Print the receipt' : 'Print the bill', () => printOrder(r), icon(look === 'off' ? 'printOff' : 'print'), el('span', {}, paid ? 'Receipt' : 'Bill'));
-    if (!r.held) paintPaper(pr);
+    const bill = r.pay.key === 'np' || r.pay.key === 'part', look = paperLook();
+    const pr = b('pr', true, bill ? 'Print the bill' : 'Print the receipt', () => printOrder(r), icon(look === 'off' ? 'printOff' : 'print'), el('span', {}, bill ? 'Bill' : 'Receipt'));
+    paintPaper(pr);
     const k = r.kot;
-    const kot = b(`kot${k.look === 'solid' ? ' solid' : k.look === 'err' ? ' err' : ''}`, k.look !== 'off', k.look === 'solid' ? `Send ${k.n} dishes to the kitchen` : k.look === 'err' ? 'A KOT didn’t print: print it again' : 'Reprint a KOT',
-      btn => openKot(r, btn), icon('kot'), el('span', {}, k.look === 'solid' ? `KOT ${k.n}` : k.look === 'err' ? 'KOT !' : 'KOT'));
+    const kot = b(`kot${k.look === 'err' ? ' err' : k.look === 'q' ? ' sk' : ''}`, k.look !== 'off', k.look === 'err' ? 'A KOT didn’t print: print it again' : k.look === 'q' ? `Scheduled KOT: prints by itself at ${timeOf(k.at)}` : 'Reprint a KOT',
+      btn => openKot(r, btn), icon('kot'), el('span', {}, k.label));
     const th = r.third;
     const third = th.kind === 'notify'
-      ? b('nt', th.on, th.on ? `Notify ${r.name || 'the customer'}` : 'Notify: no phone number', btn => openNotify(r, btn), icon('notify'), el('span', {}, 'Notify'))
+      ? b(`nt${th.sent ? ' sent' : ''}`, th.on, th.on ? `Notify ${r.name || 'the customer'}` : 'Notify: no phone number', btn => openNotify(r, btn), icon('notify'), el('span', {}, 'Notify'))
       : b('nt', th.on, th.kind === 'marked' ? 'Marked ready' : 'Mark ready', () => markReady(r), icon(th.kind === 'marked' ? 'marked' : 'ready'), el('span', {}, th.kind === 'marked' ? 'Marked' : 'Ready'));
-    const buzzed = flash.get(r.id) === 'buzzed';
-    const buzz = buzzed ? el('button', { type: 'button', class: 'or-b bz done', 'aria-label': `Pager ${r.buzz.no} buzzed`, onclick: stop, onpointerdown: stop }, icon('check'), el('span', {}, 'Buzzed'))
-      : b('bz', r.buzz.on, r.buzz.on ? `Buzz pager ${r.buzz.no}` : r.buzz.no ? `Pager ${r.buzz.no}: back in its dock` : 'Buzz: no pager', () => buzzPager(r), r.buzz.no ? el('em', {}, r.buzz.no) : null, el('span', {}, 'Buzz'));
+    const state = flash.get(r.id);
+    const buzz = b(`bz${r.buzz.sent ? ' sent' : ''}${state === 'buzzing' ? ' busy' : ''}`, r.buzz.on, r.buzz.on ? `Buzz pager ${r.buzz.no}` : r.buzz.no ? `Pager ${r.buzz.no}: back in its dock` : 'Buzz: no pager', () => buzzPager(r),
+      r.buzz.no ? el('em', {}, r.buzz.no) : null, el('span', {}, 'Buzz'));
     return el('div', { class: 'or-bt', role: 'cell' }, pr, kot, third, buzz);
   }
 
@@ -557,7 +604,7 @@
   let press = null, suppressTap = false;
   root.addEventListener('pointerdown', e => {
     suppressTap = false; // (a long-press's own tap is the only one passed over)
-    const row = e.target.closest?.('.or-r'); if (!row || e.target.closest('.or-bt') || e.button !== 0) return;
+    const row = e.target.closest?.('.or-r,.or-li,.or-cd'); if (!row || e.target.closest('.or-bt') || e.button !== 0) return;
     press = { row, x: e.clientX, y: e.clientY, id: e.pointerId, timer: setTimeout(() => longPress(row), 550) };
   });
   const endPress = e => { if (press && (!e || e.pointerId === press.id)) { clearTimeout(press.timer); press = null; } };
@@ -568,140 +615,159 @@
     const id = row.dataset.id, r = view().shown.find(x => x.id === id);
     if (!picking) picking = new Set();
     if (r && !r.lock) picking.add(id);
-    renderRest();
+    menu = null; render();
   }
+  // Open: Not paid and Partially paid orders in the Counter (Back comes back here); any other order its details page,
+  // which comes later: its receipt until then (a delivery app's order: on the app's integration)
   function tapRow(r, open = false) {
     if (!picking && !open && viewKind() === 'split' && chosen !== r.id) { chosen = r.id; renderRest(); return; }
     if (picking) {
       if (r.lock) { say({ text: `${r.lock.split(' · ')[0]} orders can’t be deleted` }); return; }
       if (picking.has(r.id)) picking.delete(r.id); else picking.add(r.id);
-      renderRest(); return;
+      render(); return;
     }
-    if (r.held) { returning = true; window.RestroCounter?.resumeHeld(r.o.heldId); return; }
-    if (r.type.platform) { say({ text: `${PLATFORMS[r.type.platform][0]} orders open with the ${PLATFORMS[r.type.platform][0]} integration` }); return; }
-    if (r.pay.cls === 'paid' || r.pay.cls === 'rf') { showReceipt(r.o); return; }
-    returning = true; window.RestroCounter?.openOrder(r.o.uid || r.o.number);
+    if (r.pay.key === 'np' || r.pay.key === 'part') {
+      if (r.type.platform) { say({ text: `${r.type.name} orders open with the ${r.type.name} integration` }); return; }
+      returning = true; window.RestroCounter?.openOrder(r.id); return;
+    }
+    showReceipt(r.o);
   }
 
   // ---------- the buttons' jobs ----------
   async function printOrder(r) {
-    const uid = r.o.uid || r.o.number;
     if (typeof window.RestroCounter?.printSaved !== 'function') return;
-    const res = await window.RestroCounter.printSaved(uid);
+    const res = await window.RestroCounter.printSaved(r.id);
     const what = res.kind === 'receipt' ? 'Receipt' : 'Bill';
     if (res.ok) say({ bold: `${what} ${res.reprint ? 'reprinted' : 'printed'}`, text: ` · Order ${ticket(r.o.number)}` });
-    else say({ kind: 'error', bold: `The ${what.toLowerCase()} didn’t print`, text: res.why === 'number' ? ' · can’t reach the main system for its bill number' : ` · Order ${ticket(r.o.number)}`, retry: () => printOrder(r) });
-    render();
+    else say({ kind: 'error', bold: `${what} didn’t print`, text: res.why === 'number' ? ' · can’t reach the main system for its bill number' : ` · Order ${ticket(r.o.number)}`, retry: () => printOrder(r) });
+    renderRest();
   }
+  // Buzz: two steps (P02): "Buzzing pager 7… · ‹customer or table›, Order #15" while the Buzz button keeps a blue ring, then "Pager 7
+  // buzzed" once the pager system confirms it (the short green bar under Buzz), or "didn't respond" with RETRY.
+  // RESTRODevice.pager.buzz(number) resolves when the buzz is confirmed (ANDROID-BRIDGE.md).
   function buzzPager(r) {
     const pager = window.RESTRODevice?.pager, n = r.buzz.no;
     if (typeof pager?.buzz !== 'function') { say('Pagers start with the RESTRO Android app'); return; }
-    const who = [r.name || (r.who.l1.startsWith('Table') ? r.who.l1.split(' · ')[0] : ''), `Order ${ticket(r.o.number)}`].filter(Boolean).join(', ');
-    Promise.resolve(pager.buzz(Number(n))).then(ok => {
-      if (ok === false) { say({ kind: 'error', bold: `Pager ${n}`, text: ' didn’t buzz', retry: () => buzzPager(r) }); return; }
-      flash.set(r.id, 'buzzed'); renderRest(); say({ bold: `Pager ${n}`, text: ` buzzed · ${who}` });
-      setTimeout(() => { flash.delete(r.id); if (dialog.open) renderRest(); }, 2000);
-    }, () => say({ kind: 'error', bold: `Pager ${n}`, text: ' didn’t buzz', retry: () => buzzPager(r) }));
+    if (flash.get(r.id) === 'buzzing') return;
+    const who = [r.name || (r.dine ? r.who.l1.split(' · ')[0] : ''), `Order ${ticket(r.o.number)}`].filter(Boolean).join(', ');
+    flash.set(r.id, 'buzzing'); say({ kind: 'busy', lead: 'Buzzing ', bold: `pager ${n}…`, text: ` · ${who}` }); renderRest();
+    const done = ok => {
+      flash.delete(r.id);
+      if (ok) { window.RestroCounter?.markBuzzed?.(r.id); say({ bold: `Pager ${n} buzzed`, text: ` · ${who}` }); }
+      else say({ kind: 'error', bold: `Pager ${n} didn’t respond`, text: ' · check it’s charged and in range', retry: () => buzzPager(r) });
+      if (dialog.open) renderRest();
+    };
+    try { Promise.resolve(pager.buzz(Number(n))).then(res => done(res !== false), () => done(false)); } catch { done(false); }
   }
   function markReady(r) {
     if (r.third.kind === 'marked') return;
-    if (window.RestroCounter?.markReady?.(r.o.uid)) { say({ bold: 'Marked ready', text: ` · ${r.type.label.split(' · ')[0]} #${r.o.platformNo || ''}` }); render(); }
+    if (window.RestroCounter?.markReady?.(r.id)) { say({ bold: 'Order ready sent', text: ` to ${r.type.name} · ${r.type.name} #${r.o.platformNo || ''} · Order ${ticket(r.o.number)}` }); renderRest(); }
   }
 
   // ---------- pop-ups ----------
-  // Notify (OR-P01): the customer's name, phone, order and type · the message · Order ready / Bill / Running late ·
-  // WhatsApp / SMS. Through the RESTRO Android app (RESTRODevice.whatsapp, RESTRODevice.sms; WhatsApp falls back to SMS).
-  function openNotify(r, btn) { pop = { kind: 'notify', id: r.id, template: 'ready', anchor: anchorOf(btn) }; renderLayer(); }
+  // Notify (OR-P01): the customer's name, phone, order and type · the message · Order ready / Bill / Running late
+  // (Order scheduled first while a scheduled order's KOT waits) · WhatsApp / SMS. Through the RESTRO Android app
+  // (RESTRODevice.whatsapp, RESTRODevice.sms; WhatsApp falls back to SMS). Sent: kept on the order (notifiedAt).
+  function openNotify(r, btn) { pop = { kind: 'notify', id: r.id, template: r.kot.look === 'q' ? 'scheduled' : 'ready', anchor: anchorOf(btn) }; renderLayer(); }
   function message(r, template) {
     const hi = r.name ? `Hi ${r.name}, ` : 'Hi, ', no = ticket(r.o.number), shop = shopName(), from = shop ? [' from ', shop] : [];
     const type = r.type.key;
+    if (template === 'scheduled') { const at = r.o.readyAt, day = dayOf(at) === dayOf(Date.now()) ? 'today' : dayOf(at) === addDays(dayOf(Date.now()), 1) ? 'tomorrow' : `on ${shortDay(at)}`;
+      return [hi, 'your order ', el('b', {}, no), ...from, ' is booked for ', el('b', {}, `${timeOf(at)} ${day}`), '. We’ll have it ready on time.']; }
     if (template === 'bill') return [hi, 'the bill for your order ', el('b', {}, no), ...from, ' is ', el('b', {}, money(Number(r.o.total) || 0)), '.'];
     if (template === 'late') return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'running a little late'), '. We’ll message you as soon as it’s ready.'];
-    if (type === 'dine-in') return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready'), '.'];
+    if (type === 'dine-in' || type === 'dine-in+takeaway') return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready'), '.'];
     if (type === 'delivery') return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready'), ' and will be with you soon.'];
     return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready for pickup'), '. Please show this message at the counter.'];
   }
   const plain = nodes => nodes.map(n => (typeof n === 'string' ? n : n.textContent)).join('');
+  const TEMPLATE_NAME = { scheduled: 'Order scheduled', ready: 'Order ready', bill: 'Bill', late: 'Running late' };
   async function sendNotify(r, channel) {
-    const text = plain(message(r, pop?.template || 'ready')), dev = window.RESTRODevice, to = r.o.customer?.mobile, code = r.o.customer?.code || '91';
+    const template = pop?.template || 'ready', text = plain(message(r, template)), dev = window.RESTRODevice, to = r.o.customer?.mobile, code = r.o.customer?.code || '91';
     const sms = typeof dev?.sms?.send === 'function', wa = typeof dev?.whatsapp?.send === 'function';
-    if (!sms && !wa) { say('Messages start with the RESTRO Android app'); return; }
+    if (!sms && !wa) { say('Messages go through the RESTRO Android app'); return; }
     pop = null; renderLayer();
     const send = async how => { try { return (await (how === 'whatsapp' ? dev.whatsapp : dev.sms).send({ to, code, text, order: r.o.uid })) !== false; } catch { return false; } };
     let used = channel === 'whatsapp' && wa ? 'whatsapp' : sms ? 'sms' : null;
     let ok = used ? await send(used) : false;
     if (!ok && used === 'whatsapp' && sms) { used = 'sms'; ok = await send('sms'); }
-    if (ok) say({ bold: used === 'whatsapp' ? 'WhatsApp sent' : 'SMS sent', text: ` to ${r.name || 'the customer'}` });
-    else say({ kind: 'error', bold: 'The message didn’t go', text: ` · ${r.name || 'the customer'}`, retry: () => sendNotify(r, channel) });
+    if (ok) { window.RestroCounter?.markNotified?.(r.id); say({ bold: `Sent to ${r.name || 'the customer'} on ${used === 'whatsapp' ? 'WhatsApp' : 'SMS'}`, text: ` · Order ${ticket(r.o.number)} ${TEMPLATE_NAME[template].toLowerCase()}` }); renderRest(); }
+    else say({ kind: 'error', bold: `Couldn’t send the ${used === 'whatsapp' ? 'WhatsApp message' : 'SMS'} to ${r.name || 'the customer'}`, text: ` · Order ${ticket(r.o.number)}`, retry: () => sendNotify(r, channel) });
   }
   function notifyCard(r) {
-    const tpl = pop.template;
+    const tpl = pop.template, queued = r.kot.look === 'q';
     const chip = (key, label) => el('button', { type: 'button', class: `or-tpl${tpl === key ? ' on' : ''}`, 'aria-pressed': String(tpl === key), onclick: () => { pop.template = key; renderLayer(); } }, label);
     return el('div', { class: 'or-pop notify', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Notify ${r.name || 'the customer'}` },
       el('div', { class: 'or-pop-head' }, el('div', {}, el('h3', {}, `Notify ${r.name || 'the customer'}`), el('p', {}, [r.phone, `Order ${ticket(r.o.number)}`, r.type.label].filter(Boolean).join(' · '))), closeX()),
       el('p', { class: 'or-msg-box' }, ...message(r, tpl)),
-      el('div', { class: 'or-tpls' }, chip('ready', 'Order ready'), chip('bill', 'Bill'), chip('late', 'Running late')),
+      el('div', { class: 'or-tpls' }, queued ? chip('scheduled', 'Order scheduled') : null, chip('ready', 'Order ready'), chip('bill', 'Bill'), chip('late', 'Running late')),
       el('div', { class: 'or-chs' },
         el('button', { type: 'button', class: 'or-ch wa', onclick: () => sendNotify(r, 'whatsapp') }, icon('chat'), 'WhatsApp'),
         el('button', { type: 'button', class: 'or-ch sm', onclick: () => sendNotify(r, 'sms') }, icon('sms'), 'SMS')));
   }
-  // KOT (OR-P03 to P06): dishes not sent yet → Send N dishes to kitchen (what went is listed under it, tick to reprint
-  // too); otherwise Reprint KOT: every KOT with its number, time and dishes, tick one or several (Select all). A KOT
-  // that didn't print is ticked, in red, with why ("Kitchen printer was out of paper — KOT 160 didn’t print.").
+  // KOT (OR-P04 to P06): reprint only — every KOT of the order with its number, time and dishes, tick one or several
+  // (Select all); a KOT that didn't print is ticked, in red, with why. A scheduled KOT still waiting (OS1): "Prints by
+  // itself at 8:00 pm", its dishes, Keep schedule or Send now.
   function openKot(r, btn) {
-    const k = window.RestroCounter?.kitchenOf?.(r.o.uid || r.o.number); if (!k) return;
+    const k = window.RestroCounter?.kitchenOf?.(r.id); if (!k) return;
     const failed = k.kots.filter(x => x.failed);
-    pop = { kind: 'kot', id: r.id, uid: r.o.uid || r.o.number, k, picked: new Set(failed.map(x => x.id)), anchor: anchorOf(btn) };
+    pop = { kind: r.kot.look === 'q' ? 'queued' : 'kot', id: r.id, uid: r.id, k, picked: new Set(failed.map(x => x.id)), anchor: anchorOf(btn) };
     renderLayer();
   }
   const WHY = { paper: 'Kitchen printer was out of paper', offline: 'Kitchen printer was offline', cover: 'Kitchen printer’s cover was open' };
+  const whoOf = r => (r.dine ? r.who.l1.split(' · ')[0] : r.name || r.type.label);
   function kotCard(r) {
-    const { k, picked } = pop, failed = k.kots.filter(x => x.failed), sending = k.unsent.length > 0;
-    const count = k.unsent.reduce((n, l) => n + l.qty, 0);
-    const who = r.who.l1.startsWith('Table') ? r.who.l1.split(' · ')[0] : r.name || r.type.label;
+    const { k, picked } = pop, failed = k.kots.filter(x => x.failed);
     const tick = x => el('button', { type: 'button', class: `or-kotc${picked.has(x.id) ? ' on' : ''}${x.failed ? ' failed' : ''}`, role: 'checkbox', 'aria-checked': String(picked.has(x.id)),
       onclick: () => { if (picked.has(x.id)) picked.delete(x.id); else picked.add(x.id); renderLayer(); } },
     el('span', { class: 'or-cb', 'aria-hidden': 'true' }, picked.has(x.id) ? icon('check') : null),
     el('span', { class: 'or-kotc-t' }, el('b', {}, `KOT ${x.no}`, x.failed ? el('i', {}, ' · didn’t print') : null), el('small', {}, x.dishes)), el('span', { class: 'or-kotc-at' }, timeOf(x.at)));
-    const n = picked.size, red = !sending && failed.length > 0 && [...picked].every(id => failed.some(f => f.id === id)) && n > 0;
-    const label = sending ? `Send ${count} dish${count === 1 ? '' : 'es'} to kitchen${n ? ` · reprint ${n === 1 ? 'KOT' : `${n} KOTs`}` : ''}`
-      : !n ? 'Reprint' : n === 1 ? `Reprint KOT ${k.kots.find(x => picked.has(x.id)).no}` : n === k.kots.length && n > 1 ? `Reprint all ${n} KOTs` : `Reprint ${n} KOTs`;
+    const n = picked.size, red = failed.length > 0 && n > 0 && [...picked].every(id => failed.some(f => f.id === id));
+    const label = !n ? 'Reprint' : n === 1 ? `Reprint KOT ${k.kots.find(x => picked.has(x.id)).no}` : n === k.kots.length ? `Reprint all ${n} KOTs` : `Reprint ${n} KOTs`;
     const why = failed.length ? `${WHY[failed[0].why] || 'Kitchen printer didn’t answer'} — ${failed.length === 1 ? `KOT ${failed[0].no} didn’t print` : `${failed.length} KOTs didn’t print`}.` : '';
-    return el('div', { class: 'or-pop kot', role: 'dialog', 'aria-modal': 'true', 'aria-label': sending ? `Send KOT, ${who}` : `Reprint KOT, ${who}` },
-      el('div', { class: 'or-pop-head' }, el('div', {}, el('h3', {}, `${sending ? 'Send KOT' : 'Reprint KOT'} · ${who}`), el('p', {}, `Order ${ticket(r.o.number)} · ${r.type.label}`)), closeX()),
+    return el('div', { class: 'or-pop kot', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Reprint KOT, ${whoOf(r)}` },
+      el('div', { class: 'or-pop-head' }, el('div', {}, el('h3', {}, `Reprint KOT · ${whoOf(r)}`), el('p', {}, `Order ${ticket(r.o.number)} · ${r.type.label}`)), closeX()),
       why ? el('p', { class: 'or-why' }, icon('kot'), why) : null,
-      sending ? [
-        el('p', { class: 'or-lab' }, k.kitchenAt ? `Not sent yet · ${count} · goes to the kitchen at ${clockOf(k.kitchenAt)}` : `Not sent yet · ${count}`),
-        el('div', { class: 'or-unsent' }, ...k.unsent.map(l => el('p', {}, el('b', {}, `${l.qty} ×`), ` ${l.name}`, l.mods ? el('span', { class: 'mod' }, ` · ${l.mods}`) : null))),
-        k.kots.length ? el('p', { class: 'or-lab' }, 'Already sent') : null]
-        : el('p', { class: 'or-lab' }, failed.length ? 'Tick to reprint' : 'All dishes already sent · tick to reprint',
-          k.kots.length > 1 ? el('button', { type: 'button', class: 'or-link', onclick: () => { k.kots.forEach(x => picked.add(x.id)); renderLayer(); } }, 'Select all') : null),
-      k.kots.length ? el('div', { class: 'or-kots' }, ...k.kots.map(tick)) : !sending ? el('p', { class: 'or-none' }, 'Nothing has gone to the kitchen yet.') : null,
-      el('button', { type: 'button', class: `or-go${red ? ' red' : ''}`, disabled: !sending && !n, onclick: () => runKot(r) }, icon('kot'), label));
+      el('p', { class: 'or-lab' }, failed.length ? 'Tick to reprint' : 'Tick to reprint',
+        k.kots.length > 1 ? el('button', { type: 'button', class: 'or-link', onclick: () => { k.kots.forEach(x => picked.add(x.id)); renderLayer(); } }, 'Select all') : null),
+      k.kots.length ? el('div', { class: 'or-kots' }, ...k.kots.map(tick)) : el('p', { class: 'or-none' }, 'Nothing has gone to the kitchen yet.'),
+      el('button', { type: 'button', class: `or-go${red ? ' red' : ''}`, disabled: !n, onclick: () => runKot(r) }, icon('kot'), label));
+  }
+  function queuedCard(r) {
+    const { k } = pop, at = r.kot.at;
+    return el('div', { class: 'or-pop kot queued', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Scheduled KOT, ${whoOf(r)}` },
+      el('div', { class: 'or-pop-head' }, el('div', {}, el('h3', {}, `Scheduled KOT · ${whoOf(r)}`), el('p', {}, `Order ${ticket(r.o.number)} · ${r.type.label} · ready by ${timeOf(r.o.readyAt)}`)), closeX()),
+      el('p', { class: 'or-why sch' }, icon('kot'), `Prints by itself at ${timeOf(at)}${dayOf(at) === dayOf(Date.now()) ? '' : ` on ${shortDay(at)}`}`),
+      el('div', { class: 'or-unsent' }, ...k.unsent.map(l => el('p', {}, el('b', {}, `${l.qty} ×`), ` ${l.name}`, l.mods ? el('span', { class: 'mod' }, ` · ${l.mods}`) : null))),
+      el('div', { class: 'or-chs' },
+        el('button', { type: 'button', class: 'or-ch grey', onclick: () => { pop = null; renderLayer(); } }, 'Keep schedule'),
+        el('button', { type: 'button', class: 'or-ch grey', onclick: () => sendNow(r) }, 'Send now')));
+  }
+  async function sendNow(r) {
+    const uid = pop.uid; pop = null; renderLayer();
+    const res = await window.RestroCounter?.sendKitchen?.(uid); if (!res) return;
+    if (res.ok) say({ bold: `KOT ${res.no} sent`, text: ` · Order ${ticket(r.o.number)}` });
+    else say({ kind: 'error', bold: `Kitchen printer offline`, text: ` · KOT ${res.no} didn’t print · Order ${ticket(r.o.number)}`, retry: () => openKotById(r.id) });
+    render();
   }
   async function runKot(r) {
-    const { k, picked, uid } = pop, ids = [...picked], sending = k.unsent.length > 0, no = ticket(r.o.number);
+    const { picked, uid, k } = pop, ids = [...picked], no = ticket(r.o.number);
     pop = null; renderLayer();
-    const C = window.RestroCounter;
-    if (sending) {
-      const res = await C.sendKitchen(uid);
-      if (!res.ok) say({ kind: 'error', bold: 'Kitchen printer didn’t print', text: ` · KOT ${res.no} · Order ${no}`, retry: () => C.reprintKots(uid, []) });
-      else say({ bold: `KOT ${res.no} sent`, text: ` · ${res.count} dish${res.count === 1 ? '' : 'es'} · Order ${no}` });
-    }
-    if (ids.length) {
-      const res = await C.reprintKots(uid, ids);
-      if (res.ok) { if (!sending) say({ bold: ids.length === 1 ? 'KOT reprinted' : `${ids.length} KOTs reprinted`, text: ` · Order ${no}` }); }
-      else say({ kind: 'error', bold: `${res.failed.length === 1 ? `KOT ${res.failed[0].no}` : `${res.failed.length} KOTs`} didn’t print`, text: ` · ${WHY[res.failed[0].why] || 'Kitchen printer didn’t answer'}`, retry: () => openKotById(r.id) });
-    }
+    if (!ids.length) return;
+    const res = await window.RestroCounter.reprintKots(uid, ids);
+    if (res.ok) say({ bold: ids.length === 1 ? `KOT ${k.kots.find(x => x.id === ids[0])?.no ?? ''} reprinted` : `${ids.length} KOTs reprinted`, text: ` · Order ${no}` });
+    else say({ kind: 'error', bold: `${res.failed.length === 1 ? `KOT ${res.failed[0].no}` : `${res.failed.length} KOTs`} didn’t print`, text: ` · ${WHY[res.failed[0].why] || 'Kitchen printer didn’t answer'}`, retry: () => openKotById(r.id) });
     render();
   }
   function openKotById(id) { const r = view().shown.find(x => x.id === id); const btn = dialog.querySelector(`[data-id="${CSS.escape(id)}"] .or-b.kot`); if (r) openKot(r, btn); }
-  // Delete (picked orders): "Delete 3 orders?" · what the kitchen gets · Reason (required) and its line · the two
-  // reasons this restaurant gives most (learned, as the void reasons are: the list "@delete") · Clear ..... the red button
+  // Delete (picked orders, OR-P11): "Delete 3 orders?" · what the kitchen gets · Reason (required) first · the six
+  // reasons this restaurant gives most (learned: the list "@delete", published every 15 days) · Clear ..... the red
+  // button. (PIN required for staff without the delete access comes with access levels.)
   const learned = id => { try { const kept = JSON.parse(localStorage.getItem('restro.quickNotes.v1') || 'null'), out = new Map(); for (const x of Array.isArray(kept?.lists?.[id]) ? kept.lists[id] : []) { const t = (typeof x === 'string' ? x : x?.text || '').replace(/\s+/g, ' ').trim().slice(0, 80); if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t); } return [...out.values()]; } catch { return []; } };
   function deleteCard() {
-    const rows = view().all.filter(r => pop.ids.includes(r.id)), n = rows.length, reached = rows.filter(r => kotsOf(r.o).length).length;
-    const reasons = learned('@delete').slice(0, 2), reason = pop.reason;
+    const rows = view().all.filter(r => pop.ids.includes(r.id)), n = rows.length, reached = rows.filter(r => kotsOf(r.o).length);
+    const queued = rows.filter(r => !kotsOf(r.o).length && r.o.readyAt);
+    const reasons = learned('@delete').slice(0, 6), reason = pop.reason;
     const input = el('input', { id: 'orders-reason', type: 'text', maxlength: '80', autocomplete: 'off', autocapitalize: 'sentences', enterkeyhint: 'done', placeholder: 'Type the reason here', 'aria-label': 'Reason' });
     input.value = reason;
     const line = el('label', { class: `or-line${reason ? '' : ' empty'}` }, icon('edit'), input);
@@ -711,10 +777,15 @@
     function sync() { line.classList.toggle('empty', !pop.reason); go.disabled = !pop.reason.trim(); clear.disabled = !pop.reason; chips.forEach((c, i) => c.classList.toggle('on', pop.reason.trim().toLowerCase() === reasons[i].toLowerCase())); }
     input.addEventListener('input', () => { pop.reason = input.value; sync(); });
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+    const due = rows.reduce((s, r) => s + (Number(r.o.total) || 0), 0);
+    const slip = reached.length === rows.length
+      ? (n === 1 ? 'An ORDER CANCELLED slip will print in the kitchen. This can’t be undone.' : `One ORDER CANCELLED slip listing all ${n} orders and their KOTs will print in the kitchen. This can’t be undone.`)
+      : reached.length ? `ORDER CANCELLED slip for ${reached.map(r => ticket(r.o.number)).join(', ')} will print · ${rows.filter(r => !reached.includes(r)).map(r => ticket(r.o.number)).join(', ')} wasn’t sent yet, nothing prints for ${rows.length - reached.length === 1 ? 'it' : 'them'}`
+        : queued.length ? 'The kitchen hasn’t got this order yet, so nothing prints in the kitchen. The queued KOT is cancelled.' : 'Nothing has gone to the kitchen, so nothing prints there.';
     return el('div', { class: 'or-pop del', role: 'dialog', 'aria-modal': 'true', 'aria-label': n === 1 ? 'Delete order' : `Delete ${n} orders` },
       el('div', { class: 'or-pop-head' }, el('div', { class: 'or-del-h' }, el('i', { 'aria-hidden': 'true' }, icon('trash')), el('div', {}, el('h3', {}, n === 1 ? `Delete order ${ticket(rows[0].o.number)}?` : `Delete ${n} orders?`),
-        el('p', {}, 'They come off Orders and the Counter · tables and pagers free'))), closeX()),
-      reached ? el('p', { class: 'or-why' }, icon('kot'), n === 1 ? 'An ORDER CANCELLED slip will print in the kitchen.' : `One ORDERS CANCELLED slip for ${reached === 1 ? '1 order' : `${reached} orders`} will print in the kitchen.`) : null,
+        el('p', {}, `${rows.map(r => ticket(r.o.number)).join(' · ')} · ${rupees(due)} not paid`))), closeX()),
+      el('p', { class: 'or-why' }, icon('kot'), slip),
       el('p', { class: 'or-lab' }, 'Reason (required)'), line,
       el('p', { class: 'or-lab' }, 'Top reasons'),
       chips.length ? el('div', { class: 'or-tpls' }, ...chips) : el('p', { class: 'or-none' }, 'Your most-used reasons will show up here after 15 days.'),
@@ -722,10 +793,10 @@
   }
   function confirmDelete() {
     const ids = pop.ids, reason = pop.reason.trim(); if (!reason) return;
-    const uids = view().all.filter(r => ids.includes(r.id) && !r.lock).map(r => r.o.uid || `n${r.o.number}`);
+    const rows = view().all.filter(r => ids.includes(r.id) && !r.lock), uids = rows.map(r => r.id);
     const res = window.RestroCounter?.deleteOrders?.(uids, reason) || { count: 0 };
     pop = null; picking = null; render();
-    if (res.count) say({ bold: res.count === 1 ? 'Order deleted' : `${res.count} orders deleted`, text: res.kitchen ? ` · ${res.count === 1 ? 'ORDER CANCELLED' : 'ORDERS CANCELLED'} slip sent to the kitchen` : '' });
+    if (res.count) say({ bold: res.count === 1 ? 'Order deleted' : `${res.count} orders deleted`, text: ` · ${rows.map(r => ticket(r.o.number)).join(', ')}` });
   }
   // New paper roll? (OR-P08)
   function rollCard() {
@@ -742,70 +813,109 @@
   function anchorOf(btn) { const r = btn?.getBoundingClientRect?.(), box = root.getBoundingClientRect(); return r ? { right: box.right - r.left + 10 * fu(), mid: (r.top + r.bottom) / 2 - box.top } : null; }
   const probe = el('span', { class: 'or-probe', 'aria-hidden': 'true' }), fu = () => (probe.offsetWidth / 100) || 1; // (the design's pixel, --fu)
 
-  // ---------- dropdown menus (OR-P12): under their button ----------
+  // ---------- menus: under their pill ----------
   function toggleMenu(key, btn) { menu = menu === key ? null : key; menuAt = btn ? btn.getBoundingClientRect() : null; render(); }
   let menuAt = null;
   function menuView(v) {
     const items = [];
-    const item = (on, label, count, lead, pick, sep) => { if (sep) items.push(el('div', { class: 'or-sepm' })); items.push(el('button', { type: 'button', role: 'menuitemradio', 'aria-checked': String(on), class: `or-it${on ? ' on' : ''}`, onclick: () => { pick(); menu = null; scrollTop = 0; render(); } }, lead, el('span', { class: 'or-it-t' }, label), count != null ? el('em', {}, String(count)) : null)); };
     const box = name => el('span', { class: 'ii' }, icon(name));
-    const others = (field) => v.all.filter(r => { const keep = { dv, typeF, staffF }; return withFilters({ ...keep, [field]: 'all' }, r); });
-    if (menu === 'dv') {
-      const pool = others('dv');
-      DV.forEach(([key, label, ic], i) => item(dv === key, label, pool.filter(r => key === 'all' || (key === 'disc' ? r.tags.disc : key === 'void' ? r.tags.void : r.tags.disc && r.tags.void)).length, box(ic), () => { dv = key; }, i === 1));
+    const check = on => el('span', { class: `or-cb${on ? ' on' : ''}`, 'aria-hidden': 'true' }, on ? icon('check') : null);
+    const row = (on, label, count, lead, pick, { role = 'menuitemcheckbox', sub = '' } = {}) => items.push(el('button', { type: 'button', role, 'aria-checked': String(on), class: `or-it${on ? ' on' : ''}`,
+      onclick: () => { pick(); scrollTop = 0; render(); } }, lead, el('span', { class: 'or-it-t' }, label, sub ? el('small', {}, sub) : null), count != null ? el('em', {}, String(count)) : null));
+    const sep = () => items.push(el('div', { class: 'or-sepm' }));
+    let head = '', foot = '';
+    if (menu === 'pay') {
+      head = 'PAYMENT STATUS'; foot = 'Tick one or more · the order type shows which delivery app';
+      row(!payF.size && !dueOnly, 'All payments', v.all.length, check(!payF.size && !dueOnly), () => { payF = new Set(); dueOnly = false; }); sep();
+      PAYS.forEach(([key, label]) => row(payF.has(key), label, v.all.filter(r => r.pay.key === key).length, check(payF.has(key)), () => { dueOnly = false; if (payF.has(key)) payF.delete(key); else payF.add(key); payF = new Set(payF); }));
+    } else if (menu === 'dv') {
+      head = 'DISCOUNTS & VOIDS'; foot = 'Tap the one ticked again to show all orders';
+      [['disc', 'Discounted', 'tag'], ['void', 'Voided after KOT', 'void'], ['both', 'Discounted and voided', 'receipt']].forEach(([key, label, ic]) =>
+        row(dv === key, label, v.all.filter(r => key === 'disc' ? r.tags.disc : key === 'void' ? r.tags.void : r.tags.disc && r.tags.void).length, box(ic), () => { dv = dv === key ? null : key; }, { role: 'menuitemradio' }));
     } else if (menu === 'type') {
-      const pool = others('typeF'), keys = [...Object.keys(TYPES), ...Object.keys(PLATFORMS).filter(p => v.all.some(r => r.type.platform === p))];
-      item(typeF === 'all', 'All order types', pool.length, box('receipt'), () => { typeF = 'all'; });
-      keys.forEach((key, i) => item(typeF === key, TYPES[key]?.[0] || PLATFORMS[key][0], pool.filter(r => (r.type.platform ? r.type.platform === key : r.type.keys.includes(key))).length,
-        TYPES[key] ? el('span', { class: 'ii', style: `color:${TYPES[key][2]}` }, icon(TYPES[key][1])) : el('span', { class: 'ii logo', style: `background:${PLATFORMS[key][1]}` }, PLATFORMS[key][0][0]), () => { typeF = key; }, i === 0));
+      head = 'ORDER TYPES'; foot = 'Tick one or more · applies straight away';
+      row(!typesF.size, 'All order types', v.all.length, check(!typesF.size), () => { typesF = new Set(); }); sep();
+      const apps = Object.keys(PLATFORMS);
+      [...Object.keys(TYPES), ...apps].forEach(key => {
+        const lead = el('span', { class: 'or-mi' }, check(typesF.has(key)), TYPES[key] ? el('span', { class: 'ii t', style: `background:${TYPES[key][2]}1A;color:${TYPES[key][2]}` }, icon(TYPES[key][1])) : el('span', { class: 'ii t', style: `background:${PLATFORMS[key][1]}1A` }, el('span', { class: 'or-logo', style: `background:${PLATFORMS[key][1]}` }, PLATFORMS[key][0][0])));
+        row(typesF.has(key), TYPES[key]?.[0] || PLATFORMS[key][0], v.all.filter(r => r.type.key === key).length, lead, () => { if (typesF.has(key)) typesF.delete(key); else typesF.add(key); typesF = new Set(typesF); });
+      });
     } else if (menu === 'staff') {
-      const pool = others('staffF'), names = [...new Set(v.all.map(r => r.server).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-      item(staffF === 'all', 'All staff', pool.length, box('receipt'), () => { staffF = 'all'; });
-      names.forEach((name, i) => item(staffF === name, name, pool.filter(r => r.server === name).length, el('span', { class: 'ii av' }, initialsOf(name)), () => { staffF = name; }, i === 0));
-    } else if (menu === 'day') {
-      const days = [...new Set([todayKey(), ...(window.RestroCounter?.orders?.() || []).map(dayOfOrder)])].sort().reverse().slice(0, 31);
-      const counts = new Map(); for (const o of window.RestroCounter?.orders?.() || []) counts.set(dayOfOrder(o), (counts.get(dayOfOrder(o)) || 0) + 1);
-      days.forEach(d => item((day || todayKey()) === d, dayLabel(d), counts.get(d) || 0, box('calendar'), () => { day = d === todayKey() ? null : d; }));
+      head = 'STAFF'; foot = 'Server on dine-in orders, cashier on the rest';
+      const people = window.RestroStaff?.list?.() || [], names = [...new Set([...people.map(p => p.name), ...v.all.map(r => r.server).filter(Boolean)])];
+      row(!staffF, 'All staff', null, check(!staffF), () => { staffF = null; }, { role: 'menuitemradio' }); sep();
+      names.forEach(name => row(staffF === name, name, null, check(staffF === name), () => { staffF = staffF === name ? null : name; }, { role: 'menuitemradio', sub: people.find(p => p.name === name)?.roleName || '' }));
+    } else if (menu === 'date') {
+      head = 'SHOW ORDERS FOR';
+      const today = todayKey(), on = key => !range ? key === today : range.from === key && range.to === key;
+      const days = [today, addDays(today, -1), addDays(today, 1)];
+      const counts = new Map(); for (const o of window.RestroCounter?.orders?.() || []) { const d = dayOfOrder(o); counts.set(d, (counts.get(d) || 0) + 1); }
+      const earlier = [...counts.keys()].filter(d => !days.includes(d)).sort().reverse().slice(0, 7);
+      [...days, ...earlier].forEach((d, i) => { if (i === 3) sep(); row(on(d), dayLabel(d), counts.get(d) || 0, box('calendar'), () => { range = d === today ? null : { from: d, to: d }; }, { role: 'menuitemradio', sub: d === addDays(today, 1) ? 'scheduled' : '' }); });
     }
+    const keep = ['pay', 'type', 'staff'].includes(menu); // (several can be ticked: the menu stays open)
+    if (!keep) items.forEach(b => b.addEventListener('click', () => { menu = null; }, { capture: true }));
     const box2 = root.getBoundingClientRect(), at = menuAt, right = at ? at.right - box2.left : 0;
-    const style = at ? `top:${at.bottom - box2.top + 6 * fu()}px;${right > box2.width * .6 ? `right:${box2.right - at.right}px` : `left:${at.left - box2.left + 8 * fu()}px`}` : '';
+    const style = at ? `top:${at.bottom - box2.top + 8 * fu()}px;${right > box2.width * .6 ? `right:${box2.right - at.right}px` : `left:${at.left - box2.left}px`}` : '';
     return el('div', { class: 'or-menu-wrap', onclick: e => { if (e.target === e.currentTarget) { menu = null; render(); } } },
-      el('div', { class: 'or-menu', role: 'menu', style }, ...items));
+      el('div', { class: `or-menu m-${menu}`, role: 'menu', style }, head ? el('p', { class: 'or-mh' }, head) : null, ...items, foot ? el('p', { class: 'or-mf' }, foot) : null));
   }
-  function withFilters(f, r) { const keep = { dv, typeF, staffF }; ({ dv, typeF, staffF } = f); const ok = matches(r); ({ dv, typeF, staffF } = keep); return ok; }
 
-  // ---------- rendering ----------
+  // ---------- picking orders to delete (OR-P10): "3 selected", Select all / Unselect all, why some can't be picked,
+  // Cancel and Delete 3 orders ----------
+  function pickBar(v) {
+    const can = v.shown.filter(r => !r.lock), n = picking.size, all = can.length > 0 && can.every(r => picking.has(r.id));
+    return el('div', { class: 'or-pickbar' },
+      el('span', { class: 'or-picked' }, `${n} selected`),
+      el('button', { type: 'button', class: 'or-link', onclick: () => { if (all) can.forEach(r => picking.delete(r.id)); else can.forEach(r => picking.add(r.id)); render(); } }, all ? 'Unselect all' : 'Select all'),
+      el('span', { class: 'or-hint' }, 'Paid and Swiggy/Zomato orders can’t be deleted'),
+      el('span', { class: 'or-sp' }),
+      el('button', { type: 'button', class: 'or-cancel', onclick: () => { picking = null; render(); } }, 'Cancel'),
+      el('button', { type: 'button', class: 'or-del', disabled: !n, onclick: () => { if (n) { pop = { kind: 'delete', ids: [...picking], reason: '' }; renderLayer(); } } }, icon('trash'), n === 1 ? 'Delete 1 order' : `Delete ${n} orders`),
+      syncBtn());
+  }
+
+  // ---------- drawing ----------
+  // A whole view: Classic is the sidebar and, on the right, the search row (search · Clear filters · Sync, or the
+  // picking bar) over the table. The search box is made once per full drawing and kept while the rest is redrawn.
+  // (the parts redrawn around the search box while typing carry data-slot; the search box is never taken off the page)
+  const slot = (node, name) => { node.dataset.slot = name; return node; };
+  function layout(v, search) {
+    const top = picking ? [slot(pickBar(v), 'pick')] : [search, slot(el('div', { class: 'or-tools' }, clearBtn(), syncBtn()), 'tools')];
+    return el('div', { class: `or-classic ${rowStyle()}${picking ? ' picking' : ''}`, 'data-kind': 'classic' }, slot(sideEl(v), 'side'),
+      el('div', { class: 'or-main' }, el('div', { class: `or-srow${picking ? ' picking' : ''}` }, ...top), slot(sheetEl(v), 'sheet')));
+  }
   function render() {
     const v = view();
-    topEl = topBar(v); restEl = el('div', { class: 'or-rest' });
+    searchEl = searchBox();
     layerEl = el('div', { class: 'or-layer' });
-    root.replaceChildren(topEl, restEl, layerEl, probe);
-    fillRest(v); fillLayer(v);
+    frame = layout(v, searchEl);
+    root.replaceChildren(frame, layerEl, probe);
+    if (listEl) listEl.scrollTop = scrollTop;
+    fillLayer(v);
     if (msg && bar.parentElement !== dialog) dialog.append(bar);
   }
+  // Everything but the search box: the parts around it are drawn again in place, so typing (and the keyboard) carries on
   function renderRest() {
-    if (!topEl) { render(); return; }
-    const v = view();
-    topEl.querySelector('.or-sum')?.replaceWith(summary(v));
-    fillRest(v); fillLayer(v);
+    if (!frame || !searchEl?.isConnected || picking || frame.dataset.kind !== viewKind()) { render(); return; }
+    const v = view(), next = layout(v, el('span'));
+    frame.className = next.className;
+    for (const part of next.querySelectorAll('[data-slot]')) frame.querySelector(`[data-slot="${part.dataset.slot}"]`)?.replaceWith(part);
+    if (listEl) listEl.scrollTop = scrollTop;
+    fillLayer(v);
   }
   function renderLayer() { if (!layerEl) { render(); return; } fillLayer(view()); }
-  function fillRest(v) {
-    const kind = viewKind();
-    restEl.replaceChildren(filterBar(v), kind === 'split' ? splitView(v) : kind === 'cards' ? cardsView(v) : kind === 'board' ? boardView(v) : list(v));
-    if (listEl) listEl.scrollTop = scrollTop;
-  }
   function fillLayer(v) {
     const parts = [];
     if (menu) parts.push(menuView(v));
     if (pop) {
-      const r = pop.kind === 'notify' || pop.kind === 'kot' ? v.all.find(x => x.id === pop.id) : null;
-      const card = pop.kind === 'notify' && r ? notifyCard(r) : pop.kind === 'kot' && r ? kotCard(r) : pop.kind === 'delete' ? deleteCard() : pop.kind === 'roll' ? rollCard() : null;
+      const r = ['notify', 'kot', 'queued'].includes(pop.kind) ? v.all.find(x => x.id === pop.id) : null;
+      const card = pop.kind === 'notify' && r ? notifyCard(r) : pop.kind === 'kot' && r ? kotCard(r) : pop.kind === 'queued' && r ? queuedCard(r) : pop.kind === 'delete' ? deleteCard() : pop.kind === 'roll' ? rollCard() : null;
       if (card) {
         if (pop.anchor) card.style.cssText = `right:${pop.anchor.right}px;--mid:${pop.anchor.mid}px`;
         card.classList.toggle('anchored', Boolean(pop.anchor));
         // a tap outside closes Notify and KOT; the delete and paper-roll questions wait for an answer
-        parts.push(el('div', { class: 'or-scrim', onclick: e => { if (e.target === e.currentTarget && (pop.kind === 'notify' || pop.kind === 'kot')) { pop = null; renderLayer(); } } }, card));
+        parts.push(el('div', { class: 'or-scrim', onclick: e => { if (e.target === e.currentTarget && ['notify', 'kot', 'queued'].includes(pop.kind)) { pop = null; renderLayer(); } } }, card));
       } else pop = null;
     }
     layerEl.replaceChildren(...parts);
@@ -823,7 +933,7 @@
   function closeReceipt() { if (!receipt) return false; receipt.remove(); receipt = null; return true; }
   function showReceipt(o) {
     closeReceipt();
-    const r = infoOf(o, false, Date.now()), sub = Number.isFinite(o.subtotal) ? o.subtotal : o.lines.reduce((n, l) => n + Math.round(l.price * 100) * l.qty, 0);
+    const r = infoOf(o, Date.now()), sub = Number.isFinite(o.subtotal) ? o.subtotal : o.lines.reduce((n, l) => n + Math.round(l.price * 100) * l.qty, 0);
     const pct = window.RestroBill?.pct(o.discountPct) ?? null, split = Number.isFinite(o.cgst) && Number.isFinite(o.sgst);
     const gst = window.RestroBill?.labels(window.RestroMenu?.taxRate) || { cgst: 'CGST', sgst: 'SGST' };
     const rate = sub ? Math.round((o.tax / sub) * 1000) / 10 : 0, cash = (o.method || 'cash') === 'cash' && Number.isFinite(o.received);
@@ -857,7 +967,7 @@
   // seconds for the kitchen minutes, unless a finger is scrolling or a menu or pop-up is open.
   window.addEventListener('restro:data-changed', e => { const names = e.detail?.collections || []; if (dialog.open && (names.includes('orders') || names.includes('held')) && !menu) renderRest(); });
   window.addEventListener('restro:pager-docked', () => { if (dialog.open && !menu) renderRest(); });
-  // (Settings › Orders: the list view and row style, chosen here or for all tablets on another)
+  // (Settings › Orders display: the view and the row style, chosen on any tablet of the branch)
   window.addEventListener('restro:prefs-changed', e => { if (e.detail?.name === 'orders' && dialog.open) render(); });
   let timer = null;
   dialog.addEventListener('close', () => {
@@ -869,15 +979,15 @@
   window.addEventListener('restro:screen-locked', () => { returning = false; resetFilters(); if (dialog.open) render(); });
   window.addEventListener('restro:staff-signed-in', () => { returning = false; resetFilters(); if (dialog.open) render(); });
   // Back: closes a menu, a pop-up or the receipt first; picking stops; then to Counter when Orders was opened from there
+  // (the tablet's Back comes here through RestroSystem.back; Escape on a keyboard through the dialog's cancel)
   function goBack() {
-    if (!dialog.open || !fromCounter || !window.RestroCounter) return false;
+    if (!dialog.open) return false;
+    if (closeReceipt()) return true;
+    if (menu || pop || picking) { menu = null; pop = null; picking = null; render(); return true; }
+    if (!fromCounter || !window.RestroCounter) return false;
     fromCounter = false; returning = false; window.RestroCounter.resume(); return true;
   }
-  dialog.addEventListener('cancel', event => {
-    if (closeReceipt()) { event.preventDefault(); return; }
-    if (menu || pop || picking) { event.preventDefault(); menu = null; pop = null; picking = null; render(); return; }
-    if (goBack()) event.preventDefault();
-  });
+  dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
 
   // Toasts from elsewhere show above this full-screen app (and go back to Counter, or home, after it closes).
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;
@@ -887,62 +997,62 @@
     else if (toastNode.parentElement === dialog) (document.querySelector('#counter-dialog[open]') || toastHome).append(toastNode);
   }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
 
-  // ---------- Settings › Orders (Update Pack 3): a still picture of this page ----------
-  // The page as it is now (today's orders, no search or filters) in a list view and row style, for Settings' live
-  // previews. With no orders yet: built-in sample orders (tables and amounts only: no names or phone numbers), and
-  // `sample` says so. → { node, sample }
+  // ---------- Settings › Orders display: a still picture of this page ----------
+  // The page as it is now (today's orders, no search or filters) in a view and row style, for Settings' live previews.
+  // With no orders yet: built-in sample orders (tables and amounts only: no names or phone numbers), and `sample` says
+  // so. → { node, sample }
   function sampleOrders(now) {
     const m = n => now - n * 60000;
     const O = (n, mins, type, total, extra = {}) => ({ uid: `sample${n}`, number: n, type, table: '', guests: 0, customer: null, lines: [{ id: 'paneer-tikka', name: 'Paneer tikka', qty: 1, price: 260, type }],
-      sent: { [`paneer-tikka@${type}`]: 1 }, total: total * 100, createdAt: m(mins), sentAt: m(mins - 1), kitchenAt: m(mins - 1), kots: [{ id: `k${n}`, kind: 'kot', no: n, at: m(mins - 1), lines: [] }], ...extra });
+      total: total * 100, createdAt: m(mins), sentAt: m(mins - 1), kitchenAt: m(mins - 1), kots: [{ id: `k${n}`, kind: 'kot', no: n, at: m(mins - 1), lines: [] }], ...extra });
     return [
-      O(12, 4, 'phone', 2814, { readyAt: null }),
+      O(12, 4, 'phone', 2814),
       O(11, 9, 'dine-in', 4158, { table: 'T12', guests: 4 }),
       O(10, 16, 'delivery', 646, { method: 'card', paidAt: new Date(m(16)).toISOString() }),
       O(9, 25, 'takeaway', 1040, { kitchenDoneAt: m(6), method: 'upi', paidAt: new Date(m(24)).toISOString(), pager: 3, pagerOut: true }),
       O(8, 39, 'dine-in', 945, { table: 'T4', guests: 2 }),
-      O(7, 47, 'phone', 819, { sentAt: null, kitchenAt: null, kots: [], sent: {}, readyAt: now + 63 * 60000, method: 'upi', paidAt: new Date(m(46)).toISOString() }),
+      O(7, 47, 'phone', 819, { sentAt: null, kitchenAt: null, kots: [], readyAt: now + 63 * 60000, method: 'upi', paidAt: new Date(m(46)).toISOString() }),
       O(6, 52, 'takeaway', 1320, { kitchenDoneAt: m(29), method: 'cash', paidAt: new Date(m(50)).toISOString() }),
       O(5, 67, 'dine-in', 1848, { table: 'T7', guests: 3, kitchenDoneAt: m(37), method: 'cash', paidAt: new Date(m(32)).toISOString() }),
       O(4, 85, 'takeaway', 560, { kitchenDoneAt: m(62), method: 'card', paidAt: new Date(m(61)).toISOString() }),
       O(3, 96, 'dine-in', 1210, { table: 'T2', guests: 2, kitchenDoneAt: m(66), method: 'upi', paidAt: new Date(m(58)).toISOString() })];
   }
-  function preview({ view: v = 'classic', rows = 'classic' } = {}) {
-    const keep = { tab, query, dv, typeF, staffF, sort, day, menu, picking, pop, chosen, closedOpen, listEl, scrollTop, flash };
-    tab = 'all'; query = ''; dv = 'all'; typeF = 'all'; staffF = 'all'; sort = { key: 'when', dir: -1 }; day = null; menu = null; picking = null; pop = null; closedOpen = false; flash = new Map(); scrollTop = 0;
-    lookOverride = { view: v, rows };
+  function preview({ view: vk = 'classic', rows = 'classic' } = {}) {
+    const keep = { tab, query, payF, dv, typesF, staffF, dueOnly, sort, range, menu, picking, pop, chosen, listEl, scrollTop, flash };
+    tab = 'all'; query = ''; payF = new Set(); dv = null; typesF = new Set(); staffF = null; dueOnly = false; sort = SORT0; range = null; menu = null; picking = null; pop = null; flash = new Map(); scrollTop = 0;
+    lookOverride = { view: vk, rows };
     try {
       let vv = view(); const sample = !vv.all.length;
-      if (sample) { const now = Date.now(); sampleRows = sampleOrders(now).map(o => infoOf(o, false, now)); vv = view(); }
-      const kind = viewKind();
-      const node = el('div', { class: 'or-root' }, topBar(vv), el('div', { class: 'or-rest' }, filterBar(vv), kind === 'split' ? splitView(vv) : kind === 'cards' ? cardsView(vv) : kind === 'board' ? boardView(vv) : list(vv)));
+      if (sample) { const now = Date.now(); sampleRows = sampleOrders(now).map(o => infoOf(o, now)); vv = view(); }
+      const node = el('div', { class: 'or-root' }, layout(vv, searchBox()));
       for (const n of node.querySelectorAll('[id]')) n.removeAttribute('id');
       return { node, sample };
     } finally {
       lookOverride = null; sampleRows = null;
-      ({ tab, query, dv, typeF, staffF, sort, day, menu, picking, pop, chosen, closedOpen, listEl, scrollTop, flash } = keep);
+      ({ tab, query, payF, dv, typesF, staffF, dueOnly, sort, range, menu, picking, pop, chosen, listEl, scrollTop, flash } = keep);
     }
   }
 
   window.RestroOrders = Object.freeze({
     preview,
     // open() from the home screen (or Back from an order opened here: the filters as they were); open({ from: 'counter' })
-    // from Counter's Orders button; open({ from: 'counter', view: 'held' }) from Counter's Held button; open({ find: id })
-    // for one order (a pager tapped on the NFC spot: its order number searched, on its day).
+    // from Counter's Orders button; open({ find: id }) for one order (a pager tapped on the NFC spot: its order number
+    // searched, on its day).
     open(options = {}) {
-      const back = returning && !options.from && !options.view && !options.find;
+      const back = returning && !options.from && !options.find;
       returning = false;
       document.querySelectorAll('dialog[open]').forEach(d => { if (d !== dialog) d.close(); });
-      if (!back) { resetFilters(); fromCounter = options.from === 'counter'; tab = options.view === 'held' ? 'held' : 'all'; }
+      if (!back) { resetFilters(); fromCounter = options.from === 'counter'; }
       const found = options.find ? (window.RestroCounter?.orders?.() || []).find(o => (o.uid || `n${o.number}`) === options.find) : null;
-      if (found) { query = ticket(found.number); const d = dayOfOrder(found); day = d === todayKey() ? null : d; }
-      dialog.dataset.view = fromCounter && tab === 'held' ? 'held' : 'orders'; // (Recents counts Held as Counter's)
+      if (found) { query = String(found.number); const d = dayOfOrder(found); range = d === todayKey() ? null : { from: d, to: d }; }
+      dialog.dataset.view = 'orders';
       watchPaper(); render();
       if (!dialog.open) dialog.showModal();
       clearInterval(timer); timer = setInterval(() => { if (dialog.open && !menu && !pop && Date.now() - scrolledAt > 2000) renderRest(); }, 30000);
       dialog.querySelector('#orders-title')?.focus({ preventScroll: true });
     },
-    // An order's status as this page shows it ({ text: 'Open' or 'Closed', cls, sub, subCls }), for the home screen
+    // An order's status as this page shows it ({ text: 'Open', 'Closed' or 'Cancelled', cls, sub, subCls }), for the
+    // home screen
     status: o => { const s = statusOf(o); return { text: s.text, cls: s.cls.split(' ')[0], sub: s.base, subCls: s.subCls === 'rd' ? 'ready' : s.subCls === 'sch' ? 'scheduled' : s.base ? 'kitchen' : undefined }; },
     goBack
   });
