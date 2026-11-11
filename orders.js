@@ -910,20 +910,20 @@
   const WHY = { paper: 'Kitchen printer was out of paper', offline: 'Kitchen printer was offline', cover: 'Kitchen printer’s cover was open' };
   const whoOf = r => (r.dine ? r.who.l1.split(' · ')[0] : r.name || r.type.label);
   function kotCard(r) {
-    const { k, picked } = pop, failed = k.kots.filter(x => x.failed);
+    const { k, picked } = pop, failed = k.kots.filter(x => x.failed), shown = failed.length ? failed : k.kots;
     const tick = x => el('button', { type: 'button', class: `or-kotc${picked.has(x.id) ? ' on' : ''}${x.failed ? ' failed' : ''}`, role: 'checkbox', 'aria-checked': String(picked.has(x.id)),
       onclick: () => { if (picked.has(x.id)) picked.delete(x.id); else picked.add(x.id); renderLayer(); } },
     el('span', { class: 'or-cb', 'aria-hidden': 'true' }, picked.has(x.id) ? icon('check') : null),
     el('span', { class: 'or-kotc-t' }, el('b', {}, `KOT ${x.no}`, x.failed ? el('i', {}, ' · didn’t print') : null), el('small', {}, x.dishes)), el('span', { class: 'or-kotc-at' }, timeOf(x.at)));
     const n = picked.size, red = failed.length > 0 && n > 0 && [...picked].every(id => failed.some(f => f.id === id));
-    const label = !n ? 'Reprint' : n === 1 ? `Reprint KOT ${k.kots.find(x => picked.has(x.id)).no}` : n === k.kots.length ? `Reprint all ${n} KOTs` : `Reprint ${n} KOTs`;
+    const label = !n ? 'Reprint' : n === 1 ? `Reprint KOT ${k.kots.find(x => picked.has(x.id)).no}` : n === k.kots.length && n > 2 ? `Reprint all ${n} KOTs` : `Reprint ${n} KOTs`;
     const why = failed.length ? `${WHY[failed[0].why] || 'Kitchen printer didn’t answer'} — ${failed.length === 1 ? `KOT ${failed[0].no} didn’t print` : `${failed.length} KOTs didn’t print`}.` : '';
     return el('div', { class: 'or-pop kot', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Reprint KOT, ${whoOf(r)}` },
       el('div', { class: 'or-pop-head' }, el('div', {}, el('h3', {}, `Reprint KOT · ${whoOf(r)}`), el('p', {}, `Order ${ticket(r.o.number)} · ${r.type.label}`)), closeX()),
-      why ? el('p', { class: 'or-why' }, icon('kot'), why) : null,
-      el('p', { class: 'or-lab' }, failed.length ? 'Tick to reprint' : 'Tick to reprint',
-        k.kots.length > 1 ? el('button', { type: 'button', class: 'or-link', onclick: () => { k.kots.forEach(x => picked.add(x.id)); renderLayer(); } }, 'Select all') : null),
-      k.kots.length ? el('div', { class: 'or-kots' }, ...k.kots.map(tick)) : el('p', { class: 'or-none' }, 'Nothing has gone to the kitchen yet.'),
+      why ? el('p', { class: 'or-why' }, icon('alert'), why) : null,
+      el('p', { class: 'or-lab' }, failed.length || k.unsent.length ? 'Tick to reprint' : 'All dishes sent · tick to reprint',
+        el('button', { type: 'button', class: 'or-link', onclick: () => { shown.forEach(x => picked.add(x.id)); renderLayer(); } }, 'Select all')),
+      shown.length ? el('div', { class: 'or-kots' }, ...shown.map(tick)) : el('p', { class: 'or-none' }, 'Nothing has gone to the kitchen yet.'),
       el('button', { type: 'button', class: `or-go${red ? ' red' : ''}`, disabled: !n, onclick: () => runKot(r) }, icon('kot'), label));
   }
   function queuedCard(r) {
@@ -964,25 +964,25 @@
     const input = el('input', { id: 'orders-reason', type: 'text', maxlength: '80', autocomplete: 'off', autocapitalize: 'sentences', enterkeyhint: 'done', placeholder: 'Type the reason here', 'aria-label': 'Reason' });
     input.value = reason;
     const line = el('label', { class: `or-line${reason ? '' : ' empty'}` }, icon('edit'), input);
-    const go = el('button', { type: 'button', class: 'or-go red', disabled: !reason.trim(), onclick: () => confirmDelete() }, icon('trash'), n === 1 ? 'Delete order' : `Delete ${n} orders`);
+    const go = el('button', { type: 'button', class: 'or-dgo2', disabled: !reason.trim(), onclick: () => confirmDelete() }, n === 1 ? 'Delete order' : `Delete ${n} orders`);
     const clear = el('button', { type: 'button', class: 'or-clear-t', disabled: !reason, onclick: () => { pop.reason = ''; input.value = ''; sync(); input.focus(); } }, 'Clear');
-    const chips = reasons.map(x => el('button', { type: 'button', class: `or-tpl${reason.trim().toLowerCase() === x.toLowerCase() ? ' on' : ''}`, onclick: () => { pop.reason = x; input.value = x; sync(); } }, x));
+    const chips = reasons.map(x => el('button', { type: 'button', class: `or-rsn-c${reason.trim().toLowerCase() === x.toLowerCase() ? ' on' : ''}`, onclick: () => { pop.reason = x; input.value = x; sync(); } }, x));
     function sync() { line.classList.toggle('empty', !pop.reason); go.disabled = !pop.reason.trim(); clear.disabled = !pop.reason; chips.forEach((c, i) => c.classList.toggle('on', pop.reason.trim().toLowerCase() === reasons[i].toLowerCase())); }
     input.addEventListener('input', () => { pop.reason = input.value; sync(); });
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
     const due = rows.reduce((s, r) => s + (Number(r.o.total) || 0), 0);
     const slip = reached.length === rows.length
-      ? (n === 1 ? 'An ORDER CANCELLED slip will print in the kitchen. This can’t be undone.' : `One ORDER CANCELLED slip listing all ${n} orders and their KOTs will print in the kitchen. This can’t be undone.`)
+      ? (n === 1 ? ['An ', el('b', {}, 'ORDER CANCELLED'), ' slip will print in the kitchen. This can’t be undone.'] : ['One ', el('b', {}, 'ORDER CANCELLED'), ' slip listing ', el('b', {}, `all ${n} orders`), ' and their KOTs will print in the kitchen. This can’t be undone.'])
       : reached.length ? `ORDER CANCELLED slip for ${reached.map(r => ticket(r.o.number)).join(', ')} will print · ${rows.filter(r => !reached.includes(r)).map(r => ticket(r.o.number)).join(', ')} wasn’t sent yet, nothing prints for ${rows.length - reached.length === 1 ? 'it' : 'them'}`
         : queued.length ? 'The kitchen hasn’t got this order yet, so nothing prints in the kitchen. The queued KOT is cancelled.' : 'Nothing has gone to the kitchen, so nothing prints there.';
     return el('div', { class: 'or-pop del', role: 'dialog', 'aria-modal': 'true', 'aria-label': n === 1 ? 'Delete order' : `Delete ${n} orders` },
-      el('div', { class: 'or-pop-head' }, el('div', { class: 'or-del-h' }, el('i', { 'aria-hidden': 'true' }, icon('trash')), el('div', {}, el('h3', {}, n === 1 ? `Delete order ${ticket(rows[0].o.number)}?` : `Delete ${n} orders?`),
-        el('p', {}, `${rows.map(r => ticket(r.o.number)).join(' · ')} · ${rupees(due)} not paid`))), closeX()),
-      el('p', { class: 'or-why' }, icon('kot'), slip),
-      el('p', { class: 'or-lab' }, 'Reason (required)'), line,
-      el('p', { class: 'or-lab' }, 'Top reasons'),
-      chips.length ? el('div', { class: 'or-tpls' }, ...chips) : el('p', { class: 'or-none' }, 'Your most-used reasons will show up here after 15 days.'),
-      el('div', { class: 'or-pop-foot' }, clear, go));
+      el('div', { class: 'or-del-head' }, el('i', { class: 'or-del-i', 'aria-hidden': 'true' }, el('span')), el('h3', {}, n === 1 ? `Delete order ${ticket(rows[0].o.number)}?` : `Delete ${n} orders?`),
+        el('span', { class: 'or-del-sub' }, `${rows.map(r => ticket(r.o.number)).join(' · ')} · ${rupees(due)} not paid`), el('span', { class: 'or-sp' }), closeX()),
+      el('p', { class: 'or-why del' }, icon('kot'), el('span', {}, ...[slip].flat())),
+      el('p', { class: 'or-dlab' }, 'Reason (required)'), line,
+      el('p', { class: 'or-dlab' }, 'Top reasons'),
+      chips.length ? el('div', { class: 'or-rsn' }, ...chips) : el('p', { class: 'or-rsn-none' }, 'Your most-used reasons will show up here after 15 days.'),
+      el('div', { class: 'or-pop-foot' }, clear, el('span', { class: 'or-sp' }), el('button', { type: 'button', class: 'or-dcancel2', onclick: () => { pop = null; renderLayer(); } }, 'Cancel'), go));
   }
   function confirmDelete() {
     const ids = pop.ids, reason = pop.reason.trim(); if (!reason) return;
@@ -996,18 +996,71 @@
     const p = pop;
     return el('div', { class: 'or-pop roll', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'New paper roll?' },
       el('div', { class: 'or-roll-h' }, el('i', { 'aria-hidden': 'true' }, icon('print')), el('div', {}, el('h3', {}, 'New paper roll?'), el('p', {}, `The bill printer’s cover was opened · ${p.printer}`))),
-      el('p', { class: 'or-msg-box' }, 'If you fitted a ', el('b', {}, 'new roll'), ', the paper level resets to ', el('b', {}, '100%'), '. If you only cleared a jam or checked it, choose ', el('b', {}, 'No'), ' and it keeps counting from ', el('b', {}, `${p.level}%`), '.'),
+      el('p', { class: 'or-msg-box' }, 'If you fitted a ', el('b', {}, 'new roll'), ', the paper level resets to ', el('b', {}, '100%'), ' on every tablet. If you only cleared a jam or checked it, choose ', el('b', {}, 'No'), ' and it keeps counting from ', el('b', {}, `${p.level}%`), '.'),
       el('div', { class: 'or-chs' },
         el('button', { type: 'button', class: 'or-ch no', onclick: () => { pop = null; renderLayer(); } }, 'No, same roll'),
         el('button', { type: 'button', class: 'or-ch sm', onclick: () => { pop = null; renderLayer(); try { window.RESTRODevice?.printer?.newRoll?.(); } catch {} setPaper({ level: 100, state: 'ok' }); say({ bold: 'New roll', text: ' · paper level 100%' }); } }, 'Yes, new roll')));
   }
   const closeX = () => el('button', { type: 'button', class: 'or-x', 'aria-label': 'Close', onclick: () => { pop = null; renderLayer(); } }, icon('close'));
   // A pop-up opened from a row's button sits beside it: its right edge 10 left of the button, level with the row
-  function anchorOf(btn) { const r = btn?.getBoundingClientRect?.(), box = root.getBoundingClientRect(); return r ? { right: box.right - r.left + 10 * fu(), mid: (r.top + r.bottom) / 2 - box.top } : null; }
+  function anchorOf(btn) {
+    const group = btn?.closest?.('.or-bt') || btn, r = group?.getBoundingClientRect?.(), row = btn?.closest?.('.or-r,.or-li,.or-cd,.or-dt')?.getBoundingClientRect?.() || r, box = root.getBoundingClientRect();
+    // (Classic, P01, P04, P05: a little above the row's middle, never higher than just under the table's heading)
+    const classic = Boolean(btn?.closest?.('.or-r')), u = fu();
+    return r ? { right: Math.max(16 * u, box.right - r.left + 38 * u), mid: (row.top + row.bottom) / 2 - box.top - (classic ? 52 * u : 0), min: classic ? 174 * u : 12 * u } : null;
+  }
   const probe = el('span', { class: 'or-probe', 'aria-hidden': 'true' }), fu = () => (probe.offsetWidth / 100) || 1; // (the design's pixel, --fu)
 
   // ---------- menus: under their pill ----------
-  function toggleMenu(key, btn) { menu = menu === key ? null : key; menuAt = btn ? btn.getBoundingClientRect() : null; render(); }
+  function toggleMenu(key, btn) {
+    menu = menu === key ? null : key; menuAt = btn ? btn.getBoundingClientRect() : null;
+    if (menu === 'date') { const { from, to } = period(); datePick = { from, to, taps: 0, month: from.slice(0, 7) }; }
+    render();
+  }
+  // ---------- the day or days (E1, E2): Today · Yesterday · Tomorrow, or a calendar; one tap a day, a second tap a
+  // range; nothing changes until Show orders ----------
+  let datePick = null;
+  const shortOf = key => keyDate(key).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+  function pickWords(p) {
+    if (p.from === p.to) { const d = dayLabel(p.from); return [el('b', {}, ['Today', 'Yesterday', 'Tomorrow'].includes(d) ? `${d} · ${shortOf(p.from)}` : shortOf(p.from))]; }
+    const a = keyDate(p.from), b = keyDate(p.to), n = Math.round((b - a) / 86400000) + 1, wd = d => d.toLocaleDateString('en-GB', { weekday: 'short' }), mon = d => d.toLocaleDateString('en-GB', { month: 'short' });
+    const label = a.getMonth() === b.getMonth() ? `${wd(a)} ${a.getDate()} – ${wd(b)} ${b.getDate()} ${mon(b)}` : `${wd(a)} ${a.getDate()} ${mon(a)} – ${wd(b)} ${b.getDate()} ${mon(b)}`;
+    return [el('b', {}, label), ` · ${n} days`];
+  }
+  function datePop() {
+    const p = datePick, today = todayKey(), [y, m] = p.month.split('-').map(Number);
+    const set = (from, to) => { datePick = { ...p, from, to, month: from.slice(0, 7) }; renderLayer(); };
+    const opt = (key, name, sub) => { const on = p.from === key && p.to === key; return el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), class: `or-dopt${on ? ' on' : ''}`, onclick: () => set(key, key) },
+      el('span', { class: `or-rd${on ? ' on' : ''}`, 'aria-hidden': 'true' }), el('span', { class: 'or-dopt-t' }, el('b', {}, name), el('small', {}, sub))); };
+    const month = (yy, mm) => { datePick = { ...p, month: `${yy}-${String(mm).padStart(2, '0')}` }; renderLayer(); };
+    const step = n => { const d = new Date(y, m - 1 + n, 1); month(d.getFullYear(), d.getMonth() + 1); };
+    const tap = key => { const taps = p.taps || 0; if (taps % 2 === 0) datePick = { ...p, from: key, to: key, taps: taps + 1 }; else { const [a, b] = [p.from, key].sort(); datePick = { ...p, from: a, to: b, taps: taps + 1 }; } renderLayer(); };
+    // the month: Monday first, the days around it greyed
+    const first = new Date(y, m - 1, 1), lead = (first.getDay() + 6) % 7, cells = [];
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(y, m - 1, 1 - lead + i), key = localDay(d), inMonth = d.getMonth() === m - 1;
+      if (i >= 35 && !inMonth && d.getDate() <= 7 && i % 7 === 0) break;
+      const ends = key === p.from || key === p.to, mid = p.from !== p.to && key > p.from && key < p.to;
+      cells.push(el('button', { type: 'button', class: `or-day${inMonth ? '' : ' out'}${ends ? ' end' : ''}${mid ? ' mid' : ''}${p.from !== p.to && key === p.from ? ' first' : ''}${p.from !== p.to && key === p.to ? ' last' : ''}${key === today ? ' today' : ''}`,
+        'aria-label': d.toDateString(), 'aria-pressed': String(ends), onclick: () => tap(key) }, el('span', {}, String(d.getDate()))));
+    }
+    const months = Array.from({ length: 12 }, (_, i) => new Date(2026, i, 1).toLocaleDateString('en-GB', { month: 'long' }));
+    const sel = (value, opts, on) => el('label', { class: 'or-dsel' }, el('select', { onchange: e => on(Number(e.target.value)) }, ...opts.map(([v, t]) => { const o = el('option', { value: String(v) }, t); if (v === value) o.selected = true; return o; })), icon('expand'));
+    const years = []; for (let yy = y - 3; yy <= y + 1; yy++) years.push([yy, String(yy)]);
+    return el('div', { class: 'or-datepop', role: 'dialog', 'aria-label': 'Show orders for' },
+      el('div', { class: 'or-dleft' }, el('p', { class: 'or-mh' }, 'SHOW ORDERS FOR'),
+        opt(today, 'Today', shortOf(today)), opt(addDays(today, -1), 'Yesterday', shortOf(addDays(today, -1))), opt(addDays(today, 1), 'Tomorrow', `${shortOf(addDays(today, 1))} · scheduled`),
+        el('p', { class: 'or-dhint' }, 'Or tap a date on the calendar. Tap two dates to see everything in between.')),
+      el('div', { class: 'or-dright' },
+        el('div', { class: 'or-dhead' }, sel(m, months.map((t, i) => [i + 1, t]), mm => month(y, mm)), sel(y, years, yy => month(yy, m)), el('span', { class: 'or-sp' }),
+          el('button', { type: 'button', class: 'or-dnav', 'aria-label': 'Previous month', onclick: () => step(-1) }, icon('back')),
+          el('button', { type: 'button', class: 'or-dnav', 'aria-label': 'Next month', onclick: () => step(1) }, icon('chevron'))),
+        el('div', { class: 'or-dweek' }, ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => el('span', {}, d))),
+        el('div', { class: 'or-dgrid' }, ...cells),
+        el('div', { class: 'or-dfoot' }, el('span', { class: 'or-dshow' }, 'Showing ', ...pickWords(p)), el('span', { class: 'or-sp' }),
+          el('button', { type: 'button', class: 'or-dcancel', onclick: () => { menu = null; datePick = null; render(); } }, 'Cancel'),
+          el('button', { type: 'button', class: 'or-dgo', onclick: () => { range = p.from === today && p.to === today ? null : { from: p.from, to: p.to }; menu = null; datePick = null; scrollTop = 0; render(); } }, 'Show orders'))));
+  }
   let menuAt = null;
   function menuView(v) {
     const items = [];
@@ -1047,13 +1100,12 @@
         if (on) items.push(el('div', { class: 'or-seg', role: 'group', 'aria-label': name }, ...choices.map((ch, k) => el('button', { type: 'button', class: k === i ? 'on' : '', 'aria-pressed': String(k === i),
           onclick: () => { setSort(key, k); scrollTop = 0; render(); } }, ch))));
       }
-    } else if (menu === 'date') {
-      head = 'SHOW ORDERS FOR';
-      const today = todayKey(), on = key => !range ? key === today : range.from === key && range.to === key;
-      const days = [today, addDays(today, -1), addDays(today, 1)];
-      const counts = new Map(); for (const o of window.RestroCounter?.orders?.() || []) { const d = dayOfOrder(o); counts.set(d, (counts.get(d) || 0) + 1); }
-      const earlier = [...counts.keys()].filter(d => !days.includes(d)).sort().reverse().slice(0, 7);
-      [...days, ...earlier].forEach((d, i) => { if (i === 3) sep(); row(on(d), dayLabel(d), counts.get(d) || 0, box('calendar'), () => { range = d === today ? null : { from: d, to: d }; }, { role: 'menuitemradio', sub: d === addDays(today, 1) ? 'scheduled' : '' }); });
+    }
+    if (menu === 'date' && datePick) {
+      const box3 = root.getBoundingClientRect(), at = menuAt, u = fu(), w = 840 * u, classic = viewKind() === 'classic';
+      const pop = datePop();
+      pop.style.cssText = at ? `top:${at.bottom - box3.top + (classic ? 33 : 10) * u}px;left:${Math.max(16 * u, Math.min(box3.width - w - 16 * u, (classic ? at.left : at.right - w) - box3.left))}px` : '';
+      return el('div', { class: 'or-menu-wrap', onclick: e => { if (e.target === e.currentTarget) { menu = null; datePick = null; render(); } } }, pop);
     }
     const keep = ['pay', 'type', 'staff', 'sort'].includes(menu); // (several can be ticked, or a choice under the row: the menu stays open)
     if (!keep) items.forEach(b => b.addEventListener('click', () => { menu = null; }, { capture: true }));
@@ -1135,10 +1187,10 @@
       const r = ['notify', 'kot', 'queued'].includes(pop.kind) ? v.all.find(x => x.id === pop.id) : null;
       const card = pop.kind === 'notify' && r ? notifyCard(r) : pop.kind === 'kot' && r ? kotCard(r) : pop.kind === 'queued' && r ? queuedCard(r) : pop.kind === 'delete' ? deleteCard() : pop.kind === 'roll' ? rollCard() : null;
       if (card) {
-        if (pop.anchor) card.style.cssText = `right:${pop.anchor.right}px;--mid:${pop.anchor.mid}px`;
+        if (pop.anchor) card.style.cssText = `right:${pop.anchor.right}px;--mid:${pop.anchor.mid}px;--min:${pop.anchor.min}px`;
         card.classList.toggle('anchored', Boolean(pop.anchor));
         // a tap outside closes Notify and KOT; the delete and paper-roll questions wait for an answer
-        parts.push(el('div', { class: 'or-scrim', onclick: e => { if (e.target === e.currentTarget && ['notify', 'kot', 'queued'].includes(pop.kind)) { pop = null; renderLayer(); } } }, card));
+        parts.push(el('div', { class: `or-scrim k-${pop.kind}`, onclick: e => { if (e.target === e.currentTarget && ['notify', 'kot', 'queued'].includes(pop.kind)) { pop = null; renderLayer(); } } }, card));
       } else pop = null;
     }
     layerEl.replaceChildren(...parts);
@@ -1147,8 +1199,8 @@
   // (an anchored pop-up level with its row, kept inside the app)
   function placePop() {
     const card = layerEl?.querySelector('.or-pop.anchored'); if (!card) return;
-    const box = root.getBoundingClientRect(), h = card.offsetHeight, mid = parseFloat(card.style.getPropertyValue('--mid')) || box.height / 2, pad = 12 * fu();
-    card.style.top = `${Math.max(pad, Math.min(box.height - h - 24 * fu(), mid - h / 2))}px`;
+    const box = root.getBoundingClientRect(), h = card.offsetHeight, mid = parseFloat(card.style.getPropertyValue('--mid')) || box.height / 2, pad = parseFloat(card.style.getPropertyValue('--min')) || 12 * fu();
+    card.style.top = `${Math.max(Math.min(pad, box.height - h - 24 * fu()), Math.min(box.height - h - 24 * fu(), mid - h / 2))}px`;
   }
 
   // A paid order's receipt, over the list (its details page comes later): the order, the items, the sums and the payment
