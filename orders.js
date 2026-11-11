@@ -71,6 +71,8 @@
     restaurant: ['m', 'M280-600v-240q0-17 11.5-28.5T320-880q17 0 28.5 11.5T360-840v240h40v-240q0-17 11.5-28.5T440-880q17 0 28.5 11.5T480-840v240q0 56-34.5 98T360-446v326q0 17-11.5 28.5T320-80q-17 0-28.5-11.5T280-120v-326q-51-14-85.5-56T160-600v-240q0-17 11.5-28.5T200-880q17 0 28.5 11.5T240-840v240h40Zm400 200h-80q-17 0-28.5-11.5T560-440v-240q0-70 51.5-135T718-880q18 0 30 14t12 33v713q0 17-11.5 28.5T720-80q-17 0-28.5-11.5T680-120v-280Z'],
     person: ['m', 'M480-481q-66 0-108-42t-42-108q0-66 42-108t108-42q66 0 108 42t42 108q0 66-42 108t-108 42ZM160-220v-34q0-38 19-65t49-41q67-30 128.5-45T480-420q62 0 123 15.5T731-360q31 14 50 41t19 65v34q0 25-17.5 42.5T740-160H220q-25 0-42.5-17.5T160-220Z'],
     alert: ['m', 'M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm0-160q17 0 28.5-11.5T520-480v-160q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640v160q0 17 11.5 28.5T480-440Zm0 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z'],
+    cloudOff: ['m', 'M260-160q-92 0-156-64T40-380q0-77 47.5-137T210-594q3-8 6-15.5t6-16.5L84-764q-11-11-11-28t11-28q11-11 28-11t28 11l680 680q11 11 11.5 27.5T820-84q-11 11-27.5 11.5T764-83l-78-77H260Zm604-50L322-751q35-24 74.5-36.5T480-800q117 0 198.5 81.5T760-520q69 8 114.5 59.5T920-340q0 39-15 72.5T864-210Z'],
+    add: ['m', 'M440-440H240q-17 0-28.5-11.5T200-480q0-17 11.5-28.5T240-520h200v-200q0-17 11.5-28.5T480-760q17 0 28.5 11.5T520-720v200h200q17 0 28.5 11.5T760-480q0 17-11.5 28.5T720-440H520v200q0 17-11.5 28.5T480-200q-17 0-28.5-11.5T440-240v-200Z'],
     check: ['m', 'm382-354 339-339q12-12 28-12t28 12q12 12 12 28.5T777-636L410-268q-12 12-28 12t-28-12L182-440q-12-12-11.5-28.5T183-497q12-12 28.5-12t28.5 12l142 143Z'],
     close: ['m', 'M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'],
     back: ['m', 'm432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z'],
@@ -421,6 +423,14 @@
   const letGo = () => { if (msg?.held) { msg.held = false; runMsg(); } };
   bar.addEventListener('pointerup', letGo); bar.addEventListener('pointercancel', letGo); bar.addEventListener('pointerleave', letGo);
 
+  // ---------- offline (Update Pack 4, A6; G7, K5, K6): a quiet note under the search; nothing is greyed ----------
+  let offlineSince = null;
+  const readOnline = () => { const st = window.RestroConnectivity?.getStatus?.(); return st ? st.internetAvailable !== false : navigator.onLine !== false; };
+  function trackOnline() { const on = readOnline(); if (!on && !offlineSince) offlineSince = Date.now(); if (on) offlineSince = null; }
+  window.addEventListener('restro:connectivity-changed', () => { const was = Boolean(offlineSince); trackOnline(); if (dialog.open && was !== Boolean(offlineSince)) render(); });
+  const offlineNote = () => (offlineSince ? el('div', { class: 'or-offline', role: 'status' }, icon('cloudOff'),
+    el('span', {}, el('b', {}, `Offline since ${timeOf(offlineSince)}.`), ' Orders, KOTs and printing keep working. Changes save on this tablet and sync when the internet is back.')) : null);
+
   // ---------- the pieces every view is made of ----------
   const root = el('div', { class: 'or-root' }); dialog.prepend(root);
   let layerEl = null, listEl = null, searchEl = null, frame = null;
@@ -448,7 +458,7 @@
   }
   // A dropdown pill (the day, the four filters): its icon, its words and the chevron; blue-tinted while a filter is on
   function pill(key, lead, label, on, cls = '') {
-    return el('button', { type: 'button', class: `or-dd${cls ? ` ${cls}` : ''}${on ? ' on' : ''}${menu === key ? ' open' : ''}`, 'aria-haspopup': 'menu', 'aria-expanded': String(menu === key),
+    return el('button', { type: 'button', class: `or-dd${cls ? ` ${cls}` : ''}${on ? ' on' : ''}${menu === key ? ' open' : ''}`, 'data-menu': key, 'aria-haspopup': 'menu', 'aria-expanded': String(menu === key),
       onclick: e => toggleMenu(key, e.currentTarget) }, lead ? icon(lead) : null, el('span', { class: 'or-dd-t' }, label), el('span', { class: 'or-cv' }, icon(menu === key ? 'expandLess' : 'expand')));
   }
   const datePill = cls => pill('date', 'calendar', periodLabel(), false, cls);
@@ -575,8 +585,39 @@
       statusCellOf(r), payCellOf(r),
       picking ? el('div', { class: 'or-c lock', role: 'cell' }, r.lock ? el('span', { class: 'or-lock' }, r.lock) : null) : buttons(r));
   }
-  const emptyOf = v => el('div', { class: 'or-empty' }, el('strong', {}, v.all.length ? 'No orders match' : isToday() ? 'No orders yet today' : 'No orders that day'),
-    el('span', {}, v.all.length ? 'Try another tab, or clear the filters.' : 'Orders taken on the Counter, Floor or from Swiggy and Zomato will show up here as soon as they come in.'));
+  // Nothing to list (G1–G6): the day is empty (New order on the Counter · See yesterday), or nothing matches the search
+  // and filters, named in the words (Clear filters · Pick another day)
+  function dayWords() {
+    const { from, to } = period(), today = todayKey();
+    if (from !== to) return `between ${periodLabel()}`;
+    return from === today ? 'today' : from === addDays(today, -1) ? 'yesterday' : from === addDays(today, 1) ? 'tomorrow' : `on ${dayLabel(from)}`;
+  }
+  const ebtn = (cls, ic, label, run) => el('button', { type: 'button', class: `or-ebtn ${cls}`, onclick: run }, icon(ic), label);
+  function emptyOf(v) {
+    const pickDay = e => { e.stopPropagation(); toggleMenu('date', root.querySelector('[data-menu="date"]') || e.currentTarget); };
+    if (!v.all.length) {
+      const today = isToday();
+      return el('div', { class: 'or-empty' }, el('span', { class: 'ei', 'aria-hidden': 'true' }, icon('receipt')),
+        el('strong', {}, today ? 'No orders yet today' : `No orders ${dayWords()}`),
+        el('p', {}, 'Orders taken on the Counter, Floor or from Swiggy and Zomato will show up here as soon as they come in.'),
+        el('div', { class: 'eb' }, today ? ebtn('pri', 'add', 'New order on the Counter', () => window.RestroCounter?.open()) : null,
+          today ? ebtn('sec', 'calendar', 'See yesterday', () => { const y = addDays(todayKey(), -1); range = { from: y, to: y }; scrollTop = 0; render(); }) : ebtn('sec', 'calendar', 'Pick another day', pickDay)));
+    }
+    const q = query.trim(), on = [];
+    const first = (set, name) => [...set].map(name).join(' or ');
+    if (payF.size) on.push(first(payF, k => PAYS.find(x => x[0] === k)?.[1] || k));
+    if (dv) on.push({ disc: 'Discounted', void: 'Voided after KOT', both: 'Discounted and voided' }[dv]);
+    if (typesF.size) on.push(first(typesF, k => TYPES[k]?.[0] || PLATFORMS[k]?.[0] || k));
+    if (staffF) on.push(staffF);
+    const words = [];
+    on.forEach((w, i) => { if (i) words.push(i === on.length - 1 ? ' and ' : ', '); words.push(el('b', {}, w)); });
+    const tabOnly = !q && !on.length && v.base.length;
+    return el('div', { class: 'or-empty' }, el('span', { class: 'ei', 'aria-hidden': 'true' }, icon('search')),
+      el('strong', {}, tabOnly ? `No ${tab} orders` : q ? `No orders match “${q}”` : 'No orders match'),
+      el('p', {}, ...(tabOnly ? ['Try another tab, or clear the filters.'] : [`Nothing ${dayWords()}`, q ? [' for ', el('b', {}, q)] : null, on.length ? [' with ', ...words] : null,
+        q ? '. Check the number, try another day, or clear the filters.' : '. Try another day, or clear the filters.'].flat().filter(Boolean))),
+      el('div', { class: 'eb' }, ebtn('pri', 'filterOff', 'Clear filters', () => { resetFilters(); render(); }), ebtn('sec', 'calendar', 'Pick another day', pickDay)));
+  }
   // Bill / Receipt (the paper level inside: used part white on top, paper left light blue; amber when low, red with !
   // when out, grey and crossed when the printer is offline) · KOT (blue: reprint; "KOT !" red when a print failed; plum
   // with its time while a scheduled KOT waits) · Notify, or Ready → Marked for a delivery app · Buzz with the pager's
@@ -716,7 +757,7 @@
     const r1 = el('div', { class: 'or-r1' }, titleEl(), datePill('or-dd2'), syncBtn('s48'));
     const head = picking
       ? [slot(r1, 'r1'), slot(el('div', { class: 'or-r2 pick' }, pickedPill(), selectAllBtn(v)), 'pick'), slot(el('p', { class: 'or-phint' }, pickHint()), 'hint')]
-      : [slot(r1, 'r1'), el('div', { class: 'or-r2' }, search, slot(clearBtn('or-clr2'), 'clear')), slot(el('div', { class: 'or-r3' }, ...filterPills('or-dd2')), 'filters')];
+      : [slot(r1, 'r1'), el('div', { class: 'or-r2' }, search, slot(clearBtn('or-clr2'), 'clear')), slot(el('div', { class: 'or-r3' }, ...filterPills('or-dd2')), 'filters'), offlineNote()];
     return el('div', { class: `or-split ${rowStyle()}${picking ? ' picking' : ''}`, 'data-kind': 'split' }, slot(railEl(v), 'rail'),
       el('div', { class: 'or-pane' }, el('div', { class: 'or-ph' }, ...head),
         slot(el('div', { class: 'or-sorth' }, el('span', {}, `${v.shown.length} order${v.shown.length === 1 ? '' : 's'}`),
@@ -748,7 +789,7 @@
         slot(el('div', { class: 'or-c2' }, ...filterPills('or-dd2'),
           el('button', { type: 'button', class: `or-dd or-dd2 or-sortd${menu === 'sort' ? ' open' : ''}`, 'aria-haspopup': 'menu', onclick: e => toggleMenu('sort', e.currentTarget) },
             el('span', { class: 'sl' }, 'Sort'), el('span', { class: 'or-dd-t' }, ...sortWords()), icon('sortDown', `ar${sortUp() ? ' up' : ''}`), el('span', { class: 'or-cv' }, icon(menu === 'sort' ? 'expandLess' : 'expand'))),
-          totsBar(v, 'bar')), 'c2')),
+          totsBar(v, 'bar')), 'c2'), offlineNote()),
       slot(listEl, 'list')));
   }
 
@@ -978,15 +1019,15 @@
     let head = '', foot = '';
     if (menu === 'pay') {
       head = 'PAYMENT STATUS'; foot = 'Tick one or more · the order type shows which delivery app';
-      row(!payF.size && !dueOnly, 'All payments', v.all.length, check(!payF.size && !dueOnly), () => { payF = new Set(); dueOnly = false; }); sep();
+      row(false, 'All payments', v.all.length, check(false), () => { payF = new Set(); dueOnly = false; }); sep();
       PAYS.forEach(([key, label]) => row(payF.has(key), label, v.all.filter(r => r.pay.key === key).length, check(payF.has(key)), () => { dueOnly = false; if (payF.has(key)) payF.delete(key); else payF.add(key); payF = new Set(payF); }));
     } else if (menu === 'dv') {
-      head = 'DISCOUNTS & VOIDS'; foot = 'Tap the one ticked again to show all orders';
-      [['disc', 'Discounted', 'tag'], ['void', 'Voided after KOT', 'void'], ['both', 'Discounted and voided', 'receipt']].forEach(([key, label, ic]) =>
+      foot = 'Tap again to show all orders';
+      [['disc', 'Discounted', 'tag'], ['void', 'Voided after KOT', 'void'], ['both', 'Discounted and voided', 'ready']].forEach(([key, label, ic]) =>
         row(dv === key, label, v.all.filter(r => key === 'disc' ? r.tags.disc : key === 'void' ? r.tags.void : r.tags.disc && r.tags.void).length, box(ic), () => { dv = dv === key ? null : key; }, { role: 'menuitemradio' }));
     } else if (menu === 'type') {
       head = 'ORDER TYPES'; foot = 'Tick one or more · applies straight away';
-      row(!typesF.size, 'All order types', v.all.length, check(!typesF.size), () => { typesF = new Set(); }); sep();
+      row(false, 'All order types', v.all.length, check(false), () => { typesF = new Set(); }); sep();
       const apps = Object.keys(PLATFORMS);
       [...Object.keys(TYPES), ...apps].forEach(key => {
         const lead = el('span', { class: 'or-mi' }, check(typesF.has(key)), TYPES[key] ? el('span', { class: 'ii t', style: `background:${TYPES[key][2]}1A;color:${TYPES[key][2]}` }, icon(TYPES[key][1])) : el('span', { class: 'ii t', style: `background:${PLATFORMS[key][1]}1A` }, el('span', { class: 'or-logo', style: `background:${PLATFORMS[key][1]}` }, PLATFORMS[key][0][0])));
@@ -995,7 +1036,7 @@
     } else if (menu === 'staff') {
       head = 'STAFF'; foot = 'Server on dine-in orders, cashier on the rest';
       const people = window.RestroStaff?.list?.() || [], names = [...new Set([...people.map(p => p.name), ...v.all.map(r => r.server).filter(Boolean)])];
-      row(!staffF, 'All staff', null, check(!staffF), () => { staffF = null; }, { role: 'menuitemradio' }); sep();
+      row(false, 'All staff', null, check(false), () => { staffF = null; }, { role: 'menuitemradio' }); sep();
       names.forEach(name => row(staffF === name, name, null, check(staffF === name), () => { staffF = staffF === name ? null : name; }, { role: 'menuitemradio', sub: people.find(p => p.name === name)?.roleName || '' }));
     } else if (menu === 'sort') {
       head = 'SORT BY'; foot = 'Customer / table · server can’t be sorted';
@@ -1018,6 +1059,7 @@
     if (!keep) items.forEach(b => b.addEventListener('click', () => { menu = null; }, { capture: true }));
     const box2 = root.getBoundingClientRect(), at = menuAt, right = at ? at.right - box2.left : 0, u = fu();
     let style = at ? `top:${at.bottom - box2.top + 8 * u}px;${right > box2.width * .6 ? `right:${box2.right - at.right}px` : `left:${at.left - box2.left}px`}` : '';
+    if (at && menu !== 'sort') requestAnimationFrame(() => fitMenu(at));
     // Sort (D4, D5): wider while Order status (three choices) is picked; in Split over the sort row, flush with the list
     // pane's edge; in Cards centred under the Sort pill
     const wide = menu === 'sort' && sort.key === 'status', w = (wide ? 460 : 380) * u;
@@ -1028,6 +1070,15 @@
     }
     return el('div', { class: 'or-menu-wrap', onclick: e => { if (e.target === e.currentTarget) { menu = null; render(); } } },
       el('div', { class: `or-menu m-${menu}`, role: 'menu', style }, head ? el('p', { class: 'or-mh' }, head) : null, ...items, foot ? el('p', { class: 'or-mf' }, foot) : null));
+  }
+
+  // A menu taller than the room under its pill moves up until it ends above the totals card (Classic) or 24 above the
+  // bottom; never above the top of the app
+  function fitMenu(at) {
+    const m = layerEl?.querySelector('.or-menu'); if (!m) return;
+    const box = root.getBoundingClientRect(), u = fu(), tot = root.querySelector('.or-tot3')?.getBoundingClientRect();
+    const limit = (tot && tot.top > at.bottom ? tot.top - 36 * u : box.bottom - 24 * u) - box.top, h = m.offsetHeight, top = at.bottom - box.top + 8 * u;
+    if (top + h > limit) m.style.top = `${Math.max(12 * u, limit - h)}px`;
   }
 
   // ---------- picking orders to delete (OR-P10): "3 selected", Select all / Unselect all, why some can't be picked,
@@ -1055,7 +1106,7 @@
     if (kind === 'cards') return cardsLayout(v, search);
     const top = picking ? [slot(pickBar(v), 'pick')] : [search, slot(el('div', { class: 'or-tools' }, clearBtn(), syncBtn()), 'tools')];
     return el('div', { class: `or-classic ${rowStyle()}${picking ? ' picking' : ''}`, 'data-kind': 'classic' }, slot(sideEl(v), 'side'),
-      el('div', { class: 'or-main' }, el('div', { class: `or-srow${picking ? ' picking' : ''}` }, ...top), slot(sheetEl(v), 'sheet')));
+      el('div', { class: 'or-main' }, el('div', { class: `or-srow${picking ? ' picking' : ''}` }, ...top), offlineNote(), slot(sheetEl(v), 'sheet')));
   }
   function render() {
     const v = view();
@@ -1218,7 +1269,7 @@
       const found = options.find ? (window.RestroCounter?.orders?.() || []).find(o => (o.uid || `n${o.number}`) === options.find) : null;
       if (found) { query = String(found.number); const d = dayOfOrder(found); range = d === todayKey() ? null : { from: d, to: d }; }
       dialog.dataset.view = 'orders';
-      watchPaper(); render();
+      trackOnline(); watchPaper(); render();
       if (!dialog.open) dialog.showModal();
       clearInterval(timer); timer = setInterval(() => { if (dialog.open && !menu && !pop && Date.now() - scrolledAt > 2000) renderRest(); }, 30000);
       dialog.querySelector('#orders-title')?.focus({ preventScroll: true });
