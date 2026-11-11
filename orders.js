@@ -70,6 +70,7 @@
     filterOff: ['m', 'M580-465 245-800h527q21 0 31 19t-4 36L580-465Zm-20 151v114q0 17-11.5 28.5T520-160h-80q-17 0-28.5-11.5T400-200v-274L82-792q-9-9-9-21.5t9-21.5q9-9 21.5-9t21.5 9l710 710q9 9 9 21t-9 21q-9 9-21.5 9T792-83L560-314Z'],
     restaurant: ['m', 'M280-600v-240q0-17 11.5-28.5T320-880q17 0 28.5 11.5T360-840v240h40v-240q0-17 11.5-28.5T440-880q17 0 28.5 11.5T480-840v240q0 56-34.5 98T360-446v326q0 17-11.5 28.5T320-80q-17 0-28.5-11.5T280-120v-326q-51-14-85.5-56T160-600v-240q0-17 11.5-28.5T200-880q17 0 28.5 11.5T240-840v240h40Zm400 200h-80q-17 0-28.5-11.5T560-440v-240q0-70 51.5-135T718-880q18 0 30 14t12 33v713q0 17-11.5 28.5T720-80q-17 0-28.5-11.5T680-120v-280Z'],
     person: ['m', 'M480-481q-66 0-108-42t-42-108q0-66 42-108t108-42q66 0 108 42t42 108q0 66-42 108t-108 42ZM160-220v-34q0-38 19-65t49-41q67-30 128.5-45T480-420q62 0 123 15.5T731-360q31 14 50 41t19 65v34q0 25-17.5 42.5T740-160H220q-25 0-42.5-17.5T160-220Z'],
+    alert: ['m', 'M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm0-160q17 0 28.5-11.5T520-480v-160q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640v160q0 17 11.5 28.5T480-440Zm0 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z'],
     check: ['m', 'm382-354 339-339q12-12 28-12t28 12q12 12 12 28.5T777-636L410-268q-12 12-28 12t-28-12L182-440q-12-12-11.5-28.5T183-497q12-12 28.5-12t28.5 12l142 143Z'],
     close: ['m', 'M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z'],
     back: ['m', 'm432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z'],
@@ -257,8 +258,7 @@
   let lookOverride = null, sampleRows = null;
   const look = () => { if (lookOverride) return lookOverride; try { return window.RestroPrefs?.get?.('orders') || {}; } catch { return {}; } };
   const rowStyle = () => (look().rows === 'pills' ? 'pills' : 'classic');
-  // (Split and Cards follow in Update Pack 4's next part; until then every view shows Classic)
-  const viewKind = () => 'classic';
+  const viewKind = () => { const v = look().view; return v === 'split' || v === 'cards' ? v : 'classic'; };
   let chosen = null;                     // Split detail: the order shown on the right
 
   // The orders of the day (or range): taken that day, or taken another day for that day
@@ -425,9 +425,11 @@
   const root = el('div', { class: 'or-root' }); dialog.prepend(root);
   let layerEl = null, listEl = null, searchEl = null, frame = null;
   // Home (a raised white circle, the outline house); "‹ Counter" when Orders was opened from there (Back returns)
-  function homeBtn() {
+  function homeBtn(inRail = false) {
+    const back = () => { if (!goBack()) document.querySelector('#system-home')?.click(); };
+    if (fromCounter && inRail) return el('button', { type: 'button', class: 'or-home', 'aria-label': 'Back to Counter', title: 'Back to Counter', onclick: back }, icon('back'));
     return fromCounter
-      ? el('button', { type: 'button', class: 'or-home back', 'aria-label': 'Back to Counter', onclick: () => { if (!goBack()) document.querySelector('#system-home')?.click(); } }, icon('back'), 'Counter')
+      ? el('button', { type: 'button', class: 'or-home back', 'aria-label': 'Back to Counter', onclick: back }, icon('back'), 'Counter')
       : el('button', { type: 'button', class: 'or-home', 'aria-label': 'Home', title: 'Home', onclick: () => document.querySelector('#system-home')?.click() }, house());
   }
   const titleEl = () => el('div', { class: 'or-title' }, appIcon(), el('h2', { id: 'orders-title', tabindex: '-1' }, 'Orders'));
@@ -600,6 +602,156 @@
     return el('div', { class: 'or-bt', role: 'cell' }, pr, kot, third, buzz);
   }
 
+  // ---------- Split detail (OR02, OR03) and Cards (OR04): an icon rail with Home, the tabs and the Held link ----------
+  function railEl(v) {
+    const block = (key, label, ic, count, extra = {}) => el('button', { type: 'button', role: key ? 'tab' : null, class: `or-rtb${key && tab === key ? ' on' : ''}${extra.cls ? ` ${extra.cls}` : ''}`,
+      'aria-selected': key ? String(tab === key) : null, 'aria-label': `${label}, ${count}`, onclick: extra.onclick || (() => pickTab(key)) },
+    el('span', { class: 'or-ri' }, icon(ic), el('em', {}, String(count)), extra.go ? el('span', { class: 'or-held-go' }, icon('chevron')) : null), el('span', { class: 'or-rtb-t' }, label));
+    return el('nav', { class: 'or-rail', 'aria-label': 'Orders' }, homeBtn(true), ...TABS.map(([key, label, ic]) => block(key, label, ic, v.counts[key])),
+      el('i', { class: 'or-rsep', 'aria-hidden': 'true' }), block(null, 'Held', 'pauseCircle', heldCount(), { cls: 'or-held', go: true, onclick: openHeld }));
+  }
+  // Sort (Split, Cards): the menu's choices; "Date & time" (newest first) or "Order status · Scheduled first"
+  const SORTS = [['when', 'Date & time', ['Newest first', 'Oldest first']], ['type', 'Order type', ['A to Z', 'Z to A']], ['status', 'Order status', ['Open first', 'Scheduled first', 'Closed first']], ['pay', 'Payment status', ['Not paid first', 'Paid first']]];
+  const sortChoice = () => sort.key === 'status' ? STATUS_MODES.indexOf(sort.mode) : sort.key === 'when' ? (sort.dir < 0 ? 0 : 1) : (sort.dir > 0 ? 0 : 1);
+  function setSort(key, i) {
+    sort = key === 'status' ? { key, mode: STATUS_MODES[i] } : key === 'when' ? (i ? { key, dir: 1 } : SORT0) : { key, dir: i ? -1 : 1 };
+  }
+  // (the arrow points up only for the second of two choices: Oldest first, Z to A, Paid first; D4, D5, OS10)
+  const sortUp = () => sort.key !== 'status' && sortChoice() === 1;
+  // "Date & time", "Order status" for a key's first choice; "Order status · Scheduled first" otherwise
+  function sortWords() {
+    const [, name, choices] = SORTS.find(x => x[0] === sort.key), i = sortChoice();
+    return i === 0 ? [name] : [name, ` · ${choices[i]}`];
+  }
+  // The totals in a row (Split's footer, Cards' toolbar): Orders | Total | Due · N orders ›
+  function totsBar(v, cls) {
+    const t = v.totals, live = t.due > 0;
+    return el('div', { class: `or-tots ${cls}` },
+      el('div', { class: 'tc' }, el('span', {}, 'Orders'), el('b', {}, String(t.orders))),
+      el('div', { class: 'tc' }, el('span', {}, 'Total'), el('b', {}, rupees(t.total))),
+      el(live ? 'button' : 'div', { class: `tc due${live ? '' : ' zero'}`, ...(live ? { type: 'button', 'aria-label': `Due, ${t.dueN} orders, ${rupees(t.due)}: show them`, onclick: dueTap } : {}) },
+        el('span', {}, `Due · ${t.dueN} order${t.dueN === 1 ? '' : 's'}`), el('b', {}, rupees(t.due)), el('span', { class: 'or-tapc' }, icon('chevron'))));
+  }
+  // The picking bar's pieces (Split, Cards)
+  const pickedPill = () => el('span', { class: 'or-picked' }, `${picking.size} selected`);
+  function selectAllBtn(v) {
+    const can = v.shown.filter(r => !r.lock), all = can.length > 0 && can.every(r => picking.has(r.id));
+    return el('button', { type: 'button', class: 'or-link', onclick: () => { if (all) can.forEach(r => picking.delete(r.id)); else can.forEach(r => picking.add(r.id)); render(); } }, all ? 'Unselect all' : 'Select all');
+  }
+  const pickHint = () => el('span', { class: 'or-hint' }, 'Paid and Swiggy/Zomato orders can’t be deleted');
+  const cancelPick = () => el('button', { type: 'button', class: 'or-cancel', onclick: () => { picking = null; render(); } }, 'Cancel');
+  const deletePick = () => { const n = picking.size; return el('button', { type: 'button', class: 'or-del', disabled: !n, onclick: () => { if (n) { pop = { kind: 'delete', ids: [...picking], reason: '' }; renderLayer(); } } }, icon('trash'), n === 1 ? 'Delete 1 order' : `Delete ${n} orders`); };
+
+  // A list item (Split): the tile · type, numbers and time, who, the status, a failed KOT, the codes · payment
+  function liEl(r) {
+    const c = r.who.codes, picked = picking?.has(r.id);
+    const lines = [
+      el('div', { class: 'l1' }, el('b', {}, r.type.label), r.type.time ? el('span', { class: 'pt' }, r.type.time) : null),
+      el('div', { class: 'l2' }, ...numbersOf(r), ` · ${timeOf(r.when)}${range && range.from !== range.to ? ` · ${dateOf(r.when)}` : ''}`),
+      el('div', { class: 'l2' }, el('b', { class: 'cn' }, hl(r.who.l1, 'name')), ...(r.who.l2 ? [' · ', ...(r.phone && r.who.l2.startsWith(r.phone) ? [el('span', { class: 'nb' }, hl(r.phone, 'phone')), r.who.l2.slice(r.phone.length)] : [r.who.l2])] : [])),
+      el('div', { class: `lst ${r.status.cls}` }, el('b', {}, r.status.text), r.status.sub ? el('span', { class: `ss ${r.status.subCls || ''}`.trim() }, r.status.sub) : null),
+      r.kot.look === 'err' ? el('div', { class: 'kfl' }, icon('alert'), 'KOT failed · tap the order to reprint') : null];
+    if (c && (c.call || c.handover)) lines.push(el('div', { class: 'lc' }, ...codesLine({ who: { codes: { ...c, rider: '' } } })));
+    if (c?.rider) lines.push(el('div', { class: 'lc' }, `Rider arrival ${c.rider}`));
+    return tappable(r, `or-li${!picking && chosen === r.id ? ' sel' : ''}`,
+      picking ? el('span', { class: `or-cb${picked ? ' on' : ''}`, 'aria-hidden': 'true' }, picked ? icon('check') : null) : null,
+      tileOf(r, 'or-tt s52'), el('div', { class: 'or-lm' }, ...lines),
+      el('div', { class: `or-lr ${r.pay.cls || ''}`.trim() }, el('div', { class: 'l1' }, el('b', {}, r.pay.text)),
+        el('div', { class: 'l2' }, r.pay.key === 'prf' ? `${money(r.pay.refunded)} refunded` : money(Number(r.o.total) || 0), ...tagsOf(r)),
+        picking && r.lock ? el('span', { class: 'or-lock' }, r.lock) : null));
+  }
+  // The order picked, on the right (Split): its tile and title, what it is, the status and payment, the delivery
+  // app's codes, the dishes, the sums, then the four buttons and Open
+  const kotNos = o => kotsOf(o).map((k, i) => `#${k.no || i + 1}`).join(', ');
+  function sumsOf(o) {
+    const lines = Array.isArray(o.lines) ? o.lines : [], items = lines.reduce((n, l) => n + (Number(l.qty) || 0), 0);
+    const sub = Number.isFinite(o.subtotal) ? o.subtotal : lines.reduce((n, l) => n + Math.round(l.price * 100) * l.qty, 0);
+    const rate = window.RestroMenu?.taxRate ?? 0.05, labels = window.RestroBill?.labels(rate) || { cgst: 'CGST 2.5%', sgst: 'SGST 2.5%', gst: 'GST 5%' };
+    const b = window.RestroBill?.order({ lines: [{ each: sub, qty: 1 }], type: o.type, discountPct: o.discountPct, servicePct: o.servicePct, packaging: o.packaging, delivery: o.delivery }, rate);
+    return { items, sub, labels, b };
+  }
+  function detailEl(r) {
+    const o = r.o, { items, sub, labels, b } = sumsOf(o), queued = r.kot.look === 'q';
+    const title = r.type.platform ? numbersOf(r) : r.dine ? [hl(r.who.l1.split(' · ')[0], 'name'), ' · ', hl(`Order ${ticket(o.number)}`, 'number')] : [hl(r.name || r.type.label, 'name'), ' · ', hl(`Order ${ticket(o.number)}`, 'number')];
+    const meta = r.type.platform ? [`${r.type.label} · ${r.name || 'Customer'}`, r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null]
+      : r.dine ? [r.type.label, o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.server ? ` · Server: ${r.server}` : '']
+        : [r.type.label, r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null];
+    const kots = queued ? ` · KOT prints at ${timeOf(r.kot.at)}` : kotsOf(o).length ? ` · KOT ${kotNos(o)}` : '';
+    const c = r.who.codes, cbx = (cls, label, value) => el('div', { class: `cb ${cls}` }, el('span', {}, label), el('b', {}, value));
+    const sumRow = (label, value, cls) => [el('span', cls ? { class: cls } : {}, label), el(cls ? 'span' : 'b', cls ? { class: cls } : {}, value)];
+    const lines = (Array.isArray(o.lines) ? o.lines : []).filter(l => l.qty > 0);
+    return el('div', { class: 'or-dt' },
+      el('div', { class: 'or-dh' }, tileOf(r, 'or-tt s64'), el('div', { class: 'dhm' }, el('div', { class: 'dtt' }, ...title.flat()),
+        el('div', { class: 'dmeta' }, ...meta.flat().filter(Boolean), ` · ${timeOf(o.createdAt)} · ${dateOf(o.createdAt)}${kots}`))),
+      el('div', { class: 'or-stp' }, statusCellOf(r), payCellOf(r)),
+      r.type.platform && (c || r.type.time) ? el('div', { class: 'or-codes' },
+        c?.call ? cbx('y', 'Call code', c.call) : null, c?.handover ? cbx(`g${parsed()?.d === c.handover ? ' hit' : ''}`, 'Handover', c.handover) : null,
+        r.type.time ? cbx('', o.platformType === 'pickup' ? 'Ready by' : 'Pickup', r.type.time.replace(/^(Pickup|Ready by) /, '')) : null, c?.rider ? cbx('', 'Rider arrival', c.rider) : null) : null,
+      el('div', { class: 'or-dl' }, ...lines.map(l => el('div', { class: 'dli' }, el('div', { class: 'q' }, `${l.qty} ×`),
+        el('div', { class: 'n' }, l.name, Array.isArray(l.mods) && l.mods.length ? el('small', {}, l.mods.map(m => (typeof m === 'string' ? m : m.label)).filter(Boolean).join(' · ')) : null),
+        el('div', { class: 'e' }, l.qty > 1 ? `${rupees(Math.round(l.price * 100))} ea` : ''), el('div', { class: 'pz' }, rupees(Math.round(l.price * 100) * l.qty))))),
+      el('div', { class: 'or-dtot' }, ...sumRow(`Subtotal · ${items} item${items === 1 ? '' : 's'}`, money(sub)),
+        ...(b?.discount ? sumRow(`Discount ${b.discountPct}%`, `−${money(b.discount)}`) : []),
+        ...(b?.service ? sumRow(`Service charge ${b.servicePct}% (optional)`, money(b.service)) : []),
+        ...(b?.packaging ? sumRow('Packaging', money(b.packaging)) : []), ...(b?.delivery ? sumRow('Delivery charge', money(b.delivery)) : []),
+        ...(b ? sumRow(`${labels.gst} (${labels.cgst} ${money(b.cgst)} + ${labels.sgst} ${money(b.sgst)})`, money(b.tax)) : []),
+        ...(b?.roundOff ? sumRow('Round off', `${b.roundOff < 0 ? '−' : '+'}${money(Math.abs(b.roundOff))}`) : []),
+        ...sumRow('Total', money(Number(o.total) || 0), 'g')),
+      el('div', { class: 'or-acts' }, buttons(r), el('button', { type: 'button', class: 'or-open', onclick: () => tapRow(r, true) }, 'Open', icon('chevron'))));
+  }
+  // Picking orders to delete in Split (H1): the right side lists them, with Cancel and Delete
+  function pickSummary(v) {
+    const rows = v.all.filter(r => picking.has(r.id)), sum = rows.reduce((n, r) => n + (Number(r.o.total) || 0), 0), n = rows.length;
+    return el('div', { class: 'or-dt or-psum' },
+      el('div', { class: 'or-dh' }, el('span', { class: 'or-ptrash', 'aria-hidden': 'true' }, icon('trash')), el('div', { class: 'dhm' }, el('div', { class: 'dtt' }, n === 1 ? '1 order selected' : `${n} orders selected`),
+        el('div', { class: 'dmeta' }, 'Only orders that aren’t paid can be deleted.'))),
+      el('div', { class: 'or-plist' }, ...rows.map(r => el('div', { class: 'pr' }, el('span', {}, el('b', {}, r.dine ? r.who.l1.split(' · ')[0] : r.name || r.type.label), ` · ${r.dine ? r.type.label : r.type.label} · Order ${ticket(r.o.number)}`), el('b', { class: 'am' }, money(Number(r.o.total) || 0)))),
+        n ? el('div', { class: 'pr tot' }, el('b', {}, `Not paid · ${n} order${n === 1 ? '' : 's'}`), el('b', {}, money(sum))) : null),
+      el('div', { class: 'or-pfoot' }, cancelPick(), deletePick()));
+  }
+  function splitLayout(v, search) {
+    if (!picking && !v.shown.some(r => r.id === chosen)) chosen = v.shown[0]?.id || null;
+    const r = v.shown.find(x => x.id === chosen);
+    listEl = el('div', { class: 'or-ls', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...v.shown.map(liEl), !v.shown.length ? emptyOf(v) : null);
+    const r1 = el('div', { class: 'or-r1' }, titleEl(), datePill('or-dd2'), syncBtn('s48'));
+    const head = picking
+      ? [slot(r1, 'r1'), slot(el('div', { class: 'or-r2 pick' }, pickedPill(), selectAllBtn(v)), 'pick'), slot(el('p', { class: 'or-phint' }, pickHint()), 'hint')]
+      : [slot(r1, 'r1'), el('div', { class: 'or-r2' }, search, slot(clearBtn('or-clr2'), 'clear')), slot(el('div', { class: 'or-r3' }, ...filterPills('or-dd2')), 'filters')];
+    return el('div', { class: `or-split ${rowStyle()}${picking ? ' picking' : ''}`, 'data-kind': 'split' }, slot(railEl(v), 'rail'),
+      el('div', { class: 'or-pane' }, el('div', { class: 'or-ph' }, ...head),
+        slot(el('div', { class: 'or-sorth' }, el('span', {}, `${v.shown.length} order${v.shown.length === 1 ? '' : 's'}`),
+          el('button', { type: 'button', class: `or-so${menu === 'sort' ? ' open' : ''}`, 'aria-haspopup': 'menu', onclick: e => toggleMenu('sort', e.currentTarget) }, el('span', {}, 'Sort'), ...sortWords(), icon('sortDown', sortUp() ? 'up' : ''))), 'sorth'),
+        slot(listEl, 'list'), slot(totsBar(v, 'foot'), 'tots')),
+      slot(el('div', { class: 'or-dp' }, picking ? pickSummary(v) : r ? detailEl(r) : null), 'detail'));
+  }
+
+  // A card (Cards): the tile, type and numbers, the time and date · who · the status and payment · the four buttons
+  function cardEl(r) {
+    const c = r.who.codes, picked = picking?.has(r.id);
+    return tappable(r, 'or-cd',
+      el('div', { class: 'or-chd' }, picking ? el('span', { class: `or-cb${picked ? ' on' : ''}`, 'aria-hidden': 'true' }, picked ? icon('check') : null) : null,
+        tileOf(r, 'or-tt s48'),
+        el('div', { class: 'chm' }, el('div', { class: 'l1' }, el('b', {}, r.type.label)), el('div', { class: 'l2' }, ...numbersOf(r)), r.type.time ? el('div', { class: 'l2' }, r.type.time) : null),
+        el('div', { class: 'tmx' }, el('b', {}, timeOf(r.when)), el('span', {}, dateOf(r.when)))),
+      el('div', { class: 'or-cu' }, el('div', { class: 'cn' }, hl(r.who.l1, 'name')), r.who.l2 ? el('div', { class: 'cph' }, whoLine(r)) : null,
+        c && (c.call || c.handover) ? el('div', { class: 'lc' }, ...codesLine({ who: { codes: { ...c, rider: '' } } })) : null, c?.rider ? el('div', { class: 'lc' }, `Rider arrival ${c.rider}`) : null),
+      el('div', { class: 'or-mid' }, statusCellOf(r), payCellOf(r)),
+      picking ? el('div', { class: 'or-c lock' }, r.lock ? el('span', { class: 'or-lock' }, r.lock) : null) : buttons(r));
+  }
+  function cardsLayout(v, search) {
+    listEl = el('div', { class: 'or-cg', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...v.shown.map(cardEl), !v.shown.length ? emptyOf(v) : null);
+    const r1 = picking
+      ? [titleEl(), slot(el('div', { class: 'or-pickbar' }, pickedPill(), selectAllBtn(v), pickHint(), el('span', { class: 'or-sp' }), cancelPick(), deletePick(), syncBtn('s54')), 'pick')]
+      : [titleEl(), el('span', { class: 'or-gap10', 'aria-hidden': 'true' }), search, slot(el('div', { class: 'or-tools' }, clearBtn('or-clr2'), datePill('or-dd2'), syncBtn('s54')), 'tools')];
+    return el('div', { class: `or-cards ${rowStyle()}${picking ? ' picking' : ''}`, 'data-kind': 'cards' }, slot(railEl(v), 'rail'),
+      el('div', { class: 'or-cmain' }, el('div', { class: 'or-top3' }, el('div', { class: 'or-c1' }, ...r1),
+        slot(el('div', { class: 'or-c2' }, ...filterPills('or-dd2'),
+          el('button', { type: 'button', class: `or-dd or-dd2 or-sortd${menu === 'sort' ? ' open' : ''}`, 'aria-haspopup': 'menu', onclick: e => toggleMenu('sort', e.currentTarget) },
+            el('span', { class: 'sl' }, 'Sort'), el('span', { class: 'or-dd-t' }, ...sortWords()), icon('sortDown', `ar${sortUp() ? ' up' : ''}`), el('span', { class: 'or-cv' }, icon(menu === 'sort' ? 'expandLess' : 'expand'))),
+          totsBar(v, 'bar')), 'c2')),
+      slot(listEl, 'list')));
+  }
+
   // ---------- taps on a row, long-press to pick ----------
   let press = null, suppressTap = false;
   root.addEventListener('pointerdown', e => {
@@ -620,7 +772,7 @@
   // Open: Not paid and Partially paid orders in the Counter (Back comes back here); any other order its details page,
   // which comes later: its receipt until then (a delivery app's order: on the app's integration)
   function tapRow(r, open = false) {
-    if (!picking && !open && viewKind() === 'split' && chosen !== r.id) { chosen = r.id; renderRest(); return; }
+    if (!picking && !open && viewKind() === 'split') { if (chosen !== r.id) { chosen = r.id; renderRest(); } return; }
     if (picking) {
       if (r.lock) { say({ text: `${r.lock.split(' · ')[0]} orders can’t be deleted` }); return; }
       if (picking.has(r.id)) picking.delete(r.id); else picking.add(r.id);
@@ -845,6 +997,15 @@
       const people = window.RestroStaff?.list?.() || [], names = [...new Set([...people.map(p => p.name), ...v.all.map(r => r.server).filter(Boolean)])];
       row(!staffF, 'All staff', null, check(!staffF), () => { staffF = null; }, { role: 'menuitemradio' }); sep();
       names.forEach(name => row(staffF === name, name, null, check(staffF === name), () => { staffF = staffF === name ? null : name; }, { role: 'menuitemradio', sub: people.find(p => p.name === name)?.roleName || '' }));
+    } else if (menu === 'sort') {
+      head = 'SORT BY'; foot = 'Customer / table · server can’t be sorted';
+      for (const [key, name, choices] of SORTS) {
+        const on = sort.key === key, i = on ? sortChoice() : 0;
+        items.push(el('button', { type: 'button', role: 'menuitemradio', 'aria-checked': String(on), class: `or-it or-sorti${on ? ' on' : ''}`, onclick: () => { if (!on) { setSort(key, 0); scrollTop = 0; render(); } } },
+          el('span', { class: `or-rd${on ? ' on' : ''}`, 'aria-hidden': 'true' }), el('span', { class: 'or-it-t' }, name), on ? null : el('small', { class: 'or-def' }, choices[0])));
+        if (on) items.push(el('div', { class: 'or-seg', role: 'group', 'aria-label': name }, ...choices.map((ch, k) => el('button', { type: 'button', class: k === i ? 'on' : '', 'aria-pressed': String(k === i),
+          onclick: () => { setSort(key, k); scrollTop = 0; render(); } }, ch))));
+      }
     } else if (menu === 'date') {
       head = 'SHOW ORDERS FOR';
       const today = todayKey(), on = key => !range ? key === today : range.from === key && range.to === key;
@@ -853,10 +1014,18 @@
       const earlier = [...counts.keys()].filter(d => !days.includes(d)).sort().reverse().slice(0, 7);
       [...days, ...earlier].forEach((d, i) => { if (i === 3) sep(); row(on(d), dayLabel(d), counts.get(d) || 0, box('calendar'), () => { range = d === today ? null : { from: d, to: d }; }, { role: 'menuitemradio', sub: d === addDays(today, 1) ? 'scheduled' : '' }); });
     }
-    const keep = ['pay', 'type', 'staff'].includes(menu); // (several can be ticked: the menu stays open)
+    const keep = ['pay', 'type', 'staff', 'sort'].includes(menu); // (several can be ticked, or a choice under the row: the menu stays open)
     if (!keep) items.forEach(b => b.addEventListener('click', () => { menu = null; }, { capture: true }));
-    const box2 = root.getBoundingClientRect(), at = menuAt, right = at ? at.right - box2.left : 0;
-    const style = at ? `top:${at.bottom - box2.top + 8 * fu()}px;${right > box2.width * .6 ? `right:${box2.right - at.right}px` : `left:${at.left - box2.left}px`}` : '';
+    const box2 = root.getBoundingClientRect(), at = menuAt, right = at ? at.right - box2.left : 0, u = fu();
+    let style = at ? `top:${at.bottom - box2.top + 8 * u}px;${right > box2.width * .6 ? `right:${box2.right - at.right}px` : `left:${at.left - box2.left}px`}` : '';
+    // Sort (D4, D5): wider while Order status (three choices) is picked; in Split over the sort row, flush with the list
+    // pane's edge; in Cards centred under the Sort pill
+    const wide = menu === 'sort' && sort.key === 'status', w = (wide ? 460 : 380) * u;
+    if (menu === 'sort' && at) {
+      const pane = root.querySelector('.or-pane')?.getBoundingClientRect();
+      style = pane ? `top:${at.top - box2.top - 23 * u}px;left:${pane.right - box2.left + 4 * u - w}px;width:${w}px`
+        : `top:${at.bottom - box2.top + 6 * u}px;left:${Math.max(12 * u, Math.min(box2.width - w - 12 * u, (at.left + at.right) / 2 - box2.left - w / 2))}px;width:${w}px`;
+    }
     return el('div', { class: 'or-menu-wrap', onclick: e => { if (e.target === e.currentTarget) { menu = null; render(); } } },
       el('div', { class: `or-menu m-${menu}`, role: 'menu', style }, head ? el('p', { class: 'or-mh' }, head) : null, ...items, foot ? el('p', { class: 'or-mf' }, foot) : null));
   }
@@ -881,13 +1050,16 @@
   // (the parts redrawn around the search box while typing carry data-slot; the search box is never taken off the page)
   const slot = (node, name) => { node.dataset.slot = name; return node; };
   function layout(v, search) {
+    const kind = viewKind();
+    if (kind === 'split') return splitLayout(v, search);
+    if (kind === 'cards') return cardsLayout(v, search);
     const top = picking ? [slot(pickBar(v), 'pick')] : [search, slot(el('div', { class: 'or-tools' }, clearBtn(), syncBtn()), 'tools')];
     return el('div', { class: `or-classic ${rowStyle()}${picking ? ' picking' : ''}`, 'data-kind': 'classic' }, slot(sideEl(v), 'side'),
       el('div', { class: 'or-main' }, el('div', { class: `or-srow${picking ? ' picking' : ''}` }, ...top), slot(sheetEl(v), 'sheet')));
   }
   function render() {
     const v = view();
-    searchEl = searchBox();
+    searchEl = searchBox(viewKind() === 'classic' ? '' : 'or-sb2');
     layerEl = el('div', { class: 'or-layer' });
     frame = layout(v, searchEl);
     root.replaceChildren(frame, layerEl, probe);
@@ -1024,7 +1196,7 @@
     try {
       let vv = view(); const sample = !vv.all.length;
       if (sample) { const now = Date.now(); sampleRows = sampleOrders(now).map(o => infoOf(o, now)); vv = view(); }
-      const node = el('div', { class: 'or-root' }, layout(vv, searchBox()));
+      const node = el('div', { class: 'or-root' }, layout(vv, searchBox(vk === 'classic' ? '' : 'or-sb2')));
       for (const n of node.querySelectorAll('[id]')) n.removeAttribute('id');
       return { node, sample };
     } finally {
