@@ -245,8 +245,18 @@ def tokens():
     T('.cx-pu', '#141E33', None, 'rgba(255,255,255,.08)')                # pop-ups
     T('.cx-nclr', '#0B1220', '#FFD27A', '#7A5A1C')                       # clear note
     T('.cx-b.violet', '#2A1A55', '#D9C7FF', '#6E4FC7')                   # pager
-    T('.cx-b.print', '#1F4FB0', '#EAF1FF', '#5B8EF0')                    # print
-    T('.cx-chip.pink', '#4A1430', '#FFC2DA', '#A83A6E')                  # schedule (set)
+    # (the owner, 11 Nov: in Midnight every button showing a choice has its ring, the table or customer too, in a quiet slate;
+    # nothing chosen, no ring; Light stays as it is, without)
+    T('.cx-b.cx-who.set', None, None, '#5A6782')                          # a table or a customer chosen
+    T('.cx-b.print:not(.low):not(.out):not(.off):not(:disabled)', '#1F4FB0', '#EAF1FF', '#5B8EF0')   # print
+    # (11 Nov: the paper's states show in Midnight too, in the Orders pack's Midnight colours; nothing to print yet:
+    # greyed, no ring, like every button with nothing chosen)
+    T('.cx-b.print.low:not(:disabled)', '#3A2A08', '#FFD27A', '#B7862A')                           # paper low
+    T('.cx-b.print.out:not(:disabled)', '#3A1414', '#FFB0B0', 'rgba(255,156,156,.35)')             # out of paper
+    T('.cx-b.print.off:not(:disabled)', '#151E30', '#5A6782', 'rgba(255,255,255,.06)')             # printer offline
+    T('.cx-b.print:disabled', '#151E30', '#5A6782', None)                                          # nothing to print
+    T('.cx-b.print .cx-paper-out', '#EF4444', '#FFFFFF', None)
+    T('.cx-chip.plum', '#2A1D36', '#E7B2F2', 'rgba(231,178,242,.35)')    # schedule (set): plum (Update Pack 4)
     T('.cx-prio', None, '#FF9C9C')                                       # PRIORITY in the header
     T('.cx-qb span', '#1B2C4F', '#D6E4FF', '#3E6CC9')                    # quantity badge on a dish
     T('.cx-dtag', '#123D24', '#8CF0B4', '#2E7D4F')                       # ☰ menu tags
@@ -290,6 +300,27 @@ def tokens():
     rule('.cx-cur,.cx-qd i,.cx-dd i', [('background', '#5B8EF0')])       # the typing cursor
     rule('.cx-card.so:active', [('box-shadow', f'inset 0 0 0 {U(2)} rgba(233,238,248,.45)')])   # a tapped sold-out dish
     rule('.ctr-sheet-wrap', [('background', 'rgba(0,0,0,.58)')])          # dimming behind the older sheets
+    # Update Pack 4, Counter scheduling (02_Counter-scheduling §8): the picker #141E33 (the pop-ups'), day chips raised and the
+    # picked one white, wheels #0F1829 with a blue band, the two buttons raised (too soon: #151E30 / #5A6782), the calendar
+    # #16213A; the KOT line plum or a green tick; Hold greyed #151E30; Clear schedule #FF9C9C
+    T('.cx-chip.hold.off', '#151E30', '#5A6782', None)
+    T('.cx-kotl:not(.sent)', None, '#E7B2F2')
+    T('.cx-kotl.sent', None, '#E6EAF2'); T('.cx-kotl.sent svg', None, '#7EE2A8')
+    T('.cx-sd:not(.on)', RAISE, '#FFFFFF', EDGE); T('.cx-sd.on', SEL, SELT, None)
+    T('.cx-wh', '#0F1829', None, EDGE); T('.cx-wh-band', '#1B2C4F', None, '#3E6CC9')
+    T('.cx-wh-row', None, '#4E5971'); T('.cx-wh-row.near', None, '#C5CEDD'); T('.cx-wh-row.sel', None, '#EAF1FF')
+    T('.cx-ssum', '#0F1829', None, EDGE); T('.cx-ssum>b', None, '#FFFFFF'); T('.cx-ssum>span', None, '#E6EAF2')
+    T('.cx-ssum i', None, '#E7B2F2'); T('.cx-ssum em', None, '#FF9C9C')
+    T('.cx-sk', RAISE, '#FFFFFF', EDGE); T('.cx-sk small', None, '#C5CEDD')
+    T('.cx-sk:disabled', '#151E30', '#5A6782', None)
+    T('.cx-scal', '#16213A', None, None)
+    rule('.cx-scal', [('box-shadow', f'0 0 0 {U(1)} rgba(255,255,255,.10),0 {U(18)} {U(44)} rgba(0,0,0,.6)')])
+    T('.cx-scal-h b', None, '#FFFFFF'); T('.cx-scal-nav', RAISE, '#FFFFFF', None); T('.cx-scal-w span', None, '#8D97AB')
+    T('.cx-scal-d', None, '#FFFFFF'); T('.cx-scal-d.off', None, '#4E5971'); T('.cx-scal-d.today', None, '#D6E4FF', '#3E6CC9')
+    T('.cx-scal-d.on', '#2F6FDE', '#FFFFFF', None)
+    T('.cx-sclear:not(:disabled)', None, '#FF9C9C'); T('.cx-sclear:disabled', None, '#5A6782')
+    T('.cx-ssent', None, '#E6EAF2'); T('.cx-ssent svg', None, '#7EE2A8')
+    T('.cx-vinfo.plum', '#2A1D36', '#E9D3F0', None); T('.cx-vinfo.plum b', None, '#E7B2F2'); T('.cx-vinfo.plum svg', None, '#E7B2F2')
     return out
 
 HEAD = '''/* Midnight: the Counter's dark theme (Update Pack 2, 01_Dark-Theme-Midnight). Home on Aurora Dark: the apps use Midnight

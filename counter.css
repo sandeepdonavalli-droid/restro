@@ -97,20 +97,10 @@ button.ctr-history-main{cursor:pointer}
 .ctr-pager-key.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
 .ctr-pager-key:active{transform:scale(.97)}
 .ctr-sheet-wide{width:100%;min-height:46px}
-.ctr-sched-sheet{width:min(560px,100%);gap:12px}
-.ctr-sched-days{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:6px}
-.ctr-sched-hours{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
-.ctr-sched-mins{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .ctr-pick{min-height:38px;margin:0;padding:0 4px;border:1px solid var(--palette-edge);border-radius:10px;background:var(--palette-bg);color:var(--palette-text);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
 .ctr-pick:hover:not(:disabled){border-color:var(--palette-accent)}
 .ctr-pick.on{background:var(--palette-accent);border-color:var(--palette-accent);color:var(--palette-on-accent)}
 .ctr-pick:disabled{opacity:.35;cursor:default}
-.ctr-sched-summary{display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:58px;padding:10px 14px;border-radius:14px;background:var(--palette-accent-wash);font-size:13px;color:var(--palette-muted)}
-.ctr-sched-summary strong{font-size:16px;font-weight:600;color:var(--palette-text)}
-.ctr-sched-actions{display:flex;gap:10px}
-.ctr-sched-actions>*{flex:1}
-.ctr-sched-actions .primary-button{flex:1.6}
-.ctr-sched-actions .ctr-secondary{min-height:54px}
 .ctr-held .ctr-resume{min-width:98px}
 .ctr-history-line{display:flex;align-items:center}
 .ctr-history-line .ctr-history-main{flex:1;min-width:0}
@@ -122,15 +112,6 @@ button.ctr-history-main{cursor:pointer}
 .ctr-history-line .ctr-open,.ctr-history-line .ctr-open-gap{margin:0 12px 0 0}
 .ctr-history-detail .ctr-sums{color:var(--palette-text)}
 .ctr-history-detail .ctr-sums .ctr-total{margin-top:0;font-size:13px}
-.ctr-wheels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-.ctr-wheel{position:relative;height:200px;border:1px solid var(--palette-edge);border-radius:12px;background:var(--palette-bg);overflow:hidden}
-.ctr-wheel:has(.ctr-wheel-list:focus-visible){outline:2px solid var(--palette-accent);outline-offset:2px}
-.ctr-wheel-band{position:absolute;left:6px;right:6px;top:80px;height:40px;border-radius:10px;background:var(--palette-accent-wash);pointer-events:none}
-.ctr-wheel-list{position:relative;height:100%;box-sizing:border-box;padding:80px 0;overflow-y:auto;overscroll-behavior:contain;scroll-snap-type:y mandatory;scrollbar-width:none;outline:none;-webkit-mask-image:linear-gradient(transparent,#000 32%,#000 68%,transparent);mask-image:linear-gradient(transparent,#000 32%,#000 68%,transparent)}
-.ctr-wheel-list::-webkit-scrollbar{display:none}
-.ctr-wheel-item{height:40px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--palette-muted);cursor:pointer;user-select:none;-webkit-user-select:none}
-.ctr-wheel-item[aria-selected="true"]{color:var(--palette-text);font-weight:700}
-@media (max-height:640px){.ctr-wheel{height:120px}.ctr-wheel-band{top:40px}.ctr-wheel-list{padding:40px 0}}
 .counter-app{overflow:clip;overflow-clip-margin:3px}
 .ctr-root .ctr-sheet-wrap{position:fixed;inset:0;padding:calc(var(--header-height) + 24px) 24px}
 
@@ -211,7 +192,9 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-chips>[data-tile="modify"],.cx-chips>[data-tile="hold"]{min-width:auto}
 .cx-chips>[data-tile="modify"]>.cx-chip,.cx-chips>[data-tile="hold"]>.cx-chip{width:100%;justify-content:center}
 .cx-chip{height:calc(36 * var(--u));max-width:100%;box-sizing:border-box;margin:0;padding:0 calc(13 * var(--u));border:0;border-radius:999px;display:inline-flex;align-items:center;gap:calc(6 * var(--u));background:#F3F4F7;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10);font-size:calc(14 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
-.cx-chip.pink{background:#FCE7F1;color:#9D174D;box-shadow:none}
+.cx-chip.plum{background:#F5E9F8;color:#8A3F9A;box-shadow:inset 0 0 0 1px #E3C6EA} /* (Update Pack 4: a ready time; the pink one is gone) */
+.cx-chip.hold.off{background:#F3F4F6;color:#C4C0BC;box-shadow:inset 0 0 0 1.5px #E7E8EB;cursor:default} /* (once a KOT has printed) */
+.cx-chip.hold.off:active{transform:none}
 .cx-chip.dark{background:#4B5058;color:#FFFFFF;box-shadow:none}
 .cx-chip.hold{background:#E2E5EA;box-shadow:inset 0 0 0 1.5px #C9CED6}
 /* The lines, edge to edge of the panel (the list scrolls when they don't fit) */
@@ -752,18 +735,19 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
    ‹ arrow; on the 1080 screen 106 above the bottom, in the space over the page controls, as Update Pack 2 draws it; with
    the navigation bar, where that space is gone, level with Save and Pay as before); UNDO #93C5FD 800; an error 64 tall
    with a red left edge, RETRY and ✕ */
-.cx-msg{position:absolute;left:calc(552 * var(--u));bottom:calc(88 * var(--u));z-index:39;width:calc(396 * var(--u));height:calc(56 * var(--u));box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:calc(12 * var(--u));padding:0 calc(8 * var(--u)) 0 calc(20 * var(--u));border-radius:calc(16 * var(--u));background:#1F2937;color:#FFFFFF;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;font-size:calc(16 * var(--u));line-height:normal;box-shadow:0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35);animation:cx-fade .14s ease-out}
-.cx-msg>span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-msg{position:absolute;left:calc(552 * var(--u));bottom:calc(21.333 * var(--u));z-index:39;width:max-content;max-width:calc(100% - calc(576 * var(--u)));height:calc(54 * var(--u));box-sizing:border-box;display:flex;align-items:center;gap:calc(14.6 * var(--u));padding:0 calc(8 * var(--u)) 0 calc(20.8 * var(--u));border-radius:calc(16 * var(--u));background:#1F2937;color:#FFFFFF;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;font-size:calc(15.7 * var(--u));line-height:normal;box-shadow:0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35);animation:cx-fade .14s ease-out}
+/* (Update Pack 4, A4: as wide as what it says; a green tick, or a red "!" on an error) */
+.cx-msg-i{flex:none;width:calc(19 * var(--u));height:calc(19 * var(--u));border-radius:999px;display:grid;place-items:center;background:#4ADE80;color:#1F2937;font-style:normal}
+.cx-msg-i svg{width:calc(14 * var(--u));height:calc(14 * var(--u))}
+.cx-msg .cx-msg-i b{font-size:calc(13 * var(--u));font-weight:900;line-height:1}
+.cx-msg>span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cx-msg b{font-weight:700}
 .cx-msg button{flex:none;height:calc(44 * var(--u));margin:0;padding:0 calc(16 * var(--u));border:0;border-radius:calc(10 * var(--u));background:transparent;color:#93C5FD;font:inherit;font-size:calc(16 * var(--u));font-weight:800;letter-spacing:.04em;cursor:pointer}
 .cx-msg button:active{background:rgba(255,255,255,.08)}
-.cx-msg.plain{padding-right:calc(20 * var(--u))}
-.cx-msg.error{bottom:calc(84 * var(--u));height:calc(64 * var(--u));box-shadow:inset calc(5 * var(--u)) 0 0 #EF4444,0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35)}
-html[data-nav="bar"] .cx-msg{bottom:calc(21.333 * var(--u))}
-html[data-nav="bar"] .cx-msg.error{bottom:calc(17.333 * var(--u))}
+.cx-msg.plain{padding-right:calc(18 * var(--u))}
+.cx-msg.error{box-shadow:inset calc(5 * var(--u)) 0 0 #EF4444,0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35)}
+.cx-msg.error .cx-msg-i{background:#F8A9AC}
 .cx-msg.error button{color:#FCA5A5}
-.cx-msg.error>span{white-space:normal;line-height:1.25}
-.cx-msg.error small{font-size:calc(14 * var(--u));color:#D1D5DB}
 .cx-msg .xs{width:calc(36 * var(--u));height:calc(36 * var(--u));padding:0;display:flex;align-items:center;justify-content:center;color:#9CA3AF}
 /* The service charge pop-up, where the discount's is: the cloche on #E3ECFC (#1E4FB8); 4 quick picks; the amount it adds
    blue; the key left of 0 is the decimal point; under the button "Optional · …" 13.5 #78716C, 12 below */
@@ -918,3 +902,65 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
   #print-bill .reprint span,#print-bill .paid span{font-size:calc(13.5 * var(--p));font-weight:700}
 }
 
+
+/* ---------- Schedule (Update Pack 4: Counter scheduling, CS1–CS12) ----------
+   The line under the order header: plum clock "KOT prints at 9:30 pm" while its KOT is queued; a green tick and
+   "KOT sent to the kitchen" once it has gone (the order note line moves down under it). */
+.cx-kotl{flex:none;display:flex;align-items:center;gap:calc(8 * var(--u));height:calc(19 * var(--u));margin:calc(-2 * var(--u)) 0 calc(8.8 * var(--u));padding:0 calc(4 * var(--u));font-size:calc(14 * var(--u));font-weight:600;line-height:normal;color:#8A3F9A;white-space:nowrap}
+.cx-kotl>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cx-kotl.sent{font-weight:500;color:#44403C}
+.cx-kotl.sent svg{color:#2F7D4F}
+/* The picker: beside the order panel, over the dimmed menu */
+.cx-pu.sched{left:calc(548 * var(--u));top:calc(30 * var(--u));width:calc(820 * var(--u));padding:calc(28 * var(--u)) calc(29 * var(--u)) calc(27 * var(--u));border-radius:calc(30 * var(--u));background:#F3F5F9}
+.cx-sh{min-height:0;gap:calc(16 * var(--u))}
+.cx-sh h3{flex:1;min-width:0;margin:0;font-size:calc(26 * var(--u));font-weight:800;line-height:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-pu.sched .cx-x{width:calc(49 * var(--u));height:calc(49 * var(--u))}
+.cx-sclear{flex:none;margin:0;padding:0 calc(4 * var(--u));border:0;background:none;color:#B91C1C;font:inherit;font-size:calc(16 * var(--u));font-weight:700;line-height:normal;cursor:pointer}
+.cx-sclear:disabled{color:#C4C0BC;cursor:default}
+.cx-ssent{display:flex;align-items:center;gap:calc(8 * var(--u));margin:calc(15.5 * var(--u)) 0 calc(-0.7 * var(--u));font-size:calc(14 * var(--u));font-weight:500;line-height:normal;color:#44403C}
+.cx-ssent svg{color:#2F7D4F}
+/* the day: Today · Tomorrow · Pick a date (white pills; the one picked light blue) */
+.cx-sdays{position:relative;z-index:2;display:flex;gap:calc(13 * var(--u));margin-top:calc(22 * var(--u))}
+.cx-sd{flex:none;height:calc(55 * var(--u));margin:0;padding:0 calc(21 * var(--u));border:0;border-radius:999px;display:inline-flex;align-items:center;gap:calc(11 * var(--u));background:#FFFFFF;color:#1C1917;box-shadow:0 1px calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(4 * var(--u)) calc(12 * var(--u)) rgba(15,23,42,.06);font:inherit;font-size:calc(17 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
+.cx-sd.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 1.5px #9DBCF2}
+/* its calendar (CS2): under the chips, flush with the right; Monday first; past days pale, today ringed, the day picked blue */
+.cx-scal{position:absolute;top:calc(100% - 2 * var(--u));right:0;width:calc(417 * var(--u));box-sizing:border-box;padding:calc(14 * var(--u)) calc(14.4 * var(--u)) calc(10 * var(--u));border-radius:calc(22 * var(--u));background:#FFFFFF;box-shadow:0 0 0 1px rgba(17,24,39,.05),0 calc(18 * var(--u)) calc(44 * var(--u)) rgba(15,23,42,.18)}
+.cx-scal-h{display:flex;align-items:center;gap:calc(8 * var(--u));height:calc(36 * var(--u));padding-left:calc(2 * var(--u));margin-right:calc(3 * var(--u))}
+.cx-scal-h b{flex:1;font-size:calc(17 * var(--u));font-weight:800}
+.cx-scal-nav{width:calc(36 * var(--u));height:calc(36 * var(--u));margin:0;padding:0;border:0;border-radius:999px;display:grid;place-items:center;background:#F3F4F6;color:#1C1917;cursor:pointer}
+.cx-scal-nav:disabled{color:#C4C0BC;cursor:default}
+.cx-scal-w,.cx-scal-g{display:grid;grid-template-columns:repeat(7,1fr)}
+.cx-scal-w{margin-top:calc(13 * var(--u))}
+.cx-scal-w span{text-align:center;font-size:calc(12 * var(--u));font-weight:500;line-height:calc(17 * var(--u));color:#9A9895}
+.cx-scal-g{margin-top:calc(4.5 * var(--u))}
+.cx-scal-d{justify-self:center;width:calc(52 * var(--u));height:calc(43 * var(--u));margin:calc(2.5 * var(--u)) 0;padding:0;border:0;border-radius:999px;background:none;color:#1C1917;font:inherit;font-size:calc(15.8 * var(--u));font-weight:500;cursor:pointer}
+.cx-scal-d.off{color:#D1D0CE;cursor:default}
+.cx-scal-d.today{box-shadow:inset 0 0 0 calc(1.5 * var(--u)) #2F6FDE;color:#1E4FB8}
+.cx-scal-d.on{background:#1E4FB8;color:#FFFFFF;box-shadow:none}
+/* the wheels: white, the picked value in the blue band */
+.cx-swheels{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(16 * var(--u));margin-top:calc(20 * var(--u))}
+.cx-wh{position:relative;height:calc(247 * var(--u));overflow:hidden;border-radius:calc(18 * var(--u));background:#FFFFFF;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;outline:none}
+.cx-wh:focus-visible{box-shadow:0 0 0 2px #1E5BD6}
+.cx-wh-band{position:absolute;left:calc(9 * var(--u));right:calc(9 * var(--u));top:50%;height:calc(50 * var(--u));margin-top:calc(-25 * var(--u));border-radius:calc(13 * var(--u));background:#E3ECFB;pointer-events:none}
+.cx-wh-row{position:absolute;left:0;right:0;top:calc(50% - 25 * var(--u) + var(--i) * 50 * var(--u));height:calc(50 * var(--u));display:flex;align-items:center;justify-content:center;font-size:calc(25 * var(--u));font-weight:500;line-height:1;color:#D1D0CE;font-variant-numeric:proportional-nums;pointer-events:none}
+.cx-wh-row.near{color:#44403C}
+.cx-wh-row.sel{font-size:calc(30 * var(--u));font-weight:800;color:#1E4FB8}
+/* what it comes to */
+.cx-ssum{margin-top:calc(20 * var(--u));padding:calc(12 * var(--u)) calc(20 * var(--u));border-radius:calc(16 * var(--u));background:#FFFFFF;display:flex;flex-direction:column;gap:calc(1 * var(--u))}
+.cx-ssum>b{font-size:calc(20 * var(--u));font-weight:700;line-height:1.2;color:#1C1917}
+.cx-ssum>span{font-size:calc(15.5 * var(--u));line-height:1.3;color:#44403C}
+.cx-ssum i{font-style:normal;font-weight:700;color:#8A3F9A}
+.cx-ssum em{font-style:normal;font-weight:500;color:#DC2626}
+/* Schedule KOT · Instant KOT: equal and grey, neither highlighted (the Counter's Save grey); Save new time alone */
+.cx-sks{display:grid;grid-template-columns:1fr 1fr;gap:calc(13 * var(--u));margin-top:calc(20 * var(--u))}
+.cx-sks.one{grid-template-columns:1fr}
+.cx-sk{height:calc(64 * var(--u));margin:0;padding:0;border:0;border-radius:calc(16 * var(--u));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(1 * var(--u));background:#E2E5EA;box-shadow:inset 0 0 0 1.5px #C9CED6;color:#1C1917;font:inherit;cursor:pointer}
+.cx-sk b{font-size:calc(18 * var(--u));font-weight:700;line-height:1.2}
+.cx-sk small{font-size:calc(13.5 * var(--u));font-weight:400;line-height:1.2;color:#44403C}
+.cx-sk:disabled{background:#F7F8FA;box-shadow:inset 0 0 0 1.5px #E7E8EB;color:#C4C0BC;cursor:default}
+.cx-sk:disabled small{color:#C4C0BC}
+.cx-sk:active:not(:disabled){transform:scale(.98)}
+/* the delete pop-up of an order whose KOT is still queued (CS10): a calm plum line, nothing prints */
+.cx-vinfo.plum{background:#F5E9F8;color:#5B2A6B;font-weight:500}
+.cx-vinfo.plum b{font-weight:700}
+.cx-vinfo.plum svg{color:#8A3F9A}

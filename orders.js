@@ -197,7 +197,8 @@
   const kotsOf = o => (Array.isArray(o.kots) ? o.kots : []).filter(k => k && (k.kind || 'kot') === 'kot');
   // A scheduled order's KOT waits until its ready-by time less its order type's prep time (kept on the order, kotAt,
   // once it is worked out: a change of prep time in Settings only ever brings it earlier)
-  const kotTimeOf = o => Number(o.kotAt) || (Number(o.readyAt) - prepMinutes(o.type) * 60000);
+  // (the Counter's own reckoning: ready-by less the prep time it was scheduled with, or Settings › Kitchen's if longer)
+  const kotTimeOf = o => Number(o.kotAt) || window.RestroCounter?.kitchenTime?.(o) || (Number(o.readyAt) - prepMinutes(o.type) * 60000);
 
   // ctx: { past } (a past day or a range: only Bill / Receipt works)
   function infoOf(o, now, ctx = {}) {
@@ -275,8 +276,11 @@
     if (sampleRows) return sampleRows;
     const now = Date.now(), { from, to } = period(), past = pastNow(), out = [];
     refDay = from === to ? from : null;
+    // (a saved order put on hold is on the Held page, not here: Update Pack 4, K14)
+    const onHold = new Set((window.RestroCounter?.held?.() || []).map(h => h.uid).filter(Boolean));
     try {
       for (const o of window.RestroCounter?.orders?.() || []) {
+        if (onHold.has(o.uid)) continue;
         const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
         if ((taken >= from && taken <= to) || (forDay && forDay >= from && forDay <= to)) out.push(infoOf(o, now, { past }));
       }

@@ -367,8 +367,17 @@ dish off or reducing it prints a **VOID** slip, deleting the order prints **ORDE
 staff gave), changing a dish's choices or note prints a **CHANGED** slip, and marking the order as priority prints a
 short **★ PRIORITY** notice. Counter's **Reprint KOT** (the order menu) sends the order's last KOT again, as it was.
 Orders' KOT button reprints the KOTs staff tick, each with the REPRINT box (`reprint`, below); a KOT that never printed
-prints as it was. Orders can also send the dishes the kitchen doesn't have yet as a new KOT. A scheduled order's KOT goes
-at its kitchen time, from the tablet that saved it last.
+prints as it was. Orders can also send the dishes the kitchen doesn't have yet as a new KOT.
+
+**Scheduled orders** (Update Pack 4, Counter scheduling). An order with a ready-by time is saved either with **Schedule
+KOT** (`kotMode: "queue"`: its KOT prints by itself at the kitchen time, ready-by less that order type's prep time in
+Settings › Kitchen; if the prep time is changed later the KOT can only move earlier, never later) or **Instant KOT**
+(`kotMode: "now"`: its KOT prints with Save or Pay, as for any order). A queued KOT has no number until it prints; it
+takes the day's next KOT number then. It is printed by the tablet that saved the order last, at the kitchen time; if
+that tablet hasn't printed it 30 seconds later, the main system prints it, and 2 minutes later any tablet that is on,
+so it prints even when the tablet that saved it is off (and the moment one comes on). While the order is on hold
+nothing prints. Deleting it before its KOT has printed prints nothing in the kitchen. Once the KOT has printed, a new
+ready-by time prints a **TIME CHANGED** slip (`kind: "time"`, below) and dishes added later go on a new KOT.
 
 Print each slip on every printer whose role is **Kitchen** or **Both**. Return `true` (or a Promise of it) when it
 printed, `false` (or throw, or reject) when it didn't: Counter then shows "Kitchen printer offline / KOT #3 not sent"
@@ -384,15 +393,15 @@ that sent it tries again by itself every 30 seconds until it prints.
 
 | Field | |
 | --- | --- |
-| `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"` or `"cancel-bulk"` (below) |
+| `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"`, `"time"` (TIME CHANGED, Update Pack 4) or `"cancel-bulk"` (below) |
 | `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"` (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
-| `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"` (also on every KOT of an order marked as priority), `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"` |
-| `title`, `where` | bold: `"KOT #3 · Order #1015"` (on VOID and CHANGED, the KOT the dish was on; on ORDER CANCELLED `"Order #1015 · Table 12"` and `where` is `""`), then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `order` the ticket) |
-| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway, delivery and phone orders the customer's name and masked phone (`"98xxxxxx10"`), the time and the server's initials; on VOID and CHANGED `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #141, #152 · 12:05 PM · By: EC"` |
+| `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"` (also on every KOT of an order marked as priority), `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"`, `"TIME CHANGED"` |
+| `title`, `where` | bold: `"KOT #3 · Order #1015"` (on VOID and CHANGED, the KOT the dish was on; on ORDER CANCELLED `"Order #1015 · Table 12"` and `where` is `""`; on TIME CHANGED `"Order #1033 · Table 6"` and `where` the new time, `"Ready by 10:30 PM"`), then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket) |
+| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway, delivery and phone orders the customer's name and masked phone (`"98xxxxxx10"`), the time and the server's initials; on VOID and CHANGED `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #141, #152 · 12:05 PM · By: EC"`; on TIME CHANGED `"was 10:00 PM · KOT #163 sent 9:30 PM · 9:41 PM · By: RK"` (the ready-by time before, when the KOT went, now, who) |
 | `at` | when it happened, milliseconds |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT and the priority notice; `""` for none |
-| `lines` | `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |
-| `footer` | small, at the end: `"KOT #141, #152 sent earlier · only new dishes on this KOT"`, `"Priority · cook this order first"`, or `"Reason: Customer changed mind"` |
+| `lines` | (none on TIME CHANGED: the dishes don't change) `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |
+| `footer` | small, at the end: `"KOT #141, #152 sent earlier · only new dishes on this KOT"`, `"Priority · cook this order first"`, `"No dish changes · cook as already sent"` (TIME CHANGED), or `"Reason: Customer changed mind"` |
 | `reason`, `by` | the reason staff gave (`""` for none) and who did it (their full name, or `null`) |
 | `priority` | true when the ★ PRIORITY box is on it |
 | `printers` | Settings › Printers: `[{ id, language, copies }]` for the kitchen printers |

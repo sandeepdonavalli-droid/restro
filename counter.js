@@ -81,7 +81,10 @@
     const k = load(KITCHEN_PREP_KEY, null), one = prepOf(k?.minutes) ?? prepOf(load(PREP_KEY, 30)) ?? 30;
     return k?.mode === 'type' && TYPES.includes(type) ? prepOf(k.byType?.[type]) ?? one : one;
   };
-  const kitchenTime = o => o.readyAt - prepMinutes(o.type) * 60000;
+  // (Update Pack 4, C2 and C7) the prep time it was worked out with when the time was picked (prepMin): a change in
+  // Settings › Kitchen moves the KOT earlier, never later (the longer of the two); the order type changed on the
+  // Counter works it out again with the new type's prep time (setType)
+  const kitchenTime = o => o.readyAt - Math.max(prepOf(o.prepMin) || 0, prepMinutes(o.type || DEFAULT_TYPE)) * 60000;
   const endOfDay = () => { const d = new Date(); d.setHours(24, 0, 0, 0); return d.getTime(); };
   // The order of categories and items, as rearranged by holding a tile (kept on this device until the backend exists).
   const ORDER_KEY = 'restro.counter.menuOrder.v1';
@@ -136,7 +139,7 @@
   // server / serverId: the server, when changed with Change server (otherwise whoever saves it first); merged: the saved
   // orders whose dishes Merge tables brought onto it (they go when it is saved). A line can have off, its dish discount
   // (1–100%; 100 complimentary, with offReason), and kit: what the kitchen has of it ([{ n, mods, note }]).
-  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, pagerShared: false, readyAt: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null,
+  const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, pagerShared: false, readyAt: null, kotMode: null, prepMin: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null,
     servicePct: null, priority: false, note: '', guests: 0, server: null, serverId: null, merged: [], events: [], lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
@@ -180,7 +183,7 @@
   const restoreOrder = o => {
     const type = TYPES.includes(o.type) ? o.type : null;
     return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
-      pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), pagerShared: o.pagerShared === true && cleanPager(o.pager) > 0, readyAt: cleanTime(o.readyAt), holdUntil: cleanTime(o.holdUntil),
+      pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), pagerShared: o.pagerShared === true && cleanPager(o.pager) > 0, readyAt: cleanTime(o.readyAt), kotMode: ['queue', 'now', 'ask'].includes(o.kotMode) ? o.kotMode : null, prepMin: prepOf(o.prepMin), holdUntil: cleanTime(o.holdUntil),
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
       discountPct: window.RestroBill.pct(o.discountPct), servicePct: window.RestroBill.rate(o.servicePct), priority: o.priority === true, note: cleanNote(o.note), guests: cleanGuests(o.guests),
       server: typeof o.server === 'string' && o.server ? o.server.slice(0, 60) : null, serverId: typeof o.serverId === 'string' ? o.serverId : null,
@@ -219,7 +222,7 @@
   const typeOf = (o, line) => (o.split ? line.type || o.type : o.type) || DEFAULT_TYPE;
   const lineType = line => typeOf(order, line);
   // What a saved order looks like, to tell whether the copy on screen has changes not saved yet.
-  const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.pagerShared === true, o.readyAt || 0, o.discountPct || 0, o.servicePct || 0, o.priority === true, o.note || '', o.guests || 0, o.serverId || o.server || '',
+  const signature = o => JSON.stringify([o.type, o.split, o.table, o.customer?.id || '', o.pager || 0, o.pagerShared === true, o.readyAt || 0, o.kotMode || '', o.discountPct || 0, o.servicePct || 0, o.priority === true, o.note || '', o.guests || 0, o.serverId || o.server || '',
     o.lines.map(l => [l.id, l.qty, typeOf(o, l), modsKey(l.mods), l.note || '', l.off || 0, l.offReason || ''])]);
   // (A line whose choices are being changed in its pop-up is "edit": it stays a line of its own until the pop-up closes,
   // even when its choices match another line's; then they are merged. A dish discount makes a line of its own too.)
@@ -231,7 +234,7 @@
   let qtyPop = null;                                    // quantity: { key, value (typed so far) }
   let notePop = null;                                   // note: { key, draft, back (return to the modifier pop-up), typing (the note line has the keyboard) }
                                                         // (Update 7: key null for the order note)
-  const POPS = ['mods', 'qty', 'note', 'custom', 'discount', 'service', 'dish', 'void', 'server', 'pagerask', 'history']; // (the pop-ups; customPop, a custom
+  const POPS = ['mods', 'qty', 'note', 'custom', 'discount', 'service', 'dish', 'void', 'server', 'pagerask', 'history', 'schedule']; // (the pop-ups; customPop, a custom
                                                         // item's, discPop, the discount's (Update 6), and Update 7's service
                                                         // charge, dish discount, void and Change server ones are with their code below)
   let cashInput = '';                                   // cash typed on the payment sheet
@@ -401,6 +404,7 @@
   function setType(type) {
     if (order.type === type) return;
     order.type = type;
+    if (order.readyAt) order.prepMin = prepMinutes(type || DEFAULT_TYPE); // (C7: the new type's prep time, earlier or later)
     order.lines.forEach(l => { l.type = type; }); tidy();
     selected = null; render();
   }
@@ -611,6 +615,8 @@
   function tapDelete() {
     const saved = savedOf(loadOrders());
     if (saved && Object.values(saved.sent || {}).some(n => n > 0)) { closeMenu(); openVoid(null, 0); return; }
+    // (Update Pack 4, CS10: a scheduled order whose KOT is still queued: why first, and nothing prints in the kitchen)
+    if (saved && cleanTime(saved.readyAt) && !saved.sentAt) { closeMenu(); openVoid(null, 0, true); return; }
     if (!deleteArmed) { deleteArmed = true; render(); dialog.querySelector('.cx-mi.del')?.focus({ preventScroll: true }); return; }
     const n = order.number;
     dropSaved();
@@ -760,6 +766,9 @@
       ? { pager: onScreenPager, pagerAt: order.pagerAt || prev?.pagerAt || (prev ? createdOf(prev) : now), ...(order.pagerShared ? { pagerShared: true } : {}), ...(untouched && prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) }
       : record ? { pager: prev.pager, ...(prev.pagerAt ? { pagerAt: prev.pagerAt } : {}), ...(prev.pagerBackAt ? { pagerBackAt: prev.pagerBackAt } : {}) } : { pager: 0 };
     let entry = { uid: prev ? idOf(prev) : window.RestroSync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: order.type || DEFAULT_TYPE, split: order.split, table: order.type ? order.table : '', customer: order.customer, ...pagerFields, readyAt: order.readyAt || null,
+      // (Update Pack 4) how its KOT goes: "queue" (Schedule KOT: it prints by itself at the kitchen time) or "now" (Instant
+      // KOT: with Save or Pay); and the prep time the kitchen time was worked out with
+      kotMode: order.readyAt ? (order.kotMode === 'now' ? 'now' : 'queue') : null, prepMin: order.readyAt ? prepOf(order.prepMin) : null,
       // each line's price is one with its add-ons (a choice that sets the price: that price); its choices and note; its
       // dish discount (Update 7); a custom item keeps what was typed for it (Counter Update 5), so the order opens again
       // with it
@@ -802,7 +811,9 @@
       window.RestroSync?.removed('orders', idOf(o));
     }
     if (!entry.sent || typeof entry.sent !== 'object') entry.sent = {};
-    const goesNow = !entry.readyAt || kitchenTime(entry) <= now;
+    // (Update Pack 4: Instant KOT, a KOT that has printed already (new dishes go on a new KOT), or a kitchen time that has
+    // passed: now)
+    const goesNow = !entry.readyAt || entry.kotMode === 'now' || kotPrinted(entry) || kitchenTime(entry) <= now;
     const changed = goesNow ? changedSlip(entry, order, now) : null;
     const kot = goesNow ? sendToKitchen(entry, now) : null;
     // more for the kitchen: not complete any more; the kitchen's timer (Orders, Update Pack 3) starts with the KOT that
@@ -862,28 +873,96 @@
   }
   // Save: the order goes to Orders (not paid yet) and its KOT to the kitchen; a new order starts.
   async function saveOrder() {
+    if (askKot('save')) return;
     const done = await fire(null); if (!done) return;
     const { entry, kot } = done;
-    const kitchen = kot ? `KOT #${kot.no} sent` : entry.readyAt && !entry.sentAt ? `kitchen at ${whenShort(kitchenTime(entry))}` : '';
+    // (Update Pack 4, CS6 and CS9) a scheduled order: "· KOT prints at 9:30 pm", or "· KOT sent to the kitchen"
+    const kitchen = entry.readyAt ? (kot ? 'KOT sent to the kitchen' : !entry.sentAt ? `KOT prints ${kitchenWhen(kitchenTime(entry))}` : '') : kot ? `KOT #${kot.no} sent` : '';
     fresh();
     say({ b: `Order ${ticket(entry.number)} saved`, t: kitchen ? ` · ${kitchen}` : '' });
   }
   // Hold (always there): the order on screen waits in Held until the end of the day, as the customer may call or come
   // back, and a new order starts. A new order's table and pager are free meanwhile; a saved order stays in Orders as it
   // was saved and is held with its changes, keeping its table and pager (as when another order takes the screen).
+  // Update Pack 4 (C11): only before any KOT has gone to the kitchen (after that the Hold pill is greyed, and does
+  // nothing); a scheduled order's queued KOT doesn't stop it, and nothing prints while it is held. A held order lets its
+  // table and pager go (a saved one's too); its customer and ready time stay.
   function holdTicket() {
     if (!order.lines.length) { toast('Nothing to hold'); return; }
-    const freed = order.number ? [] : [usesTable(order) ? `table ${tableName(order.table)}` : '', order.pager ? `pager ${order.pager}` : ''].filter(Boolean);
+    const list = loadOrders(), rec = savedOf(list);
+    if (kotPrinted(rec)) return;
+    const freed = [usesTable(order) ? `table ${tableName(order.table)}` : '', order.pager ? `pager ${order.pager}` : ''].filter(Boolean);
     const said = `${order.number ? `Order ${ticket(order.number)} on hold` : 'On hold'} until the end of the day${freed.length ? ` · ${freed.join(' and ')} free` : ''}`;
+    if (rec) {
+      order.table = ''; order.pager = 0; order.pagerAt = null; order.pagerShared = false;
+      rec.table = ''; if (cleanPager(rec.pager) && !rec.pagerBackAt) rec.pagerBackAt = Date.now();
+      storeOrders(list);
+    }
     hold(); toast(said); fresh();
   }
-  // Schedule: the time the customer wants the order ready. It is saved with Save or Pay, and goes to the kitchen
-  // the preparation time before.
-  function setSchedule(readyAt) {
-    if (!Number.isFinite(readyAt)) return;
-    order.readyAt = readyAt; scheduleDraft = null; sheet = null; render();
-    toast(`Ready by ${whenShort(readyAt)} · Save or Pay to keep it`);
+  // ---------- Schedule (Update Pack 4: Counter scheduling, CS1–CS12) ----------
+  // The time the customer wants the order ready: Today · Tomorrow · Pick a date (business days: 12:30 am belongs to the
+  // day before until the 4 am cut-off), then hour · minute (in 5s) · am/pm on wheels (hour and minute go round). The
+  // kitchen gets the KOT that order type's prep time before (Settings › Kitchen). Two equal grey buttons: Schedule KOT (it
+  // prints by itself then) and Instant KOT (it prints with Save or Pay, as for any order). Too soon (the kitchen time has
+  // passed): Instant KOT only. While the KOT is queued, Clear schedule makes it a normal order again. Once a KOT has
+  // printed, one button, Save new time: the new time is saved at once and the kitchen gets a TIME CHANGED slip.
+  // scheduleDraft: { day (the business day, "2026-11-12"), h (0–23), m, cal (the calendar's month, "2026-11", while it is
+  // open), then ("save" / "pay": a resumed held order asked before Save or Pay) }
+  const DAY_CUT = 4; // (the business day starts at 4 am, as in sync.js)
+  const pad2 = n => String(n).padStart(2, '0');
+  const dkey = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const bizKey = t => window.RestroSync?.dayOf?.(t) || dkey(new Date(t - DAY_CUT * 3600000));
+  const keyDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (k, n) => { const d = keyDate(k); d.setDate(d.getDate() + n); return dkey(d); };
+  const atOn = (k, h, m) => { const d = keyDate(k); if (h < DAY_CUT) d.setDate(d.getDate() + 1); d.setHours(h, m, 0, 0); return d.getTime(); };
+  const dateWords = k => keyDate(k).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); // "Thu 12 Nov"
+  const dayWord = k => { const today = bizKey(Date.now()); return k === today ? 'today' : k === addDays(today, 1) ? 'tomorrow' : dateWords(k); };
+  const sameDay = t => bizKey(t) === bizKey(Date.now());
+  // the Schedule pill: "10:00 pm" today, "Thu 1:00 pm" another day; the KOT line: "at 9:30 pm", "Thu 12 Nov, 12:30 pm"
+  const readyShort = t => (sameDay(t) ? timeOf(t) : `${keyDate(bizKey(t)).toLocaleDateString('en-GB', { weekday: 'short' })} ${timeOf(t)}`);
+  const kitchenWhen = t => (sameDay(t) ? `at ${timeOf(t)}` : `${dateWords(bizKey(t))}, ${timeOf(t)}`);
+  // (the kitchen has some of the saved order: a KOT has printed)
+  function kotPrinted(rec) { return Boolean(rec) && Object.values(rec.sent && typeof rec.sent === 'object' ? rec.sent : {}).some(n => n > 0); }
+  function openSchedule(then = null) {
+    const now = Date.now(), prep = prepMinutes(order.type || DEFAULT_TYPE);
+    // the time on the order, or the soonest the kitchen can have it ready (now and the prep time, on to the next 5 minutes)
+    const r = new Date(order.readyAt || Math.ceil((now + prep * 60000) / 300000) * 300000);
+    scheduleDraft = { day: bizKey(r.getTime()), h: r.getHours(), m: r.getMinutes() - r.getMinutes() % 5, cal: null, then };
+    modPop = null; qtyPop = null; notePop = null; optionsMenu = false; deleteArmed = false;
+    sheet = 'schedule'; render();
   }
+  function closeSchedule() { scheduleDraft = null; sheet = null; render(); }
+  // Schedule KOT ("queue") or Instant KOT ("now"): the plum pill with the time, and the line under the order
+  function chooseSchedule(mode) {
+    const d = scheduleDraft; if (!d) return;
+    order.readyAt = atOn(d.day, d.h, d.m); order.kotMode = mode; order.prepMin = prepMinutes(order.type || DEFAULT_TYPE);
+    const then = d.then; scheduleDraft = null; sheet = null; render();
+    if (then === 'save') saveOrder(); else if (then === 'pay') { cashInput = ''; sheet = 'pay'; render(); }
+  }
+  // Clear schedule (CS12): a normal order again; its KOT prints with Save or Pay
+  function clearSchedule() {
+    order.readyAt = null; order.kotMode = null; order.prepMin = null;
+    scheduleDraft = null; sheet = null; render();
+    say({ b: 'Schedule cleared', t: ' · KOT prints when you tap Save or Pay' });
+  }
+  // Save new time (CS11): the KOT has printed, so the new time is saved now and the kitchen gets a TIME CHANGED slip (no
+  // dishes: cook as already sent)
+  function saveNewTime() {
+    const d = scheduleDraft, list = loadOrders(), rec = savedOf(list); if (!d || !rec) return;
+    const at = atOn(d.day, d.h, d.m), was = cleanTime(rec.readyAt), now = Date.now();
+    if (at === was) { closeSchedule(); return; }
+    const first = kotsOf(rec)[0];
+    const slip = { id: newKotId(), at: now, kind: 'time', readyAt: at, was, kot: first ? { no: first.no || null, at: first.at } : null, lines: [], by: staffName() };
+    rec.readyAt = at; rec.prepMin = prepMinutes(rec.type || DEFAULT_TYPE); rec.kots = [...(Array.isArray(rec.kots) ? rec.kots : []), slip].slice(-60); rec.savedAt = now;
+    storeOrders(list);
+    order.readyAt = at; order.prepMin = rec.prepMin; keepOpened(rec);
+    scheduleDraft = null; sheet = null; render();
+    printSlip(kitchenSlip(rec, slip));
+    say({ b: `Ready by ${readyShort(at)}`, t: ' · TIME CHANGED slip sent to the kitchen' });
+  }
+  // A resumed held order that is scheduled (C11): Save or Pay asks Schedule KOT or Instant KOT again
+  function askKot(then) { if (!(order.readyAt && order.kotMode === 'ask')) return false; openSchedule(then); return true; }
   function resume(id) {
     const entry = held.find(h => h.heldId === id); if (!entry) return;
     if (order.heldId !== id) park();
@@ -899,6 +978,8 @@
       if (order.pager && order.pager === cleanPager(saved.pager) && !holdsPager(saved)) { order.pager = 0; order.pagerAt = null; order.pagerShared = false; }
     }
     baseline = saved ? signature(onScreen(saved)) : null; opened = saved ? JSON.stringify(saved) : null;
+    // (C11: a scheduled order chooses Schedule KOT or Instant KOT again when it is saved)
+    if (order.readyAt && !kotPrinted(saved)) order.kotMode = 'ask';
     sheet = null; selected = null; render(); toast('Order resumed');
   }
   // Opens a saved order that is not paid yet (by its id, or its number), to add items or take the payment.
@@ -919,12 +1000,14 @@
     if (heldChanged) { held = keep; store(HELD_KEY, held); }
     const list = loadOrders(); let sent = 0;
     // (the ticket carries its kitchen time)
-    const printing = [];
+    const printing = [], onHold = new Set(held.map(h => h.uid).filter(Boolean));
     for (const o of list) {
-      if (!(cleanTime(o.readyAt) && kitchenTime(o) <= now)) continue;
-      // (sent and printed by the tablet that saved it last, or this one when there is only one: Update 7; so the KOT
-      // has one number. The others only announce it.)
-      if (window.RestroSync && o.savedOn && o.savedOn !== thisDevice()) { if (!o.sentAt && !announced.has(idOf(o))) { announced.add(idOf(o)); announceKitchen(o); } continue; }
+      if (!(cleanTime(o.readyAt) && kitchenTime(o) <= now) || o.kotMode === 'now' || onHold.has(idOf(o))) continue;
+      // (Update Pack 4, C4: it prints on time from any tablet. The tablet that saved it last prints it at the kitchen time
+      // (so the KOT has one number); when it hasn't 30 seconds later, the main system does, and 2 minutes later any other
+      // tablet: it prints even when that tablet is off, and the moment one comes on. Until then the others announce it.)
+      const late = now - kitchenTime(o), wait = window.RestroSync?.status?.()?.device?.main ? 30000 : 120000;
+      if (window.RestroSync && o.savedOn && o.savedOn !== thisDevice() && !(!o.sentAt && late >= wait)) { if (!o.sentAt && !announced.has(idOf(o))) { announced.add(idOf(o)); announceKitchen(o); } continue; }
       const kot = sendToKitchen(o, kitchenTime(o)); if (!kot) continue;
       o.kitchenAt = o.kitchenDoneAt ? kot.at : o.kitchenAt || o.sentAt || kot.at; delete o.kitchenDoneAt;
       announceKitchen(o); sent++; printing.push([o, kot]);
@@ -1041,13 +1124,14 @@
     window.dispatchEvent(new CustomEvent('restro:order-paid', { detail: entry }));
   }
 
-  // ---------- messages (Counter Update 7) ----------
-  // One place, one look: a dark bar at the bottom of the menu, level with Save and Pay, left of the page arrows (never over
-  // the order, the dishes, the totals or Pay). Confirmations go after 2 s ("KOT sent"), Undo after 4 s ("Chicken biryani
-  // removed · UNDO"), errors stay until Retry or ✕ ("Kitchen printer offline / KOT #3 not sent", a red left edge). One at
-  // a time: a new one takes the old one's place. Its time stops while a finger is on it, and follows Android's
-  // accessibility "Time to take action" (RESTRODevice.recommendedTimeout, ANDROID-BRIDGE.md).
-  let msg = null; // { kind: 'confirm' | 'undo' | 'error', b (bold), t, sub (an error's second line), undo, retry, left, timer, since }
+  // ---------- messages (Counter Update 7; Update Pack 4, A4) ----------
+  // One place, one look: a dark bar at the bottom of the menu, level with Save and Pay, as wide as what it says (icon ·
+  // message · UNDO / RETRY ✕, no empty stretch). Confirmations (a green tick) go after 2 s ("Order #1033 saved · KOT prints
+  // at 9:30 pm"), Undo after 4 s ("Chicken biryani removed · UNDO"), errors (a red "!", a red left edge) stay until Retry
+  // or ✕ ("Kitchen printer offline · KOT #3 not sent"). One at a time: a new one takes the old one's place. Its time stops
+  // while a finger is on it, and follows Android's accessibility "Time to take action" (RESTRODevice.recommendedTimeout,
+  // ANDROID-BRIDGE.md).
+  let msg = null; // { kind: 'confirm' | 'undo' | 'error', b (bold), t, sub (after " · "), undo, retry, left, timer, since }
   const BASE_MS = { confirm: 2000, undo: 4000 };
   function timeFor(kind) {
     const ms = BASE_MS[kind];
@@ -1077,23 +1161,20 @@
     const m = msg; if (!m) return null;
     const act = fn => () => { dropMsg(); fn(); };
     const hold = () => holdMsg(true), let_go = () => holdMsg(false);
-    return el('div', { class: `cx-msg ${m.kind}${m.kind === 'confirm' ? ' plain' : ''}`, role: m.kind === 'error' ? 'alert' : 'status',
+    const err = m.kind === 'error';
+    return el('div', { class: `cx-msg ${m.kind}${m.kind === 'confirm' ? ' plain' : ''}`, role: err ? 'alert' : 'status',
       onpointerdown: hold, onpointerup: let_go, onpointercancel: let_go, onpointerleave: let_go },
-      el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || '', m.sub ? [el('br'), el('small', {}, m.sub)] : null),
+      el('i', { class: 'cx-msg-i', 'aria-hidden': 'true' }, err ? el('b', {}, '!') : mi('check', 16)),
+      el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || '', m.sub ? ` · ${m.sub}` : ''),
       m.undo ? el('button', { type: 'button', onclick: act(m.undo) }, 'UNDO') : null,
       m.retry ? el('button', { type: 'button', onclick: act(m.retry) }, 'RETRY') : null,
       m.kind === 'error' ? el('button', { type: 'button', class: 'xs', 'aria-label': 'Dismiss', onclick: dropMsg }, mi('close', 22)) : null);
   }
-  // (drawn on its own, so a message never redraws the screen; kept clear of the ‹ page arrow, 40 from it)
+  // (drawn on its own, so a message never redraws the screen)
   function paintMsg() {
     root.querySelector('.cx-msg')?.remove();
     const node = msgView(); if (!node) return;
     root.append(node);
-    const arrow = dialog.querySelector('.cx-parr'), u = uPx();
-    if (arrow && arrow.offsetParent) {
-      const room = arrow.getBoundingClientRect().left - 40 / 1.2 * u - node.getBoundingClientRect().left;
-      if (room > 0 && room < 396 * u) node.style.width = `${room}px`;
-    }
   }
 
   // ---------- the kitchen printer (Update 7) ----------
@@ -1124,23 +1205,25 @@
   }
   function kitchenSlip(o, k) {
     const kind = k.kind || 'kot', type = o.type || DEFAULT_TYPE, no = k.no || null, nos = kotsOf(o).map(x => x.no).filter(Boolean);
-    const action = kind === 'void' ? 'VOID' : kind === 'changed' ? 'CHANGED' : kind === 'cancel' ? 'ORDER CANCELLED' : kind === 'priority' || k.priority || o.priority ? '★ PRIORITY' : null;
+    const action = kind === 'void' ? 'VOID' : kind === 'changed' ? 'CHANGED' : kind === 'cancel' ? 'ORDER CANCELLED' : kind === 'time' ? 'TIME CHANGED' : kind === 'priority' || k.priority || o.priority ? '★ PRIORITY' : null;
     const where = usesTable(o) ? `Table ${tableName(o.table)}` : cleanPager(o.pager) ? `Pager ${o.pager}` : type === 'phone' && o.readyAt ? `Pickup ${timeOf(o.readyAt)}` : '';
     const at = timeOf(k.at || Date.now()), by = initialsOf(k.by || staffName()), server = initialsOf(o.server);
     const kotNo = kind === 'void' || kind === 'changed' ? k.lines?.[0]?.kot || k.lines?.[0]?.was?.kot || null : no;
     const who = o.customer ? [o.customer.name, maskPhone(o.customer.mobile)].filter(Boolean).join(' · ') : '';
     const info = kind === 'cancel' ? [`VOID ALL${nos.length ? ` · KOT ${nos.map(n => `#${n}`).join(', ')}` : ''}`, at, by ? `By: ${by}` : '']
+      // (Update Pack 4) TIME CHANGED: "was 10:00 PM · KOT #163 sent 9:30 PM · 9:41 PM · By: RK"
+      : kind === 'time' ? [k.was ? `was ${timeOf(k.was)}` : '', k.kot ? `KOT ${k.kot.no ? `#${k.kot.no} ` : ''}sent ${timeOf(k.kot.at)}` : '', at, by ? `By: ${by}` : '']
       : kind === 'void' || kind === 'changed' ? [at, by ? `By: ${by}` : '']
       : type === 'dine-in' ? [o.guests ? plural(o.guests, 'guest') : '', at, server ? `Server: ${server}` : '']
       : [who, at, server];
     const place = kotsOf(o).findIndex(x => x === k || (k.id && x.id === k.id));
     const earlier = (place < 0 ? kotsOf(o).filter(x => (Number(x.at) || 0) < (Number(k.at) || 0)) : kotsOf(o).slice(0, place)).map(x => x.no).filter(Boolean);
     return {
-      kind, type, band: BAND[type], action, kot: kotNo, order: ticket(o.number), title: kind === 'cancel' ? `Order ${ticket(o.number)}${where ? ` · ${where}` : ''}` : `${kotNo ? `KOT #${kotNo} · ` : ''}Order ${ticket(o.number)}`,
-      where: kind === 'cancel' ? '' : where, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(), priority: Boolean(action === '★ PRIORITY'),
+      kind, type, band: BAND[type], action, kot: kind === 'time' ? null : kotNo, order: ticket(o.number), title: kind === 'cancel' || kind === 'time' ? `Order ${ticket(o.number)}${where ? ` · ${where}` : ''}` : `${kotNo ? `KOT #${kotNo} · ` : ''}Order ${ticket(o.number)}`,
+      where: kind === 'cancel' ? '' : kind === 'time' ? `Ready by ${timeOf(k.readyAt)}` : where, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(), priority: Boolean(action === '★ PRIORITY'),
       note: (kind === 'kot' || kind === 'priority') && o.note ? o.note : '',
       lines: (k.lines || []).map(l => ({ qty: l.qty, name: l.name, names: items.get(l.id)?.names || null, mods: kind === 'changed' ? changesOf(l) : (l.mods || []).map(labelOf), note: l.note || '' })),
-      footer: kind === 'kot' && earlier.length ? `KOT ${earlier.map(n => `#${n}`).join(', ')} sent earlier · only new dishes on this KOT` : kind === 'priority' ? 'Priority · cook this order first' : k.reason ? `Reason: ${k.reason}` : '',
+      footer: kind === 'kot' && earlier.length ? `KOT ${earlier.map(n => `#${n}`).join(', ')} sent earlier · only new dishes on this KOT` : kind === 'priority' ? 'Priority · cook this order first' : kind === 'time' ? 'No dish changes · cook as already sent' : k.reason ? `Reason: ${k.reason}` : '',
       reason: k.reason || '', by: k.by || null,
       // the kitchen printers (Settings › Devices › Printers): KOT language and copies
       printers: Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'kitchen' || p.role === 'both')).map(([id, p]) => ({ id, language: p.language || 'English', copies: p.copies || 1 }))
@@ -1150,7 +1233,7 @@
   // KOT #3 not sent"). Without the app (a browser) there is no kitchen printer: the slip is kept on the order only.
   // `mark` ({ uid, id }): the KOT on the saved order, which keeps whether its print failed (Orders shows KOT !).
   function printSlip(slip, ok, mark) {
-    const what = slip.kind === 'kot' ? `KOT #${slip.kot}` : slip.kind === 'void' ? 'VOID slip' : slip.kind === 'changed' ? 'CHANGED slip' : slip.kind === 'cancel' ? 'ORDER CANCELLED slip' : 'Priority notice';
+    const what = slip.kind === 'kot' ? `KOT #${slip.kot}` : slip.kind === 'void' ? 'VOID slip' : slip.kind === 'changed' ? 'CHANGED slip' : slip.kind === 'cancel' ? 'ORDER CANCELLED slip' : slip.kind === 'time' ? 'TIME CHANGED slip' : 'Priority notice';
     sendSlip(slip, mark).then(r => { if (r.ok) ok?.(); else say({ kind: 'error', b: 'Kitchen printer offline', sub: `${what} not sent`, retry: () => printSlip(slip, ok, mark) }); });
   }
   // Prints a slip and resolves { ok, why }: why the kitchen printer didn't print it, when the RESTRO Android app says
@@ -1200,9 +1283,9 @@
     for (const x of list) { const t = cleanReason(typeof x === 'string' ? x : x?.text); if (t && !out.has(t.toLowerCase())) out.set(t.toLowerCase(), t); }
     return [...out.values()].slice(0, 9);
   }
-  function openVoid(key, to) {
+  function openVoid(key, to, queued = false) {
     if (key != null && !lineOf(key)) return;
-    voidPop = { key, to, reason: '', typing: false }; modPop = null; qtyPop = null; notePop = null; optionsMenu = false; deleteArmed = false;
+    voidPop = { key, to, reason: '', typing: false, queued }; modPop = null; qtyPop = null; notePop = null; optionsMenu = false; deleteArmed = false;
     if (key != null) selected = key;
     sheet = 'void'; render();
   }
@@ -1213,6 +1296,14 @@
     const reason = voidReason(p); if (!reason) return;
     dialog.querySelector('#counter-reason')?.blur();
     const list = loadOrders(), rec = savedOf(list), now = Date.now(), by = staffName();
+    if (p.key == null && p.queued) {
+      // (CS10) its KOT was still queued: the queued KOT goes with it and nothing prints in the kitchen
+      if (rec) keepCancelled(rec, { at: now, reason, by });
+      const n = order.number;
+      dropSaved(); fresh();
+      say({ b: n ? `Order ${ticket(n)} deleted` : 'Order deleted' });
+      return;
+    }
     if (p.key == null) {
       // The whole order: ORDER CANCELLED (VOID ALL), everything the kitchen has, with minus quantities
       const slip = rec ? cancelSlipOf(rec, reason, by, now) : null;
@@ -1364,6 +1455,8 @@
     percent: 'M300-520q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T360-660q0-25-17.5-42.5T300-720q-25 0-42.5 17.5T240-660q0 25 17.5 42.5T300-600Zm360 440q-58 0-99-41t-41-99q0-58 41-99t99-41q58 0 99 41t41 99q0 58-41 99t-99 41Zm0-80q25 0 42.5-17.5T720-300q0-25-17.5-42.5T660-360q-25 0-42.5 17.5T600-300q0 25 17.5 42.5T660-240Zm-472 52q-11-11-11-28t11-28l528-528q11-11 28-11t28 11q11 11 11 28t-11 28L244-188q-11 11-28 11t-28-11Z',
     // (Remove discount: the rupee crossed out, its stroke cut out of the rupee by a white edge, as drawn)
     remove_discount: '<path d="M537-132 291-388q-5-5-8-12.5t-3-15.5v-24q0-17 11.5-28.5T320-480h100q53 0 91.5-34.5T558-600H280q-17 0-28.5-11.5T240-640q0-17 11.5-28.5T280-680h266q-17-35-50.5-57.5T420-760H280q-17 0-28.5-11.5T240-800q0-17 11.5-28.5T280-840h400q17 0 28.5 11.5T720-800q0 17-11.5 28.5T680-760h-90q14 17 25 37t17 43h48q17 0 28.5 11.5T720-640q0 17-11.5 28.5T680-600h-41q-8 85-70 142.5T420-400h-29l204 212q18 19 7.5 43.5T566-120q-8 0-15.5-3t-13.5-9Z"/><path d="M150-830 L810-170" stroke="#ffffff" stroke-width="130" stroke-linecap="round" fill="none"/><path d="M150-830 L810-170" stroke="currentColor" stroke-width="70" stroke-linecap="round" fill="none"/>',
+    calendar: 'M180-80q-24 0-42-18t-18-42v-620q0-24 18-42t42-18h65v-28q0-13.6 9.2-22.8 9.2-9.2 22.8-9.2 14.02 0 23.51 9.2Q310-861.6 310-848v28h340v-28q0-13.6 9.2-22.8 9.2-9.2 22.8-9.2 14.03 0 23.51 9.2Q715-861.6 715-848v28h65q24 0 42 18t18 42v620q0 24-18 42t-42 18H180Zm0-60h600v-430H180v430Z',
+    check_circle: 'm424-408-86-86q-11-11-28-11t-28 11q-11 11-11 28t11 28l114 114q12 12 28 12t28-12l226-226q11-11 11-28t-11-28q-11-11-28-11t-28 11L424-408Zm56 328q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z',
     close: 'M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z',
     person: 'M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-240v-32q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v32q0 33-23.5 56.5T720-160H240q-33 0-56.5-23.5T160-240Z',
     // Counter Update 7 (Material Symbols Rounded, as in the design)
@@ -1407,16 +1500,18 @@
     const typeBtn = ctxButton(order.type ? 'amber' : 'grey unset', order.type ? typeIcon[order.type] : 'receipt_long', 20, typeLabel[order.type] || 'Order type',
       { class: `cx-b ${order.type ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': 'true', 'aria-expanded': String(typeMenu), 'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
     const who = order.type === 'dine-in'
-      ? ctxButton('grey', 'table_restaurant', 19, table ? `Table ${table}` : 'Choose table', { class: 'cx-b grey cx-who', 'aria-label': table ? `Table ${table}${order.guests ? `, ${plural(order.guests, 'guest')}` : ''}. Tap to change the table` : 'Choose table', onclick: pickTable },
+      ? ctxButton('grey', 'table_restaurant', 19, table ? `Table ${table}` : 'Choose table', { class: `cx-b grey cx-who${table ? ' set' : ''}`, 'aria-label': table ? `Table ${table}${order.guests ? `, ${plural(order.guests, 'guest')}` : ''}. Tap to change the table` : 'Choose table', onclick: pickTable },
         false, table && order.guests ? el('span', { class: 'cx-gchip', 'aria-hidden': 'true' }, mi('group', 18), String(order.guests)) : null)
-      : ctxButton('grey', c ? 'person' : 'person_add', 19, c ? c.name : 'Add Customer', { class: 'cx-b grey cx-who', 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer });
+      : ctxButton('grey', c ? 'person' : 'person_add', 19, c ? c.name : 'Add Customer', { class: `cx-b grey cx-who${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer });
     const pager = ctxButton(order.pager ? 'violet' : 'grey', 'vibration', 19, order.pager ? `Pager ${order.pager}` : 'Pager',
       { class: `cx-b ${order.pager ? 'violet' : 'grey'} sm cx-pager`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign a pager', onclick: () => { sheet = 'pager'; render(); } });
     const print = printButton();
-    const schedule = chip(order.readyAt ? 'pink' : 'grey', 'schedule', 17, order.readyAt ? whenShort(order.readyAt) : 'Schedule',
-      { class: `cx-chip ${order.readyAt ? 'pink' : 'grey'} cx-sched`, 'aria-label': order.readyAt ? `Ready by ${whenShort(order.readyAt)}. Tap to change` : 'Schedule', onclick: () => { scheduleDraft = null; sheet = 'schedule'; render(); } });
+    // (Update Pack 4: plum with the time, "10:00 pm" or "Thu 1:00 pm"; it opens the picker)
+    const schedule = chip(order.readyAt ? 'plum' : 'grey', 'schedule', 17, order.readyAt ? readyShort(order.readyAt) : 'Schedule',
+      { class: `cx-chip ${order.readyAt ? 'plum' : 'grey'} cx-sched`, 'aria-label': order.readyAt ? `Ready by ${readyShort(order.readyAt)}. Tap to change` : 'Schedule', onclick: () => openSchedule() });
     const modify = chip(order.split ? 'dark' : 'grey', 'edit', 17, 'Modify', { class: `cx-chip ${order.split ? 'dark' : 'grey'} cx-modify`, role: 'switch', 'aria-checked': String(order.split), onclick: () => setSplit(!order.split) });
-    const holdBtn = chip('hold', 'pause_circle', 17, 'Hold', { class: 'cx-chip hold cx-hold', onclick: holdTicket });
+    const rec = savedOf(loadOrders()), kotGone = kotPrinted(rec);
+    const holdBtn = chip('hold', 'pause_circle', 17, 'Hold', { class: `cx-chip hold cx-hold${kotGone ? ' off' : ''}`, 'aria-disabled': kotGone ? 'true' : null, onclick: holdTicket });
     const tiles = { type: typeBtn, customer: who, pager, print, schedule, modify, hold: holdBtn };
     const group = name => panelOrder[name].map(key => el('div', { class: 'cx-seg', 'data-tile': key }, tiles[key]));
     // The four types, two by two over the context row and the header (those step out of sight meanwhile)
@@ -1502,7 +1597,7 @@
         t.roundOff ? sum('Round off', `${t.roundOff < 0 ? '−' : '+'}${amount(Math.abs(t.roundOff))}`, 'ro') : null),
       el('div', { class: 'cx-act' },
         el('button', { type: 'button', class: 'cx-save', disabled: !t.count, onclick: saveOrder }, mi('receipt_long', 26), 'Save'),
-        el('button', { type: 'button', class: 'cx-pay', disabled: !t.count, 'aria-label': `Pay ${amount(t.total)}`, onclick: () => { cashInput = ''; sheet = 'pay'; render(); } }, `Pay\u00A0\u00A0${amount(t.total)}`)));
+        el('button', { type: 'button', class: 'cx-pay', disabled: !t.count, 'aria-label': `Pay ${amount(t.total)}`, onclick: () => { if (askKot('pay')) return; cashInput = ''; sheet = 'pay'; render(); } }, `Pay\u00A0\u00A0${amount(t.total)}`)));
 
     // The order note (Update 7): a line of its own under the header. Empty: "✎ Add order note", grey, no box; with a note:
     // an amber strip with the note on one line (… when long) and a round ✕ that clears it (with Undo). A tap opens the
@@ -1512,7 +1607,11 @@
           el('button', { type: 'button', class: 'cx-onote-t', 'aria-label': `Order note: ${order.note}. Tap to change it`, onclick: () => openNote(null) }, mi('note_alt', 18), el('span', {}, order.note)),
           el('button', { type: 'button', class: 'cx-nclr', 'aria-label': 'Clear the order note', onclick: clearOrderNote }, mi('close', 18)))
       : el('button', { type: 'button', class: `cx-onote empty${sheet === 'note' && notePop?.key === null ? ' active' : ''}`, onclick: () => openNote(null) }, mi('edit_note', 20), el('span', {}, 'Add order note'));
-    return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}${typeMenu ? ' picking' : ''}`, 'aria-label': 'Current order' }, pick, row, head, onote, list, sums);
+    // (Update Pack 4) a scheduled order: when its KOT prints ("KOT prints at 9:30 pm", plum), or that it went ("✓ KOT sent to
+    // the kitchen"); Instant KOT shows nothing until it has gone
+    const kotl = !order.readyAt ? null : kotGone ? el('div', { class: 'cx-kotl sent' }, mi('check_circle', 15), el('span', {}, 'KOT sent to the kitchen'))
+      : order.kotMode !== 'now' ? el('div', { class: 'cx-kotl' }, mi('schedule', 15), el('span', {}, `KOT prints ${kitchenWhen(kitchenTime(order))}`)) : null;
+    return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}${typeMenu ? ' picking' : ''}${kotl ? ' kotl' : ''}`, 'aria-label': 'Current order' }, pick, row, head, kotl, onote, list, sums);
   }
   // Tap a line: it is selected (another one was, it isn't any more); tapping the selected one again keeps it so.
   function selectLine(key) { if (selected === key) return; selected = key; render(); }
@@ -2574,6 +2673,115 @@
   // (Update 5: 52 round, raised white, at the same place on every pop-up); its buttons are raised white tiles; Done is
   // blue.
   const NOTE_HINT = 'Type special instructions here';
+  // The Schedule picker (Update Pack 4, CS1–CS3, CS5, CS8, CS11): right beside the order panel, over the dimmed menu.
+  // "Schedule order #1033" ("Change schedule · #1033" when it has a time: a red Clear schedule while its KOT is queued,
+  // greyed once it has printed, with "✓ KOT #163 already sent to the kitchen at 9:30 pm" under the title) · the day ·
+  // the three wheels · what it comes to ("Ready by today, 10:00 pm" / "With Schedule KOT the kitchen gets it at 9:30 pm
+  // (30 min before · Dine-in prep time)", in red when it is too soon) · the two buttons (or Save new time).
+  function scheduleCard(hold) {
+    const d = scheduleDraft, rec = savedOf(loadOrders()), printed = Boolean(order.readyAt) && kotPrinted(rec);
+    const type = order.type || DEFAULT_TYPE, prep = prepMinutes(type), byType = load(KITCHEN_PREP_KEY, null)?.mode === 'type';
+    const today = bizKey(Date.now()), tomorrow = addDays(today, 1), number = order.number || upcomingNumber();
+    const title = order.readyAt ? `Change schedule · ${ticket(number)}` : `Schedule order ${ticket(number)}`;
+    const press = fn => ({ onpointerdown: hold, onmousedown: hold, onclick: fn });
+    // the day: Today · Tomorrow · Pick a date (a date picked there shows on it, "Thu 12 Nov"); its calendar under it
+    const other = d.day !== today && d.day !== tomorrow;
+    const pickDay = k => { d.day = k; d.cal = null; render(); };
+    const dayChip = (label, on, fn, icon) => el('button', { type: 'button', class: `cx-sd${on ? ' on' : ''}`, 'aria-pressed': String(on), ...press(fn) }, icon ? mi(icon, 20) : null, el('span', {}, label));
+    const calendar = () => {
+      const [y, mo] = d.cal.split('-').map(Number), first = new Date(y, mo - 1, 1), start = new Date(y, mo - 1, 1 - (first.getDay() + 6) % 7);
+      const cells = Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+      const shift = n => { const t = new Date(y, mo - 1 + n, 1); d.cal = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}`; render(); };
+      return el('div', { class: 'cx-scal', role: 'group', 'aria-label': 'Pick a date' },
+        el('div', { class: 'cx-scal-h' }, el('b', {}, first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })),
+          el('button', { type: 'button', class: 'cx-scal-nav', 'aria-label': 'Previous month', ...press(() => shift(-1)) }, mi('chevron_left', 22)),
+          el('button', { type: 'button', class: 'cx-scal-nav', 'aria-label': 'Next month', ...press(() => shift(1)) }, mi('chevron_right', 22))),
+        el('div', { class: 'cx-scal-w', 'aria-hidden': 'true' }, ...['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(w => el('span', {}, w))),
+        el('div', { class: 'cx-scal-g' }, ...cells.map(c => {
+          const k = dkey(c), out = c.getMonth() !== mo - 1, past = k < today;
+          return el('button', { type: 'button', class: `cx-scal-d${out || past ? ' off' : ''}${k === today ? ' today' : ''}${k === d.day && !out ? ' on' : ''}`, disabled: out || past,
+            'aria-pressed': String(k === d.day), 'aria-label': c.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), ...press(() => pickDay(k)) }, String(c.getDate()));
+        })));
+    };
+    const days = el('div', { class: 'cx-sdays', role: 'group', 'aria-label': 'Day' },
+      dayChip('Today', d.day === today, () => pickDay(today)), dayChip('Tomorrow', d.day === tomorrow, () => pickDay(tomorrow)),
+      dayChip(other ? dateWords(d.day) : 'Pick a date', other, () => { d.cal = d.cal ? null : (other ? d.day : today).slice(0, 7); render(); }, 'calendar'),
+      d.cal ? calendar() : null);
+    // what it comes to, and the buttons, follow the wheels as they turn (the picker itself isn't drawn again)
+    const sum1 = el('b', {}), sum2 = el('span', {});
+    const kotBtn = (label, fn) => { const sub = el('small', {}); return [el('button', { type: 'button', class: 'cx-sk', ...press(fn) }, el('b', {}, label), sub), sub]; };
+    const [sched, schedSub] = kotBtn('Schedule KOT', () => chooseSchedule('queue')), [instant, instantSub] = kotBtn('Instant KOT', () => chooseSchedule('now')), [saveNew, saveSub] = kotBtn('Save new time', saveNewTime);
+    instantSub.textContent = 'prints now'; saveSub.textContent = 'prints a time-changed slip';
+    const update = () => {
+      const readyAt = atOn(d.day, d.h, d.m), now = Date.now(), kitchenAt = readyAt - prep * 60000, passed = readyAt <= now, soon = !passed && kitchenAt <= now;
+      const when = sameDay(kitchenAt) ? timeOf(kitchenAt) : `${timeOf(kitchenAt)} on ${dateWords(bizKey(kitchenAt))}`;
+      sum1.textContent = `Ready by ${dayWord(d.day)}, ${timeOf(readyAt)}`;
+      if (passed) sum2.replaceChildren(el('em', {}, `${timeOf(readyAt)} has passed · pick a later time`));
+      else if (printed) sum2.replaceChildren(`was ${readyShort(rec.readyAt)} · the kitchen gets a `, el('i', {}, 'TIME CHANGED'), ' slip');
+      else if (soon) sum2.replaceChildren(el('em', {}, `Too soon to schedule · the kitchen needs ${prep} min. Use Instant KOT.`));
+      else sum2.replaceChildren('With Schedule KOT the kitchen gets it at ', el('i', {}, when), ` (${prep} min before · ${byType ? `${typeLabel[type]} prep time` : 'kitchen prep time'})`);
+      schedSub.textContent = passed || soon ? 'too soon' : `prints at ${when}`;
+      sched.disabled = passed || soon; instant.disabled = passed; saveNew.disabled = passed;
+    };
+    const hours = Array.from({ length: 12 }, (_, i) => String(i + 1)), minutes = Array.from({ length: 12 }, (_, i) => pad2(i * 5));
+    const wheels = el('div', { class: 'cx-swheels' },
+      drum('Hour', hours, (d.h + 11) % 12, true, i => { d.h = (i + 1) % 12 + (d.h >= 12 ? 12 : 0); }, update),
+      drum('Minutes', minutes, d.m / 5, true, i => { d.m = i * 5; }, update),
+      drum('am or pm', ['am', 'pm'], d.h >= 12 ? 1 : 0, false, i => { d.h = d.h % 12 + (i ? 12 : 0); }, update));
+    update();
+    const first = printed ? kotsOf(rec)[0] : null;
+    return el('div', { class: `cx-pu sched${printed ? ' printed' : ''}`, role: 'dialog', 'aria-label': title,
+      // (a tap anywhere else in the picker closes the calendar)
+      onclick: e => { if (d.cal && !e.target.closest?.('.cx-scal, .cx-sd')) { d.cal = null; render(); } } },
+      el('div', { class: 'cx-pu-head cx-sh' }, el('h3', {}, title),
+        order.readyAt ? el('button', { type: 'button', class: 'cx-sclear', disabled: printed, ...press(clearSchedule) }, 'Clear schedule') : null, closeX(closeSchedule, hold)),
+      printed ? el('p', { class: 'cx-ssent' }, mi('check_circle', 18), `KOT ${first?.no ? `#${first.no} ` : ''}already sent to the kitchen${first ? ` at ${timeOf(first.at)}` : ''}`) : null,
+      days, wheels, el('div', { class: 'cx-ssum', 'aria-live': 'polite' }, sum1, sum2),
+      el('div', { class: `cx-sks${printed ? ' one' : ''}` }, ...(printed ? [saveNew] : [sched, instant])));
+  }
+  // A wheel (CS1): five rows, the one picked in the blue band (blue and bold), the next ones dark, the outer ones pale.
+  // Drag it, tap a row, turn the mouse wheel or use the arrow keys; hours and minutes go round, am / pm doesn't.
+  function drum(label, values, index, loop, pick, changed) {
+    const n = values.length, box = el('div', { class: 'cx-wh', role: 'listbox', tabindex: '0', 'aria-label': label });
+    const band = el('div', { class: 'cx-wh-band', 'aria-hidden': 'true' }), rows = [];
+    let cur = index, drag = 0, startY = null, moved = false;
+    const rowH = () => band.offsetHeight || 60;
+    const at = i => (loop ? ((i % n) + n) % n : i);
+    const paint = () => {
+      rows.splice(0).forEach(r => r.remove());
+      const h = rowH();
+      for (let i = -3; i <= 3; i++) {
+        const v = cur + i; if (!loop && (v < 0 || v >= n)) continue;
+        const dist = Math.abs(i + drag / h);
+        const row = el('div', { class: `cx-wh-row${dist < 0.5 ? ' sel' : dist < 1.5 ? ' near' : ''}`, role: 'option', 'aria-selected': String(i === 0) }, values[at(v)]);
+        row.style.setProperty('--i', String(i)); row.style.transform = drag ? `translateY(${drag}px)` : '';
+        rows.push(row); box.append(row);
+      }
+    };
+    const go = step => {
+      const v = step ? (loop ? at(cur + step) : Math.max(0, Math.min(n - 1, cur + step))) : cur;
+      drag = 0; if (v !== cur) { cur = v; pick(cur); changed(); }
+      paint();
+    };
+    box.append(band);
+    box.addEventListener('pointerdown', e => { startY = e.clientY; moved = false; drag = 0; box.setPointerCapture?.(e.pointerId); });
+    box.addEventListener('pointermove', e => {
+      if (startY == null) return;
+      drag = e.clientY - startY; if (Math.abs(drag) > 6) moved = true;
+      if (!loop) drag = Math.max(-(n - 1 - cur) * rowH(), Math.min(cur * rowH(), drag));
+      paint();
+    });
+    box.addEventListener('pointerup', e => {
+      if (startY == null) return;
+      const r = box.getBoundingClientRect(), step = moved ? Math.round(-drag / rowH()) : Math.round((e.clientY - r.top - r.height / 2) / rowH());
+      startY = null; go(step);
+    });
+    box.addEventListener('pointercancel', () => { startY = null; go(0); });
+    box.addEventListener('wheel', e => { e.preventDefault(); go(Math.sign(e.deltaY)); }, { passive: false });
+    box.addEventListener('keydown', e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); go(e.key === 'ArrowDown' ? 1 : -1); } });
+    paint();
+    return box;
+  }
   function popView() {
     const kind = sheet, hold = e => e.preventDefault(); // (a tap that is not on a line typed on leaves the keyboard as it is)
     const layer = (card, outside = () => {}) => el('div', { class: `cx-layer ${kind}` },
@@ -2590,6 +2798,7 @@
     if (kind === 'server') return layer(serverCard(hold), () => { sheet = null; serverPop = null; render(); });
     if (kind === 'pagerask') return layer(pagerAskCard(hold), cancelPagerAsk);
     if (kind === 'history') return historyLayer(hold);
+    if (kind === 'schedule') return layer(scheduleCard(hold), closeSchedule);
     const done = (fn, wide) => el('button', { type: 'button', class: `cx-done${wide ? ' wide' : ''}`, onpointerdown: hold, onmousedown: hold, onclick: fn }, 'Done');
     if (kind === 'note' && notePop.key === null) {
       // "Order note · Order #1015 · Table 12", the whole order's quick notes (no + Add), Clear note, Done
@@ -2770,7 +2979,8 @@
     const name = line ? itemOf(line).name : '', n = line ? sentOf(line) - Math.max(0, p.to) : 0, kots = kotsOf(rec);
     const kotNo = line && rec ? kotOfKey(rec, kitchenKey(line.id, lineType(line), (line.kit || [])[line.kit.length - 1]?.mods || line.mods)) : null;
     const title = whole ? `Delete order ${ticket(order.number)}?` : p.to <= 0 ? `Remove ${name}?` : `Reduce ${name} ${line.qty} → ${p.to}?`;
-    const sub = whole ? `${kots.length} KOT${kots.length === 1 ? '' : 's'} already sent to the kitchen` : `Already sent to the kitchen${kotNo ? ` · KOT #${kotNo}` : ''}`;
+    const queued = whole && p.queued;
+    const sub = queued ? `KOT not printed yet (queued for ${rec ? timeOf(kitchenTime(rec)) : ''})` : whole ? `${kots.length} KOT${kots.length === 1 ? '' : 's'} already sent to the kitchen` : `Already sent to the kitchen${kotNo ? ` · KOT #${kotNo}` : ''}`;
     const reasons = learnedReasons(whole ? CANCEL_QUICK : VOID_QUICK);
     const tf = textField({ id: 'counter-reason', value: p.reason, hint: 'Type the reason here', max: 80, label: 'Reason', idle: true }), field = tf.input;
     const reasonLine = el('span', { class: 'cx-nf-line' }, mi('edit', 22), tf.box);
@@ -2778,7 +2988,7 @@
       onclick: () => { p.reason = r; field.value = r; sync(); tf.place(); } }, el('span', { class: 'cx-qn-t' }, r)));
     const clear = el('button', { type: 'button', class: 'cx-clear', onpointerdown: hold, onmousedown: hold, onclick: () => { p.reason = ''; field.value = ''; sync(); tf.place(); } }, 'Clear');
     const send = el('button', { type: 'button', class: 'cx-btnr', onpointerdown: hold, onmousedown: hold, onclick: confirmVoid },
-      whole ? 'Delete order & send void' : p.to <= 0 ? 'Remove & send void' : 'Reduce & send void');
+      queued ? 'Delete order' : whole ? 'Delete order & send void' : p.to <= 0 ? 'Remove & send void' : 'Reduce & send void');
     const sync = () => {
       const said = cleanReason(p.reason).toLowerCase();
       chipEls.forEach((b, i) => { const on = Boolean(said) && reasons[i].toLowerCase() === said; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
@@ -2791,7 +3001,8 @@
       el('div', { class: 'cx-pu-head' },
         el('div', { class: 'cx-dh void' }, el('i', { 'aria-hidden': 'true' }, mi('do_not_disturb_on', 22)), el('b', {}, title), el('span', {}, sub)),
         closeX(cancelVoid, hold)),
-      el('div', { class: 'cx-vinfo' }, mi('receipt_long', 22), whole
+      queued ? el('div', { class: 'cx-vinfo plum' }, mi('schedule', 22), el('span', {}, 'The kitchen hasn’t got this order yet, so ', el('b', {}, 'nothing prints in the kitchen'), '. The queued KOT is cancelled.'))
+      : el('div', { class: 'cx-vinfo' }, mi('receipt_long', 22), whole
         ? el('span', {}, 'An ', el('b', {}, 'ORDER CANCELLED'), ' slip for the ', el('b', {}, `whole order (${plural(totals().count, 'item')})`), ' will print in the kitchen. This can’t be undone.')
         : el('span', {}, 'A ', el('b', {}, 'VOID'), ' slip for ', el('b', {}, `${n} × ${name}`), ' will print in the kitchen.')),
       el('label', { class: 'cx-nf' }, el('span', { class: 'cx-nf-label' }, 'Reason (required)'), reasonLine),
@@ -3168,7 +3379,8 @@
     let body;
     // The pop-ups over the menu (Counter Update 4): modifiers, quantity, note; a custom item (Update 5)
     if ((sheet === 'mods' && modPop) || (sheet === 'qty' && qtyPop) || (sheet === 'note' && notePop) || (sheet === 'custom' && customPop) || (sheet === 'discount' && discPop)
-      || (sheet === 'service' && servicePop) || (sheet === 'dish' && dishPop) || (sheet === 'void' && voidPop) || (sheet === 'server' && serverPop) || (sheet === 'pagerask' && pagerAsk) || sheet === 'history') return popView();
+      || (sheet === 'service' && servicePop) || (sheet === 'dish' && dishPop) || (sheet === 'void' && voidPop) || (sheet === 'server' && serverPop) || (sheet === 'pagerask' && pagerAsk) || sheet === 'history'
+      || (sheet === 'schedule' && scheduleDraft)) return popView();
 
     if (sheet === 'pay') {
       const options = cashOptions(t.total);
@@ -3231,70 +3443,6 @@
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet ctr-pager-sheet', role: 'dialog', 'aria-label': 'Assign pager' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Assign pager'), close), grid,
           order.pager ? el('button', { type: 'button', class: 'ctr-secondary ctr-sheet-wide', onclick: () => choose(0) }, 'Remove pager') : null));
-    }
-    // Schedule: the day and time the customer wants the order ready. It goes to the kitchen the preparation time before.
-    // Schedule works from the start: the time can be picked before any item is added. The day is picked on top; the time
-    // with three wheels, Hour · Minutes (in 5s) · AM or PM, each scrolled (or tapped) until the value sits in the band.
-    if (sheet === 'schedule') {
-      const nowMs = Date.now(), today = new Date(), prep = prepMinutes(order.type || DEFAULT_TYPE);
-      const days = Array.from({ length: 7 }, (_, i) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + i));
-      if (!scheduleDraft) {
-        // The time already on the order, or else the soonest the kitchen can have it ready (now plus the preparation
-        // time, on to the next 5 minutes).
-        const r = new Date(order.readyAt || Math.ceil((nowMs + prep * 60000) / 300000) * 300000), day = days.findIndex(x => dayKey(x) === dayKey(r));
-        scheduleDraft = { day: Math.max(day, 0), hour: r.getHours(), minute: r.getMinutes() - r.getMinutes() % 5 };
-      }
-      const d = scheduleDraft;
-      const at = () => new Date(days[d.day].getFullYear(), days[d.day].getMonth(), days[d.day].getDate(), d.hour, d.minute).getTime();
-      const dayName = i => i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : days[i].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' });
-      const pickBtn = (label, on, onclick) => el('button', { type: 'button', class: `ctr-pick${on ? ' on' : ''}`, 'aria-pressed': String(on), onclick }, label);
-      const summary = el('div', { class: 'ctr-sched-summary', 'aria-live': 'polite' });
-      const confirm = el('button', { type: 'button', class: 'primary-button ctr-complete' }, 'Schedule');
-      // The summary and the Schedule button follow the wheels as they turn (the sheet itself is not redrawn).
-      const update = () => {
-        const readyAt = at(), now = Date.now(), ok = readyAt > now, kitchenAt = readyAt - prep * 60000;
-        summary.replaceChildren(...(ok
-          ? [el('strong', {}, `Ready by ${d.day < 2 ? dayName(d.day).toLowerCase() : days[d.day].toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, ${timeOf(readyAt)}`),
-             el('span', {}, kitchenAt <= now ? 'Goes to the kitchen now' : `Goes to the kitchen at ${whenShort(kitchenAt)} (${prep} min before)`)]
-          : [el('strong', {}, `${timeOf(readyAt)} has passed`), el('span', {}, 'Choose a later time')]));
-        confirm.disabled = !ok; confirm.onclick = () => setSchedule(at());
-      };
-      // A wheel: the value in the middle band is the one picked. Scroll it, tap a value, or use the arrow keys.
-      const ROW = 40;
-      const wheel = (label, values, index, pick) => {
-        let current = index;
-        const list = el('div', { class: 'ctr-wheel-list', role: 'listbox', tabindex: '0', 'aria-label': label });
-        const items = values.map((v, i) => el('div', { class: 'ctr-wheel-item', role: 'option', 'aria-selected': String(i === index), onclick: () => list.scrollTo({ top: i * ROW, behavior: 'smooth' }) }, v));
-        list.append(...items);
-        list.addEventListener('scroll', () => {
-          const i = Math.max(0, Math.min(values.length - 1, Math.round(list.scrollTop / ROW)));
-          if (i === current) return;
-          items[current].setAttribute('aria-selected', 'false'); items[i].setAttribute('aria-selected', 'true'); current = i;
-          pick(i); update();
-        });
-        list.addEventListener('keydown', e => {
-          if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-          e.preventDefault();
-          list.scrollTo({ top: Math.max(0, Math.min(values.length - 1, current + (e.key === 'ArrowDown' ? 1 : -1))) * ROW, behavior: 'smooth' });
-        });
-        queueMicrotask(() => { list.scrollTop = index * ROW; }); // once the sheet is on screen
-        return el('div', { class: 'ctr-wheel' }, el('div', { class: 'ctr-wheel-band', 'aria-hidden': 'true' }), list);
-      };
-      const hours = Array.from({ length: 12 }, (_, i) => String(i + 1)), minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
-      const wheels = el('div', { class: 'ctr-wheels' },
-        wheel('Hour', hours, (d.hour + 11) % 12, i => { d.hour = (i + 1) % 12 + (d.hour >= 12 ? 12 : 0); }),
-        wheel('Minutes', minutes, d.minute / 5, i => { d.minute = i * 5; }),
-        wheel('AM or PM', ['AM', 'PM'], d.hour >= 12 ? 1 : 0, i => { d.hour = d.hour % 12 + (i ? 12 : 0); }));
-      update();
-      return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
-        el('div', { class: 'ctr-sheet ctr-sched-sheet', role: 'dialog', 'aria-label': 'Schedule order' },
-          el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Schedule order'), close),
-          el('div', { class: 'ctr-sched-days', role: 'group', 'aria-label': 'Day' }, ...days.map((_, i) => pickBtn(dayName(i), d.day === i, () => { d.day = i; render(); }))),
-          wheels,
-          summary,
-          el('div', { class: 'ctr-sched-actions' },
-            order.readyAt ? el('button', { type: 'button', class: 'ctr-secondary', onclick: () => { order.readyAt = null; scheduleDraft = null; sheet = null; render(); toast('Schedule removed'); } }, 'Remove schedule') : null,
-            confirm)));
     }
     // Orders: every saved order, newest first, with its payment status (Paid or Not paid) and where it is with the kitchen.
     // Tap an order to see its items; an order not paid yet has Open, to add items or take the payment.
@@ -3418,6 +3566,7 @@
     if (sheet === 'service') { cancelService(); return true; }
     if (sheet === 'dish') { if (dishPop?.typing) dialog.querySelector('#counter-dish-reason')?.blur(); else if (dishPop?.step === 2) { dishPop.step = 1; render(); } else cancelDish(); return true; }
     if (sheet === 'void') { if (voidPop?.typing) dialog.querySelector('#counter-reason')?.blur(); else cancelVoid(); return true; }
+    if (sheet === 'schedule') { if (scheduleDraft?.cal) { scheduleDraft.cal = null; render(); } else closeSchedule(); return true; }
     if (sheet === 'note') { if (notePop?.typing) dialog.querySelector('#counter-note')?.blur(); else doneNote(); return true; }
     // the custom item: what is being typed in is set first; then it closes, adding nothing (as ✕)
     if (sheet === 'custom') { if (customPop?.field) customSet(); else closeCustom(); return true; }
@@ -3590,7 +3739,7 @@
     held() {
       return held.filter(h => h && typeof h.heldId === 'string' && Array.isArray(h.lines)).map(h => {
         const r = restoreOrder(h);
-        return { heldId: h.heldId, savedAt: cleanTime(h.savedAt) || Date.now(), type: r.type, split: r.split, table: r.number && usesTable(r) ? r.table : '', customer: r.customer,
+        return { heldId: h.heldId, uid: r.uid, savedAt: cleanTime(h.savedAt) || Date.now(), type: r.type, split: r.split, table: r.number && usesTable(r) ? r.table : '', customer: r.customer,
           server: typeof h.server === 'string' ? h.server : null, total: Number.isFinite(h.total) ? h.total : totalsOf(r).total, number: r.number, lines: r.lines };
       }).sort((a, b) => b.savedAt - a.savedAt);
     },
@@ -3599,12 +3748,12 @@
     resumeHeld(id) { if (typeof id !== 'string' || !held.some(h => h.heldId === id)) return; openCounter(); fromFloor = false; fromOrders = false; resume(id); },
     goBack,
     // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
-    kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type),
+    kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type), kitchenTime: o => kitchenTime(o),
     markNotified: uid => markSent(uid, 'notifiedAt'), markBuzzed: uid => markSent(uid, 'buzzedAt'),
     // Orders' Held link: the Counter's Held list until the Held page exists (Back returns to Orders, its filters kept)
     openHeld() { openCounter(); fromFloor = false; fromOrders = true; sheet = 'held'; render(); },
     tablesInUse() {
-      // (a held order's table was freed when it was held; a saved order's held copy has the saved order's)
+      // (a held order's table was freed when it was held, a saved one's too: Update Pack 4, C11)
       const used = [...loadOrders().filter(o => !o.paidAt), ...held.filter(h => h.number)].filter(usesTable).map(o => o.table);
       if (order.lines.length && usesTable(order)) used.push(order.table);
       return used;
