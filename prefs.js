@@ -20,10 +20,10 @@
     navigation: { mode: 'swipe', order: 'back-left' },
     screen: { goDark: 5 },
     // (Update Pack 4) Business details › Business hours: each day open from `from` to `to` (minutes after midnight, in
-    // 15s; a closing time after midnight is the next morning, as long as it is before the cut-off), and the business-day
-    // cut-off `cut` (12:00 am to 6:00 am): an order at 12:40 am belongs to the day before. 11:00 am – 2:00 am and 4:00 am
-    // until the owner changes them.
-    hours: { cut: 240, days: { mon: { open: true, from: 660, to: 120 }, tue: { open: true, from: 660, to: 120 }, wed: { open: true, from: 660, to: 120 }, thu: { open: true, from: 660, to: 120 },
+    // 15s; a closing time at or before the opening time is the next morning, up to 6:00 am). The business day ends when
+    // the restaurant closes (owner, 11 Nov 2026: "if it closes at 2 am, the day ends at 2 am"), or at midnight on a day it
+    // closes before then: an order at 12:40 am belongs to the day before. 11:00 am – 2:00 am every day until changed.
+    hours: { days: { mon: { open: true, from: 660, to: 120 }, tue: { open: true, from: 660, to: 120 }, wed: { open: true, from: 660, to: 120 }, thu: { open: true, from: 660, to: 120 },
       fri: { open: true, from: 660, to: 120 }, sat: { open: true, from: 660, to: 120 }, sun: { open: true, from: 660, to: 120 } } },
     // (Update Pack 4) Business details › Bill number: when a bill gets its number, at its first print ('print', the
     // default) or at payment ('payment'), and every change of it (`log`: { to, at, by }, the latest 20)
@@ -33,7 +33,7 @@
     hours: 'restro.hours.v1', billNumber: 'restro.billNumber.v1' });
   const SHARED = new Set(['billing', 'business', 'printers', 'security', 'hours', 'billNumber']);
   const DAYS = Object.freeze(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
-  const CUTS = Object.freeze([0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360]); // 12:00 am to 6:00 am
+  const LATEST_CLOSE = 360; // (a closing time the next morning: 6:00 am at the latest)
   const AUTO_LOCK = Object.freeze([0, 1, 2, 5, 10, 15]);        // minutes; 0 = off
   const GO_DARK = Object.freeze([1, 2, 5, 10, 15, 30, 0]);      // minutes; 0 = never
   const LANGUAGES = Object.freeze(['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati']);
@@ -81,16 +81,15 @@
     navigation(v) { return { mode: v?.mode === 'bar' ? 'bar' : 'swipe', order: v?.order === 'back-right' ? 'back-right' : 'back-left' }; },
     screen(v) { return { goDark: GO_DARK.includes(Number(v?.goDark)) ? Number(v.goDark) : DEFAULTS.screen.goDark }; },
     hours(v) {
-      const cut = CUTS.includes(Number(v?.cut)) ? Number(v.cut) : DEFAULTS.hours.cut;
       const q = m => Number.isInteger(m) && m >= 0 && m < 1440 && m % 15 === 0;
       const days = {};
       for (const d of DAYS) {
         const x = isObj(v?.days?.[d]) ? v.days[d] : {}, def = DEFAULTS.hours.days[d];
         const from = q(x.from) ? x.from : def.from, to = q(x.to) ? x.to : def.to;
-        // (it closes after it opens, within the business day; otherwise at the cut-off)
-        days[d] = { open: x.open !== false, from, to: relTo(to, cut) > relFrom(from, cut) ? to : cut };
+        // (it closes after it opens: later that day, or the next morning by 6:00 am; otherwise at midnight)
+        days[d] = { open: x.open !== false, from, to: closesOk(from, to) ? to : 0 };
       }
-      return { cut, days };
+      return { days };
     },
     billNumber(v) {
       const log = (Array.isArray(v?.log) ? v.log : []).filter(x => isObj(x) && (x.to === 'print' || x.to === 'payment') && Number.isFinite(x.at))
@@ -98,18 +97,29 @@
       return { at: v?.at === 'payment' ? 'payment' : 'print', log };
     }
   };
-  // Minutes after the business day starts (the cut-off): an opening time, and a closing time (the cut-off itself is the
-  // end of the day)
-  function relFrom(m, cut) { return (((m - cut) % 1440) + 1440) % 1440; }
-  function relTo(m, cut) { return relFrom(m, cut) || 1440; }
-  // A business day's opening hours ("2026-11-12": the day that starts at its cut-off): { from, to } in milliseconds, or
-  // null when the restaurant is closed that day
+  // A closing time after the opening time the same day, or the next morning (at or before the opening time) by 6:00 am
+  function closesOk(from, to) { return to > from || to <= LATEST_CLOSE; }
+  // (read once for each change: every business day is worked out from them)
+  let hoursRaw, hoursVal;
+  function hoursNow() { let raw = null; try { raw = localStorage.getItem(KEYS.hours); } catch {} if (raw !== hoursRaw || !hoursVal) { hoursRaw = raw; hoursVal = get('hours'); } return hoursVal; }
+  const dateOf = key => { const [y, mo, d] = String(key || '').split('-').map(Number); return new Date(y, mo - 1, d); };
+  const keyOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // How far a business day (its date) runs into the next morning: its closing time when it closes after midnight, in
+  // minutes after midnight; 0 when it ends at midnight (it closes by then, or it is closed that day)
+  function spillOf(date) { const x = hoursNow().days[DAYS[(date.getDay() + 6) % 7]]; return x.open && x.to <= x.from ? x.to : 0; }
+  const spillMinutes = key => { const d = dateOf(key); return Number.isFinite(d.getTime()) ? spillOf(d) : 0; };
+  // The business day a moment belongs to ("2026-11-12"): up to the minute the day before closes, after midnight, the day
+  // before (its closing minute is its last: open till 2 am, 2:00 am is still the day before, 2:01 am the new day)
+  function businessDay(t) {
+    const d = new Date(t), prev = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
+    return d.getHours() * 60 + d.getMinutes() <= spillOf(prev) ? keyOf(prev) : keyOf(d);
+  }
+  // A business day's opening hours: { from, to } in milliseconds, or null when the restaurant is closed that day
   function hoursOn(key) {
-    const [y, mo, d] = String(key || '').split('-').map(Number), date = new Date(y, mo - 1, d);
-    if (!Number.isFinite(date.getTime())) return null;
-    const h = get('hours'), day = h.days[DAYS[(date.getDay() + 6) % 7]];
-    if (!day.open) return null;
-    return { from: new Date(y, mo - 1, d, 0, h.cut + relFrom(day.from, h.cut)).getTime(), to: new Date(y, mo - 1, d, 0, h.cut + relTo(day.to, h.cut)).getTime() };
+    const date = dateOf(key); if (!Number.isFinite(date.getTime())) return null;
+    const day = hoursNow().days[DAYS[(date.getDay() + 6) % 7]]; if (!day.open) return null;
+    const [y, mo, d] = [date.getFullYear(), date.getMonth(), date.getDate()];
+    return { from: new Date(y, mo, d, 0, day.from).getTime(), to: new Date(y, mo, d + (day.to <= day.from ? 1 : 0), 0, day.to).getTime() };
   }
   const read = name => { try { const raw = localStorage.getItem(KEYS[name]); return raw == null ? null : JSON.parse(raw); } catch { return null; } };
   const get = name => CLEAN[name](read(name) || {});
@@ -191,5 +201,5 @@
   const fssaiOk = value => /^\d{14}$/.test(String(value || ''));
 
   window.RestroPrefs = Object.freeze({ get: name => (SCOPED[name] && !CLEAN[name] ? scoped(name).value : get(name)), set, update, scoped, setScoped, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, printerRoles: ROLES, gstinOk, fssaiOk,
-    days: DAYS, cutChoices: CUTS, hoursOn, relFrom, relTo });
+    days: DAYS, latestClose: LATEST_CLOSE, hoursOn, businessDay, spillMinutes });
 })();

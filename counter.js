@@ -688,12 +688,9 @@
   // Pack 4, A2), from the restaurant's one sequence (RestroSync.takeKotNumber: the main system, or the cloud); without
   // sync, this tablet counts past every KOT it gave or saw that day (on any tablet's order, as they come in).
   const KOT_NO_KEY = 'restro.counter.kotNumber.v1';
-  // The business day's cut-off, in minutes after midnight (Settings › Business details › Business hours; 4:00 am unless
-  // changed): until then it is still the day before
-  let cutSeen = null;
-  const cutMin = () => cutSeen ?? (cutSeen = window.RestroPrefs?.get?.('hours')?.cut ?? 240);
-  window.addEventListener('restro:prefs-changed', e => { if (e.detail?.name === 'hours') cutSeen = null; });
-  const businessDay = t => window.RestroSync?.dayOf?.(t) || (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date(t - cutMin() * 60000));
+  // The business day (Settings › Business details › Business hours): it ends when the restaurant closes after midnight
+  // (open till 2 am: until 2 am it is still the day before), at midnight otherwise
+  const businessDay = t => window.RestroSync?.dayOf?.(t) || window.RestroPrefs?.businessDay?.(t) || (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date(t));
   function nextKotNo() {
     const now = Date.now(), day = businessDay(now), kept = load(KOT_NO_KEY, null);
     let next = kept && kept.day === day ? Number(kept.next) || 1 : 1;
@@ -942,10 +939,11 @@
   // open), then ("save" / "pay": a resumed held order asked before Save or Pay) }
   const pad2 = n => String(n).padStart(2, '0');
   const dkey = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  const bizKey = t => window.RestroSync?.dayOf?.(t) || dkey(new Date(t - cutMin() * 60000));
+  const bizKey = t => window.RestroSync?.dayOf?.(t) || window.RestroPrefs?.businessDay?.(t) || dkey(new Date(t));
   const keyDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
   const addDays = (k, n) => { const d = keyDate(k); d.setDate(d.getDate() + n); return dkey(d); };
-  const atOn = (k, h, m) => { const d = keyDate(k); if (h * 60 + m < cutMin()) d.setDate(d.getDate() + 1); d.setHours(h, m, 0, 0); return d.getTime(); };
+  // (a time on a business day: one up to its closing time the next morning is on the next date)
+  const atOn = (k, h, m) => { const d = keyDate(k); if (h * 60 + m <= (window.RestroPrefs?.spillMinutes?.(k) ?? 0)) d.setDate(d.getDate() + 1); d.setHours(h, m, 0, 0); return d.getTime(); };
   // a business day's opening hours ({ from, to }, null: closed that day); without Settings, any time
   const hoursOn = k => (window.RestroPrefs?.hoursOn ? window.RestroPrefs.hoursOn(k) : { from: -Infinity, to: Infinity });
   // the time on a business day nearest to h:m that is inside its hours (5-minute steps; `half`: in the am (false) or pm
@@ -1246,7 +1244,6 @@
   // The RESTRO Android app prints it (RESTRODevice.printer.printKot) on the printers whose role is Kitchen or Both, in
   // each one's KOT language (anything but English as an image) and copies (Settings › Devices › Printers).
   const BAND = { 'dine-in': 'DINE-IN', takeaway: 'TAKEAWAY', delivery: 'DELIVERY', phone: 'PHONE ORDER' };
-  const maskPhone = m => (m && m.length >= 4 ? `${m.slice(0, 2)}${'x'.repeat(Math.max(0, m.length - 4))}${m.slice(-2)}` : '');
   const labelOf = m => (typeof m === 'string' ? optionOf.get(m)?.label || m : m?.label || m?.id || '');
   // What changed on a dish (a CHANGED slip): "Medium spicy → Less spicy", "+ No onion", "− Less oil", "+ Note: …"
   function changesOf(l) {
@@ -1280,7 +1277,8 @@
     // (a scheduled order's KOT: printed by itself at the kitchen time, or before it: Send now, Instant KOT)
     const sched = kind === 'kot' && cleanTime(o.readyAt) && !app, when = sched && k.how ? `${at} (${k.how === 'queue' ? 'scheduled' : 'sent early'})` : at;
     const kotNo = kind === 'void' || kind === 'changed' ? k.lines?.[0]?.kot || k.lines?.[0]?.was?.kot || null : no;
-    const who = o.customer ? [o.customer.name, maskPhone(o.customer.mobile)].filter(Boolean).join(' · ') : '';
+    // (the customer's name and whole phone number: owner, 11 Nov 2026)
+    const who = o.customer ? [o.customer.name, o.customer.mobile || ''].filter(Boolean).join(' · ') : '';
     const info = kind === 'cancel' && app ? [appTime, 'VOID ALL', at, by ? `By: ${by}` : '']
       : kind === 'cancel' ? [`VOID ALL${nos.length ? ` · KOT ${nos.map(n => `#${n}`).join(', ')}` : ''}`, at, by ? `By: ${by}` : '']
       // (Update Pack 4) TIME CHANGED: "was 10:00 PM · KOT #163 sent 9:30 PM · 9:41 PM · By: RK"

@@ -156,9 +156,10 @@ Deleting on purpose leaves a tombstone, kept for 30 days. Records a tablet only 
 internet is down, the main system keeps it. If the last order is #10, the next order, from any device, is #11. Two
 orders never share a number, and a number never changes.
 
-**Every business day starts again at #01.** A business day runs from its cut-off to the next: 4 AM unless the owner
-changes it in Settings › Business details › Business hours (12 AM to 6 AM, `restro.hours.v1` `cut`, in minutes after
-midnight; Update Pack 4). So a late night after midnight stays on the same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
+**Every business day starts again at #01.** A business day ends when the restaurant closes, if that is after midnight,
+and at midnight otherwise (Settings › Business details › Business hours, `restro.hours.v1`; Update Pack 4): open till
+2 AM, the day ends at 2 AM (its last minute is 2:00; 2:01 is the new day), so a late night after midnight stays on the
+same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
 They repeat from day to day, so an order is always found by its `uid`, never by its number.
 
 **Firing an order:** a tablet asks for the next number when it fires a new order, and saves the order with it:
@@ -200,7 +201,7 @@ printed before the payment has no number ("BILL · NOT A TAX INVOICE"); the orde
 ## KOT numbers
 
 **One sequence a business day for the whole restaurant** (Update Pack 4, A2), from 1, starting again with the ticket
-numbers at the business day's cut-off. A KOT gets its number **when it prints** (`RestroSync.takeKotNumber()`, `{ day,
+numbers when the business day ends. A KOT gets its number **when it prints** (`RestroSync.takeKotNumber()`, `{ day,
 number }`): a queued scheduled KOT has none until then. It is kept like the ticket numbers: by the cloud, and by the main
 system while the internet is down. Unlike a ticket number, a KOT is never held back: a paired tablet that reaches
 neither the main system nor the cloud numbers it from its own count, past every KOT it has given or seen that day, so

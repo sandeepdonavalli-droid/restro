@@ -245,20 +245,20 @@
       radioGrid('Bill number', BILL_AT.map(([id, name, text]) => ({ id, name, text, pic: () => billPics(id) })), b.at, pick),
       note('Changes apply from the next bill. Bills that already have a number keep it.'));
   }
-  // Business hours: when the restaurant is open each day, and the business day's cut-off. Scheduled orders can be ready
-  // only inside these hours (the Counter's Schedule picker); Today, the day's totals and the day's order and KOT numbers
-  // follow the business day (sync.js).
+  // Business hours: when the restaurant is open each day. Scheduled orders can be ready only inside these hours (the
+  // Counter's Schedule picker). The business day ends at closing time when it is after midnight, at midnight otherwise
+  // (owner, 11 Nov 2026); Today, the day's totals and the day's order and KOT numbers follow it (sync.js).
   const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
   const clock = m => { const h = Math.floor(m / 60) % 24; return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`; };
   function hoursCard() {
     const h = Prefs.get('hours'), setHours = change => Prefs.update('hours', change);
     const select = (id, label, values, value, change, disabled = false) => el('select', { id, class: 'st-select st-time', 'aria-label': label, disabled, onchange: e => change(Number(e.target.value)) },
       values.map(([v, text]) => el('option', { value: String(v), selected: v === value }, text)));
-    // (opening: any quarter hour of the business day; closing: after the opening, up to the cut-off)
-    const dayTimes = Array.from({ length: 96 }, (_, i) => (h.cut + i * 15) % 1440);
+    // (opening: any quarter hour; closing: after the opening that day, or the next morning up to 6:00 am)
+    const dayTimes = Array.from({ length: 96 }, (_, i) => i * 15);
     const row = d => {
-      const x = h.days[d], name = DAY_NAMES[d], from = Prefs.relFrom(x.from, h.cut);
-      const toValues = [...dayTimes.slice(1), h.cut].filter(m => Prefs.relTo(m, h.cut) > from);
+      const x = h.days[d], name = DAY_NAMES[d];
+      const toValues = [...dayTimes.filter(m => m > x.from), ...dayTimes.filter(m => m <= Prefs.latestClose && m <= x.from)];
       return el('div', { class: 'st-row' },
         el('span', { class: 'st-row-copy' }, el('strong', {}, name), el('span', {}, x.open ? 'Open' : 'Closed')),
         el('input', { id: `hours-${d}`, class: 'st-switch', type: 'checkbox', role: 'switch', 'aria-label': `${name}: open`, checked: x.open, onchange: e => setHours(v => { v.days[d].open = e.target.checked; }) }),
@@ -267,11 +267,8 @@
           el('span', {}, 'to'),
           select(`hours-${d}-to`, `${name}: closes at`, toValues.map(m => [m, clock(m)]), x.to, m => setHours(v => { v.days[d].to = m; }), !x.open)));
     };
-    return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. Today, the day’s totals and order numbers run to the cut-off.'),
-      el('div', { class: 'st-rows' },
-        el('div', { class: 'st-row' }, el('span', { class: 'st-row-copy' }, el('strong', {}, 'Business day ends at'), el('span', {}, 'An order at 12:40 am counts in the day before.')),
-          el('span', { class: 'st-hours-times' }, select('hours-cut', 'Business day ends at', Prefs.cutChoices.map(m => [m, clock(m)]), h.cut, m => setHours(v => { v.cut = m; })))),
-        Prefs.days.map(row)));
+    return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. The day ends at closing time: open till 2:00 am, an order at 12:40 am counts in the day before.'),
+      el('div', { class: 'st-rows' }, Prefs.days.map(row)));
   }
   builders.business = () => rebuild(businessHost, () => [billNumberCard(), hoursCard()]);
   window.addEventListener('restro:prefs-changed', e => { if (dialog.open && current === 'business' && ['hours', 'billNumber'].includes(e.detail?.name)) builders.business(); });
