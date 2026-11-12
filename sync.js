@@ -60,6 +60,9 @@
     business: { key: 'restro.business.v1' },
     printers: { key: 'restro.printers.v1' },
     security: { key: 'restro.security.v1' },
+    // (Update Pack 4: Business details › Business hours, with the business day's cut-off, and Bill number)
+    hours: { key: 'restro.hours.v1' },
+    billNumber: { key: 'restro.billNumber.v1' },
     // (Counter Update 7: what is sold out, set in the Availability app (today's Menu app), shown live on every Counter)
     availability: { key: 'restro.menu.availability.v1' }
   };
@@ -87,11 +90,15 @@
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
   }
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  // The business day: ticket numbers start again at #01 every day. A day runs from 4 AM to 4 AM, so a late night after
-  // midnight stays on the same day. Each order keeps the day it was numbered on (`day`), so every tablet and server
-  // agrees whose numbers it shares.
-  const DAY_START_HOUR = 4;
-  const dayOf = t => { const d = new Date(t - DAY_START_HOUR * 3600000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  // The business day: ticket numbers start again at #01 every day. A day runs from its cut-off to the next (Settings ›
+  // Business details › Business hours; 4 AM unless changed, Update Pack 4), so a late night after midnight stays on the
+  // same day. Each order keeps the day it was numbered on (`day`), so every tablet and server agrees whose numbers it
+  // shares.
+  let cutMinutes = 240;
+  const readCut = () => { const c = window.RestroPrefs?.get?.('hours')?.cut; cutMinutes = Number.isFinite(c) ? c : 240; };
+  readCut();
+  window.addEventListener('restro:prefs-changed', e => { if (e.detail?.name === 'hours') readCut(); });
+  const dayOf = t => { const d = new Date(t - cutMinutes * 60000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const today = () => dayOf(now());
   const orderDay = o => (typeof o?.day === 'string' && o.day ? o.day : dayOf(Number.isFinite(o?.createdAt) && o.createdAt > 0 ? o.createdAt : Date.parse(o?.paidAt) || now()));
   // The highest number of a day. Only orders numbered by the day carry `day`; numbers from before (1001 and up, never

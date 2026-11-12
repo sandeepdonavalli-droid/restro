@@ -14,9 +14,9 @@
   <link rel="stylesheet" href="system-navigation.css?v=17">
   <link rel="stylesheet" href="themes.css?v=3">
   <link rel="stylesheet" href="sync-button.css?v=1">
-  <link rel="stylesheet" href="settings.css?v=22">
-  <link rel="stylesheet" href="counter.css?v=134">
-  <link rel="stylesheet" href="counter-midnight.css?v=3">
+  <link rel="stylesheet" href="settings.css?v=23">
+  <link rel="stylesheet" href="counter.css?v=135">
+  <link rel="stylesheet" href="counter-midnight.css?v=4">
   <link rel="stylesheet" href="floor.css?v=19">
   <link rel="stylesheet" href="customers.css?v=17">
   <link rel="stylesheet" href="employees.css?v=2">
@@ -31,9 +31,9 @@
   <script src="theme-artwork.js?v=7"></script>
   <script src="themes.js?v=10"></script>
   <script src="app-layout.js?v=4" defer></script>
-  <script src="prefs.js?v=4" defer></script>
+  <script src="prefs.js?v=5" defer></script>
   <script src="bill.js?v=3" defer></script>
-  <script src="sync.js?v=14" defer></script>
+  <script src="sync.js?v=15" defer></script>
   <script src="sync-button.js?v=1" defer></script>
   <script src="app.js?v=42" defer></script>
   <script src="home-widgets.js?v=7" defer></script>
@@ -43,12 +43,12 @@
   <script src="device-controls.js?v=8" defer></script>
   <script src="sound.js?v=4" defer></script>
   <script src="menu-data.js?v=6" defer></script>
-  <script src="counter.js?v=89" defer></script>
+  <script src="counter.js?v=90" defer></script>
   <script src="floor-data.js?v=1" defer></script>
   <script src="floor.js?v=4" defer></script>
   <script src="customers.js?v=4" defer></script>
   <script src="orders.js?v=24" defer></script>
-  <script src="settings.js?v=20" defer></script>
+  <script src="settings.js?v=21" defer></script>
   <script src="battery-status.js?v=2" defer></script>
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=20" defer></script>
@@ -206,7 +206,7 @@
       <nav class="settings-nav" aria-label="Settings categories">
         <div class="settings-nav-top"><button class="settings-back-round" type="button" data-close aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><h2 id="settings-title" tabindex="-1" autofocus>Settings</h2></div>
         <ul class="settings-list">
-          <li><button class="settings-row" type="button" data-page="business" data-keywords="business details restaurant name banner title shop address gstin gst number fssai licence license food bill footer printed"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-storefront"/></svg></span><span class="settings-row-copy"><strong>Business details</strong><span id="settings-business-summary" hidden>Printed on the bill</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="business" data-keywords="business details restaurant name banner title shop address gstin gst number fssai licence license food bill footer printed bill number tax invoice receipt business hours opening closing time open closed day cut-off"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-storefront"/></svg></span><span class="settings-row-copy"><strong>Business details</strong><span id="settings-business-summary" hidden>Printed on the bill</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="sync" data-keywords="devices sync tablets main system printers printer kot language copies role kitchen bills pairing pair code cloud offline share other tablets"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-devices"/></svg></span><span class="settings-row-copy"><strong>Devices</strong><span id="settings-sync-summary" hidden>This tablet only</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-wifi"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary" hidden>Managed by this device</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-language"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary" hidden>Checking connection…</span></span></button></li>
@@ -240,6 +240,7 @@
               <div class="st-field"><label for="business-footer">Bill footer</label><input id="business-footer" name="footer" maxlength="80" autocomplete="off" placeholder="Thank you! Visit again."></div>
               <div class="st-actions"><button class="st-primary" type="submit">Save changes</button></div>
             </form>
+            <div id="settings-business-more" class="st-built"></div>
           </section>
           <section class="settings-page" data-page="orders" data-title="Orders display" data-crumb="Orders" hidden><div id="settings-orders" class="st-built"></div></section>
           <section class="settings-page" data-page="counter" data-title="Counter" hidden><div id="settings-counter" class="st-built"></div></section>

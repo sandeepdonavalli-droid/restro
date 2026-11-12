@@ -17,13 +17,13 @@ number (`RestroSync.takeBillNumber()`, Bill numbers below).
 | Orders (`restro.counter.orders.v1`), with their bill numbers | Theme, home screen background, sounds, brightness, battery style |
 | Held tickets (`restro.counter.held.v1`) | Navigation (swipe or bar) and Go dark |
 | Customers (`restro.customers.v1`) | Home screen and tile order |
-| Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | The Orders display and the Counter's look when set for This tablet only |
-| The restaurant's name, profile and Business details (`restro.business.v1`) | The order being rung up |
+| Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | The order being rung up |
+| The restaurant's name, profile and Business details (`restro.business.v1`), with its Business hours (`restro.hours.v1`) and Bill number (`restro.billNumber.v1`; Update Pack 4) | |
 | Billing & charges (`restro.billing.v1`), Staff & security (`restro.security.v1`) | Who is signed in |
 | The printers' settings: role, KOT language, copies (`restro.printers.v1`) | The pairing code and the cloud sign-in |
 | Kitchen prep time (`restro.kitchen.prep.v1`, and the older `restro.counter.prepMinutes.v1`) | |
 | What is sold out (`restro.menu.availability.v1`) | |
-| The Orders display and the Counter's look set for All tablets (`restro.ordersLook.shared.v1`, `restro.counterLook.shared.v1`): the restaurant's default | |
+| The Orders display and the Counter's look (`restro.ordersLook.shared.v1`, `restro.counterLook.shared.v1`): branch-wide since Update Pack 4, so one for every tablet. A tablet's own value from before (`restro.ordersLook.v1`, `restro.counterLook.v1`, Use on · This tablet only) becomes the restaurant's once, when it is newer, and is then removed | |
 
 Card data never exists in RESTRO, because payments go through the provider's hosted checkout. So it never syncs.
 
@@ -156,8 +156,9 @@ Deleting on purpose leaves a tombstone, kept for 30 days. Records a tablet only 
 internet is down, the main system keeps it. If the last order is #10, the next order, from any device, is #11. Two
 orders never share a number, and a number never changes.
 
-**Every business day starts again at #01.** A business day runs from 4 AM to 4 AM, so a late night after midnight stays
-on the same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
+**Every business day starts again at #01.** A business day runs from its cut-off to the next: 4 AM unless the owner
+changes it in Settings › Business details › Business hours (12 AM to 6 AM, `restro.hours.v1` `cut`, in minutes after
+midnight; Update Pack 4). So a late night after midnight stays on the same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
 They repeat from day to day, so an order is always found by its `uid`, never by its number.
 
 **Firing an order:** a tablet asks for the next number when it fires a new order, and saves the order with it:

@@ -923,6 +923,7 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-sdays{position:relative;z-index:2;display:flex;gap:calc(13 * var(--u));margin-top:calc(22 * var(--u))}
 .cx-sd{flex:none;height:calc(55 * var(--u));margin:0;padding:0 calc(21 * var(--u));border:0;border-radius:999px;display:inline-flex;align-items:center;gap:calc(11 * var(--u));background:#FFFFFF;color:#1C1917;box-shadow:0 1px calc(2 * var(--u)) rgba(15,23,42,.06),0 calc(4 * var(--u)) calc(12 * var(--u)) rgba(15,23,42,.06);font:inherit;font-size:calc(17 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
 .cx-sd.on{background:#E3ECFC;color:#1E4FB8;box-shadow:inset 0 0 0 1.5px #9DBCF2}
+.cx-sd:disabled{opacity:.45;cursor:default} /* (closed that day: Business hours) */
 /* its calendar (CS2): under the chips, flush with the right; Monday first; past days pale, today ringed, the day picked blue */
 .cx-scal{position:absolute;top:calc(100% - 2 * var(--u));right:0;width:calc(417 * var(--u));box-sizing:border-box;padding:calc(14 * var(--u)) calc(14.4 * var(--u)) calc(10 * var(--u));border-radius:calc(22 * var(--u));background:#FFFFFF;box-shadow:0 0 0 1px rgba(17,24,39,.05),0 calc(18 * var(--u)) calc(44 * var(--u)) rgba(15,23,42,.18)}
 .cx-scal-h{display:flex;align-items:center;gap:calc(8 * var(--u));height:calc(36 * var(--u));padding-left:calc(2 * var(--u));margin-right:calc(3 * var(--u))}
@@ -945,6 +946,7 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-wh-row{position:absolute;left:0;right:0;top:calc(50% - 25 * var(--u) + var(--i) * 50 * var(--u));height:calc(50 * var(--u));display:flex;align-items:center;justify-content:center;font-size:calc(25 * var(--u));font-weight:500;line-height:1;color:#D1D0CE;font-variant-numeric:proportional-nums;pointer-events:none}
 .cx-wh-row.near{color:#44403C}
 .cx-wh-row.sel{font-size:calc(30 * var(--u));font-weight:800;color:#1E4FB8}
+.cx-wh-row.off{color:#D1D0CE} /* (outside business hours: greyed, skipped) */
 /* what it comes to */
 .cx-ssum{margin-top:calc(20 * var(--u));padding:calc(12 * var(--u)) calc(20 * var(--u));border-radius:calc(16 * var(--u));background:#FFFFFF;display:flex;flex-direction:column;gap:calc(1 * var(--u))}
 .cx-ssum>b{font-size:calc(20 * var(--u));font-weight:700;line-height:1.2;color:#1C1917}

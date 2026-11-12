@@ -309,6 +309,7 @@ def tokens():
     T('.cx-sd:not(.on)', RAISE, '#FFFFFF', EDGE); T('.cx-sd.on', SEL, SELT, None)
     T('.cx-wh', '#0F1829', None, EDGE); T('.cx-wh-band', '#1B2C4F', None, '#3E6CC9')
     T('.cx-wh-row', None, '#4E5971'); T('.cx-wh-row.near', None, '#C5CEDD'); T('.cx-wh-row.sel', None, '#EAF1FF')
+    T('.cx-wh-row.off', None, '#4E5971')                                 # outside business hours
     T('.cx-ssum', '#0F1829', None, EDGE); T('.cx-ssum>b', None, '#FFFFFF'); T('.cx-ssum>span', None, '#E6EAF2')
     T('.cx-ssum i', None, '#E7B2F2'); T('.cx-ssum em', None, '#FF9C9C')
     T('.cx-sk', RAISE, '#FFFFFF', EDGE); T('.cx-sk small', None, '#C5CEDD')

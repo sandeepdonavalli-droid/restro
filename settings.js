@@ -222,12 +222,64 @@
     fillBusiness(); toast('Business details saved');
   });
 
-  // ---------- Update Pack 3: Use on, and option tiles with a live preview ----------
-  // "Use on · This tablet only | All tablets", at the top right of a card's heading where a setting can differ per tablet
-  function useOn(scope, set) {
-    const b = (value, label) => el('button', { type: 'button', role: 'radio', 'aria-checked': String(scope === value), onclick: () => { if (scope !== value) set(value); } }, scope === value ? line(CHECK) : null, label);
-    return el('div', { class: 'st-useon', role: 'radiogroup', 'aria-label': 'Use on' }, el('span', {}, 'Use on'), b('tablet', 'This tablet only'), b('all', 'All tablets'));
+  // ---------- Business details (Update Pack 4): Bill number and Business hours, under the details printed on the bill ----------
+  // Both are the restaurant's (every tablet's) and apply as they are picked.
+  const businessHost = document.querySelector('#settings-business-more');
+  const staffNow = () => window.RestroStaff?.current?.name || null;
+  // Bill number (the owner's mock-up B, 11 Nov 2026): when a bill gets its number, B-1, B-2 … in one series for the
+  // financial year. Each tile shows the top of what prints. A change is kept with when and who (billNumber.log), and
+  // applies from the next bill: a bill that has its number keeps it.
+  const BILL_AT = [['print', 'When the bill is first printed', 'Default · The bill is the tax invoice. If its order is deleted later, the number is listed as Cancelled in the GST report.'],
+    ['payment', 'At payment', 'The bill before payment says “Not a tax invoice”. The numbered receipt prints at every payment.']];
+  const slipPic = (title, numbers, caption) => el('span', { class: 'st-bn-slip' },
+    el('span', { class: 'st-bn-paper' }, el('b', { class: 'st-bn-name' }, window.RestroRestaurantName?.value || 'RESTAURANT NAME'), el('i'), el('b', { class: 'st-bn-title' }, title),
+      el('span', { class: 'st-bn-row' }, el('span', {}, numbers), el('span', {}, '9:42 PM')), el('span', { class: 'st-bn-row st-bn-faint' }, el('span', {}, 'Dine-in · Table 6'), el('span'))),
+    el('span', { class: 'st-bn-cap' }, caption));
+  const billPics = id => el('span', { class: 'st-tile-pic' }, el('span', { class: 'st-bn-pics' }, ...(id === 'print'
+    ? [slipPic('TAX INVOICE', 'Bill #B-45 · Order #07', 'Bill · before payment')]
+    : [slipPic('BILL · NOT A TAX INVOICE', 'Order #07', 'Bill · before payment'), slipPic('TAX INVOICE · RECEIPT', 'Bill #B-45 · Order #07', 'Receipt · at payment')])));
+  function billNumberCard() {
+    const b = Prefs.get('billNumber');
+    const pick = to => { if (to !== b.at) Prefs.set('billNumber', { at: to, log: [...b.log, { to, at: Date.now(), by: staffNow() }] }); };
+    return card('', lab('Bill number'), sub('When a bill gets its number: B-1, B-2 … One series for the financial year, never reused.'),
+      radioGrid('Bill number', BILL_AT.map(([id, name, text]) => ({ id, name, text, pic: () => billPics(id) })), b.at, pick),
+      note('Changes apply from the next bill. Bills that already have a number keep it.'));
   }
+  // Business hours: when the restaurant is open each day, and the business day's cut-off. Scheduled orders can be ready
+  // only inside these hours (the Counter's Schedule picker); Today, the day's totals and the day's order and KOT numbers
+  // follow the business day (sync.js).
+  const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+  const clock = m => { const h = Math.floor(m / 60) % 24; return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`; };
+  function hoursCard() {
+    const h = Prefs.get('hours'), setHours = change => Prefs.update('hours', change);
+    const select = (id, label, values, value, change, disabled = false) => el('select', { id, class: 'st-select st-time', 'aria-label': label, disabled, onchange: e => change(Number(e.target.value)) },
+      values.map(([v, text]) => el('option', { value: String(v), selected: v === value }, text)));
+    // (opening: any quarter hour of the business day; closing: after the opening, up to the cut-off)
+    const dayTimes = Array.from({ length: 96 }, (_, i) => (h.cut + i * 15) % 1440);
+    const row = d => {
+      const x = h.days[d], name = DAY_NAMES[d], from = Prefs.relFrom(x.from, h.cut);
+      const toValues = [...dayTimes.slice(1), h.cut].filter(m => Prefs.relTo(m, h.cut) > from);
+      return el('div', { class: 'st-row' },
+        el('span', { class: 'st-row-copy' }, el('strong', {}, name), el('span', {}, x.open ? 'Open' : 'Closed')),
+        el('input', { id: `hours-${d}`, class: 'st-switch', type: 'checkbox', role: 'switch', 'aria-label': `${name}: open`, checked: x.open, onchange: e => setHours(v => { v.days[d].open = e.target.checked; }) }),
+        el('span', { class: 'st-hours-times' },
+          select(`hours-${d}-from`, `${name}: opens at`, dayTimes.map(m => [m, clock(m)]), x.from, m => setHours(v => { v.days[d].from = m; }), !x.open),
+          el('span', {}, 'to'),
+          select(`hours-${d}-to`, `${name}: closes at`, toValues.map(m => [m, clock(m)]), x.to, m => setHours(v => { v.days[d].to = m; }), !x.open)));
+    };
+    return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. Today, the day’s totals and order numbers run to the cut-off.'),
+      el('div', { class: 'st-rows' },
+        el('div', { class: 'st-row' }, el('span', { class: 'st-row-copy' }, el('strong', {}, 'Business day ends at'), el('span', {}, 'An order at 12:40 am counts in the day before.')),
+          el('span', { class: 'st-hours-times' }, select('hours-cut', 'Business day ends at', Prefs.cutChoices.map(m => [m, clock(m)]), h.cut, m => setHours(v => { v.cut = m; })))),
+        Prefs.days.map(row)));
+  }
+  builders.business = () => rebuild(businessHost, () => [billNumberCard(), hoursCard()]);
+  window.addEventListener('restro:prefs-changed', e => { if (dialog.open && current === 'business' && ['hours', 'billNumber'].includes(e.detail?.name)) builders.business(); });
+
+  // ---------- Update Pack 3: option tiles with a live preview ----------
+  // (Update Pack 4, A8: layout settings are the restaurant's, on every tablet; "Use on" is gone. The grey chip "Applies
+  // to all tablets at ‹Branch›" at the top right of such a card comes only for owners with more than one branch, which
+  // RESTRO doesn't have yet.)
   const secHead = (title, text, right = null) => el('div', { class: 'st-sec-head' }, el('div', {}, lab(title), sub(text)), right);
   // A live preview: the screen as the app has it (its area under the top bar, with the lock and the swipe line when
   // swipe gestures are on), laid out at its own size and scaled down to the tile's width, never cropped or squeezed
@@ -250,9 +302,10 @@
     fitLive.observe(box);
     return box;
   }
-  // Option tiles in a 2-column grid: a radio, the name and its line, the preview; arrow keys move along them
+  // Option tiles in a 2-column grid (3 columns for 3 tiles): a radio, the name and its line, the preview; arrow keys
+  // move along them
   function radioGrid(label, options, value, pick) {
-    const grid = el('div', { class: 'st-tiles', role: 'radiogroup', 'aria-label': label }, options.map(o => el('button', {
+    const grid = el('div', { class: `st-tiles${options.length === 3 ? ' three' : ''}`, role: 'radiogroup', 'aria-label': label }, options.map(o => el('button', {
       type: 'button', class: 'st-tile', role: 'radio', 'aria-checked': String(o.id === value), tabindex: o.id === value ? '0' : '-1', 'data-id': String(o.id), 'aria-label': `${o.name}. ${o.text}`,
       onclick: () => { if (o.id !== value) pick(o.id); } },
       el('span', { class: 'st-tile-top' }, el('span', { class: 'st-rd' }), el('b', {}, o.name), el('span', {}, o.text)), o.pic())));
@@ -264,39 +317,38 @@
     return grid;
   }
 
-  // ---------- Orders: Orders display (Update Pack 3, S1 / S2): the list view and the row style ----------
+  // ---------- Orders: Orders display (Update Pack 4, S1 / S2): the list view and the row style ----------
   // The same orders, buttons, filters and rules in every view and style; only the layout changes. Each tile is the
-  // Orders page as it is now (today's orders; sample orders while there are none). Use on: this tablet only (the default)
-  // or all tablets; new tablets start with the restaurant's.
+  // Orders page as it is now (today's orders; sample orders while there are none). Three views (Board is gone); the
+  // restaurant's, on every tablet; a new restaurant starts with Classic and Classic rows.
   const ordersHost = document.querySelector('#settings-orders');
   const ORDER_VIEWS = [['classic', 'Classic', 'Default · one row per order. Fastest to scan at a busy counter.'], ['split', 'Split detail', 'Order list on the left, the selected order’s dishes on the right.'],
-    ['cards', 'Cards', 'One card per order, bigger buttons, easy to tap.'], ['board', 'Board', 'Columns by kitchen status. Closed folds into a side column.']];
+    ['cards', 'Cards', 'One card per order, bigger buttons, easy to tap.']];
   const ORDER_ROWS = [['classic', 'Classic rows', 'One panel with thin lines between orders. Square-ish buttons.'], ['pills', 'Floating pills', 'Each order floats as a soft rounded pill. Round buttons.']];
   const ordersPic = (view, rows) => livePic(() => { const p = window.RestroOrders?.preview?.({ view, rows }); return { node: p?.node || el('span'), sample: Boolean(p?.sample), cls: 'orders-app' }; });
   builders.orders = () => rebuild(ordersHost, () => {
-    const { value: v, from } = Prefs.scoped('orders'), scope = from === 'all' ? 'all' : 'tablet';
-    const set = next => Prefs.setScoped('orders', next, scope);
+    const v = Prefs.scoped('orders').value, set = next => Prefs.setScoped('orders', next);
     return [
-      card('', secHead('Order list view', 'Same orders, buttons, filters and rules in every view. Only the layout changes.', useOn(scope, s => Prefs.setScoped('orders', v, s))),
+      card('', secHead('Order list view', 'Same orders, buttons, filters and rules in every view. Only the layout changes.'),
         radioGrid('Order list view', ORDER_VIEWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic(id, v.rows) })), v.view, id => set({ ...v, view: id }))),
-      card('', secHead('Row style', 'Applies to every view above. New tablets start with Classic rows.'),
+      card('', secHead('Row style', 'Applies to every view above. New restaurants start with Classic rows.'),
         radioGrid('Row style', ORDER_ROWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic('classic', id) })), v.rows, id => set({ ...v, rows: id })))
     ];
   });
 
   // ---------- Counter: Menu display style and Tiles per row (Counter Update 6), as option tiles ----------
-  // Each tile is the Counter as it is now in that style (RestroCounter.preview). Use on as for Orders.
+  // Each tile is the Counter as it is now in that style (RestroCounter.preview). The restaurant's, as for Orders.
   const counterHost = document.querySelector('#settings-counter');
   const STYLE_LINES = { grid: 'Every category as a tile; tap one to see its dishes.', pills: 'Default · categories as pills above the dishes.', rail: 'Categories in a column on the left, the dishes beside them.' };
   const counterPic = (style, perRow) => livePic(() => ({ node: window.RestroCounter.preview(style, perRow), cls: 'counter-still' }));
   builders.counter = () => rebuild(counterHost, () => {
     const c = window.RestroCounter; if (!c) return [];
-    const scope = c.lookScope, style = c.menuStyle?.id || 'pills', perRow = c.tilesPerRow;
+    const style = c.menuStyle?.id || 'pills', perRow = c.tilesPerRow;
     return [
-      card('', secHead('Menu display style', 'How the menu shows on the Counter.', useOn(scope, s => c.setLookScope(s))),
-        radioGrid('Menu display style', c.menuStyles.map(m => ({ id: m.id, name: m.name, text: STYLE_LINES[m.id] || '', pic: () => counterPic(m.id, perRow) })), style, id => c.setMenuStyle(id, scope))),
+      card('', secHead('Menu display style', 'How the menu shows on the Counter.'),
+        radioGrid('Menu display style', c.menuStyles.map(m => ({ id: m.id, name: m.name, text: STYLE_LINES[m.id] || '', pic: () => counterPic(m.id, perRow) })), style, id => c.setMenuStyle(id))),
       card('', secHead('Tiles per row', 'How many dishes in each row of the menu.'),
-        radioGrid('Tiles per row', [4, 3].map(n => ({ id: n, name: `${n} per row`, text: n === 4 ? 'Default · more dishes on each page.' : 'Bigger tiles, easier to tap.', pic: () => counterPic(style, n) })), perRow, n => c.setTilesPerRow(n, scope)))
+        radioGrid('Tiles per row', [4, 3].map(n => ({ id: n, name: `${n} per row`, text: n === 4 ? 'Default · more dishes on each page.' : 'Bigger tiles, easier to tap.', pic: () => counterPic(style, n) })), perRow, n => c.setTilesPerRow(n)))
     ];
   });
   const syncCounterSummary = () => { const n = document.querySelector('#settings-counter-summary'); if (n) n.textContent = `Menu: ${window.RestroCounter?.menuStyle?.name || 'Pills on top'}`; };

@@ -352,18 +352,29 @@ Amounts are in rupees.
 | Field | |
 | --- | --- |
 | `kind` | `"bill"` (not paid yet) or `"receipt"` (paid: a document of its own, not a reprint of the bill) |
-| `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is |
+| `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is; or `"BILL · NOT A TAX INVOICE"` (below) |
 | `at` | the bill's first print (a receipt keeps the bill's date and time when a bill was printed first, otherwise its own first print); a reprint keeps it |
 | `reprint` | `null` on a first print; on every later print of the same bill or receipt `{ at, by }`: a bold black outlined box at the very top, **REPRINT** in large letters, and under it `"Reprinted 7 Nov 2026 12:20 PM · by RK"` (`by`: the staff's initials) |
 | `paid` | receipts only: `{ method, amount, at, ref }`, a boxed line above the footer, `"PAID · UPI ₹837"` and under it `"7 Nov 2026 12:41 PM · Ref 4318 9920 1187"` (`method`: `"Cash"`, `"UPI"`, `"Card"`, `"Swiggy"` or `"Zomato"`; `ref` only when the payment has one) |
 
 Each print is kept on the order (`bills`, `receipts`: `{ at, by, total }`), so the next one is a REPRINT on every tablet.
 
+**Bill number "At payment"** (Update Pack 4, Settings › Business details › Bill number; `restro.billNumber.v1`). The
+owner chooses when a bill gets its number: **When the bill is first printed** (the default, as above) or **At
+payment**. At payment, a bill printed before the payment comes with `title` `"BILL · NOT A TAX INVOICE"` and `bill`
+`null`: print it as any bill, with that title where TAX INVOICE is and `Order #07` alone where `Bill #B-45 · Order #07`
+is. The order gets its number when it is paid, and the page then sends the receipt (`kind` `"receipt"`, `title` `"TAX
+INVOICE · RECEIPT"`, its `bill`) to `printBill` by itself, straight after the payment; if it returns `false` the
+Counter shows "Receipt not printed" with RETRY. A pre-payment bill's prints are kept among `bills` as `{ at, by, total,
+tax: false }` and count for its own REPRINT box only: the first tax invoice of the same order prints plain. A bill that
+already has its number keeps it when the setting changes, and prints as the tax invoice.
+
 ## The kitchen printer: `RESTRODevice.printer.printKot(slip)`
 
 Counter Update 7. **Save sends the KOT, and so does Pay**; each KOT has only the dishes the kitchen doesn't have yet
 (a later KOT has only what was added after the earlier ones). KOT numbers run through the business day for the whole
-restaurant: the day's first KOT is #1, starting again at 4 AM with the order numbers. After a KOT has gone, taking a
+restaurant: the day's first KOT is #1, starting again with the order numbers at the business day's cut-off (4 AM unless
+changed in Settings › Business details › Business hours). After a KOT has gone, taking a
 dish off or reducing it prints a **VOID** slip, deleting the order prints **ORDER CANCELLED** (both with the reason
 staff gave), changing a dish's choices or note prints a **CHANGED** slip, and marking the order as priority prints a
 short **★ PRIORITY** notice. Counter's **Reprint KOT** (the order menu) sends the order's last KOT again, as it was.

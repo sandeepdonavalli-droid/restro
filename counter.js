@@ -114,11 +114,10 @@
   let panelArranging = false, panelDrag = null, panelPress = null, panelSuppress = false;
   // The menu's display style (Settings > Counter > Menu display style): Category grid, Pills on top (the default) or
   // Vertical rail; and Tiles per row (Counter Update 6): 4 (the default) or 3, in every grid of the menu; a page has at
-  // most 4 rows (16 tiles, or 12). This tablet's own, or every tablet's (Update Pack 3: Use on; prefs.js).
+  // most 4 rows (16 tiles, or 12). The restaurant's, on every tablet (Update Pack 4, A8; prefs.js).
   const MENU_STYLES = Object.freeze([Object.freeze({ id: 'grid', name: 'Category grid' }), Object.freeze({ id: 'pills', name: 'Pills on top' }), Object.freeze({ id: 'rail', name: 'Vertical rail' })]);
   const ROWS = 4;
   const counterLook = () => window.RestroPrefs?.scoped?.('counter')?.value || { style: 'pills', perRow: 4 };
-  const lookScope = () => (window.RestroPrefs?.scoped?.('counter')?.from === 'all' ? 'all' : 'tablet');
   let menuStyle = counterLook().style;
   let tilesPerRow = counterLook().perRow;
   // Ticket numbers come from sync: one sequence a day for the whole restaurant, kept by the cloud or the main system. This
@@ -688,7 +687,12 @@
   // starting again at 4 AM with the order numbers. This tablet counts past every KOT it gave or saw that day (on any
   // tablet's order, as they come in).
   const KOT_NO_KEY = 'restro.counter.kotNumber.v1';
-  const businessDay = t => window.RestroSync?.dayOf?.(t) || (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date(t - 4 * 3600000));
+  // The business day's cut-off, in minutes after midnight (Settings › Business details › Business hours; 4:00 am unless
+  // changed): until then it is still the day before
+  let cutSeen = null;
+  const cutMin = () => cutSeen ?? (cutSeen = window.RestroPrefs?.get?.('hours')?.cut ?? 240);
+  window.addEventListener('restro:prefs-changed', e => { if (e.detail?.name === 'hours') cutSeen = null; });
+  const businessDay = t => window.RestroSync?.dayOf?.(t) || (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date(t - cutMin() * 60000));
   function nextKotNo() {
     const now = Date.now(), day = businessDay(now), kept = load(KOT_NO_KEY, null);
     let next = kept && kept.day === day ? Number(kept.next) || 1 : 1;
@@ -904,20 +908,36 @@
   }
   // ---------- Schedule (Update Pack 4: Counter scheduling, CS1–CS12) ----------
   // The time the customer wants the order ready: Today · Tomorrow · Pick a date (business days: 12:30 am belongs to the
-  // day before until the 4 am cut-off), then hour · minute (in 5s) · am/pm on wheels (hour and minute go round). The
-  // kitchen gets the KOT that order type's prep time before (Settings › Kitchen). Two equal grey buttons: Schedule KOT (it
-  // prints by itself then) and Instant KOT (it prints with Save or Pay, as for any order). Too soon (the kitchen time has
-  // passed): Instant KOT only. While the KOT is queued, Clear schedule makes it a normal order again. Once a KOT has
-  // printed, one button, Save new time: the new time is saved at once and the kitchen gets a TIME CHANGED slip.
+  // day before until the cut-off), then hour · minute (in 5s) · am/pm on wheels (hour and minute go round). Only times
+  // inside business hours (Settings › Business details; Update Pack 4, C1): the others are greyed on the wheels and
+  // turning skips them, and a day the restaurant is closed can't be picked. The kitchen gets the KOT that order type's
+  // prep time before (Settings › Kitchen). Two equal grey buttons: Schedule KOT (it prints by itself then) and Instant KOT
+  // (it prints with Save or Pay, as for any order). Too soon (the kitchen time has passed): Instant KOT only. While the KOT
+  // is queued, Clear schedule makes it a normal order again. Once a KOT has printed, one button, Save new time: the new
+  // time is saved at once and the kitchen gets a TIME CHANGED slip.
   // scheduleDraft: { day (the business day, "2026-11-12"), h (0–23), m, cal (the calendar's month, "2026-11", while it is
   // open), then ("save" / "pay": a resumed held order asked before Save or Pay) }
-  const DAY_CUT = 4; // (the business day starts at 4 am, as in sync.js)
   const pad2 = n => String(n).padStart(2, '0');
   const dkey = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  const bizKey = t => window.RestroSync?.dayOf?.(t) || dkey(new Date(t - DAY_CUT * 3600000));
+  const bizKey = t => window.RestroSync?.dayOf?.(t) || dkey(new Date(t - cutMin() * 60000));
   const keyDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
   const addDays = (k, n) => { const d = keyDate(k); d.setDate(d.getDate() + n); return dkey(d); };
-  const atOn = (k, h, m) => { const d = keyDate(k); if (h < DAY_CUT) d.setDate(d.getDate() + 1); d.setHours(h, m, 0, 0); return d.getTime(); };
+  const atOn = (k, h, m) => { const d = keyDate(k); if (h * 60 + m < cutMin()) d.setDate(d.getDate() + 1); d.setHours(h, m, 0, 0); return d.getTime(); };
+  // a business day's opening hours ({ from, to }, null: closed that day); without Settings, any time
+  const hoursOn = k => (window.RestroPrefs?.hoursOn ? window.RestroPrefs.hoursOn(k) : { from: -Infinity, to: Infinity });
+  // the time on a business day nearest to h:m that is inside its hours (5-minute steps; `half`: in the am (false) or pm
+  // (true) half only, when it has one), or null when it is closed
+  function nearestOpen(k, h, m, half = null) {
+    const w = hoursOn(k); if (!w) return null;
+    const want = atOn(k, h, m), first = Math.ceil(w.from / 300000) * 300000, last = Math.floor(w.to / 300000) * 300000;
+    let best = Math.min(last, Math.max(first, want));
+    if (half != null && Number.isFinite(first) && Number.isFinite(last)) {
+      let gap = Infinity;
+      for (let t = first; t <= last; t += 300000) if ((new Date(t).getHours() >= 12) === half && Math.abs(t - want) < gap) { gap = Math.abs(t - want); best = t; }
+    }
+    const c = new Date(best);
+    return { h: c.getHours(), m: c.getMinutes() };
+  }
   const dateWords = k => keyDate(k).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); // "Thu 12 Nov"
   const dayWord = k => { const today = bizKey(Date.now()); return k === today ? 'today' : k === addDays(today, 1) ? 'tomorrow' : dateWords(k); };
   const sameDay = t => bizKey(t) === bizKey(Date.now());
@@ -928,8 +948,15 @@
   function kotPrinted(rec) { return Boolean(rec) && Object.values(rec.sent && typeof rec.sent === 'object' ? rec.sent : {}).some(n => n > 0); }
   function openSchedule(then = null) {
     const now = Date.now(), prep = prepMinutes(order.type || DEFAULT_TYPE);
-    // the time on the order, or the soonest the kitchen can have it ready (now and the prep time, on to the next 5 minutes)
-    const r = new Date(order.readyAt || Math.ceil((now + prep * 60000) / 300000) * 300000);
+    // the time on the order, or the soonest the kitchen can have it ready (now and the prep time, on to the next 5
+    // minutes): inside business hours, so the opening time when it isn't open yet, or the next day it is open
+    const soon = Math.ceil((now + prep * 60000) / 300000) * 300000;
+    let at = order.readyAt || soon;
+    if (!order.readyAt) for (let i = 0; i < 14; i++) {
+      const k = addDays(bizKey(soon), i), w = hoursOn(k); if (!w) continue;
+      const t = Math.max(soon, Math.ceil(w.from / 300000) * 300000); if (t <= w.to) { at = t; break; }
+    }
+    const r = new Date(at);
     scheduleDraft = { day: bizKey(r.getTime()), h: r.getHours(), m: r.getMinutes() - r.getMinutes() % 5, cal: null, then };
     modPop = null; qtyPop = null; notePop = null; optionsMenu = false; deleteArmed = false;
     sheet = 'schedule'; render();
@@ -1125,6 +1152,14 @@
     receipt = entry; sheet = 'receipt'; order = blankOrder(); baseline = null; opened = null; selected = null; category = null; query = ''; cashInput = ''; render();
     window.RestroSound?.play('tick');
     window.dispatchEvent(new CustomEvent('restro:order-paid', { detail: entry }));
+    // (Bill number "At payment": the numbered receipt prints by itself, on the bill printer of the RESTRO app)
+    if (atPayment() && typeof window.RESTRODevice?.printer?.printBill === 'function') printReceipt(idOf(entry));
+  }
+  function printReceipt(uid) {
+    printSaved(uid).then(r => {
+      const n = loadOrders().find(o => idOf(o) === uid)?.number;
+      if (!r.ok) say({ kind: 'error', b: 'Receipt not printed', sub: n ? `Order ${ticket(n)}` : '', retry: () => printReceipt(uid) });
+    });
   }
 
   // ---------- messages (Counter Update 7; Update Pack 4, A4) ----------
@@ -2557,12 +2592,16 @@
   // same one has a bold black REPRINT box at the top ("Reprinted 7 Nov 2026 12:20 PM · by RK"), black only. The receipt
   // after payment is a document of its own: TAX INVOICE · RECEIPT, and a boxed "PAID · UPI ₹837" line with the time
   // (and the payment's reference) above the footer. Each print is kept on the order (`bills`, `receipts`).
+  // (Update Pack 4: Settings › Business details › Bill number. "At payment": a bill printed before the payment is "BILL ·
+  // NOT A TAX INVOICE", with no number (`pre`; kept as { tax: false } among `bills`), and the receipt, with its number,
+  // prints by itself at the payment. A bill that already has its number keeps it, and prints as the tax invoice.)
   const PAID_AS = { cash: 'Cash', upi: 'UPI', card: 'Card', swiggy: 'Swiggy', zomato: 'Zomato' };
-  function billDoc(o, kind, prints, rec = null) {
-    const now = Date.now(), last = prints.length ? { at: now, by: initialsOf(staffName()) } : null;
-    // (the receipt carries the bill's date and time, as PS01 draws it, when a bill was printed first)
-    const billAt = kind === 'receipt' && Array.isArray(rec?.bills) ? Number(rec.bills[0]?.at) || 0 : 0;
-    const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : 'TAX INVOICE', at: billAt || prints[0]?.at || now, reprint: last };
+  const atPayment = () => window.RestroPrefs?.get?.('billNumber')?.at === 'payment';
+  function billDoc(o, kind, prints, rec = null, pre = false) {
+    const same = prints.filter(p => (p?.tax === false) === pre), now = Date.now(), last = same.length ? { at: now, by: initialsOf(staffName()) } : null;
+    // (the receipt carries the bill's date and time, as PS01 draws it, when a bill (a tax invoice) was printed first)
+    const billAt = kind === 'receipt' && Array.isArray(rec?.bills) ? Number(rec.bills.find(b => b && b.tax !== false)?.at) || 0 : 0;
+    const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : pre ? 'BILL · NOT A TAX INVOICE' : 'TAX INVOICE', at: billAt || same[0]?.at || now, reprint: last };
     if (kind === 'receipt' && rec) bill.paid = { method: PAID_AS[rec.method] || 'Cash', amount: bill.total, at: Date.parse(rec.paidAt) || now, ref: typeof rec.payRef === 'string' ? rec.payRef : '' };
     return bill;
   }
@@ -2591,36 +2630,38 @@
   const billLabel = no => (no ? `B-${no}` : null);
   async function printBill() {
     if (!order.lines.length) return;
-    const target = order, num = await billNumber(target);
+    const target = order, pre = atPayment() && !target.billNo && !savedOf(loadOrders())?.billNo;
+    const num = pre ? { no: null, year: null } : await billNumber(target);
     if (!num) { toast(cantFire(false).replace('order not saved', 'bill not printed')); return; }
     if (order !== target) return;
     const list = loadOrders(), rec = savedOf(list), prints = rec ? (Array.isArray(rec.bills) ? rec.bills : []) : (Array.isArray(order.bills) ? order.bills : []);
-    const bill = { ...billDoc(order, 'bill', prints), bill: billLabel(num.no) }, app = typeof window.RESTRODevice?.printer?.printBill === 'function';
+    const bill = { ...billDoc(order, 'bill', prints, null, pre), bill: billLabel(num.no) }, app = typeof window.RESTRODevice?.printer?.printBill === 'function';
     const ok = await deliverBill(bill);
     if (app) toast(ok ? 'Bill sent to the printer' : 'The bill didn’t print');
     if (!ok) return;
-    const mark = { at: Date.now(), by: staffName(), total: bill.total }, now = loadOrders(), r = rec ? now.find(o => idOf(o) === idOf(rec)) : null;
+    const mark = { at: Date.now(), by: staffName(), total: bill.total, ...(pre ? { tax: false } : {}) }, now = loadOrders(), r = rec ? now.find(o => idOf(o) === idOf(rec)) : null;
     if (r) { r.bills = [...(Array.isArray(r.bills) ? r.bills : []), mark].slice(-20); storeOrders(now); if (order.uid === idOf(r)) keepOpened(r); }
     else if (!rec && order === target) { order.bills = [...prints, mark].slice(-20); saveDraft(); }
   }
   // A saved order's bill (not paid yet) or receipt (paid), from Orders: resolves { ok, kind, reprint }
   async function printSaved(uid) {
     let list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
-    // (its bill number first, when it has none yet)
-    if (!rec.billNo && window.RestroSync?.takeBillNumber) {
+    // (its bill number first, when it has none yet; Bill number "At payment": not before it is paid)
+    const pre = !rec.paidAt && !rec.billNo && atPayment();
+    if (!pre && !rec.billNo && window.RestroSync?.takeBillNumber) {
       let t = null; try { t = await window.RestroSync.takeBillNumber(); } catch { t = null; }
       if (!t) return { ok: false, why: 'number' };
       list = loadOrders(); rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
       if (!rec.billNo) { rec.billNo = t.number; rec.billYear = t.year; storeOrders(list); if (order.uid === uid) keepOpened(rec); }
     }
     const kind = rec.paidAt ? 'receipt' : 'bill', key = kind === 'receipt' ? 'receipts' : 'bills', prints = Array.isArray(rec[key]) ? rec[key] : [];
-    const bill = { ...billDoc(restoreOrder(rec), kind, prints, rec), bill: billLabel(rec.billNo) };
+    const bill = { ...billDoc(restoreOrder(rec), kind, prints, rec, pre), bill: billLabel(rec.billNo) };
     const ok = await deliverBill(bill);
     if (ok) {
       const now = loadOrders(), r = now.find(o => idOf(o) === uid);
-      if (r) { r[key] = [...(Array.isArray(r[key]) ? r[key] : []), { at: Date.now(), by: staffName(), total: bill.total }].slice(-20); storeOrders(now); if (order.uid === uid) keepOpened(r); }
+      if (r) { r[key] = [...(Array.isArray(r[key]) ? r[key] : []), { at: Date.now(), by: staffName(), total: bill.total, ...(pre ? { tax: false } : {}) }].slice(-20); storeOrders(now); if (order.uid === uid) keepOpened(r); }
     }
-    return { ok, kind, reprint: prints.length > 0 };
+    return { ok, kind, reprint: Boolean(bill.reprint) };
   }
   function printPage(bill) {
     let page = document.querySelector('#print-bill');
@@ -2723,8 +2764,14 @@
     const press = fn => ({ onpointerdown: hold, onmousedown: hold, onclick: fn });
     // the day: Today · Tomorrow · Pick a date (a date picked there shows on it, "Thu 12 Nov"); its calendar under it
     const other = d.day !== today && d.day !== tomorrow;
-    const pickDay = k => { d.day = k; d.cal = null; render(); };
-    const dayChip = (label, on, fn, icon) => el('button', { type: 'button', class: `cx-sd${on ? ' on' : ''}`, 'aria-pressed': String(on), ...press(fn) }, icon ? mi(icon, 20) : null, el('span', {}, label));
+    // (business hours: a day it is closed can't be picked; a time outside its hours moves to the nearest inside them)
+    let seen = null;
+    const hoursOf = k => (seen && seen.k === k ? seen.w : (seen = { k, w: hoursOn(k) }).w);
+    const okAt = (h, m) => { const w = hoursOf(d.day), t = w && atOn(d.day, h, m); return Boolean(w) && t >= w.from && t <= w.to; };
+    // (am / pm turned: the nearest time in that half)
+    const fit = () => { const half = d.half; d.half = null; if (okAt(d.h, d.m)) return; const n = nearestOpen(d.day, d.h, d.m, half); if (n) { d.h = n.h; d.m = n.m; } };
+    const pickDay = k => { d.day = k; d.cal = null; fit(); render(); };
+    const dayChip = (label, on, fn, icon, closed = false) => el('button', { type: 'button', class: `cx-sd${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: closed, ...press(fn) }, icon ? mi(icon, 20) : null, el('span', {}, label));
     const calendar = () => {
       const [y, mo] = d.cal.split('-').map(Number), first = new Date(y, mo - 1, 1), start = new Date(y, mo - 1, 1 - (first.getDay() + 6) % 7);
       const cells = Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
@@ -2735,13 +2782,13 @@
           el('button', { type: 'button', class: 'cx-scal-nav', 'aria-label': 'Next month', ...press(() => shift(1)) }, mi('chevron_right', 22))),
         el('div', { class: 'cx-scal-w', 'aria-hidden': 'true' }, ...['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(w => el('span', {}, w))),
         el('div', { class: 'cx-scal-g' }, ...cells.map(c => {
-          const k = dkey(c), out = c.getMonth() !== mo - 1, past = k < today;
-          return el('button', { type: 'button', class: `cx-scal-d${out || past ? ' off' : ''}${k === today ? ' today' : ''}${k === d.day && !out ? ' on' : ''}`, disabled: out || past,
+          const k = dkey(c), out = c.getMonth() !== mo - 1, past = k < today, closed = !out && !past && !hoursOn(k);
+          return el('button', { type: 'button', class: `cx-scal-d${out || past || closed ? ' off' : ''}${k === today ? ' today' : ''}${k === d.day && !out ? ' on' : ''}`, disabled: out || past || closed,
             'aria-pressed': String(k === d.day), 'aria-label': c.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), ...press(() => pickDay(k)) }, String(c.getDate()));
         })));
     };
     const days = el('div', { class: 'cx-sdays', role: 'group', 'aria-label': 'Day' },
-      dayChip('Today', d.day === today, () => pickDay(today)), dayChip('Tomorrow', d.day === tomorrow, () => pickDay(tomorrow)),
+      dayChip('Today', d.day === today, () => pickDay(today), null, !hoursOn(today)), dayChip('Tomorrow', d.day === tomorrow, () => pickDay(tomorrow), null, !hoursOn(tomorrow)),
       dayChip(other ? dateWords(d.day) : 'Pick a date', other, () => { d.cal = d.cal ? null : (other ? d.day : today).slice(0, 7); render(); }, 'calendar'),
       d.cal ? calendar() : null);
     // what it comes to, and the buttons, follow the wheels as they turn (the picker itself isn't drawn again)
@@ -2750,22 +2797,30 @@
     const [sched, schedSub] = kotBtn('Schedule KOT', () => chooseSchedule('queue')), [instant, instantSub] = kotBtn('Instant KOT', () => chooseSchedule('now')), [saveNew, saveSub] = kotBtn('Save new time', saveNewTime);
     instantSub.textContent = 'prints now'; saveSub.textContent = 'prints a time-changed slip';
     const update = () => {
+      // (a wheel turned onto a time outside business hours, by am / pm: the nearest one inside them; the greyed rows again)
+      if (!okAt(d.h, d.m) && hoursOf(d.day)) { fit(); wheelsAt(); }
+      for (const w of wheelEls) w.repaint();
+      const closed = !hoursOf(d.day);
       const readyAt = atOn(d.day, d.h, d.m), now = Date.now(), kitchenAt = readyAt - prep * 60000, passed = readyAt <= now, soon = !passed && kitchenAt <= now;
       const when = sameDay(kitchenAt) ? timeOf(kitchenAt) : `${timeOf(kitchenAt)} on ${dateWords(bizKey(kitchenAt))}`;
       sum1.textContent = `Ready by ${dayWord(d.day)}, ${timeOf(readyAt)}`;
-      if (passed) sum2.replaceChildren(el('em', {}, `${timeOf(readyAt)} has passed · pick a later time`));
+      if (closed) sum2.replaceChildren(el('em', {}, `Closed ${dayWord(d.day) === 'today' || dayWord(d.day) === 'tomorrow' ? dayWord(d.day) : `on ${dayWord(d.day)}`} · pick another day`));
+      else if (passed) sum2.replaceChildren(el('em', {}, `${timeOf(readyAt)} has passed · pick a later time`));
       else if (printed) sum2.replaceChildren(`was ${readyShort(rec.readyAt)} · the kitchen gets a `, el('i', {}, 'TIME CHANGED'), ' slip');
       else if (soon) sum2.replaceChildren(el('em', {}, `Too soon to schedule · the kitchen needs ${prep} min. Use Instant KOT.`));
       else sum2.replaceChildren('With Schedule KOT the kitchen gets it at ', el('i', {}, when), ` (${prep} min before · ${byType ? `${typeLabel[type]} prep time` : 'kitchen prep time'})`);
-      schedSub.textContent = passed || soon ? 'too soon' : `prints at ${when}`;
-      sched.disabled = passed || soon; instant.disabled = passed; saveNew.disabled = passed;
+      schedSub.textContent = closed ? 'closed' : passed || soon ? 'too soon' : `prints at ${when}`;
+      sched.disabled = closed || passed || soon; instant.disabled = closed || passed; saveNew.disabled = closed || passed;
     };
     const hours = Array.from({ length: 12 }, (_, i) => String(i + 1)), minutes = Array.from({ length: 12 }, (_, i) => pad2(i * 5));
-    const wheels = el('div', { class: 'cx-swheels' },
-      drum('Hour', hours, (d.h + 11) % 12, true, i => { d.h = (i + 1) % 12 + (d.h >= 12 ? 12 : 0); }, update),
-      drum('Minutes', minutes, d.m / 5, true, i => { d.m = i * 5; }, update),
-      drum('am or pm', ['am', 'pm'], d.h >= 12 ? 1 : 0, false, i => { d.h = d.h % 12 + (i ? 12 : 0); }, update));
-    update();
+    const fives = Array.from({ length: 12 }, (_, i) => i * 5), hourOf = i => (i + 1) % 12 + (d.h >= 12 ? 12 : 0);
+    const wheelEls = [
+      drum('Hour', hours, (d.h + 11) % 12, true, i => { d.h = hourOf(i); }, update, i => fives.some(m => okAt(hourOf(i), m))),
+      drum('Minutes', minutes, d.m / 5, true, i => { d.m = i * 5; }, update, i => okAt(d.h, i * 5)),
+      drum('am or pm', ['am', 'pm'], d.h >= 12 ? 1 : 0, false, i => { d.h = d.h % 12 + (i ? 12 : 0); d.half = Boolean(i); }, update, i => Array.from({ length: 12 }, (_, x) => x + i * 12).some(h => fives.some(m => okAt(h, m))))];
+    const wheelsAt = () => { wheelEls[0].set((d.h + 11) % 12); wheelEls[1].set(d.m / 5); wheelEls[2].set(d.h >= 12 ? 1 : 0); };
+    const wheels = el('div', { class: 'cx-swheels' }, ...wheelEls);
+    fit(); wheelsAt(); update();
     const first = printed ? kotsOf(rec)[0] : null;
     return el('div', { class: `cx-pu sched${printed ? ' printed' : ''}`, role: 'dialog', 'aria-label': title,
       // (a tap anywhere else in the picker closes the calendar)
@@ -2777,8 +2832,9 @@
       el('div', { class: `cx-sks${printed ? ' one' : ''}` }, ...(printed ? [saveNew] : [sched, instant])));
   }
   // A wheel (CS1): five rows, the one picked in the blue band (blue and bold), the next ones dark, the outer ones pale.
-  // Drag it, tap a row, turn the mouse wheel or use the arrow keys; hours and minutes go round, am / pm doesn't.
-  function drum(label, values, index, loop, pick, changed) {
+  // Drag it, tap a row, turn the mouse wheel or use the arrow keys; hours and minutes go round, am / pm doesn't. `ok`
+  // (a row's index → whether it can be picked): the others are greyed and turning goes past them.
+  function drum(label, values, index, loop, pick, changed, ok = () => true) {
     const n = values.length, box = el('div', { class: 'cx-wh', role: 'listbox', tabindex: '0', 'aria-label': label });
     const band = el('div', { class: 'cx-wh-band', 'aria-hidden': 'true' }), rows = [];
     let cur = index, drag = 0, startY = null, moved = false;
@@ -2790,16 +2846,21 @@
       for (let i = -3; i <= 3; i++) {
         const v = cur + i; if (!loop && (v < 0 || v >= n)) continue;
         const dist = Math.abs(i + drag / h);
-        const row = el('div', { class: `cx-wh-row${dist < 0.5 ? ' sel' : dist < 1.5 ? ' near' : ''}`, role: 'option', 'aria-selected': String(i === 0) }, values[at(v)]);
+        const row = el('div', { class: `cx-wh-row${dist < 0.5 ? ' sel' : dist < 1.5 ? ' near' : ''}${ok(at(v)) ? '' : ' off'}`, role: 'option', 'aria-selected': String(i === 0), 'aria-disabled': ok(at(v)) ? null : 'true' }, values[at(v)]);
         row.style.setProperty('--i', String(i)); row.style.transform = drag ? `translateY(${drag}px)` : '';
         rows.push(row); box.append(row);
       }
     };
     const go = step => {
-      const v = step ? (loop ? at(cur + step) : Math.max(0, Math.min(n - 1, cur + step))) : cur;
+      let v = step ? (loop ? at(cur + step) : Math.max(0, Math.min(n - 1, cur + step))) : cur;
+      // (a greyed row: on to the next one that can be picked, the same way; none: it stays)
+      for (let k = 0; v !== cur && !ok(v) && k < n; k++) { const w = v + Math.sign(step); v = loop ? at(w) : w < 0 || w >= n ? cur : w; }
+      if (!ok(v)) v = cur;
       drag = 0; if (v !== cur) { cur = v; pick(cur); changed(); }
       paint();
     };
+    box.repaint = () => paint();
+    box.set = i => { cur = loop ? at(i) : Math.max(0, Math.min(n - 1, i)); paint(); };
     box.append(band);
     box.addEventListener('pointerdown', e => { startY = e.clientY; moved = false; drag = 0; box.setPointerCapture?.(e.pointerId); });
     box.addEventListener('pointermove', e => {
@@ -3807,22 +3868,19 @@
     },
     // Settings > Counter > Tiles per row (Update 6): 4 or 3
     get tilesPerRow() { return tilesPerRow; },
-    setTilesPerRow(n, scope = lookScope()) {
+    setTilesPerRow(n) {
       if (n !== 3 && n !== 4) return false;
-      window.RestroPrefs?.setScoped('counter', { style: menuStyle, perRow: n }, scope); // (restro:prefs-changed applies it)
+      window.RestroPrefs?.setScoped('counter', { style: menuStyle, perRow: n }); // (restro:prefs-changed applies it)
       return true;
     },
     // Settings > Counter > Menu display style
     menuStyles: MENU_STYLES,
     get menuStyle() { return MENU_STYLES.find(x => x.id === menuStyle); },
-    setMenuStyle(id, scope = lookScope()) {
+    setMenuStyle(id) {
       if (!MENU_STYLES.some(x => x.id === id)) return false;
-      window.RestroPrefs?.setScoped('counter', { style: id, perRow: tilesPerRow }, scope); // (restro:prefs-changed applies it)
+      window.RestroPrefs?.setScoped('counter', { style: id, perRow: tilesPerRow }); // (restro:prefs-changed applies it)
       return true;
     },
-    // Settings › Counter's Use on: 'tablet' (this tablet only) or 'all' (every tablet)
-    get lookScope() { return lookScope(); },
-    setLookScope(scope) { window.RestroPrefs?.setScoped('counter', { style: menuStyle, perRow: tilesPerRow }, scope === 'all' ? 'all' : 'tablet'); },
     // A still picture of the Counter as it is now, in a display style: for the previews in Settings. Exactly what Counter
     // shows when it opens again (the order on screen and where its list is scrolled, the buttons and the menu in this
     // tablet's order, the category or search it was on), in that style. What closes when Counter is left (the order

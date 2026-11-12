@@ -1,7 +1,7 @@
 'use strict';
 // Settings added by the Update Pack of 9 Nov 2026 (Counter Update 7, Navigation & Lock Update 1), kept in one place:
-// - The restaurant's own (shared by all its tablets through sync.js): Billing & charges, Business details, the
-//   printers' settings and Staff & security.
+// - The restaurant's own (shared by all its tablets through sync.js): Billing & charges, Business details (with its
+//   Business hours and Bill number, Update Pack 4), the printers' settings and Staff & security.
 // - This tablet's own: Display › Navigation (swipe gestures or the navigation bar, and its button order) and Go dark.
 // Every value is checked as it is read, so a missing, old or bad value falls back to its default. Changes are announced
 // with `restro:prefs-changed` ({ name }), here or from another tablet.
@@ -18,10 +18,22 @@
     printers: {},
     security: { autoLock: 5 },
     navigation: { mode: 'swipe', order: 'back-left' },
-    screen: { goDark: 5 }
+    screen: { goDark: 5 },
+    // (Update Pack 4) Business details › Business hours: each day open from `from` to `to` (minutes after midnight, in
+    // 15s; a closing time after midnight is the next morning, as long as it is before the cut-off), and the business-day
+    // cut-off `cut` (12:00 am to 6:00 am): an order at 12:40 am belongs to the day before. 11:00 am – 2:00 am and 4:00 am
+    // until the owner changes them.
+    hours: { cut: 240, days: { mon: { open: true, from: 660, to: 120 }, tue: { open: true, from: 660, to: 120 }, wed: { open: true, from: 660, to: 120 }, thu: { open: true, from: 660, to: 120 },
+      fri: { open: true, from: 660, to: 120 }, sat: { open: true, from: 660, to: 120 }, sun: { open: true, from: 660, to: 120 } } },
+    // (Update Pack 4) Business details › Bill number: when a bill gets its number, at its first print ('print', the
+    // default) or at payment ('payment'), and every change of it (`log`: { to, at, by }, the latest 20)
+    billNumber: { at: 'print', log: [] }
   });
-  const KEYS = Object.freeze({ billing: 'restro.billing.v1', business: 'restro.business.v1', printers: 'restro.printers.v1', security: 'restro.security.v1', navigation: 'restro.navigation.v1', screen: 'restro.screen.v1' });
-  const SHARED = new Set(['billing', 'business', 'printers', 'security']);
+  const KEYS = Object.freeze({ billing: 'restro.billing.v1', business: 'restro.business.v1', printers: 'restro.printers.v1', security: 'restro.security.v1', navigation: 'restro.navigation.v1', screen: 'restro.screen.v1',
+    hours: 'restro.hours.v1', billNumber: 'restro.billNumber.v1' });
+  const SHARED = new Set(['billing', 'business', 'printers', 'security', 'hours', 'billNumber']);
+  const DAYS = Object.freeze(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+  const CUTS = Object.freeze([0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360]); // 12:00 am to 6:00 am
   const AUTO_LOCK = Object.freeze([0, 1, 2, 5, 10, 15]);        // minutes; 0 = off
   const GO_DARK = Object.freeze([1, 2, 5, 10, 15, 30, 0]);      // minutes; 0 = never
   const LANGUAGES = Object.freeze(['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati']);
@@ -67,8 +79,38 @@
     },
     security(v) { return { autoLock: AUTO_LOCK.includes(Number(v?.autoLock)) ? Number(v.autoLock) : DEFAULTS.security.autoLock }; },
     navigation(v) { return { mode: v?.mode === 'bar' ? 'bar' : 'swipe', order: v?.order === 'back-right' ? 'back-right' : 'back-left' }; },
-    screen(v) { return { goDark: GO_DARK.includes(Number(v?.goDark)) ? Number(v.goDark) : DEFAULTS.screen.goDark }; }
+    screen(v) { return { goDark: GO_DARK.includes(Number(v?.goDark)) ? Number(v.goDark) : DEFAULTS.screen.goDark }; },
+    hours(v) {
+      const cut = CUTS.includes(Number(v?.cut)) ? Number(v.cut) : DEFAULTS.hours.cut;
+      const q = m => Number.isInteger(m) && m >= 0 && m < 1440 && m % 15 === 0;
+      const days = {};
+      for (const d of DAYS) {
+        const x = isObj(v?.days?.[d]) ? v.days[d] : {}, def = DEFAULTS.hours.days[d];
+        const from = q(x.from) ? x.from : def.from, to = q(x.to) ? x.to : def.to;
+        // (it closes after it opens, within the business day; otherwise at the cut-off)
+        days[d] = { open: x.open !== false, from, to: relTo(to, cut) > relFrom(from, cut) ? to : cut };
+      }
+      return { cut, days };
+    },
+    billNumber(v) {
+      const log = (Array.isArray(v?.log) ? v.log : []).filter(x => isObj(x) && (x.to === 'print' || x.to === 'payment') && Number.isFinite(x.at))
+        .map(x => ({ to: x.to, at: x.at, by: typeof x.by === 'string' ? x.by.slice(0, 60) : null })).slice(-20);
+      return { at: v?.at === 'payment' ? 'payment' : 'print', log };
+    }
   };
+  // Minutes after the business day starts (the cut-off): an opening time, and a closing time (the cut-off itself is the
+  // end of the day)
+  function relFrom(m, cut) { return (((m - cut) % 1440) + 1440) % 1440; }
+  function relTo(m, cut) { return relFrom(m, cut) || 1440; }
+  // A business day's opening hours ("2026-11-12": the day that starts at its cut-off): { from, to } in milliseconds, or
+  // null when the restaurant is closed that day
+  function hoursOn(key) {
+    const [y, mo, d] = String(key || '').split('-').map(Number), date = new Date(y, mo - 1, d);
+    if (!Number.isFinite(date.getTime())) return null;
+    const h = get('hours'), day = h.days[DAYS[(date.getDay() + 6) % 7]];
+    if (!day.open) return null;
+    return { from: new Date(y, mo - 1, d, 0, h.cut + relFrom(day.from, h.cut)).getTime(), to: new Date(y, mo - 1, d, 0, h.cut + relTo(day.to, h.cut)).getTime() };
+  }
   const read = name => { try { const raw = localStorage.getItem(KEYS[name]); return raw == null ? null : JSON.parse(raw); } catch { return null; } };
   const get = name => CLEAN[name](read(name) || {});
   const announce = name => window.dispatchEvent(new CustomEvent('restro:prefs-changed', { detail: { name } }));
@@ -90,13 +132,14 @@
   });
   window.addEventListener('restro:prefs-changed', event => { const name = event.detail?.name; if (SHARED.has(name)) seen[name] = JSON.stringify(get(name)); });
 
-  // ---------- settings that can differ per tablet (Update Pack 3: "Use on · This tablet only | All tablets") ----------
-  // This tablet's own value (never shared) and the restaurant's default (shared with every tablet through sync.js),
-  // each with when it was set: the newer one is used, so "All tablets" moves every tablet onto it and a tablet that then
-  // picks for itself keeps its own. A new tablet starts with the restaurant's default, or the built-in one.
+  // ---------- layout settings, branch-wide (Update Pack 4, A8) ----------
   // orders: Settings › Orders (Order list view, Row style); counter: Settings › Counter (Menu display style, Tiles per
-  // row; before Update Pack 3 this tablet's own only: restro.counter.menuStyle.v1 and restro.counter.tilesPerRow.v1).
-  const VIEWS = ['classic', 'split', 'cards', 'board'], STYLES = ['grid', 'pills', 'rail'];
+  // row). One value for every tablet of the restaurant (shared through sync.js); there is no "Use on" any more. Board is
+  // gone: a tablet that had it shows Classic. A new restaurant starts with Classic and Classic rows.
+  // (Update Pack 3 let a tablet keep its own value, "Use on · This tablet only": restro.ordersLook.v1 and
+  // restro.counterLook.v1; before that the Counter's own keys restro.counter.menuStyle.v1 and .tilesPerRow.v1. Such a
+  // value, when newer than the restaurant's, becomes the restaurant's once, below.)
+  const VIEWS = ['classic', 'split', 'cards'], STYLES = ['grid', 'pills', 'rail'];
   const SCOPED = Object.freeze({
     orders: { own: 'restro.ordersLook.v1', all: 'restro.ordersLook.shared.v1', clean: v => ({ view: VIEWS.includes(v?.view) ? v.view : 'classic', rows: v?.rows === 'pills' ? 'pills' : 'classic' }) },
     counter: { own: 'restro.counterLook.v1', all: 'restro.counterLook.shared.v1', clean: v => ({ style: STYLES.includes(v?.style) ? v.style : 'pills', perRow: Number(v?.perRow) === 3 ? 3 : 4 }),
@@ -104,20 +147,26 @@
   });
   function readKey(key) { try { const raw = localStorage.getItem(key); return raw == null ? null : JSON.parse(raw); } catch { return null; } }
   const when = x => (isObj(x) && Number.isFinite(x.at) ? x.at : 0);
-  // → { value, from: 'tablet' (this tablet's own) | 'all' (the restaurant's default) | 'default' }
+  const promoted = [];
+  for (const s of Object.values(SCOPED)) {
+    const own = readKey(s.own) ?? s.legacy?.() ?? null, all = readKey(s.all);
+    if (isObj(own) && (!isObj(all) || when(own) > when(all))) { try { localStorage.setItem(s.all, JSON.stringify({ ...s.clean(own), at: when(own) || 1 })); promoted.push(s.all); } catch {} }
+    try { localStorage.removeItem(s.own); } catch {}
+  }
+  // (sync.js loads after this file: it sends what was promoted once it is there)
+  if (promoted.length) window.addEventListener('load', () => promoted.forEach(key => window.RestroSync?.wrote(key)), { once: true });
+  // → { value, from: 'all' (the restaurant's) | 'default' (none set yet) }
   function scoped(name) {
     const s = SCOPED[name]; if (!s) return null;
-    const own = readKey(s.own) ?? s.legacy?.() ?? null, all = readKey(s.all);
-    if (isObj(own) && (!isObj(all) || when(own) >= when(all))) return { value: s.clean(own), from: 'tablet' };
-    if (isObj(all)) return { value: s.clean(all), from: 'all' };
-    return { value: s.clean({}), from: 'default' };
+    const all = readKey(s.all);
+    return isObj(all) ? { value: s.clean(all), from: 'all' } : { value: s.clean({}), from: 'default' };
   }
-  // scope 'all': every tablet's (the restaurant's default); otherwise this tablet's own
-  function setScoped(name, value, scope) {
+  // Every tablet's (the restaurant's)
+  function setScoped(name, value) {
     const s = SCOPED[name]; if (!s) return null;
     const next = { ...s.clean(value), at: Date.now() };
-    try { localStorage.setItem(scope === 'all' ? s.all : s.own, JSON.stringify(next)); if (scope === 'all') localStorage.removeItem(s.own); } catch {}
-    if (scope === 'all') window.RestroSync?.wrote(s.all);
+    try { localStorage.setItem(s.all, JSON.stringify(next)); } catch {}
+    window.RestroSync?.wrote(s.all);
     announce(name);
     return next;
   }
@@ -141,5 +190,6 @@
   // FSSAI licence and registration numbers are 14 digits
   const fssaiOk = value => /^\d{14}$/.test(String(value || ''));
 
-  window.RestroPrefs = Object.freeze({ get: name => (SCOPED[name] && !CLEAN[name] ? scoped(name).value : get(name)), set, update, scoped, setScoped, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, printerRoles: ROLES, gstinOk, fssaiOk });
+  window.RestroPrefs = Object.freeze({ get: name => (SCOPED[name] && !CLEAN[name] ? scoped(name).value : get(name)), set, update, scoped, setScoped, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, printerRoles: ROLES, gstinOk, fssaiOk,
+    days: DAYS, cutChoices: CUTS, hoursOn, relFrom, relTo });
 })();
