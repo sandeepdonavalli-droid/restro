@@ -495,9 +495,14 @@
 .or-day.first::before{left:calc(8 * var(--fu));border-radius:999px 0 0 999px}
 .or-day.last::before{right:calc(8 * var(--fu));border-radius:0 999px 999px 0}
 .or-dfoot{display:flex;align-items:center;gap:calc(10 * var(--fu));margin-top:calc(8 * var(--fu));padding-top:calc(14 * var(--fu));border-top:1px solid #EEECE9}
-.or-dshow{font-size:calc(17 * var(--fu));color:#57534E;white-space:nowrap}
+/* (the buttons keep to the right, inside the pop-up: a long range's words go onto two lines) */
+.or-dshow{flex:0 1 auto;min-width:0;font-size:calc(16 * var(--fu));line-height:1.3;color:#57534E}
+.or-dcancel{margin-left:auto!important}
 .or-dshow b{color:#1C1917;font-weight:700}
-.or-dcancel,.or-dgo{height:calc(50 * var(--fu));padding:0 calc(22 * var(--fu))!important;border-radius:calc(14 * var(--fu));font-size:calc(17.5 * var(--fu))!important;font-weight:700!important;white-space:nowrap}
+.or-dshow b,.or-dshow .nw{white-space:nowrap}
+.or-dshow.two .or-ddays{display:block}
+.or-dshow.two .or-ddot{display:none}
+.or-dcancel,.or-dgo{flex:none;height:calc(50 * var(--fu));padding:0 calc(22 * var(--fu))!important;border-radius:calc(14 * var(--fu));font-size:calc(17 * var(--fu))!important;font-weight:700!important;white-space:nowrap}
 .or-dcancel{background:#F3F1EE!important;color:#1C1917!important}
 .or-dgo{background:#2F6FDE!important;color:#FFFFFF!important}
 

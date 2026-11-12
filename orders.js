@@ -1146,8 +1146,18 @@
   function pickWords(p) {
     if (p.from === p.to) { const d = dayLabel(p.from); return [el('b', {}, ['Today', 'Yesterday', 'Tomorrow'].includes(d) ? `${d} · ${shortOf(p.from)}` : shortOf(p.from))]; }
     const a = keyDate(p.from), b = keyDate(p.to), n = Math.round((b - a) / 86400000) + 1, wd = d => d.toLocaleDateString('en-GB', { weekday: 'short' }), mon = d => d.toLocaleDateString('en-GB', { month: 'short' });
-    const label = a.getMonth() === b.getMonth() ? `${wd(a)} ${a.getDate()} – ${wd(b)} ${b.getDate()} ${mon(b)}` : `${wd(a)} ${a.getDate()} ${mon(a)} – ${wd(b)} ${b.getDate()} ${mon(b)}`;
-    return [el('b', {}, label), ` · ${n} days`];
+    // (on two lines when it doesn't fit beside the buttons: after the dash, or before the number of days)
+    const start = a.getMonth() === b.getMonth() ? `${wd(a)} ${a.getDate()} –` : `${wd(a)} ${a.getDate()} ${mon(a)} –`;
+    return [el('b', {}, start), ' ', el('b', { class: 'or-dend' }, `${wd(b)} ${b.getDate()} ${mon(b)}`), ' ', el('span', { class: 'nw or-ddays' }, el('span', { class: 'or-ddot' }, '· '), `${n} days`)];
+  }
+  // "Showing …": when the days go onto a line of their own, without the dot in front
+  function showing(p) {
+    const show = el('span', { class: 'or-dshow' }, 'Showing ', ...pickWords(p));
+    requestAnimationFrame(() => {
+      const end = show.querySelector('.or-dend'), days = show.querySelector('.or-ddays'); if (!show.isConnected || !end || !days) return;
+      if (days.getBoundingClientRect().top > end.getBoundingClientRect().top + 2) show.classList.add('two');
+    });
+    return show;
   }
   function datePop() {
     const p = datePick, today = todayKey(), [y, m] = p.month.split('-').map(Number);
@@ -1179,7 +1189,7 @@
           el('button', { type: 'button', class: 'or-dnav', 'aria-label': 'Next month', onclick: () => step(1) }, icon('chevron'))),
         el('div', { class: 'or-dweek' }, ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => el('span', {}, d))),
         el('div', { class: 'or-dgrid' }, ...cells),
-        el('div', { class: 'or-dfoot' }, el('span', { class: 'or-dshow' }, 'Showing ', ...pickWords(p)), el('span', { class: 'or-sp' }),
+        el('div', { class: 'or-dfoot' }, showing(p),
           el('button', { type: 'button', class: 'or-dcancel', onclick: () => { menu = null; datePick = null; render(); } }, 'Cancel'),
           el('button', { type: 'button', class: 'or-dgo', onclick: () => { range = p.from === today && p.to === today ? null : { from: p.from, to: p.to }; menu = null; datePick = null; scrollTop = 0; render(); } }, 'Show orders'))));
   }
