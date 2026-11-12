@@ -11,12 +11,14 @@ Endpoints (every request carries `Authorization: Bearer <token>`):
     GET  /v1/restaurants/<id>/sync/pull?since=<seq>&limit=<n>                                  -> { seq, changes, more }
     POST /v1/restaurants/<id>/numbers/next { device, day, after }                                  -> { day, number }
     POST /v1/restaurants/<id>/numbers/next { device, day, after, series: 'bill', year }            -> { year, number }
+    POST /v1/restaurants/<id>/numbers/next { device, day, after, series: 'kot' }                   -> { day, number }
 
 Ticket numbers are one sequence a day for the whole restaurant, starting again at 1 every business day: each order
 carries its day (YYYY-MM-DD). The cloud keeps the count (numbers/next); the main system keeps it while the restaurant's
 internet is down, and every request carries the highest number the asking device knows of the day.
 Bill numbers (series 'bill') are one sequence a financial year (from 1 April; year as "2026-27"), the same way: the
 tax invoice's own number, kept on the order as billNo and billYear.
+KOT numbers (series 'kot', Update Pack 4) are one sequence a business day, given as each KOT prints.
 """
 import argparse, json, re, threading, time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -34,6 +36,7 @@ class Restaurant:
     def __init__(self):
         self.seq, self.log, self.records, self.days = 0, {}, {}, {}   # days: business day -> after the highest number seen
         self.bill_years = {}                                           # financial year -> after the highest bill number seen
+        self.kot_days = {}                                             # business day -> after the highest KOT number given
         self.clock = [0, 0]
         self.lock = threading.Lock()
 
@@ -73,6 +76,16 @@ class Restaurant:
             number = max(self.bill_years.get(year, 1), max(seen, default=0) + 1, after + 1)
             self.bill_years[year] = number + 1
             return {'year': year, 'number': number}
+
+    # The next KOT number of a business day: after every KOT number the cloud has given that day, and after `after`, the
+    # highest the asking device knows of the day (the main system may have numbered KOTs while the internet was down)
+    def next_kot(self, day, after=0):
+        with self.lock:
+            day = str(day or '')
+            after = after if isinstance(after, int) and not isinstance(after, bool) else 0
+            number = max(self.kot_days.get(day, 1), after + 1)
+            self.kot_days[day] = number + 1
+            return {'day': day, 'number': number}
 
     # Ticket numbers, as on the main system, within the order's day. Numbers come from one count (numbers/next), so this
     # only settles a device's own orders from before it joined (marked provisional): a provisional number
@@ -162,6 +175,7 @@ def make_handler(cloud):
                 return self.reply(200, r.pull(int(q.get('since', ['0'])[0] or 0), max(1, min(300, int(q.get('limit', ['300'])[0] or 300)))))
             if what == 'numbers/next' and method == 'POST':
                 if body.get('series') == 'bill': return self.reply(200, r.next_bill(body.get('year'), body.get('after')))
+                if body.get('series') == 'kot': return self.reply(200, r.next_kot(body.get('day'), body.get('after')))
                 return self.reply(200, r.next_number(body.get('day'), body.get('after')))
             return self.reply(405, {'error': 'method'})
         def do_GET(self): self.route('GET')

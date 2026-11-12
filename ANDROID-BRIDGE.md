@@ -374,7 +374,8 @@ already has its number keeps it when the setting changes, and prints as the tax 
 Counter Update 7. **Save sends the KOT, and so does Pay**; each KOT has only the dishes the kitchen doesn't have yet
 (a later KOT has only what was added after the earlier ones). KOT numbers run through the business day for the whole
 restaurant: the day's first KOT is #1, starting again with the order numbers at the business day's cut-off (4 AM unless
-changed in Settings › Business details › Business hours). After a KOT has gone, taking a
+changed in Settings › Business details › Business hours). A KOT gets its number as it prints, from the restaurant's one
+sequence kept by the main system or the cloud (Update Pack 4; SYNC.md › KOT numbers), so `kot` is on every KOT slip. After a KOT has gone, taking a
 dish off or reducing it prints a **VOID** slip, deleting the order prints **ORDER CANCELLED** (both with the reason
 staff gave), changing a dish's choices or note prints a **CHANGED** slip, and marking the order as priority prints a
 short **★ PRIORITY** notice. Counter's **Reprint KOT** (the order menu) sends the order's last KOT again, as it was.
@@ -444,7 +445,7 @@ that sent it tries again by itself every 30 seconds until it prints.
 
 The page keeps every slip on its order (`kots`: `{ id, at, kind, no, lines, reason, by }`; Update Pack 4: `how`,
 `"queue"` or `"early"`, on a scheduled order's KOT, and `byApp`, `"Swiggy"`, on a delivery app's cancel), with who did
-it and why (no manager PIN for now).
+it and why (no PIN asked for now: "PIN required" comes with the access levels).
 
 **Bulk cancel** (Update Pack 3, `PS02_bulk-cancel-slip`): orders deleted together in Orders print one compact slip
 instead of one ORDER CANCELLED each: `kind: "cancel-bulk"`, `band` (`"ORDERS CANCELLED"`, the black band), `action`

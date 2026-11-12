@@ -684,8 +684,9 @@
   }
   const unlog = (...es) => { order.events = (order.events || []).filter(x => !es.some(e => e && e.id === x.id)); };
   // KOT numbers run through the business day for the whole restaurant (owner, 10 Nov 2026): the day's first KOT is #1,
-  // starting again at 4 AM with the order numbers. This tablet counts past every KOT it gave or saw that day (on any
-  // tablet's order, as they come in).
+  // starting again with the order numbers at the business day's cut-off. A KOT gets its number when it prints (Update
+  // Pack 4, A2), from the restaurant's one sequence (RestroSync.takeKotNumber: the main system, or the cloud); without
+  // sync, this tablet counts past every KOT it gave or saw that day (on any tablet's order, as they come in).
   const KOT_NO_KEY = 'restro.counter.kotNumber.v1';
   // The business day's cut-off, in minutes after midnight (Settings › Business details › Business hours; 4:00 am unless
   // changed): until then it is still the day before
@@ -700,14 +701,34 @@
     store(KOT_NO_KEY, { day, next: next + 1 });
     return next;
   }
+  // A KOT's number, given as it prints and kept on its saved order at once. Resolves the number.
+  const numbering = new Map(); // (KOT id → the number on its way)
+  function numberKot(uid, kot) {
+    if (kot.no) return Promise.resolve(kot.no);
+    if (numbering.has(kot.id)) return numbering.get(kot.id).then(n => (kot.no = n));
+    const job = (async () => {
+      let t = null; try { t = await window.RestroSync?.takeKotNumber?.(); } catch { t = null; }
+      const list = loadOrders(), rec = list.find(o => idOf(o) === uid), k = rec && (Array.isArray(rec.kots) ? rec.kots : []).find(x => x && x.id === kot.id);
+      const no = k?.no || t?.number || nextKotNo();
+      if (k && !k.no) { k.no = no; storeOrders(list); if (order.uid === uid) keepOpened(rec); }
+      return no;
+    })();
+    numbering.set(kot.id, job);
+    return job.then(n => { numbering.delete(kot.id); kot.no = n; return n; });
+  }
+  // Numbers a KOT, then prints it (a failed print is kept on its order: KOT !). Resolves the number.
+  function printKot(o, kot) {
+    const uid = idOf(o);
+    return numberKot(uid, kot).then(n => { printSlip(kitchenSlip(loadOrders().find(x => idOf(x) === uid) || o, kot), null, { uid, id: kot.id }); return n; });
+  }
   // The number of the KOT a dish (kitchen key) last went on
   const kotOfKey = (o, key) => { const k = [...kotsOf(o)].reverse().find(t => (t.lines || []).some(l => kitchenKey(l.id, l.type, l.mods) === key)); return k ? k.no || kotsOf(o).indexOf(k) + 1 : null; };
   // A line's choices as kept on a saved order and its slips (with their names, for the bill and the kitchen)
   const modObjs = mods => (mods || []).map(m => ({ id: m, label: optionOf.get(m)?.label || m, kind: optionOf.get(m)?.kind || 'other', price: optionOf.get(m)?.price || 0, ...(optionOf.get(m)?.mode === 'set' ? { sets: true } : {}) }));
   const thisDevice = () => window.RestroSync?.status?.()?.device?.id || null;
-  // Sends the dishes the kitchen doesn't have yet as one KOT (the day's next KOT number; none when only working out what
-  // would go). Returns the KOT, or null.
-  function sendToKitchen(entry, now = Date.now(), numbered = true) {
+  // Sends the dishes the kitchen doesn't have yet as one KOT (its number comes as it prints: printKot). Returns the KOT,
+  // or null.
+  function sendToKitchen(entry, now = Date.now()) {
     if (!entry.sent || typeof entry.sent !== 'object') entry.sent = {};
     const groups = new Map();
     for (const l of entry.lines) {
@@ -722,7 +743,7 @@
       entry.sent[k] = g.qty;
     }
     if (!lines.length) return null;
-    const kot = { id: newKotId(), at: now, kind: 'kot', no: numbered ? nextKotNo() : null, lines, ...(entry.priority ? { priority: true } : {}), by: staffName() };
+    const kot = { id: newKotId(), at: now, kind: 'kot', no: null, lines, ...(entry.priority ? { priority: true } : {}), by: staffName() };
     entry.sentAt = entry.sentAt || now; entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), kot].slice(-60);
     return kot;
   }
@@ -838,10 +859,10 @@
     }
     storeOrders([entry, ...others]);
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
-    // The kitchen printer: the CHANGED slip, then the KOT
+    // The kitchen printer: the CHANGED slip, then the KOT (with its number)
     if (changed) printSlip(kitchenSlip(entry, changed));
-    if (kot) printSlip(kitchenSlip(entry, kot), null, { uid: entry.uid, id: kot.id });
-    return { entry, kot, sentNow: kot ? kot.lines.reduce((n, l) => n + l.qty, 0) : 0, isNew: !prev };
+    const printed = kot ? printKot(entry, kot) : null;
+    return { entry, kot, printed, sentNow: kot ? kot.lines.reduce((n, l) => n + l.qty, 0) : 0, isNew: !prev };
   }
   const KEPT = ['bills', 'receipts', 'billNo', 'billYear', 'platform', 'platformNo', 'platformType', 'platformLogo', 'pickupAt', 'readyBy', 'callCode', 'handover', 'riderAt', 'platformReadyAt', 'payRef'];
   // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
@@ -881,10 +902,12 @@
   async function saveOrder() {
     if (askKot('save')) return;
     const done = await fire(null); if (!done) return;
-    const { entry, kot } = done;
-    // (Update Pack 4, CS6 and CS9) a scheduled order: "· KOT prints at 9:30 pm", or "· KOT sent to the kitchen"
-    const kitchen = entry.readyAt ? (kot ? 'KOT sent to the kitchen' : !entry.sentAt ? `KOT prints ${kitchenWhen(kitchenTime(entry))}` : '') : kot ? `KOT #${kot.no} sent` : '';
+    const { entry, kot, printed } = done;
     fresh();
+    // (Update Pack 4, CS6 and CS9) a scheduled order: "· KOT prints at 9:30 pm", or "· KOT sent to the kitchen"; the KOT's
+    // number once it has one
+    const no = printed ? await printed : null;
+    const kitchen = entry.readyAt ? (kot ? 'KOT sent to the kitchen' : !entry.sentAt ? `KOT prints ${kitchenWhen(kitchenTime(entry))}` : '') : kot ? `KOT #${no} sent` : '';
     say({ b: `Order ${ticket(entry.number)} saved`, t: kitchen ? ` · ${kitchen}` : '' });
   }
   // Hold (always there): the order on screen waits in Held until the end of the day, as the customer may call or come
@@ -1043,7 +1066,7 @@
       announceKitchen(o); sent++; printing.push([o, kot]);
     }
     if (sent) storeOrders(list);
-    for (const [o, kot] of printing) printSlip(kitchenSlip(o, kot), null, { uid: idOf(o), id: kot.id });
+    for (const [o, kot] of printing) printKot(o, kot);
     if (dialog.open && (heldChanged || (sent && sheet === 'orders'))) render();
   }
   const announced = new Set();
@@ -1310,7 +1333,8 @@
     if (typeof window.RESTRODevice?.printer?.printKot !== 'function') return;
     for (const o of loadOrders()) {
       if ((window.RestroSync && o.savedOn && o.savedOn !== thisDevice()) || o.cancelledBy) continue; // (not one a delivery app cancelled)
-      for (const k of kotsOf(o)) if (k.failed) sendSlip(kitchenSlip(o, k), { uid: idOf(o), id: k.id });
+      // (and a KOT that never got its number, the app closed meanwhile: numbered and printed now)
+      for (const k of kotsOf(o)) if (k.failed && k.no) sendSlip(kitchenSlip(o, k), { uid: idOf(o), id: k.id }); else if (!k.no && !numbering.has(k.id) && Date.now() - (Number(k.at) || 0) > 30000) printKot(o, k);
     }
   }
   setInterval(retryKots, 30000);
@@ -1319,7 +1343,7 @@
   // After a KOT has gone, taking a dish off or below what the kitchen has, or deleting the order, asks why first (a
   // reason is needed). Then it happens at once and for good: the VOID slip (ORDER CANCELLED for the whole order) prints
   // in the kitchen, the saved order changes straight away, and there is no Undo. Who did it and why are kept on the
-  // order. (No manager PIN for now.)
+  // order. (No PIN for now: "PIN required" comes with the access levels, Update Pack 4 A3.)
   // The reasons are learned (Update Pack 2, void pop-up v2; not a setting): the 9 this restaurant gives most, of all
   // time, worked out by the backend from the reasons kept on its orders every 15 days, at the close of day (near-same
   // ones merged, no fewest number of uses), and published with the quick notes as lists: "@void" (a dish taken off or
@@ -3748,7 +3772,7 @@
   const dishesOf = k => (k.lines || []).filter(l => l.qty > 0).map(l => `${l.name}${l.qty > 1 ? ` ×${l.qty}` : ''}`).join(', ');
   function kitchenOf(uid) {
     const rec = loadOrders().find(o => idOf(o) === uid); if (!rec) return null;
-    const next = sendToKitchen(JSON.parse(JSON.stringify(rec)), Date.now(), false);
+    const next = sendToKitchen(JSON.parse(JSON.stringify(rec)), Date.now());
     return {
       kots: kotsOf(rec).map((k, i) => ({ id: k.id, no: k.no || i + 1, at: k.at, dishes: dishesOf(k), failed: Boolean(k.failed), why: k.failWhy || '' })),
       unsent: next ? next.lines.map(l => ({ qty: l.qty, name: l.name, mods: (l.mods || []).map(labelOf).join(' · ') })) : [],
@@ -3773,6 +3797,7 @@
     if (cleanTime(rec.readyAt) && now < kitchenTime(rec)) kot.how = 'early'; // (a scheduled order's, before its kitchen time: "(sent early)")
     rec.kitchenAt = rec.kitchenDoneAt ? now : rec.kitchenAt || rec.sentAt || now;
     delete rec.kitchenDoneAt; rec.savedAt = now; storeOrders(list); if (order.uid === uid) keepOpened(rec);
+    await numberKot(uid, kot); // (its number, as it prints)
     const r = await sendSlip(kitchenSlip(rec, kot), { uid, id: kot.id });
     return { ...r, no: kot.no, count: kot.lines.reduce((n, l) => n + l.qty, 0) };
   }

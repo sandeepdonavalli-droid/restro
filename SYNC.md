@@ -194,6 +194,17 @@ year (1 April). It is kept like the ticket numbers: by the cloud, and by the mai
 is down; a tablet on its own counts by itself. An order is given its bill number the first time its bill (or receipt)
 prints, or when it is paid, whichever comes first, and keeps it: `billNo` (2045) and `billYear` (`"2026-27"`). A paired
 tablet that can reach neither the main system nor the cloud can't print the bill, or take the payment, until it can.
+With Settings › Business details › Bill number set to **At payment** (Update Pack 4, `restro.billNumber.v1`), a bill
+printed before the payment has no number ("BILL · NOT A TAX INVOICE"); the order gets its number when it is paid.
+
+## KOT numbers
+
+**One sequence a business day for the whole restaurant** (Update Pack 4, A2), from 1, starting again with the ticket
+numbers at the business day's cut-off. A KOT gets its number **when it prints** (`RestroSync.takeKotNumber()`, `{ day,
+number }`): a queued scheduled KOT has none until then. It is kept like the ticket numbers: by the cloud, and by the main
+system while the internet is down. Unlike a ticket number, a KOT is never held back: a paired tablet that reaches
+neither the main system nor the cloud numbers it from its own count, past every KOT it has given or seen that day, so
+the kitchen always gets it. The number is kept on the KOT (`no`, in the order's `kots`) and syncs with the order.
 
 ## Joining
 
@@ -227,6 +238,7 @@ message is dropped.
 | `{ t: 'push', rid, changes }` (up to 200 records, about 200 kB) | tablet → main | `{ t: 'ack', re: rid, results }` |
 | `{ t: 'number', rid, after }` (firing a new order; answered within 3 seconds or asked of the cloud) | tablet → main | `{ t: 'number', re: rid, day, number }` |
 | `{ t: 'number', rid, after, series: 'bill' }` (a bill number; `after`: the highest of the year this tablet knows) | tablet → main | `{ t: 'number', re: rid, year, number }` |
+| `{ t: 'number', rid, after, series: 'kot' }` (a KOT number as it prints; `after`: the highest of the day this tablet knows) | tablet → main | `{ t: 'number', re: rid, day, number }` |
 | `{ t: 'batch', server, from, seq, changes }` | main → all | None. A tablet whose cursor is behind `from − 1` pulls. |
 
 A tablet pushes and pulls:
@@ -249,6 +261,7 @@ Every request carries these headers:
 | `GET /sync/pull?since=<seq>&limit=300` | none | `{ seq, changes, more }` |
 | `POST /numbers/next` (firing a new order) | `{ device, day, after }` | `{ day, number }`, past `after` and every number of the day |
 | `POST /numbers/next` (a bill number) | `{ device, day, after, series: 'bill', year }` | `{ year, number }`, past `after` and every bill number of the financial year |
+| `POST /numbers/next` (a KOT number) | `{ device, day, after, series: 'kot' }` | `{ day, number }`, past `after` and every KOT number of the day |
 | WebSocket `/sync/live` (optional) | First message: `{ t: 'auth', token, device, since }` | `{ from, seq, changes }`, as changes happen |
 
 The rules are the server rules above, the same as the main system's. `tools/cloud_reference.py` implements them in

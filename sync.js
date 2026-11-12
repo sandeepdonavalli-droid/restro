@@ -641,6 +641,42 @@
     return { year: t.year, number: t.number };
   }
 
+  // ---------- KOT numbers (Update Pack 4, A2) ----------
+  // One sequence a day for the whole restaurant, from 1, like the ticket numbers and kept in the same place: the cloud
+  // while it can be reached, the main system while the internet is down. A KOT gets its number when it prints (a queued
+  // scheduled KOT has none until then). Unlike a ticket number, a KOT is never held back: a tablet that reaches neither
+  // the main system nor the cloud numbers it from its own count, past every KOT it has given or seen that day, so the
+  // kitchen always gets it.
+  const KOT_KEY = 'restro.sync.kotNumber.v1';
+  const kotsIn = o => (Array.isArray(o?.kots) ? o.kots : []).filter(k => isObj(k) && (k.kind || 'kot') === 'kot' && Number.isInteger(k.no) && k.no > 0);
+  const highestKot = (day, docs) => Math.max(0, ...[...(docs || readDocs('orders')).values()].flatMap(o => kotsIn(o).filter(k => dayOf(Number(k.at) || 0) === day).map(k => k.no)));
+  function nextKot(day) { const t = load(KOT_KEY, null), seen = isObj(t) && t.day === day ? Number(t.next) || 1 : 1; return Math.max(seen, highestKot(day) + 1); }
+  const knownKots = () => nextKot(today()) - 1;
+  function ownKot(after = 0) {
+    const day = today(), number = Math.max(nextKot(day), after + 1);
+    save(KOT_KEY, { day, next: number + 1 });
+    return { day, number };
+  }
+  async function mainKot(after = 0) {
+    after = Math.max(Number.isInteger(after) ? after : 0, knownKots());
+    if (cloudConfig() && Cloud.reachable()) {
+      const t = await Cloud.number(after, 2000, 'kot').catch(() => null);
+      if (validNumber(t) && t.day === today()) { save(KOT_KEY, { day: t.day, next: Math.max(nextKot(t.day), t.number + 1) }); return { day: t.day, number: t.number }; }
+    }
+    return ownKot(after);
+  }
+  // The number for a KOT about to print: { day, number }. The main system first; the cloud while the main system can't
+  // be reached or doesn't answer; this tablet's own count when neither does.
+  async function takeKotNumber() {
+    if (device.main) return mainKot();
+    if (!upstream()) return ownKot();
+    let t = Local.hubId() ? await Local.number(knownKots(), 'kot').catch(() => null) : null;
+    if (!(validNumber(t) && t.day === today()) && cloudConfig() && Cloud.reachable()) t = await Cloud.number(knownKots(), 3000, 'kot').catch(() => null);
+    if (!(validNumber(t) && t.day === today())) return ownKot();
+    save(KOT_KEY, { day: t.day, next: Math.max(nextKot(t.day), t.number + 1) });
+    return { day: t.day, number: t.number };
+  }
+
   // ---------- tablets nearby: through the Android app (RESTRODevice.localSync) ----------
   // Pairing: the main system makes a code; the other tablets enter it once. A key made from the code (PBKDF2) seals every
   // message (AES-GCM), so only the restaurant's tablets can read one or be believed; the name the tablets look for each
@@ -695,7 +731,7 @@
           const { results, accepted } = hubAccept(Array.isArray(msg.changes) ? msg.changes.slice(0, 500) : []);
           send({ t: 'ack', re: msg.rid, results }, fromId);
           if (accepted.length) broadcast({ t: 'batch', server: device.id, from: accepted[0].seq, seq: hub.seq, changes: accepted });
-        } else if (msg.t === 'number') (msg.series === 'bill' ? mainBill(Number(msg.after)) : mainNumber(Number(msg.after))).then(t => send({ t: 'number', re: msg.rid, ...t }, fromId)); // a tablet firing a new order (or printing a bill)
+        } else if (msg.t === 'number') (msg.series === 'bill' ? mainBill(Number(msg.after)) : msg.series === 'kot' ? mainKot(Number(msg.after)) : mainNumber(Number(msg.after))).then(t => send({ t: 'number', re: msg.rid, ...t }, fromId)); // a tablet firing a new order (or printing a bill or a KOT)
         return;
       }
       // Other tablets: changes passed on by the main system as they happen
@@ -827,7 +863,7 @@
     // The next ticket number of today, past `after` (the highest number the asking tablet knows of today): { day, number }.
     // A failure counts as the cloud being unreachable until a sync gets through again.
     async function number(after, wait = 3000, series) {
-      try { return await call('POST', '/numbers/next', { device: device.id, day: today(), after, ...(series === 'bill' ? { series: 'bill', year: yearOf(now()) } : {}) }, wait); }
+      try { return await call('POST', '/numbers/next', { device: device.id, day: today(), after, ...(series === 'bill' ? { series: 'bill', year: yearOf(now()) } : series === 'kot' ? { series: 'kot' } : {}) }, wait); }
       catch (e) { status = 'offline'; failures++; emitStatus(); schedule(); throw e; }
     }
     // Live changes from the cloud, when it offers them (a WebSocket; the token goes in the first message, never in the
@@ -927,7 +963,7 @@
   }
 
   window.RestroSync = Object.freeze({
-    wrote, removed, takeNumber, takeBillNumber, canFire, nextNumber, upcomingNumber, newId, mergeRecord, today, orderDay, dayOf,
+    wrote, removed, takeNumber, takeBillNumber, takeKotNumber, canFire, nextNumber, upcomingNumber, newId, mergeRecord, today, orderDay, dayOf,
     status,
     get device() { return { ...device }; },
     setDeviceName(name) { device.name = String(name || '').trim().slice(0, 30) || device.name; save(DEVICE, device); Local.start(); emitStatus(); },

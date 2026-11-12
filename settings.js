@@ -458,7 +458,9 @@
         el('div', { class: 'st-fixed' },
           el('p', {}, el('b', {}, 'PIN'), '4 digits, one for each person (set in the Staff app).'),
           el('p', {}, el('b', {}, 'Wrong PIN'), 'After 5 wrong tries, the pad pauses for 30 seconds.'),
-          el('p', {}, el('b', {}, 'Manager PIN'), el('span', { class: 'st-tag' }, 'LATER'))))
+          // (Update Pack 4, A3: a protected action asks "PIN required" only when the person signed in lacks its access;
+          // anyone who has that access enters their own PIN. Never "Manager PIN".)
+          el('p', {}, el('b', {}, 'PIN required'), 'Only when the person signed in lacks the access; anyone who has it enters their own PIN.', el('span', { class: 'st-tag' }, 'LATER'))))
     ];
   });
 
