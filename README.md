@@ -9,8 +9,8 @@ point at the .webp files. Everything else is byte-for-byte the live source.
 
 Run locally:  python3 -m http.server 8000   then open http://localhost:8000
 Publish prep: python3 tools/build.py        (writes dist/index.html)
-Midnight:     python3 tools/midnight.py     (writes counter-midnight.css from counter.css; run it after any
-              colour change there)
+Midnight:     python3 tools/midnight.py     (writes counter-midnight.css from counter.css and orders-midnight.css
+              from orders.css; run it after any colour change there)
 
 ## Where it runs
 

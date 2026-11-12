@@ -1,5 +1,6 @@
 /* Midnight: the Counter's dark theme (Update Pack 2, 01_Dark-Theme-Midnight). Home on Aurora Dark: the apps use Midnight
-   (themes.js sets html[data-app-theme]); only the Counter has it so far, the other apps stay Light until theirs is designed.
+   (themes.js sets html[data-app-theme]); the Counter and Orders have it so far (orders-midnight.css), the other apps stay
+   Light until theirs is designed.
    Written by tools/midnight.py from counter.css and the pack's tokens: change counter.css and run it again rather than
    editing the colours here. */
 /* Icons take their colour turned twice, as in the pack's screens: a little quieter than the words beside them */
