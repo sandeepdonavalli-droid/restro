@@ -94,7 +94,8 @@ html[data-app-theme="midnight"] .orders-app .or-b.err{background-color:#4A1414 !
 html[data-app-theme="midnight"] .orders-app .or-b.sk{background-color:#2A1D36 !important;background-image:none !important;color:#E7B2F2 !important;--ink2:#E7B2F2;box-shadow:inset 0 0 0 1.5px #A028BD}
 html[data-app-theme="midnight"] .orders-app .or-b.off,html[data-app-theme="midnight"] .orders-app .or-b.pr.off{background-color:#151E30 !important;background-image:none !important;color:#5A6782 !important;--ink2:#5A6782}
 html[data-app-theme="midnight"] .orders-app .or-b.hit{box-shadow:inset 0 0 0 2px #E2A93B !important}
-html[data-app-theme="midnight"] .orders-app .or-b.sent::after{background-color:#2F7D4F;background-image:none}
+html[data-app-theme="midnight"] .orders-app .or-b.sent::after,html[data-app-theme="midnight"] .orders-app .or-b.failed::after{background-color:#2F7D4F;background-image:none}
+html[data-app-theme="midnight"] .orders-app .or-b.failed::after{background-color:#D92D20;background-image:none}
 html[data-app-theme="midnight"] .orders-app .or-rail{background-color:#121B2D;background-image:none;border-right-color:#28344C}
 html[data-app-theme="midnight"] .orders-app .or-rtb{color:#C5CEDD !important;--ink2:#C5CEDD}
 html[data-app-theme="midnight"] .orders-app .or-rtb.on{background-color:#E9EEF8 !important;background-image:none !important;color:#141416 !important;--ink2:#141416}
@@ -320,11 +321,6 @@ html[data-app-theme="midnight"] .orders-app .or-msg.warn .or-msg-g .or-i{fill:#9
 html[data-app-theme="midnight"] .orders-app .or-msg.error{box-shadow:inset calc(5 * var(--fu)) 0 0 #BD2828,0 calc(10 * var(--fu)) calc(30 * var(--fu)) rgba(15,23,42,.35)}
 html[data-app-theme="midnight"] .orders-app .or-msg.error .or-msg-i{background-color:#FF9C9C;background-image:none}
 html[data-app-theme="midnight"] .orders-app .or-msg.error .or-msg-a{color:#F8A9AC !important;--ink2:#F8A9AC}
-html[data-app-theme="midnight"] .orders-app .or-msg.green{background-color:#2F7D4F;background-image:none}
-html[data-app-theme="midnight"] .orders-app .or-msg.green .or-msg-i{background-color:#121B2D;background-image:none;color:#7EE2A8;--ink2:#7EE2A8}
-html[data-app-theme="midnight"] .orders-app .or-msg.red,html[data-app-theme="midnight"] .orders-app .or-msg.error.red{background-color:#DC2626;background-image:none;box-shadow:0 calc(10 * var(--fu)) calc(30 * var(--fu)) rgba(15,23,42,.35)}
-html[data-app-theme="midnight"] .orders-app .or-msg.red .or-msg-i{background-color:#121B2D;background-image:none;color:#FF9C9C;--ink2:#FF9C9C}
-html[data-app-theme="midnight"] .orders-app .or-msg.red .or-msg-a,html[data-app-theme="midnight"] .orders-app .or-msg.red .or-msg-x{color:#FFFFFF !important;--ink2:#FFFFFF}
 /* ----- the pack's tokens: exact colours that win over the turned ones ----- */
 html[data-app-theme="midnight"] .orders-app .or-root{background-color:#0B1220!important}
 html[data-app-theme="midnight"] .orders-app .or-home{background-color:#1E2A42!important;background-image:none!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16),0 2px 4px rgba(0,0,0,.35),0 6px 16px rgba(0,0,0,.45)!important;color:#F1F4FA!important}
@@ -372,6 +368,7 @@ html[data-app-theme="midnight"] .orders-app .or-b.pr.low{background-color:#121B2
 html[data-app-theme="midnight"] .orders-app .or-b.pr.out{background-color:#3A1414!important;background-image:none!important;box-shadow:inset 0 0 0 1px rgba(255,156,156,.35)!important;color:#FFB0B0!important}
 html[data-app-theme="midnight"] .orders-app .or-b.pr.out::after{background-color:#EF4444!important}
 html[data-app-theme="midnight"] .orders-app .or-b.sent::after{background-color:#7EE2A8!important}
+html[data-app-theme="midnight"] .orders-app .or-b.failed::after{background-color:#FF9C9C!important}
 html[data-app-theme="midnight"] .orders-app .or-b.busy,html[data-app-theme="midnight"] .orders-app .or-b.opener,html[data-app-theme="midnight"] .orders-app :is(.or-root,html[data-app-theme="midnight"] .orders-app .or-scrim) button:focus-visible,html[data-app-theme="midnight"] .orders-app .or-r:focus-visible,html[data-app-theme="midnight"] .orders-app .or-li:focus-visible,html[data-app-theme="midnight"] .orders-app .or-cd:focus-visible{outline-color:#5B8EF0!important}
 html[data-app-theme="midnight"] .orders-app .or-open{background-color:#2F6FDE!important;background-image:none!important;box-shadow:none!important;color:#FFFFFF!important}
 html[data-app-theme="midnight"] .orders-app .sync-btn.normal{background-color:#1B2539!important;background-image:none!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)!important;color:#F1F4FA!important}
@@ -567,8 +564,3 @@ html[data-app-theme="midnight"] .orders-app .or-msg.error{box-shadow:inset 4px 0
 html[data-app-theme="midnight"] .orders-app .or-msg small,html[data-app-theme="midnight"] .orders-app .or-msg-t small{color:#AEB8CC!important}
 html[data-app-theme="midnight"] .orders-app .or-msg.error .or-msg-a{color:#FFB8B8!important}
 html[data-app-theme="midnight"] .orders-app .or-msg-i{color:#0B1220!important}
-html[data-app-theme="midnight"] .orders-app .or-msg.green{background-color:#2F7D4F!important;color:#FFFFFF!important}
-html[data-app-theme="midnight"] .orders-app .or-msg.green .or-msg-i{background-color:#FFFFFF!important;color:#2F7D4F!important}
-html[data-app-theme="midnight"] .orders-app .or-msg.red,html[data-app-theme="midnight"] .orders-app .or-msg.error.red{background-color:#DC2626!important;color:#FFFFFF!important;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 12px 30px rgba(0,0,0,.55)!important}
-html[data-app-theme="midnight"] .orders-app .or-msg.red .or-msg-i{background-color:#FFFFFF!important;color:#DC2626!important}
-html[data-app-theme="midnight"] .orders-app .or-msg.red .or-msg-a,html[data-app-theme="midnight"] .orders-app .or-msg.red .or-msg-x{color:#FFFFFF!important}

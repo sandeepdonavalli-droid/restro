@@ -1221,7 +1221,7 @@
     const act = fn => () => { dropMsg(); fn(); };
     const hold = () => holdMsg(true), let_go = () => holdMsg(false);
     const err = m.kind === 'error';
-    return el('div', { class: `cx-msg ${m.kind}${m.kind === 'confirm' ? ' plain' : ''}${m.tone ? ` ${m.tone}` : ''}`, role: err ? 'alert' : 'status',
+    return el('div', { class: `cx-msg ${m.kind}${m.kind === 'confirm' ? ' plain' : ''}`, role: err ? 'alert' : 'status',
       onpointerdown: hold, onpointerup: let_go, onpointercancel: let_go, onpointerleave: let_go },
       el('i', { class: 'cx-msg-i', 'aria-hidden': 'true' }, err ? el('b', {}, '!') : mi('check', 16)),
       el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || '', m.sub ? ` · ${m.sub}` : ''),
@@ -3844,6 +3844,12 @@
     const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return false;
     rec[field] = Date.now(); storeOrders(list); return true;
   }
+  // (a try that went keeps its time and clears the failure; one that didn't keeps when it failed)
+  function markTry(uid, went, failed, ok) {
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return false;
+    if (ok) { rec[went] = Date.now(); delete rec[failed]; } else rec[failed] = Date.now();
+    storeOrders(list); return true;
+  }
   window.RestroCounter = Object.freeze({
     open() { fromFloor = false; fromOrders = false; openCounter(); },
     // Back from an app Counter opened (Orders): Counter as it was, where it came from unchanged.
@@ -3873,16 +3879,18 @@
     goBack,
     // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
     kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type), kitchenTime: o => kitchenTime(o),
-    markNotified: uid => markSent(uid, 'notifiedAt'), markBuzzed: uid => markSent(uid, 'buzzedAt'),
+    // (a message or buzz that went, or didn't: Orders' line under Notify or Buzz green, or red until one goes)
+    markNotified: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', true), markBuzzed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', true),
+    markNotifyFailed: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', false), markBuzzFailed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', false),
     // (the order-ready text and buzz that go by themselves when the kitchen marks the order done: kept on the order
     // first, once; false when it already went)
     markAutoReady: uid => { const rec = loadOrders().find(o => idOf(o) === uid); return Boolean(rec) && !rec.readyAutoAt && markSent(uid, 'readyAutoAt'); },
-    // Their result in this bar while the Counter is open (orders.js): green when it went, red with RETRY when it didn't;
-    // a success never covers a failure still showing. False while the Counter is closed.
+    // Their result in this bar while the Counter is open (orders.js), RETRY when it didn't go; a success never covers a
+    // failure still showing. False while the Counter is closed.
     notice(m) {
       if (!dialog.open || !m) return false;
       if (msg?.kind === 'error' && m.kind !== 'error') return true;
-      say({ kind: m.kind === 'error' ? 'error' : 'confirm', b: m.bold || '', t: m.text || '', retry: m.retry, tone: m.tone });
+      say({ kind: m.kind === 'error' ? 'error' : 'confirm', b: m.bold || '', t: m.text || '', retry: m.retry });
       return true;
     },
     // Orders' Held link: the Counter's Held list until the Held page exists (Back returns to Orders, its filters kept)

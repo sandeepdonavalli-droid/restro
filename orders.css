@@ -176,7 +176,9 @@
 /* Sent: a short green bar under Notify once a message went, under Buzz once the dock confirmed */
 .or-b.hit{box-shadow:inset 0 0 0 2px #E2A93B!important}
 .or-b.busy,.or-b.opener{outline:calc(2.5 * var(--fu)) solid #2F6FDE;outline-offset:calc(2 * var(--fu))}
-.or-b.sent::after{content:"";position:absolute;left:50%;top:calc(100% + 4.5 * var(--fu));width:44%;height:calc(4 * var(--fu));border-radius:99px;background:#2F7D4F;transform:translateX(-50%)}
+.or-b.sent::after,.or-b.failed::after{content:"";position:absolute;left:50%;top:calc(100% + 4.5 * var(--fu));width:44%;height:calc(4 * var(--fu));border-radius:99px;background:#2F7D4F;transform:translateX(-50%)}
+/* (the last message or buzz didn't go: red, owner 12 Nov 2026) */
+.or-b.failed::after{background:#D92D20}
 
 /* ---------- Split detail (OR02, OR03) and Cards (OR04): the icon rail ---------- */
 .or-split,.or-cards{flex:1;min-height:0;display:flex}
@@ -315,7 +317,7 @@
 .or-acts{flex:none;display:flex;align-items:center;gap:calc(10 * var(--fu));margin-top:calc(14 * var(--fu));padding-right:calc(70 * var(--fu))}
 .or-acts .or-bt{grid-template-columns:repeat(4,calc(96 * var(--fu)));gap:calc(10 * var(--fu));justify-content:start}
 /* (Split's sent bar sits above the button) */
-.or-acts .or-b.sent::after{top:auto;bottom:calc(100% + 4.5 * var(--fu))}
+.or-acts .or-b.sent::after,.or-acts .or-b.failed::after{top:auto;bottom:calc(100% + 4.5 * var(--fu))}
 .or-open{margin-left:auto!important;height:calc(76 * var(--fu));box-sizing:border-box;padding:0 calc(26 * var(--fu))!important;border-radius:calc(18 * var(--fu));display:flex!important;align-items:center;gap:calc(8 * var(--fu));background:#292524!important;color:#FFFFFF!important;font-size:calc(18 * var(--fu))!important;font-weight:700!important;white-space:nowrap}
 .orders-app .or-open .or-i{width:calc(24 * var(--fu));height:calc(24 * var(--fu));fill:#FFFFFF}
 /* Picking in Split (H1): the orders picked, Cancel and Delete */
@@ -620,9 +622,3 @@
 .or-msg.error{box-shadow:inset calc(5 * var(--fu)) 0 0 #EF4444,0 calc(10 * var(--fu)) calc(30 * var(--fu)) rgba(15,23,42,.35)}
 .or-msg.error .or-msg-i{background:#F8A9AC}
 .or-msg.error .or-msg-a{color:#F8A9AC!important}
-/* Notify and Buzz (owner, 12 Nov 2026): the bar is green when the message or the buzz went, red when it didn't */
-.or-msg.green{background:#2F7D4F}
-.or-msg.green .or-msg-i{background:#FFFFFF;color:#2F7D4F}
-.or-msg.red,.or-msg.error.red{background:#DC2626;box-shadow:0 calc(10 * var(--fu)) calc(30 * var(--fu)) rgba(15,23,42,.35)}
-.or-msg.red .or-msg-i{background:#FFFFFF;color:#DC2626}
-.or-msg.red .or-msg-a,.or-msg.red .or-msg-x{color:#FFFFFF!important}

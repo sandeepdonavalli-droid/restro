@@ -748,12 +748,6 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-msg.error{box-shadow:inset calc(5 * var(--u)) 0 0 #EF4444,0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35)}
 .cx-msg.error .cx-msg-i{background:#F8A9AC}
 .cx-msg.error button{color:#FCA5A5}
-/* The order-ready text and buzz that went by themselves (orders.js; owner, 12 Nov 2026): green when it went, red when it didn't */
-.cx-msg.green{background:#2F7D4F}
-.cx-msg.green .cx-msg-i{background:#FFFFFF;color:#2F7D4F}
-.cx-msg.red{background:#DC2626;box-shadow:0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35)}
-.cx-msg.red .cx-msg-i{background:#FFFFFF;color:#DC2626}
-.cx-msg.red button,.cx-msg.red .xs{color:#FFFFFF}
 .cx-msg .xs{width:calc(36 * var(--u));height:calc(36 * var(--u));padding:0;display:flex;align-items:center;justify-content:center;color:#9CA3AF}
 /* The service charge pop-up, where the discount's is: the cloche on #E3ECFC (#1E4FB8); 4 quick picks; the amount it adds
    blue; the key left of 0 is the decimal point; under the button "Optional · …" 13.5 #78716C, 12 below */

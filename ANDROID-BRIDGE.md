@@ -225,8 +225,8 @@ start with the RESTRO Android app.
 
 | Method | Returns | What the app does |
 | --- | --- | --- |
-| `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to` (`code` is the country code, `"91"` unless the customer's number has another), **through the restaurant's SMS service with DLT registration, from the backend (Phase 2); never from the tablet's own SIM** (owner, 12 Nov 2026). `order` is the order's id (`uid`), for a log. Resolve `true` once the service accepted it: the bar at the bottom turns **green**, "Sent to ‹name› on SMS · Order #1028 ready for pickup". `false` (or an error): the bar turns **red**, "Couldn’t send the SMS to ‹name› · Order #1028 · the SMS service didn’t answer", with RETRY (owner, 12 Nov 2026: green when it went, red when it didn't) |
-| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system). **Resolve only once the pager system confirms the pager buzzed** (Update Pack 4): until then Orders shows "Buzzing pager 12… · ‹customer or table›, Order #1015" and keeps the Buzz button from being tapped again; `true` shows "Pager 12 buzzed · …" in a **green** bar and the short green line under Buzz (kept on the order as `buzzedAt`, synced to every tablet); `false` (or an error) shows "Pager 12 didn’t respond · check it’s charged and in range" with RETRY in a **red** bar. Pager Hub's tiles on the home screen buzz it too ("Pager 12 buzzed" / "Pager 12 didn’t buzz") |
+| `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to` (`code` is the country code, `"91"` unless the customer's number has another), **through the restaurant's SMS service with DLT registration, from the backend (Phase 2); never from the tablet's own SIM** (owner, 12 Nov 2026). `order` is the order's id (`uid`), for a log. Resolve `true` once the service accepted it: "Sent to ‹name› on SMS · Order #1028 ready for pickup", and the short line under Notify is **green** (kept on the order as `notifiedAt`). `false` (or an error): "Couldn’t send the SMS to ‹name› · Order #1028 · the SMS service didn’t answer" with RETRY, and the line under Notify is **red** (`notifyFailedAt`) until a message goes (owner, 12 Nov 2026: by hand or by itself) |
+| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system). **Resolve only once the pager system confirms the pager buzzed** (Update Pack 4): until then Orders shows "Buzzing pager 12… · ‹customer or table›, Order #1015" and keeps the Buzz button from being tapped again; `true` shows "Pager 12 buzzed · …" and the short green line under Buzz (kept on the order as `buzzedAt`, synced to every tablet); `false` (or an error) shows "Pager 12 didn’t respond · check it’s charged and in range" with RETRY, and the line under Buzz turns **red** (`buzzFailedAt`, synced) until a buzz goes (owner, 12 Nov 2026). Pager Hub's tiles on the home screen buzz it too ("Pager 12 buzzed" / "Pager 12 didn’t buzz") |
 
 The texts (Orders › Notify), with the restaurant's name (Settings › Business details):
 - **Order ready:** "Hi <name>, your order #1015 from <restaurant> is ready." (dine-in); "… is ready and will be with
@@ -254,9 +254,10 @@ built 12 Nov 2026, tried with a pretend Done mark):
 - **Once:** the order keeps when it was handled (`readyAutoAt`), written before anything goes out, so a tablet that
   stops halfway doesn't send twice. A delivery app's order is left out (it has Ready instead of Notify), and so is a
   Done mark more than 30 minutes old (a main system that was off when the kitchen marked it).
-- **The result** shows in the bar at the bottom of the sending tablet: in Orders if it is open, else on the Counter;
-  green when it went, red with RETRY when it didn't. A failure no one saw waits for Orders or the Counter to open there.
-  A success never covers a failure still showing.
+- **The result** shows in the bar at the bottom of the sending tablet, as for Notify and Buzz by hand: in Orders if it
+  is open, else on the Counter, with RETRY when it didn't go. A failure no one saw waits for Orders or the Counter to
+  open there; a success never covers a failure still showing. On every tablet the line under Notify or Buzz turns
+  green when it went, red when it didn't.
 - **Open point, the owner's to decide** (12 Nov 2026): dishes added after the kitchen marked the order done go back to
   the kitchen (`kitchenDoneAt` is cleared); when they are done too, should the customer get a second "ready" text? For
   now no: one automatic text and buzz per order.

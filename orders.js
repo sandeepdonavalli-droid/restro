@@ -200,6 +200,10 @@
   // (the Counter's own reckoning: ready-by less the prep time it was scheduled with, or Settings › Kitchen's if longer)
   const kotTimeOf = o => Number(o.kotAt) || window.RestroCounter?.kitchenTime?.(o) || (Number(o.readyAt) - prepMinutes(o.type) * 60000);
 
+  // The short line under Notify and under Buzz: green when the last message or buzz went, red when the last one didn't
+  // (owner, 12 Nov 2026: by hand or by itself), none before the first ('sent' · 'failed' · '')
+  // (a failure is kept only until a try goes: the Counter's markNotified / markBuzzed clear it)
+  const lastTry = (went, failed) => (failed ? 'failed' : went ? 'sent' : '');
   // ctx: { past } (a past day or a range: only Bill / Receipt works)
   function infoOf(o, now, ctx = {}) {
     const id = o.uid || `n${o.number}`, when = o.createdAt, past = Boolean(ctx.past);
@@ -230,8 +234,8 @@
     const kot = past ? { look: 'off', label: 'KOT' } : kots.some(k => k.failed) ? { look: 'err', label: 'KOT !' }
       : queued ? { look: 'q', at: kotAt, label: dayOf(kotAt) === (refDay || dayOf(now)) ? timeOf(kotAt) : weekday(kotAt) } : { look: kots.length ? 'on' : 'off', label: 'KOT' };
     const third = platform ? { kind: o.platformReadyAt || status.closed ? 'marked' : 'ready', on: !past }
-      : { kind: 'notify', on: !past && Boolean(phone), sent: Boolean(o.notifiedAt) };
-    const buzz = { no: o.pager ? String(o.pager) : '', on: !past && !status.closed && Boolean(o.pager) && Boolean(o.pagerOut), sent: Boolean(o.buzzedAt) };
+      : { kind: 'notify', on: !past && Boolean(phone), line: lastTry(o.notifiedAt, o.notifyFailedAt) };
+    const buzz = { no: o.pager ? String(o.pager) : '', on: !past && !status.closed && Boolean(o.pager) && Boolean(o.pagerOut), line: lastTry(o.buzzedAt, o.buzzFailedAt) };
     // can it be deleted (long-press): only Not paid orders, and never a delivery app's (it is cancelled on the app)
     const lock = platform ? `${type.name} · cancel on ${type.name}` : pay.key === 'np' ? '' : pay.key === 'part' ? 'Partially paid' : 'Paid';
     const forDay = o.readyAt ? dayOf(o.readyAt) : null, taken = dayOfOrder(o);
@@ -433,7 +437,7 @@
   function paintMsg() {
     if (!msg) { bar.hidden = true; bar.replaceChildren(); return; }
     const act = msg.undo ? ['UNDO', msg.undo] : msg.retry ? ['RETRY', msg.retry] : null, error = msg.kind === 'error', busy = msg.kind === 'busy', warn = msg.kind === 'warn';
-    bar.className = `or-msg${error ? ' error' : busy ? ' busy' : warn ? ' warn' : ''}${msg.tone ? ` ${msg.tone}` : ''}`;
+    bar.className = `or-msg${error ? ' error' : busy ? ' busy' : warn ? ' warn' : ''}`;
     bar.replaceChildren(...[msg.ic ? el('span', { class: 'or-msg-g', 'aria-hidden': 'true' }, icon(msg.ic)) : el('span', { class: 'or-msg-i', 'aria-hidden': 'true' }, busy ? null : error ? el('b', {}, '!') : icon('check')),
       el('span', { class: 'or-msg-t' }, msg.lead || '', msg.bold ? el('b', {}, msg.bold) : null, msg.text || ''),
       act ? el('button', { type: 'button', class: 'or-msg-a', onclick: () => { const run = act[1]; clearTimeout(msg?.timer); msg = null; paintMsg(); run(); } }, act[0]) : null,
@@ -672,11 +676,11 @@
       btn => openKot(r, btn), icon('kot'), el('span', {}, k.label));
     const th = r.third;
     const third = th.kind === 'notify'
-      ? b(`nt${th.sent ? ' sent' : ''}`, th.on, th.on ? `Notify ${r.name || 'the customer'}` : 'Notify: no phone number', btn => openNotify(r, btn), icon('notify'), el('span', {}, 'Notify'))
+      ? b(`nt${th.line ? ` ${th.line}` : ''}`, th.on, th.on ? `Notify ${r.name || 'the customer'}` : 'Notify: no phone number', btn => openNotify(r, btn), icon('notify'), el('span', {}, 'Notify'))
       : b('nt', th.on, th.kind === 'marked' ? 'Marked ready' : 'Mark ready', () => markReady(r), icon(th.kind === 'marked' ? 'marked' : 'ready'), el('span', {}, th.kind === 'marked' ? 'Marked' : 'Ready'));
     const state = flash.get(r.id);
     const pq = parsed(), pagerHit = pq?.kind === 'pager' && pq.n === Number(r.buzz.no);
-    const buzz = b(`bz${r.buzz.sent ? ' sent' : ''}${state === 'buzzing' ? ' busy' : ''}${pagerHit ? ' hit' : ''}`, r.buzz.on, r.buzz.on ? `Buzz pager ${r.buzz.no}` : r.buzz.no ? `Pager ${r.buzz.no}: back in its dock` : 'Buzz: no pager', () => buzzPager(r),
+    const buzz = b(`bz${r.buzz.line ? ` ${r.buzz.line}` : ''}${state === 'buzzing' ? ' busy' : ''}${pagerHit ? ' hit' : ''}`, r.buzz.on, r.buzz.on ? `Buzz pager ${r.buzz.no}` : r.buzz.no ? `Pager ${r.buzz.no}: back in its dock` : 'Buzz: no pager', () => buzzPager(r),
       r.buzz.no ? el('em', {}, r.buzz.no) : null, el('span', {}, 'Buzz'));
     return el('div', { class: 'or-bt', role: 'cell' }, pr, kot, third, buzz);
   }
@@ -898,8 +902,8 @@
     if (dialog.open) renderRest();
     const done = ok => {
       flash.delete(r.id);
-      if (ok) { window.RestroCounter?.markBuzzed?.(r.id); show({ tone: 'green', bold: `Pager ${n} buzzed`, text: ` · ${who}` }); }
-      else show({ kind: 'error', tone: 'red', bold: `Pager ${n} didn’t respond`, text: ' · check it’s charged and in range', retry: () => buzzPager(r, auto) });
+      if (ok) { window.RestroCounter?.markBuzzed?.(r.id); show({ bold: `Pager ${n} buzzed`, text: ` · ${who}` }); }
+      else { window.RestroCounter?.markBuzzFailed?.(r.id); show({ kind: 'error', bold: `Pager ${n} didn’t respond`, text: ' · check it’s charged and in range', retry: () => buzzPager(r, auto) }); }
       if (dialog.open) renderRest();
     };
     try { Promise.resolve(pager.buzz(Number(n))).then(res => done(res !== false), () => done(false)); } catch { done(false); }
@@ -932,7 +936,7 @@
     const res = await deliver(r, how, 'ready');
     if (res.none) return;
     notice(res.ok ? sentNote(r, 'ready', res.used) : failNote(r, res.used, () => textReady(r, how)));
-    if (res.ok && dialog.open) renderRest();
+    if (dialog.open) renderRest();
   }
   let autoBusy = false;
   async function autoReady() {
@@ -983,20 +987,20 @@
     let used = channel === 'whatsapp' && wa ? 'whatsapp' : sms ? 'sms' : null;
     let ok = used ? await send(used) : false;
     if (!ok && used === 'whatsapp' && sms) { used = 'sms'; ok = await send('sms'); }
-    if (ok) window.RestroCounter?.markNotified?.(r.id);
+    if (ok) window.RestroCounter?.markNotified?.(r.id); else window.RestroCounter?.markNotifyFailed?.(r.id);
     return { ok, used: used || channel };
   }
-  // What the bar says (owner, 12 Nov 2026): green once the message went, red with RETRY when it didn't
-  const sentNote = (r, template, used) => ({ tone: 'green', bold: `Sent to ${r.name || 'the customer'} on ${used === 'whatsapp' ? 'WhatsApp' : 'SMS'}`, text: ` · Order ${ticket(r.o.number)} ${sentWords(r, template)}` });
-  const failNote = (r, used, retry) => ({ kind: 'error', tone: 'red', bold: `Couldn’t send the ${used === 'whatsapp' ? 'WhatsApp message' : 'SMS'} to ${r.name || 'the customer'}`,
+  // What the bar says once it went, and when it didn't (with RETRY)
+  const sentNote = (r, template, used) => ({ bold: `Sent to ${r.name || 'the customer'} on ${used === 'whatsapp' ? 'WhatsApp' : 'SMS'}`, text: ` · Order ${ticket(r.o.number)} ${sentWords(r, template)}` });
+  const failNote = (r, used, retry) => ({ kind: 'error', bold: `Couldn’t send the ${used === 'whatsapp' ? 'WhatsApp message' : 'SMS'} to ${r.name || 'the customer'}`,
     text: ` · Order ${ticket(r.o.number)} · ${used === 'whatsapp' ? 'WhatsApp' : 'the SMS service'} didn’t answer`, retry });
   async function sendNotify(r, channel, template = pop?.template || 'ready') {
     const dev = window.RESTRODevice;
     if (typeof dev?.sms?.send !== 'function' && typeof dev?.whatsapp?.send !== 'function') { say('Messages go through the RESTRO Android app'); return; }
     pop = null; renderLayer();
     const { ok, used } = await deliver(r, channel, template);
-    if (ok) { say(sentNote(r, template, used)); renderRest(); }
-    else say(failNote(r, used, () => sendNotify(r, channel, template)));
+    say(ok ? sentNote(r, template, used) : failNote(r, used, () => sendNotify(r, channel, template)));
+    renderRest();
   }
   function notifyCard(r) {
     const tpl = pop.template, queued = r.kot.look === 'q';
