@@ -225,8 +225,8 @@ start with the RESTRO Android app.
 
 | Method | Returns | What the app does |
 | --- | --- | --- |
-| `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to` (`code` is the country code, `"91"` unless the customer's number has another). `SmsManager` on the tablet (`SEND_SMS`), or an SMS service once the cloud exists. `order` is the order's id (`uid`), for a log. `false` (or an error) shows "The message didn’t go" with Retry |
-| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system). **Resolve only once the pager system confirms the pager buzzed** (Update Pack 4): until then Orders shows "Buzzing pager 12… · ‹customer or table›, Order #1015" and keeps the Buzz button from being tapped again; `true` shows "Pager 12 buzzed · …" and the short green bar under Buzz (kept on the order as `buzzedAt`, synced to every tablet); `false` (or an error) shows "Pager 12 didn’t respond · check it’s charged and in range" with RETRY. Pager Hub's tiles on the home screen buzz it too ("Pager 12 buzzed" / "Pager 12 didn’t buzz") |
+| `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to` (`code` is the country code, `"91"` unless the customer's number has another), **through the restaurant's SMS service with DLT registration, from the backend (Phase 2); never from the tablet's own SIM** (owner, 12 Nov 2026). `order` is the order's id (`uid`), for a log. Resolve `true` once the service accepted it: the bar at the bottom turns **green**, "Sent to ‹name› on SMS · Order #1028 ready for pickup". `false` (or an error): the bar turns **red**, "Couldn’t send the SMS to ‹name› · Order #1028 · the SMS service didn’t answer", with RETRY (owner, 12 Nov 2026: green when it went, red when it didn't) |
+| `pager.buzz(number)` | `true` / `false` (may be a promise) | Buzzes pager `number` through the restaurant's paging transmitter (USB, Bluetooth or the network, depending on the pager system). **Resolve only once the pager system confirms the pager buzzed** (Update Pack 4): until then Orders shows "Buzzing pager 12… · ‹customer or table›, Order #1015" and keeps the Buzz button from being tapped again; `true` shows "Pager 12 buzzed · …" in a **green** bar and the short green line under Buzz (kept on the order as `buzzedAt`, synced to every tablet); `false` (or an error) shows "Pager 12 didn’t respond · check it’s charged and in range" with RETRY in a **red** bar. Pager Hub's tiles on the home screen buzz it too ("Pager 12 buzzed" / "Pager 12 didn’t buzz") |
 
 The texts (Orders › Notify), with the restaurant's name (Settings › Business details):
 - **Order ready:** "Hi <name>, your order #1015 from <restaurant> is ready." (dine-in); "… is ready and will be with
@@ -234,13 +234,37 @@ The texts (Orders › Notify), with the restaurant's name (Settings › Business
 - **Bill:** "Hi <name>, the bill for your order #1015 from <restaurant> is ₹837."
 - **Running late:** "Hi <name>, your order #1015 from <restaurant> is running a little late. We’ll message you as soon as
   it’s ready."
+- **Order scheduled** (Update Pack 4; first in the pop-up while a scheduled order's KOT waits): "Hi <name>, your order
+  #1015 from <restaurant> is booked for 8:30 pm today. We’ll have it ready on time." ("tomorrow", or "on Wed 11 Nov",
+  for another day.)
 
 ("Hi," when the order has no name; no "from …" without a restaurant name.)
 
+These wordings, with the name, the order number, the restaurant's name, the amount and the time as their variables, are
+what gets registered on DLT for SMS (Service category) and with Meta as WhatsApp templates. DLT blocks any message that
+doesn't match its registered template exactly, so a word changed here has to be registered again before it can go.
+
 **When the kitchen marks an order complete** (with the kitchen screen, to build), both go out on their own: the text
-if the order has a phone number, the buzz if it has a pager. With neither, nothing happens. The main system sends them
-(or the tablet that fired the order, without a main system), so each goes out once however many tablets there are. The
-two buttons stay, to send again by hand: Text whenever the order has the customer's phone number, whatever its status,
+if the order has a phone number, the buzz if it has a pager out. With neither, nothing happens. The main system sends
+them (a tablet working on its own sends its own), so each goes out once however many tablets there are (orders.js,
+built 12 Nov 2026, tried with a pretend Done mark):
+- **The text** is Notify's "Order ready" (below), by **Settings › Orders › Order-ready message**: SMS (the default),
+  WhatsApp (falls back to SMS) or Off (`restro.readyMessage.v1`, the restaurant's, synced). Off stops only the text;
+  the pager still buzzes.
+- **Once:** the order keeps when it was handled (`readyAutoAt`), written before anything goes out, so a tablet that
+  stops halfway doesn't send twice. A delivery app's order is left out (it has Ready instead of Notify), and so is a
+  Done mark more than 30 minutes old (a main system that was off when the kitchen marked it).
+- **The result** shows in the bar at the bottom of the sending tablet: in Orders if it is open, else on the Counter;
+  green when it went, red with RETRY when it didn't. A failure no one saw waits for Orders or the Counter to open there.
+  A success never covers a failure still showing.
+- **Open point, the owner's to decide** (12 Nov 2026): dishes added after the kitchen marked the order done go back to
+  the kitchen (`kitchenDoneAt` is cleared); when they are done too, should the customer get a second "ready" text? For
+  now no: one automatic text and buzz per order.
+- **Trying it without a SIM or a pager:** a stand-in `RESTRODevice` whose `sms.send`, `whatsapp.send` and `pager.buzz`
+  only record what they were given and return `true` or `false`, and a `kitchenDoneAt` written on an order followed by
+  `restro:data-changed` (`{ collections: ['orders'] }`), the way the kitchen screen's mark arrives.
+
+The two buttons stay, to send again by hand: Text whenever the order has the customer's phone number, whatever its status,
 until 1 hour 15 minutes after the order is done on every side (Closed, and its pager docked back when it had one);
 Buzz until the pager is docked back (below), then greyed out with the pager's number kept on it, for the record. The
 kitchen screen also marks the order `kitchenDoneAt` (the time) when the whole order is complete, cleared when more
@@ -283,7 +307,7 @@ when it has no name; "No Pazzer hardware connected" for none). Its **Pazzer sett
 
 | Method or event | |
 | --- | --- |
-| `RESTRODevice.whatsapp.send({ to, code, text, order })` | Optional, like `sms.send`: Notify's WhatsApp. Return `true` / `false` (may be a promise); `false` falls back to SMS |
+| `RESTRODevice.whatsapp.send({ to, code, text, order })` | Optional, like `sms.send`: Notify's WhatsApp, **through the WhatsApp Business Platform (Meta) from the backend (Phase 2)**, the texts registered and approved as its message templates (owner, 12 Nov 2026). Return `true` / `false` (may be a promise); `false` falls back to SMS |
 | `RESTRODevice.printer.newRoll()` | Staff confirmed a new paper roll in the bill printer: reset its paper level to 100% (and tell the other tablets through `restro:printer-paper`) |
 | `restro:printer-cover`, `{ printer, level }` | Dispatch when the bill printer's cover was opened and closed: Orders asks "New paper roll?" (`printer`: its name; `level`: the level before) |
 | `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number; `order` RESTRO's id for the order), once the integrations exist. **Return `true` once the platform accepted it, `false` if it didn't** (may be a promise; Update Pack 4): `true` turns the button to Marked and shows "Order ready sent to Swiggy · Swiggy #4521 · Order #1029"; `false` (or an error) keeps Ready and shows "Swiggy didn’t receive “Ready” · Swiggy #4521 · Order #1029" with RETRY. Offline, Orders doesn't call it and shows "Offline · couldn’t send “Ready” to Swiggy · Order #1029" with RETRY. There is no "are you sure" |

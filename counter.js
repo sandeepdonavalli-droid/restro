@@ -1221,7 +1221,7 @@
     const act = fn => () => { dropMsg(); fn(); };
     const hold = () => holdMsg(true), let_go = () => holdMsg(false);
     const err = m.kind === 'error';
-    return el('div', { class: `cx-msg ${m.kind}${m.kind === 'confirm' ? ' plain' : ''}`, role: err ? 'alert' : 'status',
+    return el('div', { class: `cx-msg ${m.kind}${m.kind === 'confirm' ? ' plain' : ''}${m.tone ? ` ${m.tone}` : ''}`, role: err ? 'alert' : 'status',
       onpointerdown: hold, onpointerup: let_go, onpointercancel: let_go, onpointerleave: let_go },
       el('i', { class: 'cx-msg-i', 'aria-hidden': 'true' }, err ? el('b', {}, '!') : mi('check', 16)),
       el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || '', m.sub ? ` · ${m.sub}` : ''),
@@ -3761,7 +3761,9 @@
 
   // Shown first, then drawn, so the lists can return to where they were scrolled. Nothing is reset here.
   // (It opens on the view of the pills, or the part of the rail, with the selected category.)
-  function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; pillView = null; railScroll = null; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); }
+  function openCounter() { typeMenu = false; optionsMenu = false; deleteArmed = false; pillView = null; railScroll = null; if (document.querySelector('dialog[open]')) document.querySelectorAll('dialog[open]').forEach(d => d.close()); dialog.showModal(); render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true });
+    // (an order-ready text or buzz that failed while no one was looking: orders.js)
+    const missed = window.RestroOrders?.takeNotice?.(); if (missed) window.RestroCounter.notice(missed); }
 
   // ---------- for the Orders app (Update Pack 3) ----------
   // A saved order's kitchen, for its KOT button: its KOTs (number, time, dishes; failed when the print didn't go, and
@@ -3872,6 +3874,17 @@
     // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
     kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type), kitchenTime: o => kitchenTime(o),
     markNotified: uid => markSent(uid, 'notifiedAt'), markBuzzed: uid => markSent(uid, 'buzzedAt'),
+    // (the order-ready text and buzz that go by themselves when the kitchen marks the order done: kept on the order
+    // first, once; false when it already went)
+    markAutoReady: uid => { const rec = loadOrders().find(o => idOf(o) === uid); return Boolean(rec) && !rec.readyAutoAt && markSent(uid, 'readyAutoAt'); },
+    // Their result in this bar while the Counter is open (orders.js): green when it went, red with RETRY when it didn't;
+    // a success never covers a failure still showing. False while the Counter is closed.
+    notice(m) {
+      if (!dialog.open || !m) return false;
+      if (msg?.kind === 'error' && m.kind !== 'error') return true;
+      say({ kind: m.kind === 'error' ? 'error' : 'confirm', b: m.bold || '', t: m.text || '', retry: m.retry, tone: m.tone });
+      return true;
+    },
     // Orders' Held link: the Counter's Held list until the Held page exists (Back returns to Orders, its filters kept)
     openHeld() { openCounter(); fromFloor = false; fromOrders = true; sheet = 'held'; render(); },
     tablesInUse() {

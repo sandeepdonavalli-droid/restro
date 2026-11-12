@@ -1,7 +1,8 @@
 'use strict';
 // Settings added by the Update Pack of 9 Nov 2026 (Counter Update 7, Navigation & Lock Update 1), kept in one place:
 // - The restaurant's own (shared by all its tablets through sync.js): Billing & charges, Business details (with its
-//   Business hours and Bill number, Update Pack 4), the printers' settings and Staff & security.
+//   Business hours and Bill number, Update Pack 4), the printers' settings, Staff & security and Orders' order-ready
+//   message.
 // - This tablet's own: Display › Navigation (swipe gestures or the navigation bar, and its button order) and Go dark.
 // Every value is checked as it is read, so a missing, old or bad value falls back to its default. Changes are announced
 // with `restro:prefs-changed` ({ name }), here or from another tablet.
@@ -28,11 +29,14 @@
       fri: { open: true, from: 660, to: 120 }, sat: { open: true, from: 660, to: 120 }, sun: { open: true, from: 660, to: 120 } } },
     // (Update Pack 4) Business details › Bill number: when a bill gets its number, at its first print ('print', the
     // default) or at payment ('payment'), and every change of it (`log`: { to, at, by }, the latest 20)
-    billNumber: { at: 'print', log: [] }
+    billNumber: { at: 'print', log: [] },
+    // (Update Pack 4) Orders › Order-ready message: how the "your order is ready" text goes by itself when the kitchen
+    // marks an order done ('sms', the default; 'whatsapp', falling back to SMS; 'off')
+    readyMessage: { send: 'sms' }
   });
   const KEYS = Object.freeze({ billing: 'restro.billing.v1', business: 'restro.business.v1', printers: 'restro.printers.v1', security: 'restro.security.v1', navigation: 'restro.navigation.v1', screen: 'restro.screen.v1',
-    hours: 'restro.hours.v1', billNumber: 'restro.billNumber.v1' });
-  const SHARED = new Set(['billing', 'business', 'printers', 'security', 'hours', 'billNumber']);
+    hours: 'restro.hours.v1', billNumber: 'restro.billNumber.v1', readyMessage: 'restro.readyMessage.v1' });
+  const SHARED = new Set(['billing', 'business', 'printers', 'security', 'hours', 'billNumber', 'readyMessage']);
   const DAYS = Object.freeze(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
   const LATEST_CLOSE = 360; // (a closing time the next morning: 6:00 am at the latest)
   const AUTO_LOCK = Object.freeze([0, 1, 2, 5, 10, 15]);        // minutes; 0 = off
@@ -96,7 +100,8 @@
       const log = (Array.isArray(v?.log) ? v.log : []).filter(x => isObj(x) && (x.to === 'print' || x.to === 'payment') && Number.isFinite(x.at))
         .map(x => ({ to: x.to, at: x.at, by: typeof x.by === 'string' ? x.by.slice(0, 60) : null })).slice(-20);
       return { at: v?.at === 'payment' ? 'payment' : 'print', log };
-    }
+    },
+    readyMessage(v) { return { send: ['sms', 'whatsapp', 'off'].includes(v?.send) ? v.send : 'sms' }; }
   };
   // A closing time after the opening time the same day, or the next morning (at or before the opening time) by 6:00 am
   function closesOk(from, to) { return to > from || to <= LATEST_CLOSE; }

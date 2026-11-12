@@ -433,7 +433,7 @@
   function paintMsg() {
     if (!msg) { bar.hidden = true; bar.replaceChildren(); return; }
     const act = msg.undo ? ['UNDO', msg.undo] : msg.retry ? ['RETRY', msg.retry] : null, error = msg.kind === 'error', busy = msg.kind === 'busy', warn = msg.kind === 'warn';
-    bar.className = `or-msg${error ? ' error' : busy ? ' busy' : warn ? ' warn' : ''}`;
+    bar.className = `or-msg${error ? ' error' : busy ? ' busy' : warn ? ' warn' : ''}${msg.tone ? ` ${msg.tone}` : ''}`;
     bar.replaceChildren(...[msg.ic ? el('span', { class: 'or-msg-g', 'aria-hidden': 'true' }, icon(msg.ic)) : el('span', { class: 'or-msg-i', 'aria-hidden': 'true' }, busy ? null : error ? el('b', {}, '!') : icon('check')),
       el('span', { class: 'or-msg-t' }, msg.lead || '', msg.bold ? el('b', {}, msg.bold) : null, msg.text || ''),
       act ? el('button', { type: 'button', class: 'or-msg-a', onclick: () => { const run = act[1]; clearTimeout(msg?.timer); msg = null; paintMsg(); run(); } }, act[0]) : null,
@@ -444,6 +444,15 @@
   bar.addEventListener('pointerdown', () => { if (msg) { msg.held = true; clearTimeout(msg.timer); } });
   const letGo = () => { if (msg?.held) { msg.held = false; runMsg(); } };
   bar.addEventListener('pointerup', letGo); bar.addEventListener('pointercancel', letGo); bar.addEventListener('pointerleave', letGo);
+  // A result of the order-ready text or buzz that went by itself (below): here while Orders is open, else in the
+  // Counter's bar while the Counter is open; a failure no one saw waits for Orders or the Counter to open. A success
+  // never covers a failure still showing.
+  let waiting = null;
+  function notice(m) {
+    if (dialog.open) { if (msg?.kind === 'error' && m.kind !== 'error') return; say(m); return; }
+    if (window.RestroCounter?.notice?.(m)) return;
+    if (m.kind === 'error') waiting = m;
+  }
 
   // ---------- offline (Update Pack 4, A6; G7, K5, K6): a quiet note under the search; nothing is greyed ----------
   let offlineSince = null;
@@ -879,16 +888,18 @@
   // Buzz: two steps (P02): "Buzzing pager 7… · ‹customer or table›, Order #15" while the Buzz button keeps a blue ring, then "Pager 7
   // buzzed" once the pager system confirms it (the short green bar under Buzz), or "didn't respond" with RETRY.
   // RESTRODevice.pager.buzz(number) resolves when the buzz is confirmed (ANDROID-BRIDGE.md).
-  function buzzPager(r) {
-    const pager = window.RESTRODevice?.pager, n = r.buzz.no;
-    if (typeof pager?.buzz !== 'function') { say('Pagers start with the RESTRO Android app'); return; }
+  // (auto: the kitchen marked the order done; no "Buzzing…", and the result goes where it can be seen: notice)
+  function buzzPager(r, auto = false) {
+    const pager = window.RESTRODevice?.pager, n = r.buzz.no, show = auto ? notice : say;
+    if (typeof pager?.buzz !== 'function') { if (!auto) say('Pagers start with the RESTRO Android app'); return; }
     if (flash.get(r.id) === 'buzzing') return;
     const who = [r.name || (r.dine ? r.who.l1.split(' · ')[0] : ''), `Order ${ticket(r.o.number)}`].filter(Boolean).join(', ');
-    flash.set(r.id, 'buzzing'); say({ kind: 'busy', lead: 'Buzzing ', bold: `pager ${n}…`, text: ` · ${who}` }); renderRest();
+    flash.set(r.id, 'buzzing'); if (!auto) say({ kind: 'busy', lead: 'Buzzing ', bold: `pager ${n}…`, text: ` · ${who}` });
+    if (dialog.open) renderRest();
     const done = ok => {
       flash.delete(r.id);
-      if (ok) { window.RestroCounter?.markBuzzed?.(r.id); say({ bold: `Pager ${n} buzzed`, text: ` · ${who}` }); }
-      else say({ kind: 'error', bold: `Pager ${n} didn’t respond`, text: ' · check it’s charged and in range', retry: () => buzzPager(r) });
+      if (ok) { window.RestroCounter?.markBuzzed?.(r.id); show({ tone: 'green', bold: `Pager ${n} buzzed`, text: ` · ${who}` }); }
+      else show({ kind: 'error', tone: 'red', bold: `Pager ${n} didn’t respond`, text: ' · check it’s charged and in range', retry: () => buzzPager(r, auto) });
       if (dialog.open) renderRest();
     };
     try { Promise.resolve(pager.buzz(Number(n))).then(res => done(res !== false), () => done(false)); } catch { done(false); }
@@ -906,6 +917,42 @@
     window.RestroCounter?.markReady?.(r.id);
     say({ bold: `Order ready sent to ${app}`, text: ` · ${nos}` }); renderRest();
   }
+
+  // ---------- the order-ready text and the buzz, by themselves (Update Pack 4; ANDROID-BRIDGE.md) ----------
+  // When the kitchen screen marks an order complete (kitchenDoneAt), the customer gets the "Order ready" text, as
+  // Settings › Orders says (SMS, WhatsApp falling back to SMS, or Off), when the order has their phone number, and the
+  // order's pager buzzes when it has one out. The main system sends them, or a tablet working on its own, so each goes
+  // out once however many tablets there are: the order keeps when it was done (readyAutoAt) before anything goes. Not
+  // for a delivery app's orders (they have Ready), nor for a Done mark over 30 minutes old (a main system that was off).
+  // Once per order for now: whether dishes added later, once done, bring a second text is the owner's to decide (12 Nov
+  // 2026).
+  const AUTO_WITHIN = 30 * 60000;
+  const sendsHere = () => { const s = window.RestroSync?.status?.(); return !s || Boolean(s.device?.main) || !s.paired; };
+  async function textReady(r, how) {
+    const res = await deliver(r, how, 'ready');
+    if (res.none) return;
+    notice(res.ok ? sentNote(r, 'ready', res.used) : failNote(r, res.used, () => textReady(r, how)));
+    if (res.ok && dialog.open) renderRest();
+  }
+  let autoBusy = false;
+  async function autoReady() {
+    if (autoBusy || !sendsHere()) return;
+    autoBusy = true;
+    try {
+      const now = Date.now();
+      for (const o of window.RestroCounter?.orders?.() || []) {
+        const done = Number(o.kitchenDoneAt);
+        if (!done || o.readyAutoAt || o.cancelledBy || PLATFORMS[o.platform] || now - done > AUTO_WITHIN || done > now + 60000) continue;
+        const r = infoOf(o, now);
+        if (!window.RestroCounter?.markAutoReady?.(r.id)) continue;
+        const how = window.RestroPrefs?.get?.('readyMessage')?.send || 'sms';
+        if (r.buzz.on && r.buzz.no) buzzPager(r, true);
+        if (how !== 'off' && r.third.kind === 'notify' && r.third.on) await textReady(r, how);
+      }
+    } finally { autoBusy = false; }
+  }
+  window.addEventListener('restro:data-changed', e => { if ((e.detail?.collections || []).includes('orders')) autoReady(); });
+  setInterval(autoReady, 15000); setTimeout(autoReady, 3000);
 
   // ---------- pop-ups ----------
   // Notify (OR-P01): the customer's name, phone, order and type · the message · Order ready / Bill / Running late
@@ -926,17 +973,30 @@
   const plain = nodes => nodes.map(n => (typeof n === 'string' ? n : n.textContent)).join('');
   const sentWords = (r, template) => template === 'scheduled' ? `booked for ${timeOf(r.o.readyAt)}` : template === 'bill' ? 'bill' : template === 'late' ? 'running late'
     : ['dine-in', 'dine-in+takeaway', 'delivery'].includes(r.type.key) ? 'ready' : 'ready for pickup';
-  async function sendNotify(r, channel, template = pop?.template || 'ready') {
+  // The message itself, with or without the pop-up: WhatsApp or SMS, WhatsApp falling back to SMS. { ok, used } once
+  // tried ('whatsapp' · 'sms'); { none } when this tablet has no way to send messages.
+  async function deliver(r, channel, template) {
     const text = plain(message(r, template)), dev = window.RESTRODevice, to = r.o.customer?.mobile, code = r.o.customer?.code || '91';
     const sms = typeof dev?.sms?.send === 'function', wa = typeof dev?.whatsapp?.send === 'function';
-    if (!sms && !wa) { say('Messages go through the RESTRO Android app'); return; }
-    pop = null; renderLayer();
+    if (!sms && !wa) return { none: true };
     const send = async how => { try { return (await (how === 'whatsapp' ? dev.whatsapp : dev.sms).send({ to, code, text, order: r.o.uid })) !== false; } catch { return false; } };
     let used = channel === 'whatsapp' && wa ? 'whatsapp' : sms ? 'sms' : null;
     let ok = used ? await send(used) : false;
     if (!ok && used === 'whatsapp' && sms) { used = 'sms'; ok = await send('sms'); }
-    if (ok) { window.RestroCounter?.markNotified?.(r.id); say({ bold: `Sent to ${r.name || 'the customer'} on ${used === 'whatsapp' ? 'WhatsApp' : 'SMS'}`, text: ` · Order ${ticket(r.o.number)} ${sentWords(r, template)}` }); renderRest(); }
-    else say({ kind: 'error', bold: `Couldn’t send the ${used === 'whatsapp' ? 'WhatsApp message' : 'SMS'} to ${r.name || 'the customer'}`, text: ` · Order ${ticket(r.o.number)} · ${used === 'whatsapp' ? 'WhatsApp' : 'the SMS service'} didn’t answer`, retry: () => sendNotify(r, channel, template) });
+    if (ok) window.RestroCounter?.markNotified?.(r.id);
+    return { ok, used: used || channel };
+  }
+  // What the bar says (owner, 12 Nov 2026): green once the message went, red with RETRY when it didn't
+  const sentNote = (r, template, used) => ({ tone: 'green', bold: `Sent to ${r.name || 'the customer'} on ${used === 'whatsapp' ? 'WhatsApp' : 'SMS'}`, text: ` · Order ${ticket(r.o.number)} ${sentWords(r, template)}` });
+  const failNote = (r, used, retry) => ({ kind: 'error', tone: 'red', bold: `Couldn’t send the ${used === 'whatsapp' ? 'WhatsApp message' : 'SMS'} to ${r.name || 'the customer'}`,
+    text: ` · Order ${ticket(r.o.number)} · ${used === 'whatsapp' ? 'WhatsApp' : 'the SMS service'} didn’t answer`, retry });
+  async function sendNotify(r, channel, template = pop?.template || 'ready') {
+    const dev = window.RESTRODevice;
+    if (typeof dev?.sms?.send !== 'function' && typeof dev?.whatsapp?.send !== 'function') { say('Messages go through the RESTRO Android app'); return; }
+    pop = null; renderLayer();
+    const { ok, used } = await deliver(r, channel, template);
+    if (ok) { say(sentNote(r, template, used)); renderRest(); }
+    else say(failNote(r, used, () => sendNotify(r, channel, template)));
   }
   function notifyCard(r) {
     const tpl = pop.template, queued = r.kot.look === 'q';
@@ -1399,7 +1459,10 @@
       if (!dialog.open) dialog.showModal();
       clearInterval(timer); timer = setInterval(() => { if (dialog.open && !menu && !pop && Date.now() - scrolledAt > 2000) renderRest(); }, 30000);
       dialog.querySelector('#orders-title')?.focus({ preventScroll: true });
+      if (waiting) { const m = waiting; waiting = null; say(m); }
     },
+    // A failure of the order-ready text or buzz that no one saw yet, for the Counter's bar when it opens (taken once)
+    takeNotice() { const m = waiting; waiting = null; return m; },
     // An order's status as this page shows it ({ text: 'Open', 'Closed' or 'Cancelled', cls, sub, subCls }), for the
     // home screen
     status: o => { const s = statusOf(o); return { text: s.text, cls: s.cls.split(' ')[0], sub: s.base, subCls: s.subCls === 'rd' ? 'ready' : s.subCls === 'sch' ? 'scheduled' : s.base ? 'kitchen' : undefined }; },

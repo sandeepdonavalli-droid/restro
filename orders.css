@@ -620,3 +620,9 @@
 .or-msg.error{box-shadow:inset calc(5 * var(--fu)) 0 0 #EF4444,0 calc(10 * var(--fu)) calc(30 * var(--fu)) rgba(15,23,42,.35)}
 .or-msg.error .or-msg-i{background:#F8A9AC}
 .or-msg.error .or-msg-a{color:#F8A9AC!important}
+/* Notify and Buzz (owner, 12 Nov 2026): the bar is green when the message or the buzz went, red when it didn't */
+.or-msg.green{background:#2F7D4F}
+.or-msg.green .or-msg-i{background:#FFFFFF;color:#2F7D4F}
+.or-msg.red,.or-msg.error.red{background:#DC2626;box-shadow:0 calc(10 * var(--fu)) calc(30 * var(--fu)) rgba(15,23,42,.35)}
+.or-msg.red .or-msg-i{background:#FFFFFF;color:#DC2626}
+.or-msg.red .or-msg-a,.or-msg.red .or-msg-x{color:#FFFFFF!important}

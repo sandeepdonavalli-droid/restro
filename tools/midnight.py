@@ -326,6 +326,10 @@ def tokens():
     rule('.cx-msg', [('box-shadow', f'0 0 0 {U(1)} rgba(255,255,255,.14),0 {U(12)} {U(30)} rgba(0,0,0,.55)')])
     rule('.cx-msg.error', [('box-shadow', f'inset {U(5)} 0 0 #EF4444,0 0 0 {U(1)} rgba(255,255,255,.14),0 {U(12)} {U(30)} rgba(0,0,0,.55)')])
     T('.cx-msg button', None, '#9DBCFF'); T('.cx-msg.error button', None, '#FFA3A3'); T('.cx-msg small', None, '#AEB8CC')
+    # the order-ready text and buzz that went by themselves (orders.js; owner, 12 Nov 2026): the same green and red as Light
+    T('.cx-msg.green', '#2F7D4F', '#FFFFFF', None); T('.cx-msg.red', '#DC2626', '#FFFFFF', None)
+    rule('.cx-msg.green,.cx-msg.red', [('box-shadow', f'0 0 0 {U(1)} rgba(255,255,255,.14),0 {U(12)} {U(30)} rgba(0,0,0,.55)')])
+    T('.cx-msg.green .cx-msg-i', '#FFFFFF', '#2F7D4F'); T('.cx-msg.red .cx-msg-i', '#FFFFFF', '#DC2626'); T('.cx-msg.red button', None, '#FFFFFF')
     rule('.cx-pk:not(.on) .cx-cb', [('box-shadow', f'inset 0 0 0 {U(2)} rgba(233,238,248,.45)')])   # dish picker checkbox
     T('.cx-line.sel', '#17284A', None, None)                             # the selected order line
     # totals: labels, amounts brightest, brackets and round off quietest, discount green
@@ -523,6 +527,10 @@ def orders_tokens():
     R('.or-msg.error', ('box-shadow', 'inset 4px 0 0 #EF4444,0 0 0 1px rgba(255,255,255,.14),0 12px 30px rgba(0,0,0,.55)'))
     R('.or-msg small,.or-msg-t small', ('color', '#AEB8CC')); R('.or-msg.error .or-msg-a', ('color', '#FFB8B8'))
     R('.or-msg-i', ('color', DARK))
+    # Notify and Buzz (owner, 12 Nov 2026): green when the message or the buzz went, red when it didn't; the same as Light
+    R('.or-msg.green', ('background-color', '#2F7D4F'), ('color', '#FFFFFF')); R('.or-msg.green .or-msg-i', ('background-color', '#FFFFFF'), ('color', '#2F7D4F'))
+    R('.or-msg.red,.or-msg.error.red', ('background-color', '#DC2626'), ('color', '#FFFFFF'), ('box-shadow', '0 0 0 1px rgba(255,255,255,.14),0 12px 30px rgba(0,0,0,.55)'))
+    R('.or-msg.red .or-msg-i', ('background-color', '#FFFFFF'), ('color', '#DC2626')); R('.or-msg.red .or-msg-a,.or-msg.red .or-msg-x', ('color', '#FFFFFF'))
     return out
 
 HEAD = '''/* Midnight: the Counter's dark theme (Update Pack 2, 01_Dark-Theme-Midnight). Home on Aurora Dark: the apps use Midnight

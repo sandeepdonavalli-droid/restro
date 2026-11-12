@@ -63,6 +63,8 @@
     // (Update Pack 4: Business details › Business hours, with the business day's cut-off, and Bill number)
     hours: { key: 'restro.hours.v1' },
     billNumber: { key: 'restro.billNumber.v1' },
+    // (Update Pack 4: Settings › Orders, the order-ready message sent by itself: SMS, WhatsApp or off)
+    readyMessage: { key: 'restro.readyMessage.v1' },
     // (Counter Update 7: what is sold out, set in the Availability app (today's Menu app), shown live on every Counter)
     availability: { key: 'restro.menu.availability.v1' }
   };

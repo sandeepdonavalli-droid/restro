@@ -22,6 +22,7 @@ number (`RestroSync.takeBillNumber()`, Bill numbers below).
 | Billing & charges (`restro.billing.v1`), Staff & security (`restro.security.v1`) | Who is signed in |
 | The printers' settings: role, KOT language, copies (`restro.printers.v1`) | The pairing code and the cloud sign-in |
 | Kitchen prep time (`restro.kitchen.prep.v1`, and the older `restro.counter.prepMinutes.v1`) | |
+| Settings › Orders, the order-ready message sent by itself: SMS, WhatsApp or off (`restro.readyMessage.v1`; Update Pack 4) | |
 | What is sold out (`restro.menu.availability.v1`) | |
 | The Orders display and the Counter's look (`restro.ordersLook.shared.v1`, `restro.counterLook.shared.v1`): branch-wide since Update Pack 4, so one for every tablet. A tablet's own value from before (`restro.ordersLook.v1`, `restro.counterLook.v1`, Use on · This tablet only) becomes the restaurant's once, when it is newer, and is then removed | |
 
