@@ -27,7 +27,7 @@ Run it after any change to how the page talks to the app.
 | `uninstallApp` | method | Uninstalling an app |
 | `localSync.start`, `localSync.send` | methods | Sync between tablets |
 | `sms.send`, `pager.buzz`, `restro:pager-docked`, `restro:pager-tapped`, `getPazzerDevices` | methods, events | Texting customers and buzzing pagers |
-| `whatsapp.send`, `printer.newRoll`, `restro:printer-cover`, `integrations.markReady` | methods, event | Orders |
+| `whatsapp.send`, `printer.newRoll`, `restro:printer-cover`, `integrations.markReady`, `restro:platform-cancelled` | methods, events | Orders |
 | `restro:device-locked`, `restro:device-unlocked` | events | Screen lock |
 | `restro:keyboard` | event | The keyboard |
 | `printer.printBill` | method | Printing the bill |
@@ -287,6 +287,7 @@ when it has no name; "No Pazzer hardware connected" for none). Its **Pazzer sett
 | `RESTRODevice.printer.newRoll()` | Staff confirmed a new paper roll in the bill printer: reset its paper level to 100% (and tell the other tablets through `restro:printer-paper`) |
 | `restro:printer-cover`, `{ printer, level }` | Dispatch when the bill printer's cover was opened and closed: Orders asks "New paper roll?" (`printer`: its name; `level`: the level before) |
 | `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number; `order` RESTRO's id for the order), once the integrations exist. **Return `true` once the platform accepted it, `false` if it didn't** (may be a promise; Update Pack 4): `true` turns the button to Marked and shows "Order ready sent to Swiggy · Swiggy #4521 · Order #1029"; `false` (or an error) keeps Ready and shows "Swiggy didn’t receive “Ready” · Swiggy #4521 · Order #1029" with RETRY. Offline, Orders doesn't call it and shows "Offline · couldn’t send “Ready” to Swiggy · Order #1029" with RETRY. There is no "are you sure" |
+| `restro:platform-cancelled`, `{ platform, id, payout, payoutAmount }` | Update Pack 4. Dispatch when a delivery app cancels one of its orders: `platform` (`"swiggy"`, `"zomato"`), `id` (the app's order number, `"4521"`), and when the app gives them `payout` (`"awaiting"`, `"paid"` or `"unpaid"`) and `payoutAmount` (paise). The order stays and Orders shows it as **Cancelled by Swiggy**. If its KOT has printed, the page prints the **ORDER CANCELLED** slip by itself (the kitchen printer, below: `"By: Swiggy"`, `"Reason: Cancelled by Swiggy"`); if it hasn't, nothing prints. Sending it again for the same order does nothing. Dispatch it on one tablet only, the one that runs the delivery-app integrations: the other tablets get the change through sync |
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 
@@ -378,6 +379,19 @@ that tablet hasn't printed it 30 seconds later, the main system prints it, and 2
 so it prints even when the tablet that saved it is off (and the moment one comes on). While the order is on hold
 nothing prints. Deleting it before its KOT has printed prints nothing in the kitchen. Once the KOT has printed, a new
 ready-by time prints a **TIME CHANGED** slip (`kind: "time"`, below) and dishes added later go on a new KOT.
+Every KOT of a scheduled order carries the red band **SCHEDULED · READY 10:00 PM** (`scheduled`, below), and its
+`info` says when it printed: `"9:30 PM (scheduled)"` when it printed by itself at the kitchen time, `"7:27 PM (sent
+early)"` when it went before the kitchen time (Instant KOT, or Orders' Send now). A KOT printed after the kitchen time
+(dishes added later) shows only the time.
+
+**Delivery apps** (Update Pack 4, `SL1_kot-slips-scheduled-platform`). A Swiggy or Zomato order's band is the app's
+name (`"SWIGGY"`, `"ZOMATO"`), never DELIVERY; `where` is the app's order number (`"Swiggy #4521"`), and `info` starts
+with the app's time: `"Pickup 7:25 PM · [customer] · 7:11 PM"` (the rider picks it up at 7:25) or `"Ready by 7:05 PM · …"`
+(the customer collects it), then the customer's name as the app gives it, the time and the staff's initials
+when the order has a staff member. When the app cancels the order after its KOT printed (`restro:platform-cancelled`,
+Orders above), the ORDER CANCELLED slip keeps the KOT number in `title` (`"KOT #153 · Order #1029"`), `where`
+`"Swiggy #4521"`, `info` `"Pickup 7:25 PM · VOID ALL · 7:40 PM · By: Swiggy"`, the dishes with minus quantities and
+`footer` `"Reason: Cancelled by Swiggy"`; `by` is `null`.
 
 Print each slip on every printer whose role is **Kitchen** or **Both**. Return `true` (or a Promise of it) when it
 printed, `false` (or throw, or reject) when it didn't: Counter then shows "Kitchen printer offline / KOT #3 not sent"
@@ -394,10 +408,11 @@ that sent it tries again by itself every 30 seconds until it prints.
 | Field | |
 | --- | --- |
 | `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"`, `"time"` (TIME CHANGED, Update Pack 4) or `"cancel-bulk"` (below) |
-| `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"` (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
+| `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"`, or a delivery app's name in capitals, `"SWIGGY"`, `"ZOMATO"` (Update Pack 4) (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
+| `scheduled` | Update Pack 4: on every KOT (`kind: "kot"`) of a scheduled order, a red outlined band under the black band, as wide as it, `"SCHEDULED · READY 10:00 PM"`; `null` otherwise. With `action` too (★ PRIORITY), print the scheduled band first |
 | `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"` (also on every KOT of an order marked as priority), `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"`, `"TIME CHANGED"` |
-| `title`, `where` | bold: `"KOT #3 · Order #1015"` (on VOID and CHANGED, the KOT the dish was on; on ORDER CANCELLED `"Order #1015 · Table 12"` and `where` is `""`; on TIME CHANGED `"Order #1033 · Table 6"` and `where` the new time, `"Ready by 10:30 PM"`), then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket) |
-| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway, delivery and phone orders the customer's name and masked phone (`"98xxxxxx10"`), the time and the server's initials; on VOID and CHANGED `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #141, #152 · 12:05 PM · By: EC"`; on TIME CHANGED `"was 10:00 PM · KOT #163 sent 9:30 PM · 9:41 PM · By: RK"` (the ready-by time before, when the KOT went, now, who) |
+| `title`, `where` | bold: `"KOT #3 · Order #1015"` (on VOID and CHANGED, the KOT the dish was on; on ORDER CANCELLED `"Order #1015 · Table 12"` and `where` is `""`; on TIME CHANGED `"Order #1033 · Table 6"` and `where` the new time, `"Ready by 10:30 PM"`), then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (a phone order's pickup time) / `"Swiggy #4521"` (a delivery app's order number) (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket) |
+| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway, delivery and phone orders the customer's name and masked phone (`"98xxxxxx10"`), the time and the server's initials; on VOID and CHANGED `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #141, #152 · 12:05 PM · By: EC"`; on TIME CHANGED `"was 10:00 PM · KOT #163 sent 9:30 PM · 9:41 PM · By: RK"` (the ready-by time before, when the KOT went, now, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: RK"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · [customer] · 7:11 PM"` (both above). Times are in capitals, `"9:30 PM"` (Update Pack 4) |
 | `at` | when it happened, milliseconds |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT and the priority notice; `""` for none |
 | `lines` | (none on TIME CHANGED: the dishes don't change) `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |
@@ -416,8 +431,9 @@ that sent it tries again by itself every 30 seconds until it prints.
   `te`, `hi`, `ta`, `kn`, `ml`, `mr`, `bn`, `gu`), falling back to English.
 - **Copies:** `copies` (1–3) of each slip on that printer.
 
-The page keeps every slip on its order (`kots`: `{ id, at, kind, no, lines, reason, by }`), with who did it and why
-(no manager PIN for now).
+The page keeps every slip on its order (`kots`: `{ id, at, kind, no, lines, reason, by }`; Update Pack 4: `how`,
+`"queue"` or `"early"`, on a scheduled order's KOT, and `byApp`, `"Swiggy"`, on a delivery app's cancel), with who did
+it and why (no manager PIN for now).
 
 **Bulk cancel** (Update Pack 3, `PS02_bulk-cancel-slip`): orders deleted together in Orders print one compact slip
 instead of one ORDER CANCELLED each: `kind: "cancel-bulk"`, `band` (`"ORDERS CANCELLED"`, the black band), `action`

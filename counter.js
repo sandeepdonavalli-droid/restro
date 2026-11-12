@@ -816,6 +816,8 @@
     const goesNow = !entry.readyAt || entry.kotMode === 'now' || kotPrinted(entry) || kitchenTime(entry) <= now;
     const changed = goesNow ? changedSlip(entry, order, now) : null;
     const kot = goesNow ? sendToKitchen(entry, now) : null;
+    // (a scheduled order's KOT before its kitchen time, Instant KOT: the slip says "(sent early)")
+    if (kot && cleanTime(entry.readyAt) && now < kitchenTime(entry)) kot.how = 'early';
     // more for the kitchen: not complete any more; the kitchen's timer (Orders, Update Pack 3) starts with the KOT that
     // takes the order into the kitchen
     if (kot) { entry.kitchenAt = entry.kitchenDoneAt ? now : entry.kitchenAt || entry.sentAt || now; delete entry.kitchenDoneAt; }
@@ -1002,13 +1004,14 @@
     // (the ticket carries its kitchen time)
     const printing = [], onHold = new Set(held.map(h => h.uid).filter(Boolean));
     for (const o of list) {
-      if (!(cleanTime(o.readyAt) && kitchenTime(o) <= now) || o.kotMode === 'now' || onHold.has(idOf(o))) continue;
+      if (!(cleanTime(o.readyAt) && kitchenTime(o) <= now) || o.kotMode === 'now' || onHold.has(idOf(o)) || o.cancelledBy) continue;
       // (Update Pack 4, C4: it prints on time from any tablet. The tablet that saved it last prints it at the kitchen time
       // (so the KOT has one number); when it hasn't 30 seconds later, the main system does, and 2 minutes later any other
       // tablet: it prints even when that tablet is off, and the moment one comes on. Until then the others announce it.)
       const late = now - kitchenTime(o), wait = window.RestroSync?.status?.()?.device?.main ? 30000 : 120000;
       if (window.RestroSync && o.savedOn && o.savedOn !== thisDevice() && !(!o.sentAt && late >= wait)) { if (!o.sentAt && !announced.has(idOf(o))) { announced.add(idOf(o)); announceKitchen(o); } continue; }
       const kot = sendToKitchen(o, kitchenTime(o)); if (!kot) continue;
+      kot.how = 'queue'; // (printed by itself: the slip says "(scheduled)")
       o.kitchenAt = o.kitchenDoneAt ? kot.at : o.kitchenAt || o.sentAt || kot.at; delete o.kitchenDoneAt;
       announceKitchen(o); sent++; printing.push([o, kot]);
     }
@@ -1203,24 +1206,37 @@
     if (n0 !== n1) out.push(n1 ? `+ Note: ${n1}` : '− Note');
     return out;
   }
+  // (Update Pack 4, 03_Printed-slips) A delivery app's order: the app's name is the band (SWIGGY, never DELIVERY), its order
+  // number under KOT # · Order #, then "Pickup 7:25 PM" (delivery) or "Ready by 7:05 PM" (the customer collects it). A
+  // scheduled order: a red band "SCHEDULED · READY 10:00 PM" on every KOT, and the time it printed says "(scheduled)" or
+  // "(sent early)". Times on slips in capitals: "9:30 PM".
+  const appName = o => (o?.platform ? String(o.platform).charAt(0).toUpperCase() + String(o.platform).slice(1) : '');
+  const slipTime = t => timeOf(t).toUpperCase();
   function kitchenSlip(o, k) {
     const kind = k.kind || 'kot', type = o.type || DEFAULT_TYPE, no = k.no || null, nos = kotsOf(o).map(x => x.no).filter(Boolean);
+    const app = appName(o), timeOf = slipTime;
     const action = kind === 'void' ? 'VOID' : kind === 'changed' ? 'CHANGED' : kind === 'cancel' ? 'ORDER CANCELLED' : kind === 'time' ? 'TIME CHANGED' : kind === 'priority' || k.priority || o.priority ? '★ PRIORITY' : null;
-    const where = usesTable(o) ? `Table ${tableName(o.table)}` : cleanPager(o.pager) ? `Pager ${o.pager}` : type === 'phone' && o.readyAt ? `Pickup ${timeOf(o.readyAt)}` : '';
-    const at = timeOf(k.at || Date.now()), by = initialsOf(k.by || staffName()), server = initialsOf(o.server);
+    const where = app ? `${app} #${o.platformNo || '—'}` : usesTable(o) ? `Table ${tableName(o.table)}` : cleanPager(o.pager) ? `Pager ${o.pager}` : type === 'phone' && o.readyAt ? `Pickup ${timeOf(o.readyAt)}` : '';
+    const appTime = !app ? '' : o.platformType === 'pickup' ? (o.readyBy ? `Ready by ${timeOf(o.readyBy)}` : '') : o.pickupAt ? `Pickup ${timeOf(o.pickupAt)}` : '';
+    const at = timeOf(k.at || Date.now()), by = k.byApp || initialsOf(k.by || staffName()), server = initialsOf(o.server);
+    // (a scheduled order's KOT: printed by itself at the kitchen time, or before it: Send now, Instant KOT)
+    const sched = kind === 'kot' && cleanTime(o.readyAt) && !app, when = sched && k.how ? `${at} (${k.how === 'queue' ? 'scheduled' : 'sent early'})` : at;
     const kotNo = kind === 'void' || kind === 'changed' ? k.lines?.[0]?.kot || k.lines?.[0]?.was?.kot || null : no;
     const who = o.customer ? [o.customer.name, maskPhone(o.customer.mobile)].filter(Boolean).join(' · ') : '';
-    const info = kind === 'cancel' ? [`VOID ALL${nos.length ? ` · KOT ${nos.map(n => `#${n}`).join(', ')}` : ''}`, at, by ? `By: ${by}` : '']
+    const info = kind === 'cancel' && app ? [appTime, 'VOID ALL', at, by ? `By: ${by}` : '']
+      : kind === 'cancel' ? [`VOID ALL${nos.length ? ` · KOT ${nos.map(n => `#${n}`).join(', ')}` : ''}`, at, by ? `By: ${by}` : '']
       // (Update Pack 4) TIME CHANGED: "was 10:00 PM · KOT #163 sent 9:30 PM · 9:41 PM · By: RK"
       : kind === 'time' ? [k.was ? `was ${timeOf(k.was)}` : '', k.kot ? `KOT ${k.kot.no ? `#${k.kot.no} ` : ''}sent ${timeOf(k.kot.at)}` : '', at, by ? `By: ${by}` : '']
       : kind === 'void' || kind === 'changed' ? [at, by ? `By: ${by}` : '']
-      : type === 'dine-in' ? [o.guests ? plural(o.guests, 'guest') : '', at, server ? `Server: ${server}` : '']
-      : [who, at, server];
+      : app ? [appTime, o.customer?.name || '', at, server]
+      : type === 'dine-in' ? [o.guests ? plural(o.guests, 'guest') : '', when, server ? `Server: ${server}` : '']
+      : [who, when, server];
     const place = kotsOf(o).findIndex(x => x === k || (k.id && x.id === k.id));
     const earlier = (place < 0 ? kotsOf(o).filter(x => (Number(x.at) || 0) < (Number(k.at) || 0)) : kotsOf(o).slice(0, place)).map(x => x.no).filter(Boolean);
     return {
-      kind, type, band: BAND[type], action, kot: kind === 'time' ? null : kotNo, order: ticket(o.number), title: kind === 'cancel' || kind === 'time' ? `Order ${ticket(o.number)}${where ? ` · ${where}` : ''}` : `${kotNo ? `KOT #${kotNo} · ` : ''}Order ${ticket(o.number)}`,
-      where: kind === 'cancel' ? '' : kind === 'time' ? `Ready by ${timeOf(k.readyAt)}` : where, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(), priority: Boolean(action === '★ PRIORITY'),
+      kind, type, band: app ? app.toUpperCase() : BAND[type], action, scheduled: sched ? `SCHEDULED · READY ${timeOf(o.readyAt)}` : null, kot: kind === 'time' ? null : kotNo, order: ticket(o.number),
+      title: (kind === 'cancel' && !app) || kind === 'time' ? `Order ${ticket(o.number)}${where ? ` · ${where}` : ''}` : `${(kotNo || (kind === 'cancel' && nos[0])) ? `KOT #${kotNo || nos.join(', #')} · ` : ''}Order ${ticket(o.number)}`,
+      where: kind === 'cancel' && !app ? '' : kind === 'time' ? `Ready by ${timeOf(k.readyAt)}` : where, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(), priority: Boolean(action === '★ PRIORITY'),
       note: (kind === 'kot' || kind === 'priority') && o.note ? o.note : '',
       lines: (k.lines || []).map(l => ({ qty: l.qty, name: l.name, names: items.get(l.id)?.names || null, mods: kind === 'changed' ? changesOf(l) : (l.mods || []).map(labelOf), note: l.note || '' })),
       footer: kind === 'kot' && earlier.length ? `KOT ${earlier.map(n => `#${n}`).join(', ')} sent earlier · only new dishes on this KOT` : kind === 'priority' ? 'Priority · cook this order first' : kind === 'time' ? 'No dish changes · cook as already sent' : k.reason ? `Reason: ${k.reason}` : '',
@@ -1258,7 +1274,7 @@
   function retryKots() {
     if (typeof window.RESTRODevice?.printer?.printKot !== 'function') return;
     for (const o of loadOrders()) {
-      if (window.RestroSync && o.savedOn && o.savedOn !== thisDevice()) continue;
+      if ((window.RestroSync && o.savedOn && o.savedOn !== thisDevice()) || o.cancelledBy) continue; // (not one a delivery app cancelled)
       for (const k of kotsOf(o)) if (k.failed) sendSlip(kitchenSlip(o, k), { uid: idOf(o), id: k.id });
     }
   }
@@ -1366,6 +1382,27 @@
       localStorage.setItem(CANCELLED_KEY, JSON.stringify(list.slice(0, 200)));
     } catch {}
   }
+  // (Update Pack 4, 03_Printed-slips §4, §5) A delivery app cancelled one of its orders (its integration tells the page:
+  // restro:platform-cancelled). The order stays, "Cancelled by Swiggy" in Orders (cancelledBy, and the payout the app
+  // gives). When its KOT has printed, the ORDER CANCELLED slip prints by itself: the app's name in the band, "By: Swiggy",
+  // what the kitchen has with minus quantities, "Reason: Cancelled by Swiggy". Not printed yet: nothing prints.
+  function platformCancelled(d) {
+    const platform = String(d?.platform || '').trim().toLowerCase(), id = String(d?.id ?? '').trim();
+    if (!platform || !id) return false;
+    const list = loadOrders(), rec = list.find(o => String(o.platform || '').toLowerCase() === platform && String(o.platformNo ?? '') === id);
+    if (!rec || rec.cancelledBy) return false;
+    const app = appName(rec), now = Date.now();
+    rec.cancelledBy = app;
+    if (['awaiting', 'paid', 'unpaid'].includes(d.payout)) rec.payout = d.payout;
+    if (Number.isFinite(d.payoutAmount)) rec.payoutAmount = Math.round(d.payoutAmount);
+    const slip = kotPrinted(rec) ? { ...cancelSlipOf(rec, `Cancelled by ${app}`, null, now), byApp: app } : null;
+    if (slip) rec.kots = [...kotsOf(rec), slip].slice(-60);
+    rec.savedAt = now; storeOrders(list);
+    if (slip) printSlip(kitchenSlip(rec, slip));
+    if (dialog.open) render();
+    return true;
+  }
+  window.addEventListener('restro:platform-cancelled', e => platformCancelled(e.detail));
 
   // ---------- rendering ----------
   const typeLabel = { 'dine-in': 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call' };
@@ -3672,6 +3709,7 @@
   async function sendKitchen(uid) {
     const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
     const now = Date.now(), kot = sendToKitchen(rec, now); if (!kot) return { ok: true, no: null, count: 0 };
+    if (cleanTime(rec.readyAt) && now < kitchenTime(rec)) kot.how = 'early'; // (a scheduled order's, before its kitchen time: "(sent early)")
     rec.kitchenAt = rec.kitchenDoneAt ? now : rec.kitchenAt || rec.sentAt || now;
     delete rec.kitchenDoneAt; rec.savedAt = now; storeOrders(list); if (order.uid === uid) keepOpened(rec);
     const r = await sendSlip(kitchenSlip(rec, kot), { uid, id: kot.id });
