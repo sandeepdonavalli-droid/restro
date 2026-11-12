@@ -688,8 +688,8 @@
   // Pack 4, A2), from the restaurant's one sequence (RestroSync.takeKotNumber: the main system, or the cloud); without
   // sync, this tablet counts past every KOT it gave or saw that day (on any tablet's order, as they come in).
   const KOT_NO_KEY = 'restro.counter.kotNumber.v1';
-  // The business day (Settings › Business details › Business hours): it ends when the restaurant closes after midnight
-  // (open till 2 am: until 2 am it is still the day before), at midnight otherwise
+  // The business day (Settings › Business details › Business hours): it ends when the restaurant closes, and the next
+  // starts the minute after (open till 2 am: until 2:00 am it is still the day before)
   const businessDay = t => window.RestroSync?.dayOf?.(t) || window.RestroPrefs?.businessDay?.(t) || (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date(t));
   function nextKotNo() {
     const now = Date.now(), day = businessDay(now), kept = load(KOT_NO_KEY, null);

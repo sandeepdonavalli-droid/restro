@@ -90,9 +90,9 @@
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
   }
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  // The business day: ticket numbers start again at #01 every day. A day ends when the restaurant closes, if that is
-  // after midnight, and at midnight otherwise (Settings › Business details › Business hours, Update Pack 4: open till
-  // 2 am, the day ends at 2 am), so a late night after midnight stays on the same day. Each order keeps the day it was
+  // The business day: ticket numbers start again at #01 every day. A day ends when the restaurant closes and the next
+  // starts the minute after (Settings › Business details › Business hours, Update Pack 4: open till 2 am, 2:01 am is the
+  // new day), so a late night after midnight stays on the same day. Each order keeps the day it was
   // numbered on (`day`), so every tablet and server agrees whose numbers it shares.
   const dayOf = t => { if (window.RestroPrefs?.businessDay) return window.RestroPrefs.businessDay(t); const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const today = () => dayOf(now());

@@ -21,8 +21,9 @@
     screen: { goDark: 5 },
     // (Update Pack 4) Business details › Business hours: each day open from `from` to `to` (minutes after midnight, in
     // 15s; a closing time at or before the opening time is the next morning, up to 6:00 am). The business day ends when
-    // the restaurant closes (owner, 11 Nov 2026: "if it closes at 2 am, the day ends at 2 am"), or at midnight on a day it
-    // closes before then: an order at 12:40 am belongs to the day before. 11:00 am – 2:00 am every day until changed.
+    // the restaurant closes, and the next one starts the minute after (owner, 11 Nov 2026: open till 2 am, an order at
+    // 12:40 am belongs to the day before and one at 2:01 am to the next; open till 11 pm, one at 11:01 pm to the next
+    // day). A day it is closed ends at midnight. 11:00 am – 2:00 am every day until changed.
     hours: { days: { mon: { open: true, from: 660, to: 120 }, tue: { open: true, from: 660, to: 120 }, wed: { open: true, from: 660, to: 120 }, thu: { open: true, from: 660, to: 120 },
       fri: { open: true, from: 660, to: 120 }, sat: { open: true, from: 660, to: 120 }, sun: { open: true, from: 660, to: 120 } } },
     // (Update Pack 4) Business details › Bill number: when a bill gets its number, at its first print ('print', the
@@ -104,15 +105,20 @@
   function hoursNow() { let raw = null; try { raw = localStorage.getItem(KEYS.hours); } catch {} if (raw !== hoursRaw || !hoursVal) { hoursRaw = raw; hoursVal = get('hours'); } return hoursVal; }
   const dateOf = key => { const [y, mo, d] = String(key || '').split('-').map(Number); return new Date(y, mo - 1, d); };
   const keyOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  // How far a business day (its date) runs into the next morning: its closing time when it closes after midnight, in
-  // minutes after midnight; 0 when it ends at midnight (it closes by then, or it is closed that day)
-  function spillOf(date) { const x = hoursNow().days[DAYS[(date.getDay() + 6) % 7]]; return x.open && x.to <= x.from ? x.to : 0; }
-  const spillMinutes = key => { const d = dateOf(key); return Number.isFinite(d.getTime()) ? spillOf(d) : 0; };
-  // The business day a moment belongs to ("2026-11-12"): up to the minute the day before closes, after midnight, the day
-  // before (its closing minute is its last: open till 2 am, 2:00 am is still the day before, 2:01 am the new day)
+  // A business day's last minute, counted from the midnight its date starts: its closing time (the next morning's past
+  // 1440 when it closes after midnight); 23:59 on a day it is closed
+  const dayOfWeek = date => hoursNow().days[DAYS[(date.getDay() + 6) % 7]];
+  function lastMinute(date) { const x = dayOfWeek(date); return !x.open ? 1439 : x.to <= x.from ? 1440 + x.to : x.to; }
+  // How far a business day (its date) runs into the next morning, in minutes after midnight; -1 when it doesn't
+  const spillMinutes = key => { const d = dateOf(key); return Number.isFinite(d.getTime()) ? lastMinute(d) - 1440 : -1; };
+  // The business day a moment belongs to ("2026-11-12"): the day whose closing minute it is at or before, counting from
+  // the day before's (its closing minute is its last: open till 2 am, 2:00 am is still the day before, 2:01 am the new
+  // day; open till 11 pm, 11:01 pm is the next day already)
   function businessDay(t) {
-    const d = new Date(t), prev = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
-    return d.getHours() * 60 + d.getMinutes() <= spillOf(prev) ? keyOf(prev) : keyOf(d);
+    const d = new Date(t), m = d.getHours() * 60 + d.getMinutes();
+    const prev = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1), next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+    if (m + 1440 <= lastMinute(prev)) return keyOf(prev);
+    return m <= lastMinute(d) ? keyOf(d) : keyOf(next);
   }
   // A business day's opening hours: { from, to } in milliseconds, or null when the restaurant is closed that day
   function hoursOn(key) {

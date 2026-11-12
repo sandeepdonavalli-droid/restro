@@ -156,10 +156,10 @@ Deleting on purpose leaves a tombstone, kept for 30 days. Records a tablet only 
 internet is down, the main system keeps it. If the last order is #10, the next order, from any device, is #11. Two
 orders never share a number, and a number never changes.
 
-**Every business day starts again at #01.** A business day ends when the restaurant closes, if that is after midnight,
-and at midnight otherwise (Settings › Business details › Business hours, `restro.hours.v1`; Update Pack 4): open till
-2 AM, the day ends at 2 AM (its last minute is 2:00; 2:01 is the new day), so a late night after midnight stays on the
-same day. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
+**Every business day starts again at #01.** A business day ends when the restaurant closes, and the next one starts the
+minute after (Settings › Business details › Business hours, `restro.hours.v1`; Update Pack 4): open till 2 AM, 2:00 AM
+is the day's last minute and 2:01 AM the new day, so a late night after midnight stays on the same day; open till
+11 PM, 11:01 PM is the next day already. A day the restaurant is closed ends at midnight. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
 They repeat from day to day, so an order is always found by its `uid`, never by its number.
 
 **Firing an order:** a tablet asks for the next number when it fires a new order, and saves the order with it:

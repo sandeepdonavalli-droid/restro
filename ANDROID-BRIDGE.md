@@ -373,8 +373,8 @@ already has its number keeps it when the setting changes, and prints as the tax 
 
 Counter Update 7. **Save sends the KOT, and so does Pay**; each KOT has only the dishes the kitchen doesn't have yet
 (a later KOT has only what was added after the earlier ones). KOT numbers run through the business day for the whole
-restaurant: the day's first KOT is #1, starting again with the order numbers when the business day ends (at closing
-time when the restaurant closes after midnight, at midnight otherwise: Settings › Business details › Business hours). A KOT gets its number as it prints, from the restaurant's one
+restaurant: the day's first KOT is #1, starting again with the order numbers when the business day ends (the minute
+after closing time: Settings › Business details › Business hours). A KOT gets its number as it prints, from the restaurant's one
 sequence kept by the main system or the cloud (Update Pack 4; SYNC.md › KOT numbers), so `kot` is on every KOT slip. After a KOT has gone, taking a
 dish off or reducing it prints a **VOID** slip, deleting the order prints **ORDER CANCELLED** (both with the reason
 staff gave), changing a dish's choices or note prints a **CHANGED** slip, and marking the order as priority prints a

@@ -246,8 +246,8 @@
       note('Changes apply from the next bill. Bills that already have a number keep it.'));
   }
   // Business hours: when the restaurant is open each day. Scheduled orders can be ready only inside these hours (the
-  // Counter's Schedule picker). The business day ends at closing time when it is after midnight, at midnight otherwise
-  // (owner, 11 Nov 2026); Today, the day's totals and the day's order and KOT numbers follow it (sync.js).
+  // Counter's Schedule picker). The business day ends at closing time and the next starts the minute after (owner, 11 Nov
+  // 2026); Today, the day's totals and the day's order and KOT numbers follow it (sync.js).
   const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
   const clock = m => { const h = Math.floor(m / 60) % 24; return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`; };
   function hoursCard() {
@@ -267,7 +267,7 @@
           el('span', {}, 'to'),
           select(`hours-${d}-to`, `${name}: closes at`, toValues.map(m => [m, clock(m)]), x.to, m => setHours(v => { v.days[d].to = m; }), !x.open)));
     };
-    return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. The day ends at closing time: open till 2:00 am, an order at 12:40 am counts in the day before.'),
+    return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. A new business day starts the minute after closing: open till 2:00 am, an order at 12:40 am counts in the day before.'),
       el('div', { class: 'st-rows' }, Prefs.days.map(row)));
   }
   builders.business = () => rebuild(businessHost, () => [billNumberCard(), hoursCard()]);
