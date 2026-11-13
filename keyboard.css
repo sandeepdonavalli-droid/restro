@@ -1,0 +1,49 @@
+/* RESTRO's own keyboard (keyboard.js; owner, 13 Nov 2026). 1920 x 1080 design pixels (--fu, launcher.css).
+   Just above the navigation bar: 430 tall, the full width. In the swipe mode it reaches the bottom of the screen, with a
+   strip 88 tall under the keys for the handle and the lock, which stay over it (the bar is 55; the keyboard 54).
+   Keyed to #restro-keyboard, so an open app's button styles can't change the keys.
+   Light: #E9ECEF behind, white keys, #CDD2D8 for the keys that do things, RESTRO blue (#2F6FDE) for Enter.
+   Midnight (the Counter and Orders): #121B2D behind, #1E2A42 keys, Enter #5B8EF0. */
+#restro-keyboard{position:fixed;left:0;right:0;bottom:var(--nav-h,0px);z-index:54;height:calc(430 * var(--fu));box-sizing:border-box;margin:0;
+  padding:calc(12 * var(--fu)) calc(14 * var(--fu)) calc(14 * var(--fu));display:flex;flex-direction:column;gap:calc(12 * var(--fu));
+  background:#E9ECEF;box-shadow:inset 0 1px 0 #D3D7DC;color:#1C1917;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#restro-keyboard[hidden]{display:none}
+html:not([data-nav="bar"]) #restro-keyboard{bottom:0;height:calc(518 * var(--fu));padding-bottom:calc(102 * var(--fu))}
+#restro-keyboard .osk-row{flex:1 1 0;min-height:0;display:flex;gap:calc(12 * var(--fu))}
+#restro-keyboard .osk-row.nums{flex:0 0 calc(52 * var(--fu))}
+#restro-keyboard .osk-gap{flex:.5 1 0}
+#restro-keyboard .osk-k{flex:1 1 0;min-width:0;min-height:0;width:auto;height:auto;margin:0;padding:0;border:0;border-radius:calc(10 * var(--fu));display:flex;align-items:center;justify-content:center;
+  background:#FFFFFF;color:#1C1917;box-shadow:0 calc(1 * var(--fu)) 0 rgba(0,0,0,.18);font-family:inherit;font-size:calc(34 * var(--fu));font-weight:600;line-height:1;letter-spacing:0;text-transform:none;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:none}
+#restro-keyboard .osk-row.nums .osk-k{font-size:calc(28 * var(--fu))}
+#restro-keyboard .osk-k.fn{background:#CDD2D8;font-size:calc(26 * var(--fu))}
+#restro-keyboard .osk-k.fn[data-c]{font-size:calc(34 * var(--fu))}
+#restro-keyboard .osk-k.space{background:#FFFFFF}
+#restro-keyboard .osk-k.enter{background:#2F6FDE;color:#FFFFFF}
+#restro-keyboard .osk-k.shift.on{background:#FFFFFF;color:#2F6FDE}
+#restro-keyboard .osk-k svg{width:calc(34 * var(--fu));height:calc(34 * var(--fu));fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#restro-keyboard .osk-k.shift.on svg path:first-child{fill:currentColor}
+#restro-keyboard .osk-k.down{background:#E1E4E8}
+#restro-keyboard .osk-k.fn.down{background:#B9BFC7}
+#restro-keyboard .osk-k.enter.down{background:#1E4FB8}
+/* The number pad: 4 columns of 220, centred; Enter two rows tall; 0 two columns wide (three with nothing beside it) */
+#restro-keyboard .osk-pad{flex:1;min-height:0;align-self:center;display:grid;grid-template-columns:repeat(4,calc(220 * var(--fu)));grid-template-rows:repeat(4,1fr);gap:calc(12 * var(--fu))}
+#restro-keyboard .osk-pad .osk-k{font-size:calc(40 * var(--fu))}
+#restro-keyboard .osk-pad .osk-k svg{width:calc(44 * var(--fu));height:calc(44 * var(--fu))}
+#restro-keyboard .osk-pad .osk-k.enter{grid-column:4;grid-row:2 / span 2}
+#restro-keyboard .osk-pad .osk-k.back{grid-column:4;grid-row:1}
+#restro-keyboard .osk-pad .osk-k.hide{grid-column:4;grid-row:4}
+#restro-keyboard .osk-pad .osk-k.zero{grid-column:2 / span 2;grid-row:4}
+#restro-keyboard .osk-pad .osk-k.zero.wide{grid-column:1 / span 3}
+
+/* Midnight, while the Counter or Orders has it */
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard{background:#121B2D;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);color:#F8F7F7}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard .osk-k{background:#1E2A42;color:#F8F7F7;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.10)}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard .osk-k.fn{background:#16213A;color:#DCDBDA}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard .osk-k.space{background:#1E2A42}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard .osk-k.enter{background:#5B8EF0;color:#0B1220;box-shadow:none}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard .osk-k.shift.on{background:#1E2A42;color:#5B8EF0}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard .osk-k.down{background:#2A3854}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard .osk-k.fn.down{background:#22304A}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app)>#restro-keyboard .osk-k.enter.down{background:#4A7AD6}

@@ -763,16 +763,17 @@
     window.dispatchEvent(new CustomEvent('restro:screen-unlocked'));
   }
   document.querySelector('#system-lock').addEventListener('click',lockScreen);
-  // The keyboard. Android draws its keyboard over every app. Nothing moves the navigation bar or the lock for it (owner,
-  // 12 and 13 Nov 2026): they stay in their places. While the keyboard covers the bottom of the page, --keyboard is how
-  // much it covers. How much it covers:
+  // The tablet's own keyboard. RESTRO types with its own (keyboard.js, owner 13 Nov 2026), so the tablet's doesn't open
+  // in RESTRO; if one ever does (a field left out, a page we don't draw), Android draws it over the app and nothing
+  // moves the navigation bar or the lock for it (owner, 12 and 13 Nov 2026). While it covers the bottom of the page,
+  // --keyboard is how much it covers. How much it covers:
   // - in a browser, the part of the page in view gets shorter (visualViewport);
   // - the RESTRO Android app, when it keeps the page full height under its keyboard, says so with a restro:keyboard
   //   event ({ height } in CSS pixels, 0 when the keyboard goes down);
   // - where neither tells (the page shown inside another page, as on the tablet link), on a touch screen while a field
   //   that takes typing has the focus: 45% of the screen, a tablet keyboard's height or a little more.
   // A page that the keyboard makes shorter already ends at the keyboard.
-  const typingField=el=>el instanceof HTMLTextAreaElement||(el instanceof HTMLInputElement&&!el.readOnly&&!el.disabled&&el.inputMode!=='none'&&/^(text|search|email|tel|url|number|password)$/.test(el.type))||Boolean(el?.isContentEditable);
+  const typingField=el=>((el instanceof HTMLTextAreaElement&&!el.readOnly&&!el.disabled)||(el instanceof HTMLInputElement&&!el.readOnly&&!el.disabled&&/^(text|search|email|tel|url|number|password)$/.test(el.type))||Boolean(el?.isContentEditable))&&el.inputMode!=='none';
   let appKeyboard=0,tells=false,guess=false,guessTimer=0,tallest=window.innerHeight,wide=window.innerWidth;
   const keyboard=()=>{
     if(window.innerWidth!==wide){wide=window.innerWidth;tallest=window.innerHeight;}

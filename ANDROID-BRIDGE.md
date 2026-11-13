@@ -475,31 +475,54 @@ Dispatch these as window events when the tablet's power button locks the screen 
 unlocked (`ACTION_USER_PRESENT`). With staff accounts set up, locking signs the person out and the lock screen asks for
 a PIN.
 
-## The keyboard: `restro:keyboard`
+## The keyboard: RESTRO's own (and `restro:keyboard`)
 
 **Nothing moves the navigation bar or the lock, the keyboard included** (owner, 12 and 13 Nov 2026; see Back, Home and
-Recent apps). The bar stays at the bottom, and the lock in its place, in every app (Counter, Orders, Customers, Staff,
-Settings and every other). Both stay in view, so staff can always go back or lock, even in the middle of typing. (Until
-12 Nov the page lifted the bar, and in the swipe mode the lock, to sit on top of the keyboard.)
+Recent apps). Both stay in view in every app, so staff can always go back or lock, even in the middle of typing.
+Android draws its own keyboard over every app, and no app can draw over it or move it. So **RESTRO types with its own
+keyboard** (owner, 13 Nov 2026: `keyboard.js`, `keyboard.css`). Until 12 Nov the page lifted the bar, and in the swipe
+mode the lock, to sit on top of the tablet's keyboard.
 
-So the keyboard has to open above the bar and the lock: just above the bar, or in the swipe mode above a strip that
-keeps the handle and the lock. Android draws its keyboard over every app, and no app can draw over it or move it, so
-this can't be done from the page alone. **Open decision (owner):** RESTRO's own keyboard, drawn by the page above the
-bar; or the tablet's keyboard, made to open above the bar by the RESTRO Android app. Until then, the tablet's keyboard
-comes up over the bar and the lock.
+- **The tablet's keyboard never opens in RESTRO.** Every field that takes typing gets `inputmode="none"` as soon as it
+  is in the page: text, search, email, tel, url, number, password and boxes of several lines. What the field asked for
+  is kept in `data-osk-mode`, for RESTRO's keyboard. Don't open the system keyboard from the app (no `showSoftInput`, no
+  forced IME). A physical keyboard still types.
+- **Where it opens:** just above the navigation bar, the full width, 430 tall (1920 × 1080 design pixels). In the swipe
+  mode it reaches the bottom of the screen, with a strip 88 tall under the keys for the handle and the lock, which stay
+  over it. It sits in the window on top, just under the bar.
+- **The keys:**
+  - Letters, with a row of numbers on top: q–p and Backspace; a–l and Enter; Shift, z–m, comma, full stop, Shift;
+    ?123, comma, Space, full stop, and ⌄ to put it away. An email field has @ in place of the bottom row's comma.
+  - ?123: @ # ₹ _ & - + ( ) / and Backspace; * " ' : ; ! ? % = and Enter; ~ ` | \ < > [ ] { } ^; ABC goes back.
+  - A number pad for number fields (inputmode numeric, decimal or tel): 1–9, 0, Backspace, Enter and ⌄, with a point for
+    decimals (amounts) and + for phone numbers.
+- **Shift:** one tap for one capital, two quick taps to keep capitals on. Capitals come by themselves where the field
+  asks (`autocapitalize`): a field of characters (GSTIN, the pairing code, the restaurant's name) starts in capitals; a
+  field of sentences starts with one, and after a full stop.
+- **Enter** does what the field asks for (`enterkeyhint`): Search, Done (✓), or Next (to the next field); a new line in
+  a box of several lines. The field gets Enter first (`keydown` and `keyup`), so its own handling still works: the
+  Counter's search adds the dish found by its code, and a list of quick picks adds one and keeps the keyboard. If the
+  field doesn't handle it, a form sends itself as Enter would send it, and the keyboard goes away.
+- **It goes away** with ⌄, with Back, when the field is left, and when a key on a physical keyboard is pressed (until a
+  field is tapped again). Backspace held down keeps deleting.
+- **The field stays in view:** where the keyboard would cover it, the list it is in scrolls it up, with room added under
+  the list while the keyboard is up. The Counter's pop-ups go to the top while typing, as before.
+- **Look:** Light: #E9ECEF behind, white keys, #CDD2D8 for the keys that do things, Enter in RESTRO blue #2F6FDE.
+  Midnight (while the Counter or Orders is open in it): #121B2D behind, #1E2A42 keys, Enter #5B8EF0. Touch sounds play
+  on the keys as on any button.
+- On a computer (no touch screen), RESTRO's keyboard doesn't show, and the computer's own keyboard types.
 
-Either way, the keyboard must not resize the page: keep the page full height, and don't let the keyboard resize the
-WebView. A page that the keyboard makes shorter would end at the keyboard, with the navigation bar on top of it. Every
-size on the screen would also shrink while staff type, because the design's unit (`--fu`) follows the page's height.
+No keyboard may resize the page: keep the page full height, and don't let a keyboard resize the WebView. A page that a
+keyboard makes shorter would end at the keyboard, with the navigation bar on top of it. Every size on the screen would
+also shrink, because the design's unit (`--fu`) follows the page's height.
 
-In a browser, the page sees the keyboard itself. In the RESTRO Android app (full-screen kiosk mode keeps the page full
-height), tell the page how much the keyboard covers whenever that changes:
+If the tablet's keyboard ever opens all the same (it shouldn't), the RESTRO Android app can tell the page how much it
+covers, whenever that changes. Take it from `WindowInsetsCompat.Type.ime()` (its bottom inset, in CSS pixels: device
+pixels ÷ the WebView's density):
 
 ```js
 window.dispatchEvent(new CustomEvent('restro:keyboard', { detail: { height: 386 } })); // CSS pixels; 0 when it goes down
 ```
-
-Take it from `WindowInsetsCompat.Type.ime()` (its bottom inset, in CSS pixels: device pixels ÷ the WebView's density).
 
 ## Printing the bill: `RESTRODevice.printer.printBill(bill)`
 
@@ -711,7 +734,8 @@ or lock. How the page does it: the bar sits inside the window on top, because an
 outside it untappable. While that window moves or fades as a whole (an app going into its icon, Recent apps going, the
 quick controls coming down), the bar waits in its own layer instead (`#system-bar-layer`, in the browser's top layer):
 over everything, in its place. In the swipe mode only the lock waits there: the strip keeps the finger, and the handle
-goes with the app as before. Nothing for the Android app to do here, except keeping the keyboard off them.
+goes with the app as before. Nothing for the Android app to do here, except never opening the tablet's own keyboard
+(see The keyboard: RESTRO types with its own, which opens above the bar).
 
 Going the other way, the page calls these when the app provides them:
 
