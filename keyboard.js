@@ -7,8 +7,11 @@
 //   decimal or tel).
 // - Shift: one capital, or held on with two quick taps (caps lock). Capitals come by themselves where the field asks
 //   (autocapitalize: words, sentences, characters).
-// - Enter does what the field asks for (enterkeyhint): search, done, next; a new line in a box of several lines.
-// - ⌄ puts the keyboard away, as Back does. A key on a physical keyboard puts it away too, until a field is tapped.
+// - Enter says Enter on every field (owner, 13 Nov 2026), and does what the field asks for (enterkeyhint): search or
+//   done (the keyboard goes away), next; a new line in a box of several lines.
+// - ⌄ puts the keyboard away, as Back does, and so does a tap anywhere outside it (owner, 13 Nov 2026), but on the
+//   field being typed in (its ✕ too), another field (the typing goes there) or the navigation bar. A key on a physical
+//   keyboard puts it away too, until a field is tapped.
 // - The field stays in view: where the keyboard would cover it, the list it is in scrolls it up.
 (() => {
   const root = document.documentElement;
@@ -34,12 +37,7 @@
     back: svg('<path d="M21 5H8.5L2.5 12l6 7H21z"/><path d="M11.5 9l6 6M17.5 9l-6 6"/>'),
     shift: svg('<path d="M12 3.5 4 12.5h4.5V20h7v-7.5H20z"/>'),
     lock: svg('<path d="M12 2.5 4 11h4.5v5h7v-5H20z"/><path d="M8.5 20.5h7"/>'),
-    hide: svg('<path d="M6 9l6 6 6-6"/>'),
-    search: svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>'),
-    done: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
-    next: svg('<path d="M4 12h15M13 6l6 6-6 6"/>'),
-    send: svg('<path d="M3.5 11.5 20.5 4l-5 16.5-4-7z"/><path d="M11.5 13.5 20.5 4"/>'),
-    enter: svg('<path d="M19.5 5v6.5a3 3 0 0 1-3 3H5"/><path d="M9 10.5 5 14.5l4 4"/>')
+    hide: svg('<path d="M6 9l6 6 6-6"/>')
   };
   const NAMES = { ',': 'Comma', '.': 'Full stop', ' ': 'Space', '@': 'At', '#': 'Hash', '₹': 'Rupee', '_': 'Underscore', '&': 'And',
     '-': 'Minus', '+': 'Plus', '(': 'Open bracket', ')': 'Close bracket', '/': 'Slash', '*': 'Star', '"': 'Double quote', "'": 'Apostrophe',
@@ -83,6 +81,7 @@
     } else {
       b.dataset.k = s.k; b.classList.add('fn', s.k);
       if (s.t) b.textContent = s.t;
+      else if (s.k === 'enter') b.textContent = 'Enter';
       else if (s.k !== 'space') b.innerHTML = ICON[s.k] || '';
       b.setAttribute('aria-label', { back: 'Backspace', enter: 'Enter', shift: 'Shift', sym: 'Numbers and symbols', abc: 'Letters', space: 'Space', hide: 'Hide the keyboard' }[s.k]);
     }
@@ -112,7 +111,7 @@
     }
     paint();
   }
-  // Capitals on the letters, Shift's look, and Enter's sign for this field
+  // Capitals on the letters, and Shift's look
   function paint() {
     const up = page === 'abc' && shift !== 'off';
     for (const b of osk.querySelectorAll('.osk-row:not(.nums) .osk-k[data-c]')) {
@@ -123,10 +122,6 @@
       b.classList.toggle('on', shift !== 'off'); b.classList.toggle('locked', shift === 'lock');
       b.innerHTML = shift === 'lock' ? ICON.lock : ICON.shift;
       b.setAttribute('aria-pressed', String(shift !== 'off'));
-    }
-    for (const b of osk.querySelectorAll('.osk-k.enter')) {
-      b.innerHTML = ICON[hint] || ICON.enter;
-      b.setAttribute('aria-label', { search: 'Search', done: 'Done', next: 'Next', go: 'Go', send: 'Send', enter: 'New line' }[hint] || 'Enter');
     }
   }
 
@@ -282,6 +277,21 @@
   function unpad() { if (padded) { padded.el.style.paddingBottom = padded.was; padded = null; } }
 
   document.addEventListener('pointerdown', e => { const f = e.target.closest?.('input,textarea'); if (f && takesTyping(f)) { quiet(f); if (hardware === f) hardware = null; } }, true);
+  // A tap anywhere else puts the keyboard away (owner, 13 Nov 2026): anywhere but the keyboard, the field being typed in
+  // with its own box (its ✕), another field (the typing goes there) and the navigation bar (its Back puts the keyboard
+  // away first, as before). A finger that moves (scrolling a list) is not a tap.
+  let outside = null;
+  const keeps = t => osk.contains(t) || Boolean(t.closest?.('#system-navigation,#system-bar-layer')) || takesTyping(t)
+    || Boolean(current && (current.closest('label') || current.parentElement)?.contains(t));
+  document.addEventListener('pointerdown', e => { outside = current && !osk.hidden && !keeps(e.target) ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null; }, true);
+  document.addEventListener('pointercancel', () => { outside = null; }, true);
+  // (Back on the navigation bar puts the keyboard away first: the field keeps the focus until Back sees it)
+  document.addEventListener('pointerdown', e => { if (current && !osk.hidden && e.target.closest?.('#system-back')) e.preventDefault(); }, true);
+  document.addEventListener('pointerup', e => {
+    const o = outside; outside = null;
+    if (!o || o.id !== e.pointerId || !current || Math.hypot(e.clientX - o.x, e.clientY - o.y) > 12) return;
+    current.blur();
+  }, true);
   document.addEventListener('focusin', e => {
     const f = e.target;
     if (takesTyping(f)) { quiet(f); show(f); } else if (!osk.contains(f)) hide();
