@@ -491,25 +491,25 @@ mode the lock, to sit on top of the tablet's keyboard.
   mode it reaches the bottom of the screen, with a strip 88 tall under the keys for the handle and the lock, which stay
   over it. It sits in the window on top, just under the bar.
 - **The keys:**
-  - Letters, with a row of numbers on top: q–p and Backspace; a–l and Enter; Shift, z–m, comma, full stop, Shift;
-    ?123, comma, Space, full stop, and ⌄ to put it away. An email field has @ in place of the bottom row's comma.
-  - ?123: @ # ₹ _ & - + ( ) / and Backspace; * " ' : ; ! ? % = and Enter; ~ ` | \ < > [ ] { } ^; ABC goes back.
-  - A number pad for number fields (inputmode numeric, decimal or tel): 1–9, 0, Backspace, Enter and ⌄, with a point for
+  - Letters, with a row of numbers on top: q–p and Back; a–l and Done; Shift, z–m, comma, full stop, Shift; ?123,
+    comma, Space, full stop, and ⌄ to put it away. An email field has @ in place of the bottom row's comma.
+  - ?123: @ # ₹ _ & - + ( ) / and Back; * " ' : ; ! ? % = and Done; ~ ` | \ < > [ ] { } ^; ABC goes to the letters.
+  - A number pad for number fields (inputmode numeric, decimal or tel): 1–9, 0, Back, Done and ⌄, with a point for
     decimals (amounts) and + for phone numbers.
+  - The Enter key says **Done** and the Backspace key says **Back**, written, not drawn (owner, 13 Nov 2026).
 - **Shift:** one tap for one capital, two quick taps to keep capitals on. Capitals come by themselves where the field
   asks (`autocapitalize`): a field of characters (GSTIN, the pairing code, the restaurant's name) starts in capitals; a
   field of sentences starts with one, and after a full stop.
-- **Enter** says Enter on every field (owner, 13 Nov 2026), and does what the field asks for (`enterkeyhint`): in a
-  search or a field that is done, the keyboard goes away; Next goes to the next field; in a box of several lines it
-  makes a new line. The field gets Enter first (`keydown` and `keyup`), so its own handling still works: the Counter's
-  search adds the dish found by its code, and a list of quick picks adds one and keeps the keyboard. If the field
-  doesn't handle it, a form sends itself as Enter would send it, and the keyboard goes away.
+- **Done** finishes the typing on every field, a box of several lines too (no new lines: an address is typed on one
+  line, with commas). The field gets Enter first (`keydown` and `keyup`), so its own handling still works: the
+  Counter's search adds the dish found by its code and keeps the keyboard for the next one, and a list of quick picks
+  adds one and keeps it too. Otherwise a form sends itself as Enter would send it, and the keyboard goes away.
+- **Back** deletes the letter before the cursor; held down, it keeps deleting.
 - **It goes away** with ⌄, with Back, when the field is left, and when a key on a physical keyboard is pressed (until a
   field is tapped again). A tap anywhere outside the keyboard puts it away too (owner, 13 Nov 2026), and the tap
   still does what it does (a dish tapped on the Counter is added). Except: a tap on the field being typed in or its own
   box (its ✕ clears it, and the typing goes on), a tap on another field (the typing goes there), and the navigation
-  bar (its Back puts the keyboard away first, as before). A finger that moves (scrolling a list) is not a tap. Backspace
-  held down keeps deleting.
+  bar (its Back puts the keyboard away first, as before). A finger that moves (scrolling a list) is not a tap.
 - **The field stays in view:** where the keyboard would cover it, the list it is in scrolls it up, with room added under
   the list while the keyboard is up. The Counter's pop-ups go to the top while typing, as before.
 - **Look:** Light: #E9ECEF behind, white keys, #CDD2D8 for the keys that do things, Enter in RESTRO blue #2F6FDE.
