@@ -42,6 +42,39 @@
   // Where full-screen apps sit: under the top bar, above the swipe strip
   const probe=document.createElement('div');probe.className='app-area-probe';probe.setAttribute('aria-hidden','true');document.body.append(probe);
   const appArea=()=>{const r=probe.getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};};
+  // Nothing moves the navigation bar or the lock (owner, 13 Nov 2026). The bar sits in the window on top, so that its
+  // buttons work there too. While that window moves or fades as a whole (an app going into its icon, Recent apps
+  // going, the quick controls coming down), the bar waits in its own layer instead: over everything, in its place. In
+  // the swipe mode only the lock waits there; the strip keeps the finger, and the handle goes with the app as before.
+  const lockButton=bar.querySelector('#system-lock'),indicator=bar.querySelector('.home-indicator');
+  const barLayer=document.createElement('div');barLayer.id='system-bar-layer';
+  const layered=typeof barLayer.showPopover==='function';
+  if(layered)barLayer.setAttribute('popover','manual');
+  document.body.append(barLayer);
+  let held=false;
+  // (last into the top layer, so over the moving window and anything shown after it)
+  function raiseBar(){if(!held)return;if(barLayer.matches(':popover-open'))barLayer.hidePopover();barLayer.showPopover();}
+  function holdBar(){
+    if(!layered){if(barMode())shell.append(bar);return;}
+    if(lockButton.parentElement!==bar)bar.insertBefore(lockButton,indicator);
+    const what=barMode()?bar:lockButton;
+    if(what.parentElement!==barLayer)barLayer.append(what);
+    held=true;raiseBar();
+  }
+  // (the bar itself is put back by positionBar)
+  function freeBar(){
+    if(!held)return;
+    held=false;
+    if(lockButton.parentElement!==bar)bar.insertBefore(lockButton,indicator);
+    if(barLayer.matches(':popover-open'))barLayer.hidePopover();
+  }
+  // A window moving or fading as a whole: carried home or back (sys-moving), or its own animation of where it is or how
+  // see-through it is (not its corners or shadow settling)
+  const MOVES=/^(transform|translate|scale|rotate|opacity)$/;
+  const moving=dialog=>dialog.classList.contains('sys-moving')||dialog.getAnimations().some(run=>{
+    const effect=run.effect;if(effect?.target!==dialog||effect.pseudoElement)return false;
+    return run instanceof CSSTransition?MOVES.test(run.transitionProperty):effect.getKeyframes().some(frame=>Object.keys(frame).some(name=>MOVES.test(name)));
+  });
 
   // A soft spring with a touch of overshoot: as an easing, and as a curve for paths that start at the finger's speed
   function springAt(t,v0=0){const z=.82,w=7.4,wd=w*Math.sqrt(1-z*z);return 1-Math.exp(-z*w*t)*(Math.cos(wd*t)+((z*w-v0)/wd)*Math.sin(wd*t));}
@@ -177,9 +210,13 @@
     if(gesture||flight)return;
     const opened=dialogs.filter(dialog=>dialog.open);
     const active=locked?lock:opened.at(-1);
-    // Native modal dialogs make their siblings inert. Keep the swipe bar (and the keyboard's Back, Home and Recent
-    // apps) inside the active dialog so they work there as well.
-    (active||shell).append(bar);
+    // While that window moves or fades, the bar waits over everything, in its place
+    if(active&&moving(active))holdBar();
+    else{
+      // Native modal dialogs make their siblings inert. Keep the swipe bar (and the keyboard's Back, Home and Recent
+      // apps) inside the active dialog so they work there as well.
+      (active||shell).append(bar);freeBar();
+    }
     // The top bar is white over an open app, on the page's grey on the home screen (status-bar.css)
     document.documentElement.toggleAttribute('data-app-open',opened.some(dialog=>dialog.matches(fullApps)));
     alignBannerText();
@@ -194,6 +231,8 @@
     positionBar();
   });
   for(const dialog of dialogs)observer.observe(dialog,{attributes:true,attributeFilter:['open'],attributeOldValue:true});
+  // A window's own animation (the quick controls coming down): the bar waits it out in its layer
+  for(const dialog of dialogs)for(const type of ['animationstart','animationend','animationcancel','transitionstart','transitionend','transitioncancel'])dialog.addEventListener(type,event=>{if(event.target===dialog&&!event.pseudoElement)positionBar();});
 
   async function nativeAction(method){
     const host=window.RESTRODevice;
@@ -204,8 +243,9 @@
   // ---------- The open windows, moved as one ----------
   function grabWindow(){
     const els=openStack();if(!els.length)return null;
-    // (the navigation bar stays at the bottom of the screen while the window flies: out of it first)
-    if(barMode())shell.append(bar);
+    // (the navigation bar stays in its place, over everything, while the window flies: out of it first; in the swipe
+    // mode, the lock)
+    holdBar();
     const main=[...els].reverse().find(dialog=>dialog.matches(fullApps))||els.at(-1);
     const box={x:main.offsetLeft,y:main.offsetTop,w:main.offsetWidth,h:main.offsetHeight};
     const cx=box.x+box.w/2,cy=box.y+box.h/2;
@@ -298,7 +338,7 @@
     if(target.art&&ghost.hasAttribute('popover')){
       ghostArt.src=target.art;
       Object.assign(ghost.style,{left:`${target.x}px`,top:`${target.y}px`,width:`${target.size}px`,height:`${target.size}px`,filter:target.filter||'none'});
-      ghost.showPopover();
+      ghost.showPopover();raiseBar();
       if(target.node)target.node.style.visibility='hidden';
       runs.push(ghost.animate(frames.map(f=>({offset:f.offset,transform:`translate(${(w.cx+f.tx-tcx).toFixed(2)}px,${(w.cy+f.ty-tcy).toFixed(2)}px) scale(${(side*f.s/target.size).toFixed(4)})`})),{duration:D,fill:'forwards'}));
       runs.push(ghost.animate([{opacity:0},{opacity:0,offset:.24},{opacity:1,offset:.72},{opacity:1}],{duration:D,fill:'forwards'}));
@@ -414,7 +454,7 @@
   // Away from Recent apps: back to the app that was open (`back`), or Home
   function closeSwitcher(back=false){
     if(!sw||sw.closing)return;
-    sw.closing=true;
+    sw.closing=true;holdBar();
     const D=time(220);
     const runs=[recents.animate([{opacity:1},{opacity:0}],{duration:D,easing:'ease-in',fill:'forwards'})];
     return settled(runs).then(()=>{
@@ -723,10 +763,9 @@
     window.dispatchEvent(new CustomEvent('restro:screen-unlocked'));
   }
   document.querySelector('#system-lock').addEventListener('click',lockScreen);
-  // The keyboard. Android draws its keyboard over every app. The navigation bar never moves for it (owner, 12 Nov 2026):
-  // it stays at the bottom, and the keyboard comes up over it. In the swipe mode the lock stays while typing (Update
-  // Pack 3), so a tablet left with its keyboard up can still be locked: while the keyboard covers the bottom of the page,
-  // --keyboard is how much it covers, and the lock sits on top of it. How much it covers:
+  // The keyboard. Android draws its keyboard over every app. Nothing moves the navigation bar or the lock for it (owner,
+  // 12 and 13 Nov 2026): they stay in their places. While the keyboard covers the bottom of the page, --keyboard is how
+  // much it covers. How much it covers:
   // - in a browser, the part of the page in view gets shorter (visualViewport);
   // - the RESTRO Android app, when it keeps the page full height under its keyboard, says so with a restro:keyboard
   //   event ({ height } in CSS pixels, 0 when the keyboard goes down);

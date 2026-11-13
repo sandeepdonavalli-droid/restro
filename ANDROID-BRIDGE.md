@@ -477,17 +477,18 @@ a PIN.
 
 ## The keyboard: `restro:keyboard`
 
-Android draws its keyboard over the app.
+**Nothing moves the navigation bar or the lock, the keyboard included** (owner, 12 and 13 Nov 2026; see Back, Home and
+Recent apps). The bar stays at the bottom, and the lock in its place, in every app (Counter, Orders, Customers, Staff,
+Settings and every other). Both stay in view, so staff can always go back or lock, even in the middle of typing. (Until
+12 Nov the page lifted the bar, and in the swipe mode the lock, to sit on top of the keyboard.)
 
-- **The navigation bar never moves for the keyboard** (owner, 12 Nov 2026). On every screen it stays at the bottom, and
-  the keyboard comes up over it. Typing in a search bar (Counter, Orders, Customers) or in any other field (Settings, a
-  pop-up) brings up only the keyboard. The lock button is on the bar in this mode, so to lock, close the keyboard first.
-  (Until now the page lifted the whole bar to sit on top of the keyboard.)
-- **In the swipe mode, the lock button stays in view while staff type** (Update Pack 3), so a tablet left with its
-  keyboard up can still be locked. While the keyboard is up, the page lifts the lock to sit just above it. The handle
-  stays at the bottom, under the keyboard.
+So the keyboard has to open above the bar and the lock: just above the bar, or in the swipe mode above a strip that
+keeps the handle and the lock. Android draws its keyboard over every app, and no app can draw over it or move it, so
+this can't be done from the page alone. **Open decision (owner):** RESTRO's own keyboard, drawn by the page above the
+bar; or the tablet's keyboard, made to open above the bar by the RESTRO Android app. Until then, the tablet's keyboard
+comes up over the bar and the lock.
 
-So the keyboard must come up over the page: keep the page full height under it, and don't let the keyboard resize the
+Either way, the keyboard must not resize the page: keep the page full height, and don't let the keyboard resize the
 WebView. A page that the keyboard makes shorter would end at the keyboard, with the navigation bar on top of it. Every
 size on the screen would also shrink while staff type, because the design's unit (`--fu`) follows the page's height.
 
@@ -702,6 +703,15 @@ the left or the right), with a lock button in both. When Android's gesture navig
 forward it: the back gesture (`OnBackPressedCallback`) to `RestroSystem.back()`, Home (`onNewIntent` with
 `CATEGORY_HOME`) to `RestroSystem.home()`, and Recent apps to `RestroSystem.recents()`. Each does exactly what RESTRO's
 own navigation does.
+
+**The navigation bar and the lock never move** (owner, 12 and 13 Nov 2026). On every screen but the lock screen, the
+bar stays at the bottom and the lock in its place (on the bar, or in the swipe mode 16 from the right and 14 from the
+bottom). Both stay in view over every app, every pop-up and the keyboard (see The keyboard), so staff can always go back
+or lock. How the page does it: the bar sits inside the window on top, because an HTML modal dialog makes everything
+outside it untappable. While that window moves or fades as a whole (an app going into its icon, Recent apps going, the
+quick controls coming down), the bar waits in its own layer instead (`#system-bar-layer`, in the browser's top layer):
+over everything, in its place. In the swipe mode only the lock waits there: the strip keeps the finger, and the handle
+goes with the app as before. Nothing for the Android app to do here, except keeping the keyboard off them.
 
 Going the other way, the page calls these when the app provides them:
 

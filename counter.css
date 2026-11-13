@@ -776,8 +776,9 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-pu.dish.pct>.cx-pu-head{margin-bottom:calc(14 * var(--u))}
 .cx-pu.server>.cx-pu-head{margin-bottom:calc(16 * var(--u))}
 /* Track history (Update Pack 3, CT02): drawn on the 1920 x 1080 screen, so its sizes are in --fu (launcher.css). Over the
-   whole screen, the banner too; from just under the banner to just above the bottom edge, 1120 wide. */
-.cx-layer.history{position:fixed;inset:0;z-index:60}
+   whole screen, the banner too, but under the navigation bar and the lock (54, the bar 55: nothing covers them, owner
+   13 Nov 2026); from just under the banner to just above the bottom edge, 1120 wide. */
+.cx-layer.history{position:fixed;inset:0;z-index:54}
 .cx-hscrim{position:absolute;inset:0;background:rgba(15,23,42,.45)}
 .cx-hp{position:absolute;left:50%;top:calc(66 * var(--fu));font-size:calc(16 * var(--fu));bottom:calc(70 * var(--fu));width:calc(1120 * var(--fu));max-width:calc(100% - calc(32 * var(--fu)));box-sizing:border-box;display:flex;flex-direction:column;padding:calc(26 * var(--fu)) calc(28 * var(--fu)) calc(24 * var(--fu));border-radius:calc(30 * var(--fu));background:#F3F4F7;color:#1C1917;box-shadow:0 calc(30 * var(--fu)) calc(80 * var(--fu)) rgba(15,23,42,.35);transform:translateX(-50%)}
 .cx-hp-head{flex:none;display:flex;justify-content:space-between;align-items:flex-start}

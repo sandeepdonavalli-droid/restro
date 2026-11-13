@@ -27,12 +27,11 @@ html[data-home-theme="aurora"]:not([data-app-open]) .home-indicator{background:r
 /* Home on Aurora Dark: the lock in the Midnight style (Update Pack 2: Home at 1080), a raised navy with a soft white edge */
 html[data-home-theme="aurora"]:not([data-app-open]):not([data-nav="bar"]) .system-lock{background:#1E2A42;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.18),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(0,0,0,.5)}
 html[data-home-theme="aurora"]:not([data-app-open]):not([data-nav="bar"]) .system-lock:active{background:#000000}
-/* The keyboard. Android's keyboard is drawn over the app. The navigation bar never moves for it (owner, 12 Nov 2026): it
-   stays at the bottom on every screen, and the keyboard comes up over it. In the swipe mode the lock stays while typing
-   (Update Pack 3): while the keyboard covers the corner, the lock sits 14 above it (--keyboard: system-navigation.js) */
-html:not([data-nav="bar"]) .system-lock{bottom:calc(14 * var(--fu) + var(--keyboard, 0px))}
+/* Nothing moves the navigation bar or the lock (owner, 12 and 13 Nov 2026): not the keyboard, a pop-up or any app. The
+   bar stays at the bottom and the lock in its place (on the bar, or in the swipe mode 16 from the right and 14 from the
+   bottom), over everything else on the screen */
 .system-lock:focus-visible{outline:2px solid #2F6FDE;outline-offset:3px}
-#system-navigation .system-lock .system-glyph{width:calc(31 * var(--fu));height:calc(31 * var(--fu))}
+#system-navigation .system-lock .system-glyph,#system-bar-layer>.system-lock .system-glyph{width:calc(31 * var(--fu));height:calc(31 * var(--fu))}
 /* Back, Home and Recent apps: in swipe mode, buttons for the keyboard and screen readers only, out of sight until focused */
 .android-controls{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px;border-radius:999px;background:#000000;opacity:0;pointer-events:none}
 .android-controls:focus-within{opacity:1;pointer-events:auto}
@@ -40,7 +39,7 @@ html:not([data-nav="bar"]) .system-lock{bottom:calc(14 * var(--fu) + var(--keybo
 .system-control:focus-visible{outline:2px solid #F5F5F4;outline-offset:-2px}
 .system-control:disabled{opacity:.35;cursor:default}
 /* Icons are keyed to the bar itself (#system-navigation), so an open app's styles can't resize or restyle them */
-#system-navigation .system-glyph{display:block;width:20px;height:20px;fill:none;stroke:none;pointer-events:none}
+#system-navigation .system-glyph,#system-bar-layer .system-glyph{display:block;width:20px;height:20px;fill:none;stroke:none;pointer-events:none}
 
 /* Navigation bar mode */
 html[data-nav="bar"] .home-bar{height:var(--nav-h);background:#000000;box-shadow:inset 0 1px 0 #000000;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
@@ -78,7 +77,11 @@ html[data-home-theme="aurora"]{--switcher-veil:rgba(14,16,38,.5)}
 dialog.sys-moving{overflow:hidden!important;will-change:transform}
 dialog.sys-moving::before{content:none!important}
 dialog.sys-moving::backdrop{opacity:0;transition:opacity .2s}
-dialog.sys-moving .home-indicator,dialog.sys-moving .system-lock{opacity:0;transition:opacity .12s}
+dialog.sys-moving .home-indicator{opacity:0;transition:opacity .12s}
+/* The bar's own layer (system-navigation.js): while the window the bar sits in moves or fades, the bar (in the swipe mode,
+   the lock) waits here, over everything, in its place */
+#system-bar-layer{position:fixed;inset:0;width:auto;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;background:transparent;color:inherit;overflow:visible;pointer-events:none}
+#system-bar-layer>*{pointer-events:auto}
 dialog.sys-lifted{border-radius:34px!important;box-shadow:0 24px 72px rgba(17,24,39,.3)!important;transition:border-radius .16s ease-out,box-shadow .16s ease-out}
 dialog.sys-hidden{opacity:0!important}
 html.sys-motion #home{will-change:transform}
