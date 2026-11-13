@@ -38,6 +38,7 @@ Run it after any change to how the page talks to the app.
 | `RestroSystem.back`, `RestroSystem.home`, `RestroSystem.recents`, `goHome`, `goBack`, `openRecentApps` | page calls, methods | Back, Home and Recent apps |
 | `setScreenDark` | method | Going dark |
 | `restro:device-ready` | event | The WebView |
+| (nothing to add in the app) | what staff see | Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability |
 
 ## The WebView
 
@@ -287,7 +288,11 @@ pager, the same one handed back or another (then out with the customer, `pagerAt
 number, still back, for the record). A pager still out with another order, picked in Assign Pager or tapped on the NFC
 spot, asks first (Update Pack 3): **Same customer** (they kept it for this order too: both orders have it,
 `pagerShared` on the newer one, and docking it releases both) or **Handed back** (it moves to this order and is marked
-back from the other). A held order's pager is released when it is held.
+back from the other). A held order's pager is released when it is held. The question names the other order and how it
+stands: "Pager 7 is still with #1031", then "‹customer› · Due · In kitchen". Its payment is in Orders' words and colours
+(owner, 12 Nov 2026): **Due** orange, **Part paid** red, **Paid** black (Midnight: the same orange, red and white as
+Orders' Midnight), in every menu display style of the Counter and every theme; see "Orders and the Counter (Update
+Pack 5)" below.
 
 **When a pager is tapped on the tablet's NFC spot** (Update Pack 3), dispatch on that tablet:
 
@@ -313,6 +318,126 @@ when it has no name; "No Pazzer hardware connected" for none). Its **Pazzer sett
 | `restro:printer-cover`, `{ printer, level }` | Dispatch when the bill printer's cover was opened and closed: Orders asks "New paper roll?" (`printer`: its name; `level`: the level before) |
 | `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number; `order` RESTRO's id for the order), once the integrations exist. **Return `true` once the platform accepted it, `false` if it didn't** (may be a promise; Update Pack 4): `true` turns the button to Marked and shows "Order ready sent to Swiggy · Swiggy #4521 · Order #1029"; `false` (or an error) keeps Ready and shows "Swiggy didn’t receive “Ready” · Swiggy #4521 · Order #1029" with RETRY. Offline, Orders doesn't call it and shows "Offline · couldn’t send “Ready” to Swiggy · Order #1029" with RETRY. There is no "are you sure" |
 | `restro:platform-cancelled`, `{ platform, id, payout, payoutAmount }` | Update Pack 4. Dispatch when a delivery app cancels one of its orders: `platform` (`"swiggy"`, `"zomato"`), `id` (the app's order number, `"4521"`), and when the app gives them `payout` (`"awaiting"`, `"paid"` or `"unpaid"`) and `payoutAmount` (paise). The order stays and Orders shows it as **Cancelled by Swiggy**. If its KOT has printed, the page prints the **ORDER CANCELLED** slip by itself (the kitchen printer, below: `"By: Swiggy"`, `"Reason: Cancelled by Swiggy"`); if it hasn't, nothing prints. Sending it again for the same order does nothing. Dispatch it on one tablet only, the one that runs the delivery-app integrations: the other tablets get the change through sync |
+
+## Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability
+
+Nothing here asks anything new of the app: it is what staff see, the options they have and the data behind it, for the
+Android app and the backend to match. Every Orders change is in **all 12 layouts**: Classic, Classic pills, Split,
+Split pills, Cards and Cards pills, each in **Light and Midnight**, with one value per theme (identical across that
+theme's 6 layouts). Built 12 Nov 2026 (Update Pack 5, part 1).
+
+### Payment status names (Update 4.1: names only; workflows, rules and colours unchanged)
+
+Each order shows one payment status, worked out from the order (orders.js `payOf`):
+
+| Status | When | Light | Midnight | Counts in |
+| --- | --- | --- | --- | --- |
+| **Paid - UPI** (the method; several joined: "Paid - UPI + Cash") | `paidAt` set. Methods: Cash, UPI, Card, Net banking, Wallet, Swiggy, Zomato (`method`, or `methods` for several) | black `#1C1917` | `#F1F4FA` | Total, on the day it was paid |
+| **Due** (was "Not paid") | not paid | orange `#C2410C` | `#FFA066` | Due |
+| **Part paid** (was "Partially paid"; no method) | `paidAmount` (paise) more than 0 and less than the total, `paidAt` not set. "₹X due" under it | red `#D92D20` | `#FF9C9C` | what was paid in Total, the rest in Due |
+| **Refunded - Cash** | `refundedAt` set, the whole amount | red | `#FF9C9C` | neither |
+| **Partial refund - Card** | `refundAmount` less than the total ("₹X refunded" under it; `refundMethod`) | red | `#FF9C9C` | what was kept, in Total |
+| **Complimentary** | paid, total ₹0 | black | `#F1F4FA` | neither |
+| **Awaiting Swiggy** | a delivery app cancelled it, `payout: 'awaiting'` | grey `#78716C` | `#8D97AB` | neither |
+| **Paid - Swiggy** | cancelled, `payout: 'paid'` (`payoutAmount`) | black | `#F1F4FA` | Total |
+| **Unpaid - Swiggy** (was "Not paid - Swiggy") | cancelled, `payout: 'unpaid'`: the app refused to pay, so the money will never be collected | red | `#FF9C9C` | **not** Due |
+
+Where the names show and what staff can do:
+- **Orders, the payment status column** in every layout, with the amount under it.
+- **Payment status filter** (tick one or more): Paid · Due · Part paid · Refunded · Partial refund · Complimentary ·
+  Awaiting payout · **Unpaid by platform** (was "Not paid by platform"). The pill names the first ticked, "+1" for more.
+- **Tapping Due** in the totals ticks Due and Part paid and lists exactly the orders behind the Due number; the pill
+  reads just **"Due"** (not "Due +1"), because the Due total is both.
+- **Sort › Payment status:** **"Due first"** (was "Not paid first"): Due, Part paid, Awaiting, Unpaid by platform,
+  Paid, Complimentary, Partial refund, Refunded; or "Paid first", the other way.
+- **Deleting** (long-press an order): only Due orders that aren't a delivery app's. Other rows say why they can't be
+  picked ("Part paid", "Paid", "Swiggy · cancel on Swiggy"). The summary: "Due · 3 orders ₹2,345"; the pop-up's line:
+  "#1031 · #1027 · ₹3,759 due".
+- **The Counter** shows a payment word in one place: the pager question ("Pager 7 is still with #1031 · ‹customer› · **Due** ·
+  In kitchen", above), Due orange, Part paid red, Paid black (Midnight: `#FFA066`, `#FF9C9C`, `#F1F4FA`), in all three
+  menu display styles (Category grid, Pills on top, Vertical rail) and every theme. (The Counter's own Orders list,
+  shown only when the Orders app isn't there, uses the same words and colours.)
+- **For the dev chat:** rename "Not paid" to **Due** and "Partially paid" to **Part paid** in the Pager / Buzz / Text
+  workflow document too. The Pay screen (still to design) uses the new names from the start.
+
+### Order-type icons (Icon Pack 1): one set for every app
+
+| Meaning | Icon | Code name (order-type-icons.js) | Android (Icon Pack 1) |
+| --- | --- | --- | --- |
+| Dine-in, and "Dine-in + Takeaway" | fork & knife | `dineIn` | `ic_order_dine_in` |
+| The table number (only) | table | `table` | `ic_table` |
+| Takeaway | bag with the smile handle | `takeaway` | `ic_order_takeaway` |
+| Delivery (our own riders) | motorbike | `delivery` | `ic_order_delivery` |
+| Online (our website or app) | globe, outline (stroke 2 on a 24 grid) | `online` | `ic_order_online` |
+| Phone call | phone handset (unchanged) | `phone` | (unchanged) |
+| Swiggy, Zomato | their app marks (unchanged) | — | — |
+
+- **Rules:** the table icon only ever stands for a table number (the Counter's "Table 6" button), never for Dine-in.
+  Online never uses the Takeaway bag. Gone everywhere: the round table, the second Takeaway bag Orders used, the
+  scooter and the old Online phone (Icon Pack 1, `04_do-not-use`).
+- **The Counter:** the icon is plain, in its label's colour, with no tint or tile: the order-type button, the order-type
+  picker, Modify's type groups and "Serve as" buttons, and Track history's "Order opened" (a Dine-in order showed the
+  table there; now the fork & knife). The same in all three menu display styles, in Light and Midnight.
+- **Orders:** a tile in the type's colour, in every layout's list, Split's order header and the Order type filter:
+
+  | Type | Light icon / tile | Midnight icon / tile |
+  | --- | --- | --- |
+  | Dine-in | `#9A6B1F` / `#9A6B1F1A` | `#B49A6E` / `#18223A` |
+  | Takeaway | `#2E7D4F` / `#2E7D4F1A` | `#7FAA92` / `#18223A` |
+  | Delivery | `#6D4BC4` / `#6D4BC41A` | `#9890BE` / `#18223A` |
+  | Phone call | `#2F5FB3` / `#2F5FB31A` | `#8396BF` / `#18223A` |
+  | Online | sky blue `#0284C7` / `#0284C71A` | rose `#C98BA5` / `#18223A` |
+
+  Online is sky blue in Light and rose in Midnight on purpose (the owner's choice): the only type whose colour changes
+  between themes.
+- **In code, one place:** every order type's icon is drawn only by `order-type-icons.js`
+  (`window.RestroOrderTypeIcons.svg(key, className)`, `.has(key)`, `.keyOf(orderType)`); the Counter and Orders both
+  take theirs from it. `python3 tools/check_order_icons.py` fails if any file draws one itself or an old icon comes
+  back: run it before every publish. The Android app keeps its own single list the same way (`OrderTypeIcon.kt` in the
+  pack) with a UI test that fails on any other icon.
+
+### QR orders in Orders (K)
+
+- **On the order** (from the cloud, once QR ordering is built): `qr: true`; a Table QR's order is Dine-in on its table
+  (`type: 'dine-in'`, `table`: the table's permanent id, so renaming or renumbering a table never breaks it, `guests`
+  and the table's `server` when known); a Takeaway QR's is `type: 'takeaway'` with `customer: { name, mobile, code }`
+  and no cashier (`server: ''`). Every QR order is **paid first**: `paidAt`, and `method` `'upi'`, `'card'`,
+  `'netbanking'` or `'wallet'`. Its KOT prints only once the payment is confirmed.
+- **How it shows:** a small blue **QR** tag right after the order type ("Dine-in [QR]", "Takeaway [QR]") in Classic,
+  Split's list and Cards, and "Dine-in · QR · 2 guests · Server: …" in Split's order header. The tag: 24 tall, rounded
+  7, a 1-wide border, the QR glyph 11 and "QR" 12.5 bold; Light `#EEF4FF` with border `#C7D7F6` and text `#1E4FB8`,
+  Midnight `#1B2A47`, `#34507F` and `#A9C2FF`. The same in all 12 layouts.
+- **Payment:** the method it was paid with ("Paid - UPI", "Paid - Card", "Paid - Net banking", "Paid - Wallet"), never
+  Due; the bill button shows **Receipt**; it counts in Total, not Due. A Takeaway QR's row shows no cashier.
+- **Dishes added later at the Counter** are not paid, so the order becomes **Part paid** with the rest due: the Counter
+  (part 3 of this pack) moves the QR payment to `paidAmount` / `paidAmountAt` and clears `paidAt`, so Orders, the
+  Counter and the totals already treat it as part paid until the rest is taken.
+
+### The Order type filter (K)
+
+- In this order: Dine-in · Takeaway · Online · Phone call · Delivery · Swiggy · Zomato (other partners after them as
+  they are added) · **QR**. There is no "Dine-in + Takeaway" entry any more.
+- Each order counts once, under its own type; **QR** counts every order placed by QR, whatever its type (so a Table
+  QR order is in both Dine-in and QR). Tick one or more: an order shows when its type is ticked, or when QR is ticked
+  and it was placed by QR. The footnote: "Tick one or more · QR shows every order placed by QR, Dine-in or Takeaway".
+  The QR row's tile: the QR glyph in `#1E4FB8` on `#1E4FB81A` (Midnight `#A9C2FF` on `#18223A`).
+
+### Mixed order types (K)
+
+The first type chosen in the Counter is the order's own (`type`); Modify adds others line by line (`split: true`, each
+line's `type`). Orders shows both, the order's own first: "Dine-in + Takeaway" (the others after it in the order
+Dine-in, Takeaway, Online, Phone call, Delivery), with its own type's icon and colour. The Order type filter counts it
+only under its own type, and the "Order ready" text follows its own type.
+
+### Readability (H2): colour and text size only, no layout or width changes
+
+- **Light, all 6 layouts:** the FILTERS heading `#66605B`; the search boxes' hint `#78716C`; **one orange `#C2410C`**
+  for Due (the totals, the payment status, the delete list) and for a late "Open · In kitchen · N min"; "Closed" green
+  `#2F7A4C`; in Split, the picked order's grey lines `#57534E` (its coloured lines, late, Ready and Scheduled, keep
+  their colours); the grey column headings `#625C57` (the sorted one stays dark); the "N orders · Sort" line `#625C57`.
+- **Midnight, all 6 layouts:** its colours stay, with its one orange `#FFA066`.
+- **Both themes:** the side rail's counts 13; **Held in the Split and Cards rail has no arrow**, like All, Open and
+  Closed. (Classic's Held link in the sidebar keeps its arrow.)
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 

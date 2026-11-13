@@ -1509,6 +1509,8 @@
   // "7:30 pm" today, "Fri 7:30 pm" on another day.
   const whenShort = when => dayKey(when) === dayKey(Date.now()) ? timeOf(when) : `${new Date(when).toLocaleDateString('en-IN', { weekday: 'short' })} ${timeOf(when)}`;
   const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card' };
+  // (Update Pack 5) paid in part (the Pay screen, to come: paidAmount in paise, less than the total): Orders' Part paid
+  const partPaid = o => !o.paidAt && Number(o.paidAmount) > 0 && Number(o.paidAmount) < (Number(o.total) || 0);
   // ---------- the Counter screen (POS Counter Handoff) ----------
   // The order panel on the left (context buttons, the order's lines, totals, Save and Pay) and the menu on the right
   // (the three-line menu, search, Held · Orders · Payment history, then the menu in the display style chosen in
@@ -3233,18 +3235,20 @@
           changes ? el('div', { class: 'c a' }, `${changes} change${changes === 1 ? '' : 's'} after the bill`) : null)));
   }
   // Pager still out with another order (Update Pack 3): "Pager 5 is still with #1012" · "<customer> · Paid · Ready", then
-  // Same customer / Handed back
+  // Same customer / Handed back. The other order's payment in Orders' words and colours (Update Pack 5, owner 12 Nov
+  // 2026): Due orange, Part paid red, Paid black (Midnight: its orange, red and white).
   function pagerAskCard(hold) {
     const { n, tapped } = pagerAsk, others = pagerOthers(n), first = others[0], nums = others.map(o => ticket(o.number));
     const title = `Pager ${n} is still with ${nums.length > 2 ? `${nums[0]} and ${nums.length - 1} more` : nums.join(' and ')}`;
     const who = o => o.customer?.name || (usesTable(o) ? `Table ${tableName(o.table)}` : typeLabel[o.type] || '');
     const kitchen = o => o.kitchenDoneAt ? 'Ready' : o.sentAt ? 'In kitchen' : cleanTime(o.readyAt) ? `Scheduled ${timeOf(o.readyAt).toUpperCase()}` : '';
-    const sub = !first ? [] : others.length === 1 ? [who(first), first.paidAt ? 'Paid' : 'Due', kitchen(first)] : [who(first), `${others.length} orders`];
+    const pay = o => (o.paidAt ? el('span', { class: 'cx-payw' }, 'Paid') : partPaid(o) ? el('span', { class: 'cx-payw part' }, 'Part paid') : el('span', { class: 'cx-payw due' }, 'Due'));
+    const sub = (!first ? [] : others.length === 1 ? [who(first), pay(first), kitchen(first)] : [who(first), `${others.length} orders`]).filter(Boolean).flatMap((x, i) => (i ? [' · ', x] : [x]));
     const tile = (icon, name, what, shared) => el('button', { type: 'button', class: 'cx-pk', onpointerdown: hold, onmousedown: hold, onclick: () => givePager(n, shared, tapped) },
       el('span', { class: 'cx-av', 'aria-hidden': 'true' }, mi(icon, 20)), el('b', {}, name), el('small', {}, what));
     return el('div', { class: 'cx-pu server pagerask', role: 'dialog', 'aria-label': title },
       el('div', { class: 'cx-pu-head' },
-        el('div', { class: 'cx-dh pg' }, el('i', { 'aria-hidden': 'true' }, mi('vibration', 22)), el('div', { class: 'cx-steph' }, el('b', {}, title), el('span', {}, sub.filter(Boolean).join(' · ')))),
+        el('div', { class: 'cx-dh pg' }, el('i', { 'aria-hidden': 'true' }, mi('vibration', 22)), el('div', { class: 'cx-steph' }, el('b', {}, title), el('span', {}, ...sub))),
         closeX(cancelPagerAsk, hold)),
       el('div', { class: 'cx-pkl' },
         tile('person', 'Same customer', others.length > 1 ? 'All keep it' : 'Both keep it', true),
@@ -3589,7 +3593,7 @@
           el('span', { class: 'ctr-history-copy' },
             el('strong', {}, ticket(o.number), who ? el('span', { class: 'ctr-history-desc' }, ` · ${who}`) : null),
             el('span', {}, [timeOf(o.createdAt), o.readyAt ? `ready ${whenShort(o.readyAt)}` : '', kitchen(o), o.lines.map(l => `${l.name} ×${l.qty}`).join(', ')].filter(Boolean).join(' · '))),
-          el('span', { class: 'ctr-history-side' }, el('strong', {}, money(o.total)), el('span', { class: o.paidAt ? 'ctr-paid' : 'ctr-unpaid' }, o.paidAt ? 'Paid' : 'Due')));
+          el('span', { class: 'ctr-history-side' }, el('strong', {}, money(o.total)), el('span', { class: o.paidAt ? 'ctr-paid' : partPaid(o) ? 'ctr-unpaid part' : 'ctr-unpaid' }, o.paidAt ? 'Paid' : partPaid(o) ? 'Part paid' : 'Due')));
         li.append(el('div', { class: 'ctr-history-line' }, main, o.paidAt ? el('span', { class: 'ctr-open-gap', 'aria-hidden': 'true' })
           : el('button', { type: 'button', class: 'primary-button ctr-open', 'aria-label': `Open order ${o.number}`, onclick: () => openOrder(idOf(o)) }, 'Open')));
         return li;

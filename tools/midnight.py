@@ -364,6 +364,9 @@ def tokens():
     T('.cx-sclear:not(:disabled)', None, '#FF9C9C'); T('.cx-sclear:disabled', None, '#5A6782')
     T('.cx-ssent', None, '#E6EAF2'); T('.cx-ssent svg', None, '#7EE2A8')
     T('.cx-vinfo.plum', '#2A1D36', '#E9D3F0', None); T('.cx-vinfo.plum b', None, '#E7B2F2'); T('.cx-vinfo.plum svg', None, '#E7B2F2')
+    # (Update Pack 5) a payment word as Orders' Midnight shows it: Paid white, Due orange, Part paid red
+    rule('.cx-steph span .cx-payw,.ctr-history-side .ctr-paid', [('color', '#F1F4FA')]); rule('.cx-steph span .cx-payw.due,.ctr-history-side .ctr-unpaid', [('color', '#FFA066')])
+    rule('.cx-steph span .cx-payw.part,.ctr-history-side .ctr-unpaid.part', [('color', '#FF9C9C')])
     return out
 
 # ---------- Orders: the pack's Midnight stylesheets (01_Orders/03_specs/midnight-stylesheets), on our classes ----------

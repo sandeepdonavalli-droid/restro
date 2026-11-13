@@ -105,7 +105,9 @@ button.ctr-history-main{cursor:pointer}
 .ctr-history-line{display:flex;align-items:center}
 .ctr-history-line .ctr-history-main{flex:1;min-width:0}
 .ctr-open{flex:none;min-height:38px;margin:0 12px 0 0;padding:0 16px;border-radius:12px;font-size:14px}
-.ctr-history-side .ctr-unpaid{font-weight:700;color:var(--palette-accent-ink)}
+.ctr-history-side .ctr-paid{color:#1C1917}
+.ctr-history-side .ctr-unpaid{font-weight:700;color:#C2410C}
+.ctr-history-side .ctr-unpaid.part{color:#D92D20}
 .ctr-history-pay{margin:8px 0 0;font-size:13px;color:var(--palette-muted)}
 .ctr-open,.ctr-open-gap{width:76px;padding:0}
 .ctr-open-gap{flex:none;margin-right:12px}
@@ -810,6 +812,11 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-steph small{margin-bottom:calc(2 * var(--u));font-size:calc(13.5 * var(--u));font-weight:800;line-height:normal;letter-spacing:.03em;text-transform:uppercase;color:#2F6FDE}
 .cx-steph b{font-size:calc(24 * var(--u));font-weight:800;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cx-steph span{font-size:calc(15 * var(--u));font-weight:600;line-height:calc(20 * var(--u));color:#78716C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* (Update Pack 5) the other order's payment in the pager question, as Orders shows it: Paid black, Due orange, Part
+   paid red */
+.cx-steph span .cx-payw{color:#1C1917}
+.cx-steph span .cx-payw.due{color:#C2410C}
+.cx-steph span .cx-payw.part{color:#D92D20}
 .cx-pkl{flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;display:flex;flex-direction:column;gap:calc(8 * var(--u));margin-top:calc(12 * var(--u))}
 .cx-pkl::-webkit-scrollbar{display:none}
 .cx-pk{flex:none;width:100%;height:calc(56 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(18 * var(--u));border:0;border-radius:calc(16 * var(--u));display:flex;align-items:center;gap:calc(14 * var(--u));background:#FFFFFF;color:#1C1917;font:inherit;text-align:left;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08);cursor:pointer}
