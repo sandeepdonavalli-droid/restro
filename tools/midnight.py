@@ -124,8 +124,8 @@ def map_shadow(v):
 # panels #121B2D, raised #1B2539, the status and payment colours. Everything else takes the general transform.
 O_TEXT = {'#1C1917': '#F1F4FA', '#292524': '#F1F4FA', '#44403C': '#C5CEDD', '#57534E': '#C5CEDD', '#78716C': '#8D97AB',
   '#A8A29E': '#5A6782', '#C4C0BC': '#5A6782', '#C9C5C1': '#4F5B76', '#D1D0CE': '#4F5B76',
-  '#EA580C': '#FFA066', '#C2410C': '#F5C870', '#2F7D4F': '#7EE2A8', '#15803D': '#8CF0B4', '#8A3F9A': '#E7B2F2', '#5B2A6B': '#E9D3F0',
-  '#4A9468': '#9CCFB0', '#D92D20': '#FF9C9C', '#B42318': '#FFB0B0', '#DC2626': '#FF9C9C', '#1E4FB8': '#C9DBFF', '#2F6FDE': '#8FB2FF'}
+  '#EA580C': '#FFA066', '#C2410C': '#FFA066', '#2F7D4F': '#7EE2A8', '#15803D': '#8CF0B4', '#8A3F9A': '#E7B2F2', '#5B2A6B': '#E9D3F0',
+  '#4A9468': '#9CCFB0', '#2F7A4C': '#9CCFB0', '#66605B': '#5A6782', '#625C57': '#8D97AB', '#D92D20': '#FF9C9C', '#B42318': '#FFB0B0', '#DC2626': '#FF9C9C', '#1E4FB8': '#C9DBFF', '#2F6FDE': '#8FB2FF'}
 O_BG = {'#F7F6F4': '#0B1220', '#EFEDE9': '#121B2D', '#FFFFFF': '#121B2D', '#FAFAF9': '#0F1829', '#F3F1EE': '#0F1829', '#F1F0EE': '#1E2A42',
   '#EEF0F4': '#1E2A42', '#F4F3F1': '#1B2539', '#E2DFDA': '#1B2539', '#EAF1FC': '#162B54', '#F3F4F6': '#151E30', '#FDECEC': '#4A1414',
   '#F5E9F8': '#2A1D36', '#E3ECFC': '#16336B', '#292524': '#E9EEF8', '#1C1917': '#E9EEF8', '#FDF3D8': '#3A2A08', '#E3F4E8': '#123D24',
@@ -205,11 +205,14 @@ def grad_keep(v):   # the pack keeps a gradient only when one of its solid colou
     return any(c[3] >= 1 and 20 <= round(c[0]) <= 49 for c in (parse(m.group(0)) for m in COLOR_RE.finditer(v)) if c)
 KEEP = ('em.veg', 'em.non', '.cx-vn.veg em', '.cx-vn.non em')   # veg / non-veg marks: the edge as it is, the dot turned
 KEEP_BG = ('.cx-sw i',)                                         # a switch's knob stays white
+# (Update Pack 5, H2) Light's readability colours that Midnight doesn't take: it keeps its own
+LIGHT_ONLY = ('.or-li.sel .l2', '.or-li.sel .lst .ss:not(.late):not(.rd):not(.sch)')
 def scope(s):
     m = re.match(r'html((?:\[[^\]]*\]|:[\w-]+(?:\([^)]*\))?)*)\s+(.*)', s)       # html[data-nav="bar"] .x
     if m: return f'{P}{m.group(1)} ' + (m.group(2) if m.group(2).startswith((CLS, 'dialog' + CLS)) else f'{CLS} {m.group(2)}')
     return f'{P} {s}' if s.startswith((CLS, 'dialog' + CLS)) else f'{P} {CLS} {s}'
 def twin(sel, decls):
+    if sel in LIGHT_ONLY: return []
     if any(k in sel for k in KEEP):
         return [d for p, v in decls if p == 'color' for c in [parse(v)] for m in [map_text(c)]
                 for d in (('color', fmt(m)), ('--ink2', fmt(m)), ('border-color', fmt(c)))]
@@ -400,8 +403,12 @@ def orders_tokens():
     R('.or-root mark', ('background-color', '#3A2A08'), ('color', '#FFD27A'))
     # order-type tiles: one quiet navy tile for every type, the icon lightly tinted; partner logos toned down
     R('.or-tt', ('background-color', '#18223A'), ('box-shadow', 'inset 0 0 0 1px rgba(255,255,255,.05)'))
-    for light, dark in (('9A6B1F', '#B49A6E'), ('2E7D4F', '#7FAA92'), ('2F5FB3', '#8396BF'), ('6D4BC4', '#9890BE')):
+    # (Update Pack 5, Icon Pack 1: Online sky blue in Light, rose in Midnight)
+    for light, dark in (('9A6B1F', '#B49A6E'), ('2E7D4F', '#7FAA92'), ('2F5FB3', '#8396BF'), ('6D4BC4', '#9890BE'), ('0284C7', '#C98BA5')):
         R(f'.or-tt[style*="{light}"],.or-it .ii[style*="{light}"]', ('color', dark))
+    # the QR tag (Update Pack 5, K: PQ1–PQ6 Midnight) and the QR row of the Order type filter
+    R('.or-qr', ('background-color', '#1B2A47'), ('border-color', '#34507F'), ('color', '#A9C2FF')); R('.or-it .ii.t.qr', ('color', '#A9C2FF'))
+    R('.or-offline .or-i', ('fill', '#F5C870'))   # (the offline notice's icon keeps its amber; Due's orange is now #C2410C)
     R('.or-tt .or-logo,.or-it .or-logo', ('filter', 'saturate(.62) brightness(.86)'))
     # the action buttons
     T('.or-b', '#162B54', '#C9DBFF', 'rgba(91,142,240,.42)')

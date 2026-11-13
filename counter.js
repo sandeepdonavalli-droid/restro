@@ -63,7 +63,7 @@
   const store = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} window.RestroSync?.wrote(key); };
   // Held: only tickets put on Hold. They are kept until the end of the day, then cleared (nothing else is cleared).
   let held = load(HELD_KEY, []); if (!Array.isArray(held)) held = [];
-  // Orders: every order saved with Save or Pay, newest first, each Paid or Not paid (payment is not always taken upfront).
+  // Orders: every order saved with Save or Pay, newest first, each Paid or Due (payment is not always taken upfront).
   // Orders not yet paid are always kept; of the paid ones, the latest 500.
   const createdOf = o => (Number.isFinite(o.createdAt) && o.createdAt > 0 ? o.createdAt : Date.parse(o.paidAt)) || 0;
   const loadOrders = () => { const list = load(DONE_KEY, []); return (Array.isArray(list) ? list : []).filter(o => o && typeof o === 'object' && Number.isFinite(o.number) && Number.isFinite(o.total) && Array.isArray(o.lines)); };
@@ -1513,15 +1513,12 @@
   // The order panel on the left (context buttons, the order's lines, totals, Save and Pay) and the menu on the right
   // (the three-line menu, search, Held · Orders · Payment history, then the menu in the display style chosen in
   // Settings > Counter). Sizes are the design's 1440 x 900 screen scaled to the tablet (counter.css). Icons are
-  // Material Symbols Rounded (filled), as in the design.
+  // Material Symbols Rounded (filled), as in the design; the order types' are the one set every app shares
+  // (order-type-icons.js, Update Pack 5 Icon Pack 1), drawn plain in the label's colour.
   const MI = {
     check: 'm382-354 339-339q12-12 28-12t28 12q12 12 12 28.5T777-636L410-268q-12 12-28 12t-28-12L182-440q-12-12-11.5-28.5T183-497q12-12 28.5-12t28.5 12l142 143Z',
     backspace: 'M360-200q-20 0-37.5-9T294-234L153-434q-15-21-15-46t15-46l141-200q11-16 28.5-25t37.5-9h400q33 0 56.5 23.5T840-680v400q0 33-23.5 56.5T760-200H360Zm200-224 76 76q11 11 28 11t28-11q11-11 11-28t-11-28l-76-76 76-76q11-11 11-28t-11-28q-11-11-28-11t-28 11l-76 76-76-76q-11-11-28-11t-28 11q-11 11-11 28t11 28l76 76-76 76q-11 11-11 28t11 28q11 11 28 11t28-11l76-76Z',
     receipt_long:'M240-80q-50 0-85-35t-35-85v-80q0-17 11.5-28.5T160-320h80v-536q0-7 6-9.5t11 2.5l29 29q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l32-32q6-6 14-6t14 6l32 32q6 6 14 6t14-6l29-29q5-5 11-2.5t6 9.5v656q0 50-35 85t-85 35H240Zm480-80q17 0 28.5-11.5T760-200v-560H320v440h320q17 0 28.5 11.5T680-280v80q0 17 11.5 28.5T720-160ZM400-680h160q17 0 28.5 11.5T600-640q0 17-11.5 28.5T560-600H400q-17 0-28.5-11.5T360-640q0-17 11.5-28.5T400-680Zm0 120h160q17 0 28.5 11.5T600-520q0 17-11.5 28.5T560-480H400q-17 0-28.5-11.5T360-520q0-17 11.5-28.5T400-560Zm280-40q-17 0-28.5-11.5T640-640q0-17 11.5-28.5T680-680q17 0 28.5 11.5T720-640q0 17-11.5 28.5T680-600Zm0 120q-17 0-28.5-11.5T640-520q0-17 11.5-28.5T680-560q17 0 28.5 11.5T720-520q0 17-11.5 28.5T680-480Z',
-    restaurant: 'M280-600v-240q0-17 11.5-28.5T320-880q17 0 28.5 11.5T360-840v240h40v-240q0-17 11.5-28.5T440-880q17 0 28.5 11.5T480-840v240q0 56-34.5 98T360-446v326q0 17-11.5 28.5T320-80q-17 0-28.5-11.5T280-120v-326q-51-14-85.5-56T160-600v-240q0-17 11.5-28.5T200-880q17 0 28.5 11.5T240-840v240h40Zm400 200h-80q-17 0-28.5-11.5T560-440v-240q0-70 51.5-135T718-880q18 0 30 14t12 33v713q0 17-11.5 28.5T720-80q-17 0-28.5-11.5T680-120v-280Z',
-    local_mall: 'M200-80q-33 0-56.5-23.5T120-160v-480q0-33 23.5-56.5T200-720h80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720h80q33 0 56.5 23.5T840-640v480q0 33-23.5 56.5T760-80H200Zm160-640h240q0-50-35-85t-85-35q-50 0-85 35t-35 85Zm119 320q74 0 134-49t59-110q0-17-11-29t-28-12q-14 0-25 9t-16 27q-11 38-43 61t-70 23q-38 0-70.5-23T366-564q-5-19-15-27.5t-24-8.5q-17 0-28.5 12T287-559q0 61 59 110t133 49Z',
-    moped: 'M280-200q-50 0-85-35t-35-85h-40q-17 0-28.5-11.5T80-360v-80q0-66 47-113t113-47h80q33 0 56.5 23.5T400-520v120h140l140-174v-106h-80q-17 0-28.5-11.5T560-720q0-17 11.5-28.5T600-760h80q33 0 56.5 23.5T760-680v106q0 14-4.5 26.5T743-524L604-350q-11 14-28 22t-35 8H400q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T320-320h-80q0 17 11.5 28.5T280-280Zm80-360H240q-17 0-28.5-11.5T200-680q0-17 11.5-28.5T240-720h120q17 0 28.5 11.5T400-680q0 17-11.5 28.5T360-640Zm400 440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm0-80q17 0 28.5-11.5T800-320q0-17-11.5-28.5T760-360q-17 0-28.5 11.5T720-320q0 17 11.5 28.5T760-280Z',
-    call: 'M798-120q-125 0-247-54.5T329-329Q229-429 174.5-551T120-798q0-18 12-30t30-12h162q14 0 25 9.5t13 22.5l26 140q2 16-1 27t-11 19l-97 98q20 37 47.5 71.5T387-386q31 31 65 57.5t72 48.5l94-94q9-9 23.5-13.5T670-390l138 28q14 4 23 14.5t9 23.5v162q0 18-12 30t-30 12Z',
     expand_more: 'M480-362q-8 0-15-2.5t-13-8.5L268-557q-11-11-11-28t11-28q11-11 28-11t28 11l156 156 156-156q11-11 28-11t28 11q11 11 11 28t-11 28L508-373q-6 6-13 8.5t-15 2.5Z',
     vibration: 'M40-600q17 0 28.5 11.5T80-560v160q0 17-11.5 28.5T40-360q-17 0-28.5-11.5T0-400v-160q0-17 11.5-28.5T40-600Zm120-80q17 0 28.5 11.5T200-640v320q0 17-11.5 28.5T160-280q-17 0-28.5-11.5T120-320v-320q0-17 11.5-28.5T160-680Zm760 80q17 0 28.5 11.5T960-560v160q0 17-11.5 28.5T920-360q-17 0-28.5-11.5T880-400v-160q0-17 11.5-28.5T920-600Zm-120-80q17 0 28.5 11.5T840-640v320q0 17-11.5 28.5T800-280q-17 0-28.5-11.5T760-320v-320q0-17 11.5-28.5T800-680ZM320-120q-33 0-56.5-23.5T240-200v-560q0-33 23.5-56.5T320-840h320q33 0 56.5 23.5T720-760v560q0 33-23.5 56.5T640-120H320Z',
     schedule: 'M520-496v-144q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640v159q0 8 3 15.5t9 13.5l132 132q11 11 28 11t28-11q11-11 11-28t-11-28L520-496ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z',
@@ -1566,14 +1563,14 @@
     badge: 'M232-247h239v-14q0-18-9-32t-23-19q-32-11-50-14.5t-35-3.5q-19 0-40.5 4.5T265-312q-15 5-24 19t-9 32v14Zm361-67h120q10.83 0 17.92-7.12 7.08-7.11 7.08-18 0-10.88-7.08-17.88-7.09-7-17.92-7H593q-10.83 0-17.92 7.12-7.08 7.11-7.08 18 0 10.88 7.08 17.88 7.09 7 17.92 7Zm-239-50q22.5 0 38.25-15.75T408-418q0-22.5-15.75-38.25T354-472q-22.5 0-38.25 15.75T300-418q0 22.5 15.75 38.25T354-364Zm239-63h120q10.83 0 17.92-7.12 7.08-7.11 7.08-18 0-10.88-7.08-17.88-7.09-7-17.92-7H593q-10.83 0-17.92 7.12-7.08 7.11-7.08 18 0 10.88 7.08 17.88 7.09 7 17.92 7ZM140-80q-24 0-42-18t-18-42v-480q0-24 18-42t42-18h250v-140q0-24 18-42t42.41-18h59.18Q534-880 552-862q18 18 18 42v140h250q24 0 42 18t18 42v480q0 24-18 42t-42 18H140Zm310-510h60v-230h-60v230Z',
     do_not_disturb_on: 'M310-453h340q12.75 0 21.38-8.68 8.62-8.67 8.62-21.5 0-12.82-8.62-21.32-8.63-8.5-21.38-8.5H310q-12.75 0-21.37 8.68-8.63 8.67-8.63 21.5 0 12.82 8.63 21.32 8.62 8.5 21.37 8.5ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Z',
     void_x: '<path transform="matrix(40 0 0 40 0 -960)" d="M12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-18C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2m2.59 6L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41z"/>',
-    table_restaurant: 'M672-520H289l-11 80h404l-10-80ZM166-205l43-315h-89q-20 0-31.5-16T82-571l57-200q4-13 14-21t24-8h606q14 0 24 8t14 21l57 200q5 19-6.5 35T840-520h-88l42 315q2 18-9.5 31.5T755-160q-15 0-26.5-9.5T715-194l-22-166H267l-22 166q-2 15-13.5 24.5T205-160q-18 0-29.5-13.5T166-205Z'
   };
   const mi = (name, size) => {
+    if (!MI[name] && window.RestroOrderTypeIcons?.has(name)) return window.RestroOrderTypeIcons.svg(name, `cx-i s${size}`);
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     s.setAttribute('viewBox', '0 -960 960 960'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', `cx-i s${size}`);
     s.innerHTML = MI[name].startsWith('<') ? MI[name] : `<path d="${MI[name]}"/>`; return s;
   };
-  const typeIcon = { 'dine-in': 'restaurant', takeaway: 'local_mall', delivery: 'moped', phone: 'call' };
+  const typeIcon = { 'dine-in': 'dineIn', takeaway: 'takeaway', delivery: 'delivery', phone: 'phone' };
   // ₹2,270 for whole rupees, ₹113.50 otherwise
   const amount = paise => `₹${(paise / 100).toLocaleString('en-IN', paise % 100 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -1594,7 +1591,7 @@
     const typeBtn = ctxButton(order.type ? 'amber' : 'grey unset', order.type ? typeIcon[order.type] : 'receipt_long', 20, typeLabel[order.type] || 'Order type',
       { class: `cx-b ${order.type ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': 'true', 'aria-expanded': String(typeMenu), 'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
     const who = order.type === 'dine-in'
-      ? ctxButton('grey', 'table_restaurant', 19, table ? `Table ${table}` : 'Choose table', { class: `cx-b grey cx-who${table ? ' set' : ''}`, 'aria-label': table ? `Table ${table}${order.guests ? `, ${plural(order.guests, 'guest')}` : ''}. Tap to change the table` : 'Choose table', onclick: pickTable },
+      ? ctxButton('grey', 'table', 19, table ? `Table ${table}` : 'Choose table', { class: `cx-b grey cx-who${table ? ' set' : ''}`, 'aria-label': table ? `Table ${table}${order.guests ? `, ${plural(order.guests, 'guest')}` : ''}. Tap to change the table` : 'Choose table', onclick: pickTable },
         false, table && order.guests ? el('span', { class: 'cx-gchip', 'aria-hidden': 'true' }, mi('group', 18), String(order.guests)) : null)
       : ctxButton('grey', c ? 'person' : 'person_add', 19, c ? c.name : 'Add Customer', { class: `cx-b grey cx-who${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer });
     const pager = ctxButton(order.pager ? 'violet' : 'grey', 'vibration', 19, order.pager ? `Pager ${order.pager}` : 'Pager',
@@ -3173,7 +3170,7 @@
     const q = e => (e.qty > 1 ? `${e.qty} × ` : '');
     const rows = list.map(e => {
       switch (e.kind) {
-        case 'open': return { e, icon: !e.type || e.type === 'dine-in' ? 'table_restaurant' : typeIcon[e.type], title: 'Order opened',
+        case 'open': return { e, icon: typeIcon[e.type] || typeIcon['dine-in'], title: 'Order opened',
           sub: [e.table ? `Table ${tableName(e.table)}` : e.customer || typeLabel[e.type] || '', e.guests ? plural(e.guests, 'guest') : '', by(e.by)] };
         case 'slip-kot': return { e, icon: 'receipt_long', cls: 'kt', title: e.no ? `KOT #${e.no} sent` : 'KOT sent',
           sub: [dishCount((e.lines || []).reduce((n, l) => n + (Number(l.qty) || 0), 0)), e.from ? `from Order ${ticket(e.from)}` : '', by(e.by)] };
@@ -3242,7 +3239,7 @@
     const title = `Pager ${n} is still with ${nums.length > 2 ? `${nums[0]} and ${nums.length - 1} more` : nums.join(' and ')}`;
     const who = o => o.customer?.name || (usesTable(o) ? `Table ${tableName(o.table)}` : typeLabel[o.type] || '');
     const kitchen = o => o.kitchenDoneAt ? 'Ready' : o.sentAt ? 'In kitchen' : cleanTime(o.readyAt) ? `Scheduled ${timeOf(o.readyAt).toUpperCase()}` : '';
-    const sub = !first ? [] : others.length === 1 ? [who(first), first.paidAt ? 'Paid' : 'Not paid', kitchen(first)] : [who(first), `${others.length} orders`];
+    const sub = !first ? [] : others.length === 1 ? [who(first), first.paidAt ? 'Paid' : 'Due', kitchen(first)] : [who(first), `${others.length} orders`];
     const tile = (icon, name, what, shared) => el('button', { type: 'button', class: 'cx-pk', onpointerdown: hold, onmousedown: hold, onclick: () => givePager(n, shared, tapped) },
       el('span', { class: 'cx-av', 'aria-hidden': 'true' }, mi(icon, 20)), el('b', {}, name), el('small', {}, what));
     return el('div', { class: 'cx-pu server pagerask', role: 'dialog', 'aria-label': title },
@@ -3564,7 +3561,7 @@
         el('div', { class: 'ctr-sheet ctr-pager-sheet', role: 'dialog', 'aria-label': 'Assign pager' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Assign pager'), close), grid,
           order.pager ? el('button', { type: 'button', class: 'ctr-secondary ctr-sheet-wide', onclick: () => choose(0) }, 'Remove pager') : null));
     }
-    // Orders: every saved order, newest first, with its payment status (Paid or Not paid) and where it is with the kitchen.
+    // Orders: every saved order, newest first, with its payment status (Paid or Due) and where it is with the kitchen.
     // Tap an order to see its items; an order not paid yet has Open, to add items or take the payment.
     // Payment history: each payment with how it was paid, and each day's total.
     if (sheet === 'orders' || sheet === 'payments') {
@@ -3579,7 +3576,7 @@
           el('dt', { class: 'ctr-total' }, 'Total'), el('dd', { class: 'ctr-total' }, money(o.total))),
         el('p', { class: 'ctr-history-pay' }, o.paidAt
           ? [`Paid ${timeOf(o.paidAt)}`, methodLabel[o.method] || 'Cash', Number.isFinite(o.received) ? `received ${money(o.received)}` : '', o.change > 0 ? `change ${money(o.change)}` : ''].filter(Boolean).join(' · ')
-          : 'Not paid'));
+          : 'Due'));
       const toggle = (li, button, o) => {
         const open = li.classList.contains('open');
         list.querySelectorAll('.ctr-history-row.open').forEach(row => { row.classList.remove('open'); row.querySelector('.ctr-history-detail')?.remove(); row.querySelector('.ctr-history-main').setAttribute('aria-expanded', 'false'); });
@@ -3592,7 +3589,7 @@
           el('span', { class: 'ctr-history-copy' },
             el('strong', {}, ticket(o.number), who ? el('span', { class: 'ctr-history-desc' }, ` · ${who}`) : null),
             el('span', {}, [timeOf(o.createdAt), o.readyAt ? `ready ${whenShort(o.readyAt)}` : '', kitchen(o), o.lines.map(l => `${l.name} ×${l.qty}`).join(', ')].filter(Boolean).join(' · '))),
-          el('span', { class: 'ctr-history-side' }, el('strong', {}, money(o.total)), el('span', { class: o.paidAt ? 'ctr-paid' : 'ctr-unpaid' }, o.paidAt ? 'Paid' : 'Not paid')));
+          el('span', { class: 'ctr-history-side' }, el('strong', {}, money(o.total)), el('span', { class: o.paidAt ? 'ctr-paid' : 'ctr-unpaid' }, o.paidAt ? 'Paid' : 'Due')));
         li.append(el('div', { class: 'ctr-history-line' }, main, o.paidAt ? el('span', { class: 'ctr-open-gap', 'aria-hidden': 'true' })
           : el('button', { type: 'button', class: 'primary-button ctr-open', 'aria-label': `Open order ${o.number}`, onclick: () => openOrder(idOf(o)) }, 'Open')));
         return li;

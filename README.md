@@ -11,6 +11,8 @@ Run locally:  python3 -m http.server 8000   then open http://localhost:8000
 Publish prep: python3 tools/build.py        (writes dist/index.html)
 Midnight:     python3 tools/midnight.py     (writes counter-midnight.css from counter.css and orders-midnight.css
               from orders.css; run it after any colour change there)
+Icons:        python3 tools/check_order_icons.py   (the order-type icons are one set, only in order-type-icons.js;
+              fails if a screen draws its own or an old one comes back: run it before publishing)
 
 ## Where it runs
 

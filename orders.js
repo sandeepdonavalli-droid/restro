@@ -1,7 +1,7 @@
 'use strict';
 // Orders (Update Pack 4, 01_Orders, the final spec): where staff find any order of the day and act on it without
 // opening it — print the bill or receipt, reprint a KOT, notify the customer, buzz the pager, send a scheduled KOT
-// early. Tapping an order opens it where it is worked on next: the Counter while it is Not paid or Partially paid (Back
+// early. Tapping an order opens it where it is worked on next: the Counter while it is Due or Part paid (Back
 // comes back here, the filters kept); any other order its details page (to come; its receipt until then).
 // Three views (Settings › Orders display, branch-wide): Classic (the default: a light sidebar with Home, the title,
 // the day, the tabs, the Held link, the filters and the totals card, then the order table), Split detail (an icon
@@ -14,15 +14,21 @@
 // - Search: customer name, phone, order number (ours and the delivery app's), table, pager and handover code; not the
 //   servers, the dishes or the call code. Letters then a number = a table or pager ("table 12", "T12", "P5", "buzz 5");
 //   letters alone = the name as typed; digits alone = phone, order numbers and handover code, all together.
-// - Totals: Total = the money already taken that day; Due = what is still to take (Not paid, and what is left on
-//   Partially paid), "Due · N orders"; refunds count in neither. Tapping Due lists exactly the orders behind it.
+// - Totals: Total = the money already taken that day; Due = what is still to take (Due, and what is left on Part
+//   paid), "Due · N orders"; refunds count in neither. Tapping Due lists exactly the orders behind it.
+// - Payment status names (Update Pack 5, Update 4.1): Due (orange) · Part paid (red, no method) · Paid - method ·
+//   Refunded - method · Partial refund - method · Complimentary · Awaiting Swiggy · Unpaid - Swiggy (the app refused to
+//   pay a cancelled order: never collected, so not in Due).
 // - Days are business days (RestroSync.dayOf). One day or a range; an order taken one day for another is listed on
 //   both, in Due only on its own day. Past days and ranges: only Bill / Receipt works.
-// - Long-press starts picking orders to delete: only Not paid orders that aren't a delivery app's.
+// - Long-press starts picking orders to delete: only Due orders that aren't a delivery app's.
 // Delivery apps (Swiggy, Zomato…) show what their integration sends with the order: platform, platformNo, platformType
 // ('delivery' or 'pickup'), pickupAt / readyBy, callCode, handover, riderAt, platformLogo; and when the app cancels it,
 // cancelledBy ('Swiggy'), payout ('awaiting', 'paid' or 'unpaid') and payoutAmount. Orders from the restaurant's own
-// website or app (to come) carry online: true and source ('Website' or 'App'), shown where the cashier would be. A bill
+// website or app (to come) carry online: true and source ('Website' or 'App'), shown where the cashier would be.
+// Orders placed by QR (Update Pack 5, K: a Table QR's are Dine-in on its table, a Takeaway QR's Takeaway with the
+// customer's name and phone) carry qr: true, are paid first (paidAt, and method 'upi', 'card', 'netbanking' or
+// 'wallet') and show a small blue QR tag by the order type; a Takeaway QR's has no cashier. A bill
 // paid in part (the Pay screen, to come) carries paidAmount (paise) and paidAmountAt; refunds carry refundedAt,
 // refundAmount (paise; less than the total: a partial refund) and refundMethod.
 (() => {
@@ -42,7 +48,8 @@
     return node;
   }
   // Icons: the pack's own (Update Pack 4, 05_html-reference) and Material Symbols Rounded (Apache 2.0) for the rest;
-  // m: on the 960 grid, w: on the 24 grid
+  // m: on the 960 grid, w: on the 24 grid, or a viewBox of its own. The order types' icons are the one set every app
+  // shares (order-type-icons.js, Update Pack 5 Icon Pack 1): dineIn, takeaway, delivery, online, phone.
   const ICON = {
     search: ['m', 'M380-320q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z'],
     calendar: ['m', 'M180-80q-24 0-42-18t-18-42v-620q0-24 18-42t42-18h65v-28q0-13.6 9.2-22.8 9.2-9.2 22.8-9.2 14.02 0 23.51 9.2Q310-861.6 310-848v28h340v-28q0-13.6 9.2-22.8 9.2-9.2 22.8-9.2 14.03 0 23.51 9.2Q715-861.6 715-848v28h65q24 0 42 18t18 42v620q0 24-18 42t-42 18H180Zm0-60h600v-430H180v430Z'],
@@ -50,11 +57,6 @@
     tag: ['m', 'M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Z'],
     sortDown: ['m', 'M450-274v-496q0-13 8.5-21.5T480-800q13 0 21.5 8.5T510-770v496l227-227q9-9 21-9t21 9q9 9 9 21t-9 21L501-181q-5 5-10 7t-11 2q-6 0-11-2t-10-7L181-459q-9-9-9-21t9-21q9-9 21-9t21 9l227 227Z'],
     sortBoth: ['m', 'm480-208 114-114q9.13-9 22.07-9 12.93 0 21.93 9.1 9 9.11 9 22 0 12.9-9 21.9L501-141q-5 5-10.13 7-5.14 2-11 2-5.87 0-10.87-2-5-2-10-7L322-278q-9-9.13-9-22.07 0-12.93 9.1-21.93 9.11-9 22-9 12.9 0 21.9 9l114 114Zm0-540L366-634q-9.13 9-22.07 9-12.93 0-21.93-9.1-9-9.11-9-22 0-12.9 9-21.9l137-137q5-5 10.13-7 5.14-2 11-2 5.87 0 10.87 2 5 2 10 7l137 137q9 9.13 9 22.07 0 12.93-9.1 21.93-9.11 9-22 9-12.9 0-21.9-9L480-748Z'],
-    phone: ['m', 'M798-120q-125 0-247-54.5T329-329Q229-429 174.5-551T120-798q0-18 12-30t30-12h162q14 0 25 9.5t13 22.5l26 140q2 16-1 27t-11 19l-97 98q20 37 47.5 71.5T387-386q31 31 65 57.5t72 48.5l94-94q9-9 23.5-13.5T670-390l138 28q14 4 23 14.5t9 23.5v162q0 18-12 30t-30 12Z'],
-    dinein: ['m', 'M672-520H289l-11 80h404l-10-80ZM166-205l43-315h-89q-20 0-31.5-16T82-571l57-200q4-13 14-21t24-8h606q14 0 24 8t14 21l57 200q5 19-6.5 35T840-520h-88l42 315q2 18-9.5 31.5T755-160q-15 0-26.5-9.5T715-194l-22-166H267l-22 166q-2 15-13.5 24.5T205-160q-18 0-29.5-13.5T166-205Z'],
-    takeaway: ['m', 'M240-80q-33 0-56.5-23.5T160-160v-480q0-33 23.5-56.5T240-720h80q0-66 47-113t113-47q66 0 113 47t47 113h80q33 0 56.5 23.5T800-640v480q0 33-23.5 56.5T720-80H240Zm160-640h160q0-33-23.5-56.5T480-800q-33 0-56.5 23.5T400-720Zm200 200q17 0 28.5-11.5T640-560v-80h-80v80q0 17 11.5 28.5T600-520Zm-240 0q17 0 28.5-11.5T400-560v-80h-80v80q0 17 11.5 28.5T360-520Z'],
-    // (Delivery: Material Icons Round two_wheeler, Apache 2.0, as in the designs)
-    moped: ['w', 'M20 11c-.18 0-.36.03-.53.05L17.41 9H19c.55 0 1-.45 1-1v-.38c0-.74-.78-1.23-1.45-.89l-2.28 1.14L13.7 5.3A.976.976 0 0 0 13 5h-3c-.55 0-1 .45-1 1s.45 1 1 1h2.17c.27 0 .52.11.71.29L14.59 9h-3.35c-.16 0-.31.04-.45.11l-3.14 1.57a.99.99 0 0 1-1.15-.19l-1.2-1.2C5.11 9.11 4.85 9 4.59 9H1c-.55 0-1 .45-1 1s.45 1 1 1h3a4 4 0 0 0-3.89 4.94 3.96 3.96 0 0 0 2.95 2.95A4 4 0 0 0 8 15l1.41 1.41c.38.38.89.59 1.42.59h1.01c.72 0 1.38-.38 1.74-1.01l2.91-5.09 1.01 1.01a3.974 3.974 0 0 0-1.38 4.05c.34 1.44 1.51 2.61 2.95 2.94A4.01 4.01 0 0 0 24 15c0-2.21-1.79-4-4-4zM4 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm16 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z'],
     print: ['w', 'M19 8c1.66 0 3 1.34 3 3v6h-4v4H6v-4H2v-6c0-1.66 1.34-3 3-3h1V3h12v5zM8 5v3h8V5zm8 14v-4H8v4zm2-4h2v-4c0-.55-.45-1-1-1H5c-.55 0-1 .45-1 1v4h2v-2h12zm1-3.5c0 .55-.45 1-1 1s-1-.45-1-1 .45-1 1-1 1 .45 1 1'],
     printOff: ['m', 'M763-84 640-206h80v6q0 33-23.5 56.5T640-120H320q-33 0-56.5-23.5T240-200v-80h-80q-33 0-56.5-23.5T80-360v-160q0-51 35-85.5t85-34.5h6L83-763q-12-12-12-28.5T83-820q12-12 28.5-12t28.5 12l680 680q12 12 12 28t-12 28q-12 12-28.5 12T763-84ZM320-200h320v-6L486-360H320v160Zm522-91q-16 9-34 8t-32-15L502-572q-19-19-8.5-43.5T531-640h229q50 0 85 35t35 85v160q0 25-11 42.5T842-291ZM427-680q-16 0-30.5-6T371-703l-69-69q-19-19-8.5-43.5T331-840h309q33 0 56.5 23.5T720-760v40q0 17-11.5 28.5T680-680H427Zm293 220q17 0 28.5-11.5T760-500q0-17-11.5-28.5T720-540q-17 0-28.5 11.5T680-500q0 17 11.5 28.5T720-460Z'],
     kot: ['w', 'M19.5 3.5 18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2 4.5 3.5 3 2v20l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2zM19 19H5V5h14zM6 15h12v2H6m0-6h12v2H6m0-6h12v2H6z'],
@@ -71,7 +73,6 @@
     chevron: ['m', 'M504-480 348-636q-11-11-11-28t11-28q11-11 28-11t28 11l184 184q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L404-268q-11 11-28 11t-28-11q-11-11-11-28t11-28l156-156Z'],
     payments: ['m', 'M120-160q-33 0-56.5-23.5T40-240v-400q0-17 11.5-28.5T80-680q17 0 28.5 11.5T120-640v400h640q17 0 28.5 11.5T800-200q0 17-11.5 28.5T760-160H120Zm160-160q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80q0-33-23.5-56.5T280-480v80h80Zm400 0h80v-80q-33 0-56.5 23.5T760-400Zm-200-40q50 0 85-35t35-85q0-50-35-85t-85-35q-50 0-85 35t-35 85q0 50 35 85t85 35ZM280-640q33 0 56.5-23.5T360-720h-80v80Zm560 0v-80h-80q0 33 23.5 56.5T840-640Z'],
     filterOff: ['m', 'M580-465 245-800h527q21 0 31 19t-4 36L580-465Zm-20 151v114q0 17-11.5 28.5T520-160h-80q-17 0-28.5-11.5T400-200v-274L82-792q-9-9-9-21.5t9-21.5q9-9 21.5-9t21.5 9l710 710q9 9 9 21t-9 21q-9 9-21.5 9T792-83L560-314Z'],
-    restaurant: ['m', 'M280-600v-240q0-17 11.5-28.5T320-880q17 0 28.5 11.5T360-840v240h40v-240q0-17 11.5-28.5T440-880q17 0 28.5 11.5T480-840v240q0 56-34.5 98T360-446v326q0 17-11.5 28.5T320-80q-17 0-28.5-11.5T280-120v-326q-51-14-85.5-56T160-600v-240q0-17 11.5-28.5T200-880q17 0 28.5 11.5T240-840v240h40Zm400 200h-80q-17 0-28.5-11.5T560-440v-240q0-70 51.5-135T718-880q18 0 30 14t12 33v713q0 17-11.5 28.5T720-80q-17 0-28.5-11.5T680-120v-280Z'],
     person: ['m', 'M480-481q-66 0-108-42t-42-108q0-66 42-108t108-42q66 0 108 42t42 108q0 66-42 108t-108 42ZM160-220v-34q0-38 19-65t49-41q67-30 128.5-45T480-420q62 0 123 15.5T731-360q31 14 50 41t19 65v34q0 25-17.5 42.5T740-160H220q-25 0-42.5-17.5T160-220Z'],
     alert: ['m', 'M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm0-160q17 0 28.5-11.5T520-480v-160q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640v160q0 17 11.5 28.5T480-440Zm0 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z'],
     // (the messages' printer: Material Icons filled print, Apache 2.0)
@@ -83,14 +84,17 @@
     back: ['m', 'm432-480 156 156q11 11 11 28t-11 28q-11 11-28 11t-28-11L348-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 28-11t28 11q11 11 11 28t-11 28L432-480Z'],
     trash: ['m', 'M280-120q-33 0-56.5-23.5T200-200v-520q-17 0-28.5-11.5T160-760q0-17 11.5-28.5T200-800h160q0-17 11.5-28.5T400-840h160q17 0 28.5 11.5T600-800h160q17 0 28.5 11.5T800-760q0 17-11.5 28.5T760-720v520q0 33-23.5 56.5T680-120H280Zm120-160q17 0 28.5-11.5T440-320v-280q0-17-11.5-28.5T400-640q-17 0-28.5 11.5T360-600v280q0 17 11.5 28.5T400-280Zm160 0q17 0 28.5-11.5T600-320v-280q0-17-11.5-28.5T560-640q-17 0-28.5 11.5T520-600v280q0 17 11.5 28.5T560-280Z'],
     chat: ['m', 'm240-240-92 92q-19 19-43.5 8.5T80-177v-623q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240Zm40-160h240q17 0 28.5-11.5T560-440q0-17-11.5-28.5T520-480H280q-17 0-28.5 11.5T240-440q0 17 11.5 28.5T280-400Zm0-120h400q17 0 28.5-11.5T720-560q0-17-11.5-28.5T680-600H280q-17 0-28.5 11.5T240-560q0 17 11.5 28.5T280-520Zm0-120h400q17 0 28.5-11.5T720-680q0-17-11.5-28.5T680-720H280q-17 0-28.5 11.5T240-680q0 17 11.5 28.5T280-640Z'],
+    // (the QR tag's glyph, Update Pack 5: three rounded squares, a dot and a corner, on its own 30 grid)
+    qr: ['0 0 30 30', 'M3 0h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3Zm2 4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5ZM19 0h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3Zm2 4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-4ZM3 16h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H3a3 3 0 0 1-3-3v-8a3 3 0 0 1 3-3Zm2 4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H5ZM19 16h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1ZM27 18h2a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H19a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1h7v-7a1 1 0 0 1 1-1Z'],
     sms: ['m', 'M320-520q17 0 28.5-11.5T360-560q0-17-11.5-28.5T320-600q-17 0-28.5 11.5T280-560q0 17 11.5 28.5T320-520Zm160 0q17 0 28.5-11.5T520-560q0-17-11.5-28.5T480-600q-17 0-28.5 11.5T440-560q0 17 11.5 28.5T480-520Zm160 0q17 0 28.5-11.5T680-560q0-17-11.5-28.5T640-600q-17 0-28.5 11.5T600-560q0 17 11.5 28.5T640-520ZM240-240l-92 92q-19 19-43.5 8.5T80-177v-623q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240Z']
   };
   // Home: the Set C outline house (as on the navigation bar), stroke 2
   const HOUSE = 'M4.5 11.2 L12 4.6 L19.5 11.2 V18.4 a1.6 1.6 0 0 1 -1.6 1.6 H14.6 V15.4 a2.6 2.6 0 0 0 -5.2 0 V20 H6.1 a1.6 1.6 0 0 1 -1.6 -1.6 Z';
   const NS = 'http://www.w3.org/2000/svg';
   function icon(name, cls = '') {
+    if (!ICON[name] && window.RestroOrderTypeIcons?.has(name)) return window.RestroOrderTypeIcons.svg(name, `or-i ${cls}`.trim());
     const [grid, d] = ICON[name], s = document.createElementNS(NS, 'svg');
-    s.setAttribute('viewBox', grid === 'm' ? '0 -960 960 960' : '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('viewBox', grid === 'm' ? '0 -960 960 960' : grid === 'w' ? '0 0 24 24' : grid); s.setAttribute('aria-hidden', 'true');
     s.setAttribute('class', `or-i ${cls}`.trim()); s.innerHTML = `<path d="${d}"/>`; return s;
   }
   function house() {
@@ -103,13 +107,15 @@
   };
 
   // ---------- words and numbers ----------
-  // Our order types (the type tile: our own icon in its colour) and the delivery apps (their logo, from the integration)
-  const TYPES = { 'dine-in': ['Dine-in', 'dinein', '#9A6B1F'], 'dine-in+takeaway': ['Dine-in + Takeaway', 'dinein', '#9A6B1F'], takeaway: ['Takeaway', 'takeaway', '#2E7D4F'],
-    online: ['Online', 'takeaway', '#2E7D4F'], phone: ['Phone call', 'phone', '#2F5FB3'], delivery: ['Delivery', 'moped', '#6D4BC4'] };
+  // Our order types (the type tile: our own icon in its colour, Icon Pack 1: Online sky blue in Light, rose in Midnight)
+  // in the order the Order type filter lists them, then the delivery apps (their logo, from the integration)
+  const TYPES = { 'dine-in': ['Dine-in', 'dineIn', '#9A6B1F'], takeaway: ['Takeaway', 'takeaway', '#2E7D4F'], online: ['Online', 'online', '#0284C7'],
+    phone: ['Phone call', 'phone', '#2F5FB3'], delivery: ['Delivery', 'delivery', '#6D4BC4'] };
+  const TYPE_ORDER = Object.keys(TYPES);
   const PLATFORMS = { swiggy: ['Swiggy', '#E8711F'], zomato: ['Zomato', '#C8303B'] };
-  const PAID_BY = { cash: 'Cash', upi: 'UPI', card: 'Card', swiggy: 'Swiggy', zomato: 'Zomato' };
-  // Payment status (the filter, in this order) and the order of "Not paid first"
-  const PAYS = [['paid', 'Paid'], ['np', 'Not paid'], ['part', 'Partially paid'], ['rf', 'Refunded'], ['prf', 'Partial refund'], ['comp', 'Complimentary'], ['await', 'Awaiting payout'], ['npp', 'Not paid by platform']];
+  const PAID_BY = { cash: 'Cash', upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet', swiggy: 'Swiggy', zomato: 'Zomato' };
+  // Payment status (the filter, in this order) and the order of "Due first"
+  const PAYS = [['paid', 'Paid'], ['np', 'Due'], ['part', 'Part paid'], ['rf', 'Refunded'], ['prf', 'Partial refund'], ['comp', 'Complimentary'], ['await', 'Awaiting payout'], ['npp', 'Unpaid by platform']];
   const PAY_RANK = { np: 0, part: 1, await: 2, npp: 3, paid: 4, comp: 5, prf: 6, rf: 7 };
   const money = paise => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const rupees = paise => `₹${Math.round(paise / 100).toLocaleString('en-IN')}`;
@@ -177,7 +183,7 @@
     const how = Array.isArray(o.methods) && o.methods.length ? o.methods.map(m => PAID_BY[m] || m).join(' + ') : PAID_BY[o.method] || 'Cash';
     if (app) {
       if (o.payout === 'paid') return { key: 'paid', text: `Paid - ${app}`, short: 'Paid', kept: Number.isFinite(o.payoutAmount) ? o.payoutAmount : amount, at: Date.parse(o.payoutAt) || Date.parse(o.paidAt) || 0 };
-      if (o.payout === 'unpaid') return { key: 'npp', text: `Not paid - ${app}`, cls: 'red', short: 'Not paid', kept: 0 };
+      if (o.payout === 'unpaid') return { key: 'npp', text: `Unpaid - ${app}`, cls: 'red', short: 'Unpaid', kept: 0 };
       return { key: 'await', text: `Awaiting ${app}`, cls: 'grey', short: 'Awaiting', kept: 0 };
     }
     if (o.paidAt) {
@@ -191,8 +197,8 @@
       return { key: 'paid', text: `Paid - ${how}`, short: 'Paid', kept: amount, at };
     }
     const part = Number(o.paidAmount);
-    if (part > 0 && part < amount) return { key: 'part', text: 'Partially paid', cls: 'red', short: 'Partially paid', kept: part, due: amount - part, at: Number(o.paidAmountAt) || o.createdAt };
-    return { key: 'np', text: 'Not paid', cls: 'np', short: 'Not paid', kept: 0, due: amount };
+    if (part > 0 && part < amount) return { key: 'part', text: 'Part paid', cls: 'red', short: 'Part paid', kept: part, due: amount - part, at: Number(o.paidAmountAt) || o.createdAt };
+    return { key: 'np', text: 'Due', cls: 'np', short: 'Due', kept: 0, due: amount };
   }
   const kotsOf = o => (Array.isArray(o.kots) ? o.kots : []).filter(k => k && (k.kind || 'kot') === 'kot');
   // A scheduled order's KOT waits until its ready-by time less its order type's prep time (kept on the order, kotAt,
@@ -214,11 +220,14 @@
       const [name, colour] = PLATFORMS[platform], pickup = o.platformType === 'pickup', at = pickup ? o.readyBy : o.pickupAt;
       type = { key: platform, label: `${name} · ${pickup ? 'Pickup' : 'Delivery'}`, platform, name, colour, logo: typeof o.platformLogo === 'string' ? o.platformLogo : '', time: at ? `${pickup ? 'Ready by' : 'Pickup'} ${timeOf(at)}` : '' };
     } else {
-      const kinds = new Set((o.lines || []).map(l => l.type || o.type));
-      const key = o.online === true ? 'online' : o.split && kinds.has('dine-in') && kinds.has('takeaway') ? 'dine-in+takeaway' : TYPES[o.type] ? o.type : 'dine-in';
+      // (Update Pack 5, K) Mixed order types: the first type chosen in the Counter is the order's own (its tile, and the
+      // only one the Order type filter counts it under); the others the Counter's Modify added show as "+ Takeaway"
+      const key = o.online === true ? 'online' : TYPES[o.type] ? o.type : 'dine-in';
+      const added = key === 'online' || !o.split ? [] : [...new Set((o.lines || []).map(l => l.type || o.type))].filter(k => k !== key && TYPES[k]);
       const [label, ic, colour] = TYPES[key];
-      type = { key, label, icon: ic, colour };
+      type = { key, label: [label, ...added.sort((a, b) => TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b)).map(k => TYPES[k][0])].join(' + '), icon: ic, colour };
     }
+    const qr = o.qr === true && !platform;
     const numbers = platform ? `${type.name} #${o.platformNo || '—'} · Order ${ticket(o.number)}` : `Order ${ticket(o.number)}`;
     // who: the table (dine-in) with the guests and the server, or the customer with their phone and who took it
     const phone = phoneOf(o.customer, Boolean(platform)), name = o.customer?.name || '', server = o.server || '';
@@ -236,10 +245,10 @@
     const third = platform ? { kind: o.platformReadyAt || status.closed ? 'marked' : 'ready', on: !past }
       : { kind: 'notify', on: !past && Boolean(phone), line: lastTry(o.notifiedAt, o.notifyFailedAt) };
     const buzz = { no: o.pager ? String(o.pager) : '', on: !past && !status.closed && Boolean(o.pager) && Boolean(o.pagerOut), line: lastTry(o.buzzedAt, o.buzzFailedAt) };
-    // can it be deleted (long-press): only Not paid orders, and never a delivery app's (it is cancelled on the app)
-    const lock = platform ? `${type.name} · cancel on ${type.name}` : pay.key === 'np' ? '' : pay.key === 'part' ? 'Partially paid' : 'Paid';
+    // can it be deleted (long-press): only Due orders, and never a delivery app's (it is cancelled on the app)
+    const lock = platform ? `${type.name} · cancel on ${type.name}` : pay.key === 'np' ? '' : pay.key === 'part' ? 'Part paid' : 'Paid';
     const forDay = o.readyAt ? dayOf(o.readyAt) : null, taken = dayOfOrder(o);
-    return { o, id, when, type, numbers, who, status, pay, tags, kot, third, buzz, lock, phone, name, server, dine,
+    return { o, id, when, type, qr, numbers, who, status, pay, tags, kot, third, buzz, lock, phone, name, server, dine,
       taken, forDay: forDay && forDay !== taken ? forDay : null, paidDay: pay.at ? dayOf(pay.at) : null,
       find: { name: name.toLowerCase(), l1: who.l1.toLowerCase(), phone: (o.customer?.mobile || '').replace(/\D/g, ''), number: o.number, platformNo: String(o.platformNo || ''),
         table: dine ? String(tableName(o.table)).toLowerCase() : '', pager: Number(o.pager) || 0, handover: String(o.handover || '') } };
@@ -349,11 +358,11 @@
     if (skip !== 'pay' && payF.size && !payF.has(r.pay.key)) return false;
     if (skip !== 'pay' && dueOnly && !dueOf(r)) return false;
     if (skip !== 'dv' && dv && !(dv === 'disc' ? r.tags.disc : dv === 'void' ? r.tags.void : r.tags.disc && r.tags.void)) return false;
-    if (skip !== 'type' && typesF.size && !typesF.has(r.type.key)) return false;
+    if (skip !== 'type' && typesF.size && !typesF.has(r.type.key) && !(r.qr && typesF.has('qr'))) return false;
     if (skip !== 'staff' && staffF && r.server !== staffF) return false;
     return true;
   }
-  // behind the Due number: Not paid or Partially paid, for this day (an order for another day counts on its own day)
+  // behind the Due number: Due or Part paid, for this day (an order for another day counts on its own day)
   function dueOf(r) { const { from, to } = period(); return (r.pay.key === 'np' || r.pay.key === 'part') && (!r.forDay || (r.forDay >= from && r.forDay <= to)); }
   const inTab = (r, t) => t === 'all' ? true : t === 'open' ? !r.status.closed : r.status.closed;
   const STATUS_MODES = ['open', 'sched', 'closed'];
@@ -499,11 +508,12 @@
   const datePill = cls => pill('date', 'calendar', periodLabel(), false, cls);
   function filterPills(cls) {
     const first = (set, names) => { const list = [...set]; return list.length ? `${names(list[0])}${list.length > 1 ? ` +${list.length - 1}` : ''}` : null; };
-    const payName = k => PAYS.find(p => p[0] === k)?.[1] || k, typeName = k => TYPES[k]?.[0] || PLATFORMS[k]?.[0] || k;
+    const payName = k => PAYS.find(p => p[0] === k)?.[1] || k, typeName = k => TYPES[k]?.[0] || PLATFORMS[k]?.[0] || (k === 'qr' ? 'QR' : k);
     const dvName = { disc: 'Discounted', void: 'Voided after KOT', both: 'Discounted and voided' };
-    return [pill('pay', 'payments', first(payF, payName) || 'All payments', payF.size > 0 || dueOnly, cls),
+    // (tapping Due ticks Due and Part paid: the pill reads just "Due", the Due total being both)
+    return [pill('pay', 'payments', (dueOnly ? 'Due' : first(payF, payName)) || 'All payments', payF.size > 0 || dueOnly, cls),
       pill('dv', 'tag', dv ? dvName[dv] : 'Discounts & voids', Boolean(dv), cls),
-      pill('type', 'restaurant', first(typesF, typeName) || 'All order types', typesF.size > 0, cls),
+      pill('type', 'dineIn', first(typesF, typeName) || 'All order types', typesF.size > 0, cls),
       pill('staff', 'person', staffF || 'All staff', Boolean(staffF), cls)];
   }
   // Clear filters: always there; greyed until something differs from the start, then one tap resets it all
@@ -595,9 +605,11 @@
     if (r.phone && l2.startsWith(r.phone)) return el('span', {}, el('span', { class: 'nb' }, hl(r.phone, 'phone')), l2.slice(r.phone.length));
     return l2;
   };
+  // (Update Pack 5, K) the small blue QR tag by the order type of an order placed by QR
+  const qrTag = r => (r.qr ? el('span', { class: 'or-qr', title: 'Placed by QR' }, icon('qr'), 'QR') : null);
   const tagsOf = r => [r.tags.disc ? el('span', { class: 'or-mk', title: 'Discount', 'aria-label': 'Discount' }, icon('tag')) : null, r.tags.void ? el('span', { class: 'or-mk', title: 'Voided after KOT', 'aria-label': 'Voided after KOT' }, icon('void')) : null];
   const statusCellOf = r => el('div', { class: `or-c st ${r.status.cls}`, role: 'cell' }, el('div', { class: 'l1' }, el('b', {}, r.status.text)), el('div', { class: `l2 ${r.status.subCls || ''}`.trim() }, r.status.sub || '\u00A0'));
-  // the amount under the payment status: the order's total; what is still due on Partially paid (K1); what was
+  // the amount under the payment status: the order's total; what is still due on Part paid (K1); what was
   // refunded on Partial refund (Y1)
   const payAmount = r => (r.pay.key === 'prf' ? `${money(r.pay.refunded)} refunded` : r.pay.key === 'part' ? `${money(r.pay.due)} due` : money(Number(r.o.total) || 0));
   // The payment status; a long one ("Partial refund - Card") is drawn smaller in every view, as the designs do (Classic
@@ -621,7 +633,7 @@
       picking ? el('span', { class: `or-cb${picked ? ' on' : ''}`, 'aria-hidden': 'true' }, picked ? icon('check') : null) : null,
       cell('tm', el('b', {}, timeOf(r.when)), dateOf(r.when)),
       tileOf(r),
-      cell('ty', [el('b', {}, r.type.label), r.type.time ? el('span', { class: 'pt' }, r.type.time) : null], numbersOf(r)),
+      cell('ty', [el('b', {}, r.type.label), qrTag(r), r.type.time ? el('span', { class: 'pt' }, r.type.time) : null], numbersOf(r)),
       cell('cu', el('b', {}, hl(r.who.l1, 'name')), whoLine(r), codesLine(r)),
       statusCellOf(r), payCellOf(r),
       picking ? el('div', { class: 'or-c lock', role: 'cell' }, r.lock ? el('span', { class: 'or-lock' }, r.lock) : null) : buttons(r));
@@ -689,12 +701,12 @@
   function railEl(v) {
     const block = (key, label, ic, count, extra = {}) => el('button', { type: 'button', role: key ? 'tab' : null, class: `or-rtb${key && tab === key ? ' on' : ''}${extra.cls ? ` ${extra.cls}` : ''}`,
       'aria-selected': key ? String(tab === key) : null, 'aria-label': `${label}, ${count}`, onclick: extra.onclick || (() => pickTab(key)) },
-    el('span', { class: 'or-ri' }, icon(ic), el('em', {}, String(count)), extra.go ? el('span', { class: 'or-held-go' }, icon('chevron')) : null), el('span', { class: 'or-rtb-t' }, label));
+    el('span', { class: 'or-ri' }, icon(ic), el('em', {}, String(count))), el('span', { class: 'or-rtb-t' }, label));
     return el('nav', { class: 'or-rail', 'aria-label': 'Orders' }, homeBtn(true), ...TABS.map(([key, label, ic]) => block(key, label, ic, v.counts[key])),
-      el('i', { class: 'or-rsep', 'aria-hidden': 'true' }), block(null, 'Held', 'pauseCircle', heldCount(), { cls: 'or-held', go: true, onclick: openHeld }));
+      el('i', { class: 'or-rsep', 'aria-hidden': 'true' }), block(null, 'Held', 'pauseCircle', heldCount(), { cls: 'or-held', onclick: openHeld }));
   }
   // Sort (Split, Cards): the menu's choices; "Date & time" (newest first) or "Order status · Scheduled first"
-  const SORTS = [['when', 'Date & time', ['Newest first', 'Oldest first']], ['type', 'Order type', ['A to Z', 'Z to A']], ['status', 'Order status', ['Open first', 'Scheduled first', 'Closed first']], ['pay', 'Payment status', ['Not paid first', 'Paid first']]];
+  const SORTS = [['when', 'Date & time', ['Newest first', 'Oldest first']], ['type', 'Order type', ['A to Z', 'Z to A']], ['status', 'Order status', ['Open first', 'Scheduled first', 'Closed first']], ['pay', 'Payment status', ['Due first', 'Paid first']]];
   const sortChoice = () => sort.key === 'status' ? STATUS_MODES.indexOf(sort.mode) : sort.key === 'when' ? (sort.dir < 0 ? 0 : 1) : (sort.dir > 0 ? 0 : 1);
   function setSort(key, i) {
     sort = key === 'status' ? { key, mode: STATUS_MODES[i] } : key === 'when' ? (i ? { key, dir: 1 } : SORT0) : { key, dir: i ? -1 : 1 };
@@ -730,7 +742,7 @@
   function liEl(r) {
     const c = r.who.codes, picked = picking?.has(r.id);
     const lines = [
-      el('div', { class: 'l1' }, el('b', {}, r.type.label), r.type.time ? el('span', { class: 'pt' }, r.type.time) : null),
+      el('div', { class: 'l1' }, el('b', {}, r.type.label), qrTag(r), r.type.time ? el('span', { class: 'pt' }, r.type.time) : null),
       el('div', { class: 'l2' }, ...numbersOf(r), ` · ${timeOf(r.when)}${range && range.from !== range.to ? ` · ${dateOf(r.when)}` : ''}`),
       el('div', { class: 'l2' }, el('b', { class: 'cn' }, hl(r.who.l1, 'name')), ...(r.who.l2 ? [' · ', ...(r.phone && r.who.l2.startsWith(r.phone) ? [el('span', { class: 'nb' }, hl(r.phone, 'phone')), r.who.l2.slice(r.phone.length)] : [r.who.l2])] : [])),
       el('div', { class: `lst ${r.status.cls}` }, el('b', {}, r.status.text), r.status.sub ? el('span', { class: `ss ${r.status.subCls || ''}`.trim() }, r.status.sub) : null),
@@ -759,8 +771,8 @@
     // (a word found in the name or table is marked in the list, not in this title; a number found is marked in both: F2, K4)
     const title = r.type.platform ? numbersOf(r) : r.dine ? [r.who.l1.split(' · ')[0], ' · ', hl(`Order ${ticket(o.number)}`, 'number')] : [r.name || r.type.label, ' · ', hl(`Order ${ticket(o.number)}`, 'number')];
     const meta = r.type.platform ? [`${r.type.label} · ${r.name || 'Customer'}`, r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null]
-      : r.dine ? [r.type.label, o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.server ? ` · Server: ${r.server}` : '']
-        : [r.type.label, r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null];
+      : r.dine ? [r.type.label, r.qr ? ' · QR' : '', o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.server ? ` · Server: ${r.server}` : '']
+        : [r.type.label, r.qr ? ' · QR' : '', r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null];
     // (OS4, OS7) "KOT prints at 8:00 pm" today; "KOT prints Tue 10 Nov, 12:20 pm" on another day
     const kots = queued ? (dayOf(r.kot.at) === todayKey() ? ` · KOT prints at ${timeOf(r.kot.at)}` : ` · KOT prints ${shortDay(r.kot.at)}, ${timeOf(r.kot.at)}`) : kotsOf(o).length ? ` · KOT ${kotNos(o)}` : '';
     const c = r.who.codes, cbx = (cls, label, value) => el('div', { class: `cb ${cls}` }, el('span', {}, label), el('b', {}, value));
@@ -792,7 +804,7 @@
       el('div', { class: 'or-dh' }, el('span', { class: 'or-ptrash', 'aria-hidden': 'true' }, icon('trash')), el('div', { class: 'dhm' }, el('div', { class: 'dtt' }, n === 1 ? '1 order selected' : `${n} orders selected`),
         el('div', { class: 'dmeta' }, 'Only orders that aren’t paid can be deleted.'))),
       el('div', { class: 'or-plist' }, ...rows.map(r => el('div', { class: 'pr' }, el('span', {}, el('b', {}, r.dine ? r.who.l1.split(' · ')[0] : r.name || r.type.label), ` · ${r.dine ? r.type.label : r.type.label} · Order ${ticket(r.o.number)}`), el('b', { class: 'am' }, money(Number(r.o.total) || 0)))),
-        n ? el('div', { class: 'pr tot' }, el('b', {}, `Not paid · ${n} order${n === 1 ? '' : 's'}`), el('b', {}, money(sum))) : null),
+        n ? el('div', { class: 'pr tot' }, el('b', {}, `Due · ${n} order${n === 1 ? '' : 's'}`), el('b', {}, money(sum))) : null),
       el('div', { class: 'or-pfoot' }, cancelPick(), deletePick()));
   }
   // (a new tab, search, filter, sort or day shows the first order of the new list: OS10, F2)
@@ -822,7 +834,7 @@
     return tappable(r, 'or-cd',
       el('div', { class: 'or-chd' }, picking ? el('span', { class: `or-cb${picked ? ' on' : ''}`, 'aria-hidden': 'true' }, picked ? icon('check') : null) : null,
         tileOf(r, 'or-tt s48'),
-        el('div', { class: 'chm' }, el('div', { class: 'l1' }, el('b', {}, r.type.label)), el('div', { class: 'l2' }, ...numbersOf(r)), r.type.time ? el('div', { class: 'l2' }, r.type.time) : null),
+        el('div', { class: 'chm' }, el('div', { class: 'l1' }, el('b', {}, r.type.label), qrTag(r)), el('div', { class: 'l2' }, ...numbersOf(r)), r.type.time ? el('div', { class: 'l2' }, r.type.time) : null),
         el('div', { class: 'tmx' }, el('b', {}, timeOf(r.when)), el('span', {}, dateOf(r.when)))),
       el('div', { class: 'or-cu' }, el('div', { class: 'cn' }, hl(r.who.l1, 'name')), r.who.l2 ? el('div', { class: 'cph' }, whoLine(r)) : null,
         c && (c.call || c.handover) ? el('div', { class: 'lc' }, ...codesLine({ who: { codes: { ...c, rider: '' } } })) : null, c?.rider ? el('div', { class: 'lc' }, `Rider arrival ${c.rider}`) : null),
@@ -860,7 +872,7 @@
     if (r && !r.lock) picking.add(id);
     menu = null; render();
   }
-  // Open: Not paid and Partially paid orders in the Counter (Back comes back here); any other order its details page,
+  // Open: Due and Part paid orders in the Counter (Back comes back here); any other order its details page,
   // which comes later: its receipt until then (a delivery app's order: on the app's integration)
   function tapRow(r, open = false) {
     if (!picking && !open && viewKind() === 'split') { if (chosen !== r.id) { chosen = r.id; renderRest(); } return; }
@@ -970,13 +982,13 @@
       return [hi, 'your order ', el('b', {}, no), ...from, ' is booked for ', el('b', {}, `${timeOf(at)} ${day}`), '. We’ll have it ready on time.']; }
     if (template === 'bill') return [hi, 'the bill for your order ', el('b', {}, no), ...from, ' is ', el('b', {}, money(Number(r.o.total) || 0)), '.'];
     if (template === 'late') return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'running a little late'), '. We’ll message you as soon as it’s ready.'];
-    if (type === 'dine-in' || type === 'dine-in+takeaway') return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready'), '.'];
+    if (type === 'dine-in') return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready'), '.'];
     if (type === 'delivery') return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready'), ' and will be with you soon.'];
     return [hi, 'your order ', el('b', {}, no), ...from, ' is ', el('b', {}, 'ready for pickup'), '. Please show this message at the counter.'];
   }
   const plain = nodes => nodes.map(n => (typeof n === 'string' ? n : n.textContent)).join('');
   const sentWords = (r, template) => template === 'scheduled' ? `booked for ${timeOf(r.o.readyAt)}` : template === 'bill' ? 'bill' : template === 'late' ? 'running late'
-    : ['dine-in', 'dine-in+takeaway', 'delivery'].includes(r.type.key) ? 'ready' : 'ready for pickup';
+    : ['dine-in', 'delivery'].includes(r.type.key) ? 'ready' : 'ready for pickup';
   // The message itself, with or without the pop-up: WhatsApp or SMS, WhatsApp falling back to SMS. { ok, used } once
   // tried ('whatsapp' · 'sms'); { none } when this tablet has no way to send messages.
   async function deliver(r, channel, template) {
@@ -1099,7 +1111,7 @@
         : queued.length ? 'The kitchen hasn’t got this order yet, so nothing prints in the kitchen. The queued KOT is cancelled.' : 'Nothing has gone to the kitchen, so nothing prints there.';
     return el('div', { class: 'or-pop del', role: 'dialog', 'aria-modal': 'true', 'aria-label': n === 1 ? 'Delete order' : `Delete ${n} orders` },
       el('div', { class: 'or-del-head' }, el('i', { class: 'or-del-i', 'aria-hidden': 'true' }, el('span')), el('h3', {}, n === 1 ? `Delete order ${ticket(rows[0].o.number)}?` : `Delete ${n} orders?`),
-        el('span', { class: 'or-del-sub' }, `${rows.map(r => ticket(r.o.number)).join(' · ')} · ${rupees(due)} not paid`), el('span', { class: 'or-sp' }), closeX()),
+        el('span', { class: 'or-del-sub' }, `${rows.map(r => ticket(r.o.number)).join(' · ')} · ${rupees(due)} due`), el('span', { class: 'or-sp' }), closeX()),
       el('p', { class: 'or-why del' }, icon('kot'), el('span', {}, ...[slip].flat())),
       el('p', { class: 'or-dlab' }, 'Reason (required)'), line,
       el('p', { class: 'or-dlab' }, 'Top reasons'),
@@ -1211,13 +1223,16 @@
       [['disc', 'Discounted', 'tag'], ['void', 'Voided after KOT', 'void'], ['both', 'Discounted and voided', 'ready']].forEach(([key, label, ic]) =>
         row(dv === key, label, v.all.filter(r => key === 'disc' ? r.tags.disc : key === 'void' ? r.tags.void : r.tags.disc && r.tags.void).length, box(ic), () => { dv = dv === key ? null : key; }, { role: 'menuitemradio' }));
     } else if (menu === 'type') {
-      head = 'ORDER TYPES'; foot = 'Tick one or more · applies straight away';
+      // (Update Pack 5, K) Dine-in · Takeaway · Online · Phone call · Delivery · the delivery apps · QR: each order under
+      // its own type (a mixed one under its first type only), and QR every order placed by QR, whatever its type
+      head = 'ORDER TYPES'; foot = 'Tick one or more · QR shows every order placed by QR, Dine-in or Takeaway';
       row(false, 'All order types', v.all.length, check(false), () => { typesF = new Set(); }); sep();
-      const apps = Object.keys(PLATFORMS);
+      const apps = Object.keys(PLATFORMS), tick = key => () => { if (typesF.has(key)) typesF.delete(key); else typesF.add(key); typesF = new Set(typesF); };
       [...Object.keys(TYPES), ...apps].forEach(key => {
         const lead = el('span', { class: 'or-mi' }, check(typesF.has(key)), TYPES[key] ? el('span', { class: 'ii t', style: `background:${TYPES[key][2]}1A;color:${TYPES[key][2]}` }, icon(TYPES[key][1])) : el('span', { class: 'ii t', style: `background:${PLATFORMS[key][1]}1A` }, el('span', { class: 'or-logo', style: `background:${PLATFORMS[key][1]}` }, PLATFORMS[key][0][0])));
-        row(typesF.has(key), TYPES[key]?.[0] || PLATFORMS[key][0], v.all.filter(r => r.type.key === key).length, lead, () => { if (typesF.has(key)) typesF.delete(key); else typesF.add(key); typesF = new Set(typesF); });
+        row(typesF.has(key), TYPES[key]?.[0] || PLATFORMS[key][0], v.all.filter(r => r.type.key === key).length, lead, tick(key));
       });
+      row(typesF.has('qr'), 'QR', v.all.filter(r => r.qr).length, el('span', { class: 'or-mi' }, check(typesF.has('qr')), el('span', { class: 'ii t qr' }, icon('qr'))), tick('qr'));
     } else if (menu === 'staff') {
       head = 'STAFF'; foot = 'Server on dine-in orders, cashier on the rest';
       const people = window.RestroStaff?.list?.() || [], names = [...new Set([...people.map(p => p.name), ...v.all.map(r => r.server).filter(Boolean)])];
