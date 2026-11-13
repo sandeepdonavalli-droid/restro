@@ -48,6 +48,8 @@
 .or-held-go{display:flex;margin-left:calc(6 * var(--fu))}
 .orders-app .or-held-go .or-i{width:calc(20 * var(--fu));height:calc(20 * var(--fu));fill:#A8A29E}
 .or-flab{flex:none;margin:calc(6 * var(--fu)) calc(6 * var(--fu)) calc(-8 * var(--fu));font-size:calc(13 * var(--fu));font-weight:700;letter-spacing:.08em;line-height:normal;color:#66605B}
+.or-tlab{flex:none;margin:auto calc(4 * var(--fu)) calc(9.5 * var(--fu));font-size:calc(13 * var(--fu));font-weight:800;letter-spacing:.05em;line-height:normal;color:#57534E}
+.or-tlab+.or-tot3{margin-top:0}
 /* Totals: Orders · Total · Due (orange, taps to the orders behind it; grey at ₹0) */
 .or-tot3{flex:none;margin-top:auto;padding:calc(4 * var(--fu)) calc(16 * var(--fu));border-radius:calc(18 * var(--fu));background:#FFFFFF;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06)}
 .or-tot3>*{width:100%;box-sizing:border-box;display:flex!important;justify-content:space-between;align-items:baseline;padding:calc(9 * var(--fu)) 0!important;border-bottom:1px solid #F0EEEB!important;text-align:left;line-height:normal}
@@ -116,6 +118,15 @@
 .or-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
 .or-scroll::-webkit-scrollbar{display:none}
 .or-rows{padding-bottom:calc(60 * var(--fu))}
+/* (Update Pack 5, H3) Today scrolls back: a band across the list before each earlier day ("YESTERDAY · Sun 8 Nov"),
+   and the end of the list ("Older orders need internet" offline) */
+.or-dayd{display:flex;align-items:center;box-sizing:border-box;height:calc(43 * var(--fu));padding:0 calc(22 * var(--fu)) calc(3 * var(--fu)) calc(26 * var(--fu));border-top:1px solid #E4E6EB;border-bottom:1px solid #E4E6EB;background:#F3F4F7}
+.or-dayd-in{display:flex;align-items:baseline;gap:calc(10 * var(--fu));min-width:0;white-space:nowrap;line-height:normal}
+.or-dayd-in b{font-size:calc(14 * var(--fu));font-weight:800;letter-spacing:.07em;color:#57534E}
+.or-dayd-in span{font-size:calc(14 * var(--fu));font-weight:600;color:#57534E}
+.or-dayend{display:flex;align-items:center;justify-content:center;height:calc(72 * var(--fu));box-sizing:border-box}
+.or-dayend>span{display:inline-flex;align-items:center;gap:calc(8 * var(--fu));font-size:calc(15 * var(--fu));font-weight:500;color:#78716C;white-space:nowrap}
+.orders-app .or-dayend .or-i{width:calc(20 * var(--fu));height:calc(20 * var(--fu));fill:#78716C}
 .or-rows:empty{display:none}
 .or-r{height:calc(96 * var(--fu));box-sizing:border-box;border-bottom:1px solid #F0EFED;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .or-r:focus{outline:none}
@@ -348,9 +359,13 @@
 .or-sortd .sl{color:#78716C;font-weight:500}
 .orders-app .or-sortd .or-i.ar{width:calc(18 * var(--fu));height:calc(18 * var(--fu));fill:#1D4ED8}
 .or-sortd .or-cv{margin-left:0}
-.or-cg{flex:1;min-height:0;margin-top:calc(10 * var(--fu));display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:calc(340 * var(--fu));gap:calc(14 * var(--fu));align-content:start;padding:0 calc(24 * var(--fu)) calc(60 * var(--fu));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - calc(70 * var(--fu))),rgba(0,0,0,.15));mask-image:linear-gradient(180deg,#000 calc(100% - calc(70 * var(--fu))),rgba(0,0,0,.15))}
+.or-cg{flex:1;min-height:0;margin-top:calc(10 * var(--fu));display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:auto;gap:calc(14 * var(--fu));align-content:start;padding:0 calc(24 * var(--fu)) calc(60 * var(--fu));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - calc(70 * var(--fu))),rgba(0,0,0,.15));mask-image:linear-gradient(180deg,#000 calc(100% - calc(70 * var(--fu))),rgba(0,0,0,.15))}
 .or-cg::-webkit-scrollbar{display:none}
 .or-cg .or-empty{grid-column:1/-1;align-self:start} /* (its own height: the tile never squeezes into a card row) */
+.or-ls .or-dayd{height:calc(41 * var(--fu));padding:0 calc(18 * var(--fu)) calc(2.5 * var(--fu)) calc(20 * var(--fu))}
+.or-cg .or-dayd,.or-cg .or-dayend{grid-column:1/-1}
+.or-split.pills .or-ls .or-dayd{margin-right:calc(2 * var(--fu))}
+.or-cg .or-dayd{height:auto;padding:calc(5 * var(--fu)) 0 0 calc(4 * var(--fu));margin:0;border:0;background:none}
 .or-cd{position:relative;height:calc(340 * var(--fu));box-sizing:border-box;display:flex;flex-direction:column;padding:calc(16 * var(--fu)) calc(16 * var(--fu)) calc(14 * var(--fu));background:#FFFFFF;border-radius:calc(22 * var(--fu));box-shadow:inset 0 0 0 1px rgba(17,24,39,.06),0 calc(4 * var(--fu)) calc(14 * var(--fu)) rgba(15,23,42,.04);min-width:0;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .or-cd:focus{outline:none}
 .or-cd:focus-visible{outline:2px solid #2F6FDE;outline-offset:2px}

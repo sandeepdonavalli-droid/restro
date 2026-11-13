@@ -9,7 +9,8 @@
 // - Every tablet works on its own copy (localStorage), so it never waits for a network. When a screen saves shared data
 //   it calls RestroSync.wrote(key): each record that changed gets a version (a hybrid clock stamp: time · counter ·
 //   tablet) and waits to be sent. A record deleted on purpose goes through RestroSync.removed(), so the deletion travels
-//   too; records a tablet only clears from itself (paid orders past the latest 500, held tickets after their day) don't.
+//   too; records a tablet only clears from itself (paid orders past the 4 business days it keeps, held tickets after their
+//   day) don't. Orders reads older days from the cloud when it needs them (RestroSync.olderOrders, Update Pack 5).
 // - Every tablet has one server at a time, which puts the changes in order and hands them out:
 //     · the main system (the tablet the printers are wired to) for the tablets paired with it, over the restaurant's own
 //       Wi-Fi or Bluetooth through the Android app (RESTRODevice.localSync, see ANDROID-BRIDGE.md), so the restaurant
@@ -151,8 +152,8 @@
     for (const r of list) { const id = isObj(r) ? c.id(r) : null; if (id && !out.has(id)) out.set(id, r); }
     return out;
   }
-  // Writes a collection back after changes from the server, keeping each screen's own rules (orders: newest first, every
-  // order not paid plus the latest 500 paid; held: none past its day).
+  // Writes a collection back after changes from the server, keeping each screen's own rules (orders: newest first, the
+  // ones this device keeps: keepOrders; held: none past its day).
   function writeDocs(name, docs) {
     try {
       if (name === 'settings') {
@@ -168,8 +169,7 @@
       if (name === 'orders') {
         const createdOf = o => (Number.isFinite(o.createdAt) && o.createdAt > 0 ? o.createdAt : Date.parse(o.paidAt)) || 0;
         list.sort((a, b) => createdOf(b) - createdOf(a));
-        const kept = new Set([...list.filter(o => !o.paidAt), ...list.filter(o => o.paidAt).slice(0, 500)]);
-        list = list.filter(o => kept.has(o));
+        list = keepOrders(list);
       }
       localStorage.setItem(c.key, JSON.stringify(list));
     } catch {}
@@ -193,6 +193,20 @@
   window.addEventListener('pagehide', () => { flushMeta(); save(CLOCK, clock); keepHub(); });
   // What each collection looked like last time (record JSON by id), to see what a save changed
   const snap = {};
+  // ---------- the orders a device keeps (Update Pack 5, H3) ----------
+  // Each device keeps 4 business days of orders: today and the 3 days before (by the day an order was taken, or the day
+  // it was taken for), every order not paid yet whatever its day, and every order with a change still to go to its
+  // server (local: also one just changed here, before wrote() marks it). Older ones are only cleared from this device:
+  // the cloud keeps them, and Orders reads them from there when the list scrolls back that far (olderOrders).
+  const DAYS_KEPT = 4;
+  const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const daysBefore = (key, n) => { const d = new Date(`${key}T12:00:00`); d.setDate(d.getDate() - n); return dayKey(d); };
+  const firstKept = () => daysBefore(today(), DAYS_KEPT - 1);
+  function keepOrders(list, local = false) {
+    const first = firstKept(), id = COLLECTIONS.orders.id, was = snap.orders;
+    return list.filter(o => !o.paidAt || orderDay(o) >= first || (Number(o.readyAt) > 0 && dayOf(o.readyAt) >= first)
+      || Boolean(meta.orders?.[id(o)]?.p) || (local && (!was || was.get(id(o)) !== JSON.stringify(o))));
+  }
 
   // A change made here (or taken by the main system from a tablet) waits for this tablet's server, made on the server's
   // version: the one it already had, or the one an earlier change still waiting was made on.
@@ -864,6 +878,12 @@
       try { return await call('POST', '/numbers/next', { device: device.id, day: today(), after, ...(series === 'bill' ? { series: 'bill', year: yearOf(now()) } : series === 'kot' ? { series: 'kot' } : {}) }, wait); }
       catch (e) { status = 'offline'; failures++; emitStatus(); schedule(); throw e; }
     }
+    // (Update Pack 5, H3) The orders of past days, from `from` to `to` (business days, as "2026-11-05"): { orders, more },
+    // `more` when there are orders before `from`. Read only: they aren't added to this device's orders.
+    async function ordersBetween(from, to, wait = 8000) {
+      try { return await call('GET', `/orders?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, null, wait); }
+      catch (e) { status = 'offline'; failures++; emitStatus(); schedule(); throw e; }
+    }
     // Live changes from the cloud, when it offers them (a WebSocket; the token goes in the first message, never in the
     // address). Fetching every 15 seconds carries on either way.
     function connectLive() {
@@ -883,7 +903,7 @@
     }
     window.addEventListener('online', () => { if (upstream() === 'cloud') { status = 'syncing'; sync(); } });
     window.addEventListener('offline', () => { if (upstream() === 'cloud') { status = 'offline'; emitStatus(); } });
-    return { sync, reachable, number, connectLive, status: () => status, lastSync: () => lastSync };
+    return { sync, reachable, number, ordersBetween, connectLive, status: () => status, lastSync: () => lastSync };
   })();
 
   // ---------- joining ----------
@@ -963,6 +983,16 @@
   window.RestroSync = Object.freeze({
     wrote, removed, takeNumber, takeBillNumber, takeKotNumber, canFire, nextNumber, upcomingNumber, newId, mergeRecord, today, orderDay, dayOf,
     status,
+    // (Update Pack 5, H3) the orders this device keeps (the Counter saves its list through it), the first business day it
+    // keeps, whether the cloud can be asked now, and the orders of past days from the cloud
+    keepOrders: list => keepOrders(Array.isArray(list) ? list : [], true), daysKept: DAYS_KEPT, firstKept,
+    cloudReachable: () => Boolean(cloudConfig()) && Cloud.reachable(),
+    async olderOrders({ from, to } = {}) {
+      const ok = k => typeof k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(k);
+      if (!ok(from) || !ok(to) || !cloudConfig() || !Cloud.reachable()) throw new Error('offline');
+      const r = await Cloud.ordersBetween(from, to);
+      return { orders: (Array.isArray(r?.orders) ? r.orders : []).filter(o => isObj(o) && COLLECTIONS.orders.id(o)), more: r?.more !== false };
+    },
     get device() { return { ...device }; },
     setDeviceName(name) { device.name = String(name || '').trim().slice(0, 30) || device.name; save(DEVICE, device); Local.start(); emitStatus(); },
     // The main system: the tablet the printers are wired to. It makes the pairing code the others enter (a paired tablet

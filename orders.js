@@ -21,6 +21,11 @@
 //   pay a cancelled order: never collected, so not in Due).
 // - Days are business days (RestroSync.dayOf). One day or a range; an order taken one day for another is listed on
 //   both, in Due only on its own day. Past days and ranges: only Bill / Receipt works.
+// - Today scrolls back (Update Pack 5, H3): past today's last order come the days before, newest first, each under a
+//   divider ("YESTERDAY · Sun 8 Nov"), the search, filters, tab and sort applying to each. The totals, the tab counts
+//   and "N orders" stay today's ("TODAY · MON 9 NOV" over Classic's totals; "Today's orders" on Split's and Cards'
+//   bars). A device keeps 4 business days (RestroSync.keepOrders); older days come from the cloud in batches as the
+//   list's end comes into view (offline: "Older orders need internet"). Yesterday, a date or a range shows only that.
 // - Long-press starts picking orders to delete: only Due orders that aren't a delivery app's.
 // Delivery apps (Swiggy, Zomato…) show what their integration sends with the order: platform, platformNo, platformType
 // ('delivery' or 'pickup'), pickupAt / readyBy, callCode, handover, riderAt, platformLogo; and when the app cancels it,
@@ -292,11 +297,14 @@
     // (a saved order put on hold is on the Held page, not here: Update Pack 4, K14)
     const onHold = new Set((window.RestroCounter?.held?.() || []).map(h => h.uid).filter(Boolean));
     try {
-      for (const o of window.RestroCounter?.orders?.() || []) {
+      const mine = window.RestroCounter?.orders?.() || [];
+      for (const o of mine) {
         if (onHold.has(o.uid)) continue;
         const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
         if ((taken >= from && taken <= to) || (forDay && forDay >= from && forDay <= to)) out.push(infoOf(o, now, { past }));
       }
+      // (a day or range reaching past the days this device keeps: what came from the cloud for them)
+      if (range && from < firstKept()) for (const o of olderOn(from, to, new Set(mine.map(o => o.uid || `n${o.number}`)))) out.push(infoOf(o, now, { past: true }));
     } finally { refDay = null; }
     return out;
   }
@@ -389,7 +397,95 @@
     const all = rowsNow(), base = all.filter(r => matches(r));
     const counts = { all: base.length, open: base.filter(r => inTab(r, 'open')).length, closed: base.filter(r => inTab(r, 'closed')).length };
     const shown = base.filter(r => inTab(r, tab)).sort(sorter());
-    return { all, base, counts, shown, totals: totalsOf(shown) };
+    const v = { all, base, counts, shown, totals: totalsOf(shown) };
+    v.back = backDays(v); v.list = [...shown, ...v.back.flatMap(g => g.rows)];
+    return v;
+  }
+
+  // ---------- Today scrolls back (Update Pack 5, H3) ----------
+  // A device keeps 4 business days of orders (today and the 3 before: RestroSync.keepOrders); older days come from the
+  // cloud when they're wanted, kept here in memory only: Today's list scrolling back past the kept days (4 days at a time,
+  // as its end comes into view), or a day or range picked that reaches back that far.
+  const KEPT = () => window.RestroSync?.daysKept || 4;
+  const firstKept = () => window.RestroSync?.firstKept?.() || addDays(todayKey(), -(KEPT() - 1));
+  const older = { days: new Set(), orders: new Map(), busy: false, more: true };   // the days read · uid → order
+  const askCloud = () => typeof window.RestroSync?.olderOrders === 'function' && window.RestroSync.cloudReachable?.() === true;
+  async function readOlder(from, to) {
+    if (older.busy || !askCloud()) return;
+    older.busy = true;
+    try {
+      const r = await window.RestroSync.olderOrders({ from, to });
+      for (const o of r.orders) older.orders.set(o.uid || `n${o.number}`, o);
+      for (let d = from; d <= to; d = addDays(d, 1)) older.days.add(d);
+      if (!range) older.more = r.more;
+    } catch {} // (the cloud counts as unreachable until a sync gets through: the end says so)
+    finally { older.busy = false; if (dialog.open) renderRest(); }
+  }
+  // the orders of a past day that came from the cloud (the device's own copy wins)
+  const olderOn = (from, to, mine) => [...older.orders.values()].filter(o => !mine.has(o.uid || `n${o.number}`) && (() => {
+    const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
+    return (taken >= from && taken <= to) || (forDay && forDay >= from && forDay <= to);
+  })());
+  // The days before today, newest first: [{ day, rows }] with what the search, filters and tab let through, each day's
+  // in the sort chosen; an order taken one day for another is listed once, on the later day. Not while Due's own list
+  // shows (that is today's).
+  function backDays(v) {
+    if (range || dueOnly || sampleRows) return [];
+    const today = todayKey(), now = Date.now(), seen = new Set(v.all.map(r => r.id)), out = [];
+    const onHold = new Set((window.RestroCounter?.held?.() || []).map(h => h.uid).filter(Boolean));
+    const mine = (window.RestroCounter?.orders?.() || []).filter(o => !onHold.has(o.uid)), ids = new Set(mine.map(o => o.uid || `n${o.number}`));
+    const orders = [...mine, ...[...older.orders.values()].filter(o => !ids.has(o.uid || `n${o.number}`))];
+    let last = firstKept(); while (older.days.has(addDays(last, -1))) last = addDays(last, -1);
+    for (let day = addDays(today, -1); day >= last; day = addDays(day, -1)) {
+      const rows = [];
+      refDay = day;
+      try {
+        for (const o of orders) {
+          const id = o.uid || `n${o.number}`; if (seen.has(id)) continue;
+          const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
+          if (taken === day || forDay === day) { seen.add(id); rows.push(infoOf(o, now, { past: true })); }
+        }
+      } finally { refDay = null; }
+      const shown = rows.filter(r => matches(r) && inTab(r, tab)).sort(sorter());
+      if (shown.length) out.push({ day, rows: shown });
+    }
+    v.backTo = last;
+    return out;
+  }
+  // "YESTERDAY · Sun 8 Nov", then "SATURDAY · Sat 7 Nov" and on
+  const dayDivider = day => el('div', { class: 'or-dayd', role: 'row' }, el('span', { class: 'or-dayd-in', role: 'cell' },
+    el('b', {}, day === addDays(todayKey(), -1) ? 'YESTERDAY' : keyDate(day).toLocaleDateString('en-GB', { weekday: 'long' }).toUpperCase()), el('span', {}, `· ${shortDay(keyDate(day))}`)));
+  // The end of Today's list (and of a day or range reaching past the kept days): older days from the cloud as it comes
+  // into view, or why there are none
+  function listEnd(v) {
+    if (dueOnly || sampleRows) return null;
+    if (!(range ? missingOlder() : older.more)) return null;
+    if (!askCloud()) return el('div', { class: 'or-dayend', role: 'row' }, el('span', { role: 'cell' }, icon('cloudOff'), 'Older orders need internet'));
+    return el('div', { class: 'or-dayend more', role: 'row', 'data-more': '1' }, el('span', { role: 'cell' }, older.busy ? 'Loading older orders…' : 'Older orders'));
+  }
+  // (a day or range picked that reaches past the kept days, with some of those days not read from the cloud yet)
+  function missingOlder() {
+    const { from, to } = period(), first = firstKept();
+    for (let d = from; d < first && d <= to; d = addDays(d, 1)) if (!older.days.has(d)) return true;
+    return false;
+  }
+  // (the next batch, once the end of the list is in view)
+  function watchEnd() {
+    const end = listEl?.querySelector('[data-more]'); if (!end || older.busy) return;
+    const io = new IntersectionObserver(entries => {
+      if (!entries.some(x => x.isIntersecting)) return; io.disconnect();
+      if (range) { const first = firstKept(); readOlder(range.from, range.to < first ? range.to : addDays(first, -1)); }
+      else { const last = v0().backTo || firstKept(); readOlder(addDays(last, -KEPT()), addDays(last, -1)); }
+    }, { root: listEl, rootMargin: '0px 0px 300px 0px' });
+    io.observe(end);
+  }
+  let lastView = null;
+  const v0 = () => lastView || {};
+  // Today's list, the days before it and the end: every layout's list (Classic's rows, Split's list, the cards)
+  function listItems(v, item) {
+    if (!range && !v.all.length) return [emptyOf(v)];   // (G1: no order yet today, as before: New order · See yesterday)
+    if (!v.shown.length && !v.back.length) return [emptyOf(v), listEnd(v)];
+    return [...v.shown.map(item), ...v.back.flatMap(g => [dayDivider(g.day), ...g.rows.map(item)]), listEnd(v)];
   }
 
   // ---------- the paper in the bill printer (the Bill / Receipt button) ----------
@@ -549,6 +645,9 @@
   function openHeld() { returning = true; if (window.RestroCounter?.openHeld) window.RestroCounter.openHeld(); else toast('Held orders are on the Counter'); }
   // Totals: Orders · Total · Due · N orders › (Due taps to the orders behind it; at ₹0 it is grey and does nothing)
   function dueTap() { if (!view().totals.due) return; payF = new Set(['np', 'part']); dueOnly = true; tab = 'all'; scrollTop = 0; render(); }
+  // (Update Pack 5, H3) on Today, labelled as today's: Classic's card under "TODAY · MON 9 NOV", the bars' "Today's orders"
+  const todayLab = () => `TODAY · ${shortDay(keyDate(todayKey())).toUpperCase()}`;
+  const ordersWord = () => (range ? 'Orders' : 'Today’s orders');
   function totalsCard(v) {
     const t = v.totals, live = t.due > 0;
     return el('div', { class: 'or-tot3' },
@@ -563,7 +662,7 @@
     return el('aside', { class: 'or-side' },
       el('div', { class: 'or-sh' }, homeBtn(), titleEl()),
       datePill('or-fd'), tabsPills(v),
-      el('p', { class: 'or-flab' }, 'FILTERS'), ...filterPills('or-fd'), totalsCard(v));
+      el('p', { class: 'or-flab' }, 'FILTERS'), ...filterPills('or-fd'), range ? null : el('p', { class: 'or-tlab' }, todayLab()), totalsCard(v));
   }
   // The heading: tap to sort (again: the other way; Order status goes Open first → Scheduled first → Closed first)
   const HEADS = [['when', 'Date & time'], [null, ''], ['type', 'Order type'], [null, 'Customer / table · server'], ['status', 'Order status'], ['pay', 'Payment status'], [null, '']];
@@ -581,7 +680,7 @@
         label, icon(on ? 'sortDown' : 'sortBoth', up ? 'up' : ''));
     }));
     listEl = el('div', { class: 'or-scroll', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } },
-      el('div', { class: 'or-rows', role: 'rowgroup' }, ...v.shown.map(rowEl)), !v.shown.length ? emptyOf(v) : null);
+      el('div', { class: 'or-rows', role: 'rowgroup' }, ...listItems(v, rowEl)));
     return el('div', { class: `or-sheet ${rowStyle()}${picking ? ' picking' : ''}`, role: 'table', 'aria-label': 'Orders' }, matchHint(), head, listEl);
   }
   // The type tile: our icon in its colour on a light tint of it, or the delivery app's logo on its tint
@@ -660,7 +759,7 @@
     const first = (set, name) => [...set].map(name).join(' or ');
     if (payF.size) on.push(first(payF, k => PAYS.find(x => x[0] === k)?.[1] || k));
     if (dv) on.push({ disc: 'Discounted', void: 'Voided after KOT', both: 'Discounted and voided' }[dv]);
-    if (typesF.size) on.push(first(typesF, k => TYPES[k]?.[0] || PLATFORMS[k]?.[0] || k));
+    if (typesF.size) on.push(first(typesF, k => TYPES[k]?.[0] || PLATFORMS[k]?.[0] || (k === 'qr' ? 'QR' : k)));
     if (staffF) on.push(staffF);
     const words = [];
     on.forEach((w, i) => { if (i) words.push(i === on.length - 1 ? ' and ' : ', '); words.push(el('b', {}, w)); });
@@ -723,7 +822,7 @@
   function totsBar(v, cls) {
     const t = v.totals, live = t.due > 0;
     return el('div', { class: `or-tots ${cls}` },
-      el('div', { class: 'tc' }, el('span', {}, 'Orders'), el('b', {}, String(t.orders))),
+      el('div', { class: 'tc' }, el('span', {}, ordersWord()), el('b', {}, String(t.orders))),
       el('div', { class: 'tc' }, el('span', {}, 'Total'), el('b', {}, rupees(t.total))),
       el(live ? 'button' : 'div', { class: `tc due${live ? '' : ' zero'}`, ...(live ? { type: 'button', 'aria-label': `Due, ${t.dueN} orders, ${rupees(t.due)}: show them`, onclick: dueTap } : {}) },
         el('span', {}, `Due · ${t.dueN} order${t.dueN === 1 ? '' : 's'}`), el('b', {}, rupees(t.due)), el('span', { class: 'or-tapc' }, icon('chevron'))));
@@ -743,7 +842,7 @@
     const c = r.who.codes, picked = picking?.has(r.id);
     const lines = [
       el('div', { class: 'l1' }, el('b', {}, r.type.label), qrTag(r), r.type.time ? el('span', { class: 'pt' }, r.type.time) : null),
-      el('div', { class: 'l2' }, ...numbersOf(r), ` · ${timeOf(r.when)}${range && range.from !== range.to ? ` · ${dateOf(r.when)}` : ''}`),
+      el('div', { class: 'l2' }, ...numbersOf(r), ` · ${timeOf(r.when)}${(range && range.from !== range.to) || (!range && r.taken !== todayKey()) ? ` · ${dateOf(r.when)}` : ''}`),
       el('div', { class: 'l2' }, el('b', { class: 'cn' }, hl(r.who.l1, 'name')), ...(r.who.l2 ? [' · ', ...(r.phone && r.who.l2.startsWith(r.phone) ? [el('span', { class: 'nb' }, hl(r.phone, 'phone')), r.who.l2.slice(r.phone.length)] : [r.who.l2])] : [])),
       el('div', { class: `lst ${r.status.cls}` }, el('b', {}, r.status.text), r.status.sub ? el('span', { class: `ss ${r.status.subCls || ''}`.trim() }, r.status.sub) : null),
       r.kot.look === 'err' ? el('div', { class: 'kfl' }, icon('alert'), 'KOT failed · tap the order to reprint') : null];
@@ -812,9 +911,9 @@
   const listKey = () => JSON.stringify([tab, query.trim(), [...payF], dv, [...typesF], staffF, dueOnly, sort, range]);
   function splitLayout(v, search) {
     const key = listKey(); if (key !== lastListKey) { lastListKey = key; if (!picking) chosen = null; }
-    if (!picking && !v.shown.some(r => r.id === chosen)) chosen = v.shown[0]?.id || null;
-    const r = v.shown.find(x => x.id === chosen);
-    listEl = el('div', { class: 'or-ls', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...v.shown.map(liEl), !v.shown.length ? emptyOf(v) : null);
+    if (!picking && !v.list.some(r => r.id === chosen)) chosen = v.list[0]?.id || null;
+    const r = v.list.find(x => x.id === chosen);
+    listEl = el('div', { class: 'or-ls', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...listItems(v, liEl));
     const r1 = el('div', { class: 'or-r1' }, titleEl(), datePill('or-dd2'), syncBtn('s48'));
     const head = picking
       ? [slot(r1, 'r1'), slot(el('div', { class: 'or-r2 pick' }, pickedPill(), selectAllBtn(v)), 'pick'), slot(el('p', { class: 'or-phint' }, pickHint()), 'hint')]
@@ -842,7 +941,7 @@
       picking ? el('div', { class: 'or-c lock' }, r.lock ? el('span', { class: 'or-lock' }, r.lock) : null) : buttons(r));
   }
   function cardsLayout(v, search) {
-    listEl = el('div', { class: 'or-cg', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...v.shown.map(cardEl), !v.shown.length ? emptyOf(v) : null);
+    listEl = el('div', { class: 'or-cg', onscroll: e => { scrollTop = e.currentTarget.scrollTop; scrolledAt = Date.now(); } }, ...listItems(v, cardEl));
     const r1 = picking
       ? [titleEl(), slot(el('div', { class: 'or-pickbar' }, pickedPill(), selectAllBtn(v), pickHint(), el('span', { class: 'or-sp' }), cancelPick(), deletePick(), syncBtn('s54')), 'pick')]
       : [titleEl(), el('span', { class: 'or-gap10', 'aria-hidden': 'true' }), search, slot(el('div', { class: 'or-tools' }, clearBtn('or-clr2'), datePill('or-dd2'), syncBtn('s54')), 'tools')];
@@ -867,7 +966,7 @@
   root.addEventListener('pointerup', endPress); root.addEventListener('pointercancel', endPress);
   function longPress(row) {
     press = null; suppressTap = true;
-    const id = row.dataset.id, r = view().shown.find(x => x.id === id);
+    const id = row.dataset.id, r = view().list.find(x => x.id === id);
     if (!picking) picking = new Set();
     if (r && !r.lock) picking.add(id);
     menu = null; render();
@@ -891,7 +990,7 @@
   // ---------- the buttons' jobs ----------
   async function printOrder(r) {
     if (typeof window.RestroCounter?.printSaved !== 'function') return;
-    const res = await window.RestroCounter.printSaved(r.id);
+    const res = await window.RestroCounter.printSaved(r.id, r.o);
     const what = res.kind === 'receipt' ? 'Receipt' : 'Bill';
     const look = paperLook();
     if (res.ok) say({ bold: `${what} ${res.reprint ? 'reprinted' : 'printed'}`, text: ` · Order ${ticket(r.o.number)}` });
@@ -1086,7 +1185,7 @@
     else say({ kind: 'error', bold: `${res.failed.length === 1 ? `KOT ${res.failed[0].no}` : `${res.failed.length} KOTs`} didn’t print`, text: ` · ${WHY[res.failed[0].why] || 'Kitchen printer didn’t answer'}`, retry: () => openKotById(r.id) });
     render();
   }
-  function openKotById(id) { const r = view().shown.find(x => x.id === id); const btn = dialog.querySelector(`[data-id="${CSS.escape(id)}"] .or-b.kot`); if (r) openKot(r, btn); }
+  function openKotById(id) { const r = view().list.find(x => x.id === id); const btn = dialog.querySelector(`[data-id="${CSS.escape(id)}"] .or-b.kot`); if (r) openKot(r, btn); }
   // Delete (picked orders, OR-P11): "Delete 3 orders?" · what the kitchen gets · Reason (required) first · the six
   // reasons this restaurant gives most (learned: the list "@delete", published every 15 days) · Clear ..... the red
   // button. (PIN required for staff without the delete access comes with access levels.)
@@ -1312,25 +1411,25 @@
       el('div', { class: 'or-main' }, el('div', { class: `or-srow${picking ? ' picking' : ''}` }, ...top), offlineNote(), slot(sheetEl(v), 'sheet')));
   }
   function render() {
-    const v = view();
+    const v = view(); lastView = v;
     searchEl = searchBox(viewKind() === 'classic' ? '' : 'or-sb2');
     layerEl = el('div', { class: `or-layer${rowStyle() === 'pills' ? ' pills' : ''}` }); // (Floating pills: menus round off too)
     frame = layout(v, searchEl);
     root.replaceChildren(frame, layerEl, probe);
     fitLabels();
     if (listEl) listEl.scrollTop = scrollTop;
-    fillLayer(v);
+    fillLayer(v); watchEnd();
     if (msg && bar.parentElement !== dialog) dialog.append(bar);
   }
   // Everything but the search box: the parts around it are drawn again in place, so typing (and the keyboard) carries on
   function renderRest() {
     if (!frame || !searchEl?.isConnected || picking || frame.dataset.kind !== viewKind()) { render(); return; }
-    const v = view(), next = layout(v, el('span'));
+    const v = view(), next = layout(v, el('span')); lastView = v;
     frame.className = next.className;
     for (const part of next.querySelectorAll('[data-slot]')) frame.querySelector(`[data-slot="${part.dataset.slot}"]`)?.replaceWith(part);
     fitLabels();
     if (listEl) listEl.scrollTop = scrollTop;
-    fillLayer(v);
+    fillLayer(v); watchEnd();
   }
   function renderLayer() { if (!layerEl) { render(); return; } fillLayer(view()); }
   // (a payment status too long for its column is set smaller until it fits, as the designs do: "Partial refund - Card";
@@ -1480,7 +1579,7 @@
       const back = returning && !options.from && !options.find;
       returning = false;
       document.querySelectorAll('dialog[open]').forEach(d => { if (d !== dialog) d.close(); });
-      if (!back) { resetFilters(); fromCounter = options.from === 'counter'; }
+      if (!back) { resetFilters(); fromCounter = options.from === 'counter'; older.days.clear(); older.orders.clear(); older.more = true; }
       const found = options.find ? (window.RestroCounter?.orders?.() || []).find(o => (o.uid || `n${o.number}`) === options.find) : null;
       if (found) { query = String(found.number); const d = dayOfOrder(found); range = d === todayKey() ? null : { from: d, to: d }; }
       dialog.dataset.view = 'orders';

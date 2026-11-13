@@ -148,8 +148,18 @@ The result is a new version, made on the server's version, and it is sent again.
 ### Deleting
 
 Deleting on purpose leaves a tombstone, kept for 30 days. Records a tablet only clears from itself don't travel:
-- paid orders past the latest 500;
+- orders older than the 4 business days a device keeps (below);
 - held tickets after their day.
+
+### The orders a device keeps (Update Pack 5)
+
+Each device keeps 4 business days of orders: today and the 3 days before, by the day an order was taken (`day`) or the
+day it was taken for (`readyAt`). It also keeps every order not paid yet, whatever its day, and every order with a
+change still to send to its server, so nothing waiting to go is ever cleared (`keepOrders` in `sync.js`; the Counter
+saves its list through `RestroSync.keepOrders`). Older orders are cleared from that device only; the cloud keeps them.
+Orders reads them from the cloud when its Today list scrolls back past the kept days, or when a day from before them is
+picked (`RestroSync.olderOrders({ from, to })`, below), and keeps them in memory only. Printing a receipt for one
+brings that order back onto the device with the print noted, until it has gone up.
 
 ## Ticket numbers
 
@@ -265,6 +275,7 @@ Every request carries these headers:
 | `POST /numbers/next` (a bill number) | `{ device, day, after, series: 'bill', year }` | `{ year, number }`, past `after` and every bill number of the financial year |
 | `POST /numbers/next` (a KOT number) | `{ device, day, after, series: 'kot' }` | `{ day, number }`, past `after` and every KOT number of the day |
 | WebSocket `/sync/live` (optional) | First message: `{ t: 'auth', token, device, since }` | `{ from, seq, changes }`, as changes happen |
+| `GET /orders?from=<day>&to=<day>` (Update Pack 5) | none | `{ orders, more }`: every order whose `day` is from `from` to `to` (business days, `YYYY-MM-DD`), newest first, each its latest version; `more` when there are older orders. Read only |
 
 The rules are the server rules above, the same as the main system's. `tools/cloud_reference.py` implements them in
 memory, for development and tests only.

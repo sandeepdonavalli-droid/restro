@@ -9,6 +9,7 @@ data. The real cloud implements the same endpoints with a database, real sign-in
 Endpoints (every request carries `Authorization: Bearer <token>`):
     POST /v1/restaurants/<id>/sync/push    { device, protocol, changes: [{ c, i, h, b, doc | x }] } -> { results }
     GET  /v1/restaurants/<id>/sync/pull?since=<seq>&limit=<n>                                  -> { seq, changes, more }
+    GET  /v1/restaurants/<id>/orders?from=<day>&to=<day>                                       -> { orders, more }
     POST /v1/restaurants/<id>/numbers/next { device, day, after }                                  -> { day, number }
     POST /v1/restaurants/<id>/numbers/next { device, day, after, series: 'bill', year }            -> { year, number }
     POST /v1/restaurants/<id>/numbers/next { device, day, after, series: 'kot' }                   -> { day, number }
@@ -139,6 +140,17 @@ class Restaurant:
             more = len(entries) > len(page)
             return {'seq': page[-1][0] if more else self.seq, 'changes': changes, 'more': more}
 
+    # (Update Pack 5, H3) The orders of past business days, from..to (YYYY-MM-DD, by the order's day), newest first, for
+    # Orders' Today list scrolling back past the 4 days a device keeps; `more` when there are older ones
+    def orders_between(self, frm, to):
+        with self.lock:
+            frm, to = str(frm or ''), str(to or '')
+            docs = [r['doc'] for key, r in self.records.items() if key.startswith('orders/') and 'doc' in r and isinstance(r['doc'], dict)]
+            inside = [d for d in docs if frm <= (d.get('day') or '') <= to]
+            more = any('' < (d.get('day') or '') < frm for d in docs)
+            inside.sort(key=lambda d: -(d.get('createdAt') or 0))
+            return {'orders': inside, 'more': more}
+
 class Cloud:
     def __init__(self, token):
         self.token, self.restaurants, self.down = token, {}, False
@@ -161,7 +173,7 @@ def make_handler(cloud):
             if cloud.down: return self.reply(503, {'error': 'unavailable'})
             if self.headers.get('Authorization') != f'Bearer {cloud.token}': return self.reply(401, {'error': 'sign in'})
             url = urlparse(self.path)
-            m = re.fullmatch(r'/v1/restaurants/([^/]+)/(sync/push|sync/pull|numbers/next)', url.path)
+            m = re.fullmatch(r'/v1/restaurants/([^/]+)/(sync/push|sync/pull|numbers/next|orders)', url.path)
             if not m: return self.reply(404, {'error': 'not found'})
             r, what = cloud.restaurant(m.group(1)), m.group(2)
             body = {}
@@ -173,6 +185,9 @@ def make_handler(cloud):
             if what == 'sync/pull' and method == 'GET':
                 q = parse_qs(url.query)
                 return self.reply(200, r.pull(int(q.get('since', ['0'])[0] or 0), max(1, min(300, int(q.get('limit', ['300'])[0] or 300)))))
+            if what == 'orders' and method == 'GET':
+                q = parse_qs(url.query)
+                return self.reply(200, r.orders_between(q.get('from', [''])[0], q.get('to', [''])[0]))
             if what == 'numbers/next' and method == 'POST':
                 if body.get('series') == 'bill': return self.reply(200, r.next_bill(body.get('year'), body.get('after')))
                 if body.get('series') == 'kot': return self.reply(200, r.next_kot(body.get('day'), body.get('after')))

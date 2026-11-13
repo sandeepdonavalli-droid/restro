@@ -409,9 +409,8 @@ Where the names show and what staff can do:
   Midnight `#1B2A47`, `#34507F` and `#A9C2FF`. The same in all 12 layouts.
 - **Payment:** the method it was paid with ("Paid - UPI", "Paid - Card", "Paid - Net banking", "Paid - Wallet"), never
   Due; the bill button shows **Receipt**; it counts in Total, not Due. A Takeaway QR's row shows no cashier.
-- **Dishes added later at the Counter** are not paid, so the order becomes **Part paid** with the rest due: the Counter
-  (part 3 of this pack) moves the QR payment to `paidAmount` / `paidAmountAt` and clears `paidAt`, so Orders, the
-  Counter and the totals already treat it as part paid until the rest is taken.
+- **Dishes added later at the Counter** are not paid, so the order becomes **Part paid** with the rest due. (The
+  Counter's side of this, opening a table's QR order to add a round, comes with part 3 of this pack.)
 
 ### The Order type filter (K)
 
@@ -428,6 +427,37 @@ The first type chosen in the Counter is the order's own (`type`); Modify adds ot
 line's `type`). Orders shows both, the order's own first: "Dine-in + Takeaway" (the others after it in the order
 Dine-in, Takeaway, Online, Phone call, Delivery), with its own type's icon and colour. The Order type filter counts it
 only under its own type, and the "Order ready" text follows its own type.
+
+### Today scrolls back (H3)
+
+- **The day picker** stays Today · Yesterday · Tomorrow plus the calendar, with Today first. There is no "All time".
+- **Only Today scrolls back.** Past today's last order comes a band across the list, "**YESTERDAY** · Sun 8 Nov", then
+  yesterday's orders; then "**SATURDAY** · Sat 7 Nov" and so on, a day at a time, newest day first. The search, the
+  filters, the tab (All, Open, Closed) and the sort apply to every day, each day's orders in the sort chosen. A day with
+  nothing to show has no band. An order taken one day for another is listed once, on the later day.
+- **Picking** Yesterday, a date or a range shows only that day or range, as before.
+- **Today's numbers stay today's** while the list scrolls: the totals ("**TODAY · MON 9 NOV**" over Classic's totals
+  card; "**Today's orders**" on Split's and Cards' bars, "Orders" for another day or a range), the tab counts and
+  Split's "41 orders". Tapping Due lists today's Due orders only, with no days before.
+- **Earlier days' orders** are past: only Bill / Receipt works on them (KOT, Notify and Buzz are greyed); Split's list
+  and Cards show their date.
+- **No order yet today** (and nothing searched or filtered): the "No orders yet today" screen, as before, with New
+  order on the Counter and See yesterday. When today's orders are only hidden by the search or filters, the matching
+  orders of the days before still show.
+- **The band:** Light `#F3F4F7` between two 1-wide lines `#E4E6EB`, Midnight `#0E1626` between `#22304A`; 43 high in
+  Classic, 41 in Split; "YESTERDAY" 14 extra-bold, spaced .07em, then "· Sun 8 Nov" 14 semi-bold, both `#57534E` (Midnight
+  `#A8B3C7` and `#7E8AA0`), lined up with the rows' first column. Cards have no band: the words alone, across the grid.
+  "TODAY · MON 9 NOV" is 13 extra-bold, spaced .05em, `#57534E` (Midnight `#8A96AD`).
+- **4 days on each device:** a device keeps today and the 3 days before (by the day an order was taken, or the day it
+  was taken for), every order not paid yet whatever its day, and every order with a change still to send
+  (`RestroSync.keepOrders`; it replaces "the latest 500 paid orders"). Older ones are only cleared from that device: the
+  cloud keeps them (SYNC.md).
+- **Further back** comes from the cloud, 4 days at a time, as the end of the list comes into view
+  (`RestroSync.olderOrders({ from, to })`, the cloud's `GET /orders?from=&to=`: SYNC.md), kept in memory only while
+  Orders is open. Offline, or before the cloud is set up, the list ends with "**Older orders need internet**" (a cloud
+  with a line through it, grey). A day or range picked from before the kept days is read the same way.
+- **A receipt for an older order** prints as any other: the order comes back onto the device with the print noted,
+  goes up to the cloud, and is cleared again once it has.
 
 ### Readability (H2): colour and text size only, no layout or width changes
 

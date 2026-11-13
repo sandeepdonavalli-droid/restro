@@ -412,6 +412,9 @@ def orders_tokens():
     # the QR tag (Update Pack 5, K: PQ1–PQ6 Midnight) and the QR row of the Order type filter
     R('.or-qr', ('background-color', '#1B2A47'), ('border-color', '#34507F'), ('color', '#A9C2FF')); R('.or-it .ii.t.qr', ('color', '#A9C2FF'))
     R('.or-offline .or-i', ('fill', '#F5C870'))   # (the offline notice's icon keeps its amber; Due's orange is now #C2410C)
+    # Today scrolling back (Update Pack 5, H3: SB1–SB6 Midnight): the day's band and its words; the cards' words on the page
+    R('.or-dayd', ('background-color', '#0E1626'), ('border-color', '#22304A')); R('.or-cg .or-dayd', ('background-color', 'transparent'), ('border-color', 'transparent'))
+    R('.or-dayd-in b', ('color', '#A8B3C7')); R('.or-dayd-in span', ('color', '#7E8AA0')); R('.or-tlab', ('color', '#8A96AD'))
     R('.or-tt .or-logo,.or-it .or-logo', ('filter', 'saturate(.62) brightness(.86)'))
     # the action buttons
     T('.or-b', '#162B54', '#C9DBFF', 'rgba(91,142,240,.42)')

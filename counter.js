@@ -64,12 +64,14 @@
   // Held: only tickets put on Hold. They are kept until the end of the day, then cleared (nothing else is cleared).
   let held = load(HELD_KEY, []); if (!Array.isArray(held)) held = [];
   // Orders: every order saved with Save or Pay, newest first, each Paid or Due (payment is not always taken upfront).
-  // Orders not yet paid are always kept; of the paid ones, the latest 500.
+  // Kept as sync keeps them (Update Pack 5, H3: RestroSync.keepOrders): 4 business days, today and the 3 before, every
+  // order not paid yet, and every order with a change still to go; without sync, the latest 500 paid.
   const createdOf = o => (Number.isFinite(o.createdAt) && o.createdAt > 0 ? o.createdAt : Date.parse(o.paidAt)) || 0;
   const loadOrders = () => { const list = load(DONE_KEY, []); return (Array.isArray(list) ? list : []).filter(o => o && typeof o === 'object' && Number.isFinite(o.number) && Number.isFinite(o.total) && Array.isArray(o.lines)); };
   const storeOrders = list => {
     const byNew = [...list].sort((a, b) => createdOf(b) - createdOf(a));
-    store(DONE_KEY, [...byNew.filter(o => !o.paidAt), ...byNew.filter(o => o.paidAt).slice(0, 500)].sort((a, b) => createdOf(b) - createdOf(a)));
+    const kept = window.RestroSync?.keepOrders ? window.RestroSync.keepOrders(byNew) : [...byNew.filter(o => !o.paidAt), ...byNew.filter(o => o.paidAt).slice(0, 500)];
+    store(DONE_KEY, kept.sort((a, b) => createdOf(b) - createdOf(a)));
   };
   // How long before a scheduled order is due it goes to the kitchen (Settings → Orders; 30 minutes unless changed).
   // The kitchen prep time (Settings › Kitchen; Update Pack 3: one for every order, or one per order type), 5 to 240
@@ -2664,23 +2666,27 @@
     if (r) { r.bills = [...(Array.isArray(r.bills) ? r.bills : []), mark].slice(-20); storeOrders(now); if (order.uid === idOf(r)) keepOpened(r); }
     else if (!rec && order === target) { order.bills = [...prints, mark].slice(-20); saveDraft(); }
   }
-  // A saved order's bill (not paid yet) or receipt (paid), from Orders: resolves { ok, kind, reprint }
-  async function printSaved(uid) {
-    let list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
+  // A saved order's bill (not paid yet) or receipt (paid), from Orders: resolves { ok, kind, reprint }. `doc`: the order
+  // as Orders has it, for one older than the days this device keeps (read from the cloud, Update Pack 5): printing it
+  // brings it back onto this device with the print noted, and sync takes the note to the cloud.
+  async function printSaved(uid, doc = null) {
+    const copy = () => (doc && typeof doc === 'object' && idOf(doc) === uid && Array.isArray(doc.lines) ? JSON.parse(JSON.stringify(doc)) : null);
+    let list = loadOrders(), rec = list.find(o => idOf(o) === uid) || copy(); if (!rec) return { ok: false };
+    const keep = (all, r) => { if (!all.some(o => idOf(o) === uid)) all.push(r); return all; };
     // (its bill number first, when it has none yet; Bill number "At payment": not before it is paid)
     const pre = !rec.paidAt && !rec.billNo && atPayment();
     if (!pre && !rec.billNo && window.RestroSync?.takeBillNumber) {
       let t = null; try { t = await window.RestroSync.takeBillNumber(); } catch { t = null; }
       if (!t) return { ok: false, why: 'number' };
-      list = loadOrders(); rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
-      if (!rec.billNo) { rec.billNo = t.number; rec.billYear = t.year; storeOrders(list); if (order.uid === uid) keepOpened(rec); }
+      list = loadOrders(); rec = list.find(o => idOf(o) === uid) || copy(); if (!rec) return { ok: false };
+      if (!rec.billNo) { rec.billNo = t.number; rec.billYear = t.year; storeOrders(keep(list, rec)); if (order.uid === uid) keepOpened(rec); }
     }
     const kind = rec.paidAt ? 'receipt' : 'bill', key = kind === 'receipt' ? 'receipts' : 'bills', prints = Array.isArray(rec[key]) ? rec[key] : [];
     const bill = { ...billDoc(restoreOrder(rec), kind, prints, rec, pre), bill: billLabel(rec.billNo) };
     const ok = await deliverBill(bill);
     if (ok) {
-      const now = loadOrders(), r = now.find(o => idOf(o) === uid);
-      if (r) { r[key] = [...(Array.isArray(r[key]) ? r[key] : []), { at: Date.now(), by: staffName(), total: bill.total, ...(pre ? { tax: false } : {}) }].slice(-20); storeOrders(now); if (order.uid === uid) keepOpened(r); }
+      const now = loadOrders(), r = now.find(o => idOf(o) === uid) || copy();
+      if (r) { r[key] = [...(Array.isArray(r[key]) ? r[key] : []), { at: Date.now(), by: staffName(), total: bill.total, ...(pre ? { tax: false } : {}) }].slice(-20); storeOrders(keep(now, r)); if (order.uid === uid) keepOpened(r); }
     }
     return { ok, kind, reprint: Boolean(bill.reprint) };
   }
