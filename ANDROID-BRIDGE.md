@@ -477,11 +477,22 @@ a PIN.
 
 ## The keyboard: `restro:keyboard`
 
-The lock button stays while staff type, so a tablet left with its keyboard up can still be locked. Android draws its
-keyboard over the app, so while the keyboard is up the page lifts the lock to sit just above it (in the navigation bar
-mode, the whole bar). In a browser the page sees the keyboard itself. When the RESTRO Android app keeps the page full
-height under its keyboard (full-screen kiosk mode does), tell the page how much the keyboard covers whenever that
-changes:
+Android draws its keyboard over the app.
+
+- **The navigation bar never moves for the keyboard** (owner, 12 Nov 2026). On every screen it stays at the bottom, and
+  the keyboard comes up over it. Typing in a search bar (Counter, Orders, Customers) or in any other field (Settings, a
+  pop-up) brings up only the keyboard. The lock button is on the bar in this mode, so to lock, close the keyboard first.
+  (Until now the page lifted the whole bar to sit on top of the keyboard.)
+- **In the swipe mode, the lock button stays in view while staff type** (Update Pack 3), so a tablet left with its
+  keyboard up can still be locked. While the keyboard is up, the page lifts the lock to sit just above it. The handle
+  stays at the bottom, under the keyboard.
+
+So the keyboard must come up over the page: keep the page full height under it, and don't let the keyboard resize the
+WebView. A page that the keyboard makes shorter would end at the keyboard, with the navigation bar on top of it. Every
+size on the screen would also shrink while staff type, because the design's unit (`--fu`) follows the page's height.
+
+In a browser, the page sees the keyboard itself. In the RESTRO Android app (full-screen kiosk mode keeps the page full
+height), tell the page how much the keyboard covers whenever that changes:
 
 ```js
 window.dispatchEvent(new CustomEvent('restro:keyboard', { detail: { height: 386 } })); // CSS pixels; 0 when it goes down

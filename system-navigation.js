@@ -723,9 +723,10 @@
     window.dispatchEvent(new CustomEvent('restro:screen-unlocked'));
   }
   document.querySelector('#system-lock').addEventListener('click',lockScreen);
-  // The keyboard (Update Pack 3): the lock stays while typing, so a tablet left with its keyboard up can still be locked.
-  // Android draws its keyboard over every app, so while it covers the bottom of the page --keyboard is how much it
-  // covers, and the lock (in the navigation bar mode, the bar) sits on top of it. How much it covers:
+  // The keyboard. Android draws its keyboard over every app. The navigation bar never moves for it (owner, 12 Nov 2026):
+  // it stays at the bottom, and the keyboard comes up over it. In the swipe mode the lock stays while typing (Update
+  // Pack 3), so a tablet left with its keyboard up can still be locked: while the keyboard covers the bottom of the page,
+  // --keyboard is how much it covers, and the lock sits on top of it. How much it covers:
   // - in a browser, the part of the page in view gets shorter (visualViewport);
   // - the RESTRO Android app, when it keeps the page full height under its keyboard, says so with a restro:keyboard
   //   event ({ height } in CSS pixels, 0 when the keyboard goes down);
