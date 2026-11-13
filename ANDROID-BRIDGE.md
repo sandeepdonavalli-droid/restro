@@ -252,16 +252,20 @@ built 12 Nov 2026, tried with a pretend Done mark):
 - **The text** is Notify's "Order ready" (below), by **Settings › Orders › Order-ready message**: SMS (the default),
   WhatsApp (falls back to SMS) or Off (`restro.readyMessage.v1`, the restaurant's, synced). Off stops only the text;
   the pager still buzzes.
-- **Once:** the order keeps when it was handled (`readyAutoAt`), written before anything goes out, so a tablet that
-  stops halfway doesn't send twice. A delivery app's order is left out (it has Ready instead of Notify), and so is a
-  Done mark more than 30 minutes old (a main system that was off when the kitchen marked it).
+- **Once for each Done mark:** the order keeps which Done mark it handled (`readyAutoFor`, the `kitchenDoneAt` it
+  went out for) and when (`readyAutoAt`), written before anything goes out, so a tablet that stops halfway doesn't send
+  twice. A delivery app's order is left out (it has Ready instead of Notify), and so is a Done mark more than 30 minutes
+  old (a main system that was off when the kitchen marked it).
 - **The result** shows in the bar at the bottom of the sending tablet, as for Notify and Buzz by hand: in Orders if it
   is open, else on the Counter, with RETRY when it didn't go. A failure no one saw waits for Orders or the Counter to
   open there; a success never covers a failure still showing. On every tablet the line under Notify or Buzz turns
   green when it went, red when it didn't.
-- **Open point, the owner's to decide** (12 Nov 2026): dishes added after the kitchen marked the order done go back to
-  the kitchen (`kitchenDoneAt` is cleared); when they are done too, should the customer get a second "ready" text? For
-  now no: one automatic text and buzz per order.
+- **Dishes added after the order was ready** (owner, 13 Nov 2026): only an order that isn't paid yet can take more
+  dishes. They go to the kitchen on a new KOT, and the order is In kitchen again (`kitchenDoneAt` is cleared). When the
+  kitchen marks it done again, the "ready" text goes again, and the pager buzzes again if the customer still has it,
+  even when the customer paid while the new dishes were cooking. A paid order doesn't open on the Counter: more food
+  for that customer is a new order with its own number, its own "ready" text, and the pager taken back from the first
+  order and given to the new one.
 - **Trying it without a SIM or a pager:** a stand-in `RESTRODevice` whose `sms.send`, `whatsapp.send` and `pager.buzz`
   only record what they were given and return `true` or `false`, and a `kitchenDoneAt` written on an order followed by
   `restro:data-changed` (`{ collections: ['orders'] }`), the way the kitchen screen's mark arrives.

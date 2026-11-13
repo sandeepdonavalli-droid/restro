@@ -1037,10 +1037,13 @@
   // When the kitchen screen marks an order complete (kitchenDoneAt), the customer gets the "Order ready" text, as
   // Settings › Orders says (SMS, WhatsApp falling back to SMS, or Off), when the order has their phone number, and the
   // order's pager buzzes when it has one out. The main system sends them, or a tablet working on its own, so each goes
-  // out once however many tablets there are: the order keeps when it was done (readyAutoAt) before anything goes. Not
-  // for a delivery app's orders (they have Ready), nor for a Done mark over 30 minutes old (a main system that was off).
-  // Once per order for now: whether dishes added later, once done, bring a second text is the owner's to decide (12 Nov
-  // 2026).
+  // out once however many tablets there are: the order keeps which Done mark was handled (readyAutoFor, and when:
+  // readyAutoAt) before anything goes. Not for a delivery app's orders (they have Ready), nor for a Done mark over 30
+  // minutes old (a main system that was off).
+  // Once for each Done mark (owner, 13 Nov 2026): dishes added to an order that isn't paid yet, after it was ready, send
+  // it back to the kitchen (its Done mark is cleared); when they are done, the text and the buzz go again. A paid order
+  // can't take more dishes (it doesn't open on the Counter): more food is a new order, with its own number, and the pager
+  // goes to that order.
   const AUTO_WITHIN = 30 * 60000;
   const sendsHere = () => { const s = window.RestroSync?.status?.(); return !s || Boolean(s.device?.main) || !s.paired; };
   async function textReady(r, how) {
@@ -1057,9 +1060,9 @@
       const now = Date.now();
       for (const o of window.RestroCounter?.orders?.() || []) {
         const done = Number(o.kitchenDoneAt);
-        if (!done || o.readyAutoAt || o.cancelledBy || PLATFORMS[o.platform] || now - done > AUTO_WITHIN || done > now + 60000) continue;
+        if (!done || o.readyAutoFor === done || o.cancelledBy || PLATFORMS[o.platform] || now - done > AUTO_WITHIN || done > now + 60000) continue;
         const r = infoOf(o, now);
-        if (!window.RestroCounter?.markAutoReady?.(r.id)) continue;
+        if (!window.RestroCounter?.markAutoReady?.(r.id, done)) continue;
         const how = window.RestroPrefs?.get?.('readyMessage')?.send || 'sms';
         if (r.buzz.on && r.buzz.no) buzzPager(r, true);
         if (how !== 'off' && r.third.kind === 'notify' && r.third.on) await textReady(r, how);

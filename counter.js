@@ -3891,7 +3891,13 @@
     markNotifyFailed: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', false), markBuzzFailed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', false),
     // (the order-ready text and buzz that go by themselves when the kitchen marks the order done: kept on the order
     // first, once; false when it already went)
-    markAutoReady: uid => { const rec = loadOrders().find(o => idOf(o) === uid); return Boolean(rec) && !rec.readyAutoAt && markSent(uid, 'readyAutoAt'); },
+    // (the ready text and buzz by themselves, orders.js: once for each time the kitchen marks the order done; readyAutoFor
+    // keeps which Done mark, kitchenDoneAt, was handled, so a second one after dishes were added sends again)
+    markAutoReady: (uid, done) => {
+      const list = loadOrders(), rec = list.find(o => idOf(o) === uid);
+      if (!rec || !done || rec.readyAutoFor === done) return false;
+      rec.readyAutoFor = done; rec.readyAutoAt = Date.now(); storeOrders(list); return true;
+    },
     // Their result in this bar while the Counter is open (orders.js), RETRY when it didn't go; a success never covers a
     // failure still showing. False while the Counter is closed.
     notice(m) {
