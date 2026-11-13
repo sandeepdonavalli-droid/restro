@@ -7,13 +7,14 @@
 //   decimal or tel).
 // - Shift: one capital, or held on with two quick taps (caps lock). Capitals come by themselves where the field asks
 //   (autocapitalize: words, sentences, characters).
-// - Done (the Enter key: the owner's word, 13 Nov 2026) finishes the typing on every field: the field gets Enter first,
-//   so its own handling still works, and then the keyboard goes away (a box of several lines too: no new line), unless
-//   the field keeps the typing itself (the Counter's search after adding a dish found by its code, a quick pick added).
-// - Back (the owner's word for Backspace) deletes the letter before the cursor; held down, it keeps deleting.
-// - ⌄ puts the keyboard away, as the navigation bar's Back does, and so does a tap anywhere outside it (owner, 13 Nov
-//   2026), but on the field being typed in (its ✕ too), another field (the typing goes there) or the navigation bar.
-//   A key on a physical keyboard puts it away too, until a field is tapped.
+// - Done (the Enter key: the owner's word, 13 Nov 2026) finishes the typing on every field and always closes the
+//   keyboard (a box of several lines too: no new line). The field gets Enter first, so its own handling still works.
+// - Clear (the owner's word for Backspace, 13 Nov 2026) deletes the letter before the cursor; held down, it keeps
+//   deleting.
+// - Close (the owner's word for the hide key) puts the keyboard away, as Done and the navigation bar's Back do, and so
+//   does a tap anywhere outside it (owner, 13 Nov 2026), but on the field being typed in (its ✕ too), another field
+//   (the typing goes there) or the navigation bar. A key on a physical keyboard puts it away too, until a field is
+//   tapped.
 // - The field stays in view: where the keyboard would cover it, the list it is in scrolls it up.
 (() => {
   const root = document.documentElement;
@@ -38,7 +39,6 @@
   const ICON = {
     shift: svg('<path d="M12 3.5 4 12.5h4.5V20h7v-7.5H20z"/>'),
     lock: svg('<path d="M12 2.5 4 11h4.5v5h7v-5H20z"/><path d="M8.5 20.5h7"/>'),
-    hide: svg('<path d="M6 9l6 6 6-6"/>')
   };
   const NAMES = { ',': 'Comma', '.': 'Full stop', ' ': 'Space', '@': 'At', '#': 'Hash', '₹': 'Rupee', '_': 'Underscore', '&': 'And',
     '-': 'Minus', '+': 'Plus', '(': 'Open bracket', ')': 'Close bracket', '/': 'Slash', '*': 'Star', '"': 'Double quote', "'": 'Apostrophe',
@@ -82,10 +82,12 @@
     } else {
       b.dataset.k = s.k; b.classList.add('fn', s.k);
       if (s.t) b.textContent = s.t;
+      // (the keys that do things say what they do, in the owner's words: Done, Clear, Close)
       else if (s.k === 'enter') b.textContent = 'Done';
-      else if (s.k === 'back') b.textContent = 'Back';
+      else if (s.k === 'back') b.textContent = 'Clear';
+      else if (s.k === 'hide') b.textContent = 'Close';
       else if (s.k !== 'space') b.innerHTML = ICON[s.k] || '';
-      b.setAttribute('aria-label', { back: 'Back (delete)', enter: 'Done', shift: 'Shift', sym: 'Numbers and symbols', abc: 'Letters', space: 'Space', hide: 'Hide the keyboard' }[s.k]);
+      b.setAttribute('aria-label', { back: 'Clear', enter: 'Done', shift: 'Shift', sym: 'Numbers and symbols', abc: 'Letters', space: 'Space', hide: 'Close' }[s.k]);
     }
     return b;
   }
@@ -178,21 +180,20 @@
     autoShift(); paint();
   }
   const fieldsIn = box => [...box.querySelectorAll('input,textarea')].filter(el => takesTyping(el) && el.getClientRects().length);
-  // Done: the field gets Enter (keydown, keyup) and acts on it as it does; then the keyboard goes away
+  // Done always closes the keyboard (owner, 13 Nov 2026). First the field gets Enter (keydown, keyup) and acts on it as
+  // it does (the Counter's search adds the dish found by its code; a quick pick is added); if it doesn't, a form sends
+  // itself as Enter would send it (when it has a send button, or this is its one field).
   function enter() {
     const f = current;
     const init = { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true };
     const go = f.dispatchEvent(new KeyboardEvent('keydown', init));
     if (go) f.dispatchEvent(new KeyboardEvent('keypress', init));
     f.dispatchEvent(new KeyboardEvent('keyup', init));
-    // The field acted on Enter itself: it moved on, let go, or keeps the typing (a quick pick added, say)
-    if (document.activeElement !== f || !go) return;
-    // A form sends itself as Enter sends it: when it has a send button, or this is its one field
     const form = f instanceof HTMLInputElement ? f.form : null;
-    if (form && (form.querySelector('button[type=submit],input[type=submit],button:not([type])') || fieldsIn(form).length === 1)) {
-      form.requestSubmit?.(); if (document.activeElement !== f) return;
-    }
-    f.blur();
+    if (go && document.activeElement === f && form && (form.querySelector('button[type=submit],input[type=submit],button:not([type])') || fieldsIn(form).length === 1)) form.requestSubmit?.();
+    const still = document.activeElement;
+    if (takesTyping(still)) still.blur();
+    hide();
   }
   function tapShift() {
     const now = performance.now();
