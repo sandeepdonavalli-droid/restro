@@ -38,7 +38,7 @@ Run it after any change to how the page talks to the app.
 | `RestroSystem.back`, `RestroSystem.home`, `RestroSystem.recents`, `goHome`, `goBack`, `openRecentApps` | page calls, methods | Back, Home and Recent apps |
 | `setScreenDark` | method | Going dark |
 | `restro:device-ready` | event | The WebView |
-| (nothing to add in the app) | what staff see | Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability |
+| (nothing to add in the app) | what staff see | Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability, QR payment Pending, home-screen badges |
 
 ## The WebView
 
@@ -325,12 +325,13 @@ when it has no name; "No Pazzer hardware connected" for none). Its **Pazzer sett
 | `RESTRODevice.integrations.markReady({ platform, id, order })` | A delivery app's order marked ready in Orders (Ready → Marked): tell the platform (`"swiggy"`, `"zomato"`; `id` its order number; `order` RESTRO's id for the order), once the integrations exist. **Return `true` once the platform accepted it, `false` if it didn't** (may be a promise; Update Pack 4): `true` turns the button to Marked and shows "Order ready sent to Swiggy · Swiggy #4521 · Order #1029"; `false` (or an error) keeps Ready and shows "Swiggy didn’t receive “Ready” · Swiggy #4521 · Order #1029" with RETRY. Offline, Orders doesn't call it and shows "Offline · couldn’t send “Ready” to Swiggy · Order #1029" with RETRY. There is no "are you sure" |
 | `restro:platform-cancelled`, `{ platform, id, payout, payoutAmount }` | Update Pack 4. Dispatch when a delivery app cancels one of its orders: `platform` (`"swiggy"`, `"zomato"`), `id` (the app's order number, `"4521"`), and when the app gives them `payout` (`"awaiting"`, `"paid"` or `"unpaid"`) and `payoutAmount` (paise). The order stays and Orders shows it as **Cancelled by Swiggy**. If its KOT has printed, the page prints the **ORDER CANCELLED** slip by itself (the kitchen printer, below: `"By: Swiggy"`, `"Reason: Cancelled by Swiggy"`); if it hasn't, nothing prints. Sending it again for the same order does nothing. Dispatch it on one tablet only, the one that runs the delivery-app integrations: the other tablets get the change through sync |
 
-## Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability
+## Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability, QR payment Pending, home-screen badges
 
 Nothing here asks anything new of the app: it is what staff see, the options they have and the data behind it, for the
 Android app and the backend to match. Every Orders change is in **all 12 layouts**: Classic, Classic pills, Split,
 Split pills, Cards and Cards pills, each in **Light and Midnight**, with one value per theme (identical across that
-theme's 6 layouts). Built 12 Nov 2026 (Update Pack 5, part 1).
+theme's 6 layouts). Built 12 Nov 2026 (Update Pack 5, part 1); QR payment Pending and the home-screen badges 13 Nov
+2026 (part 3).
 
 ### Payment status names (Update 4.1: names only; workflows, rules and colours unchanged)
 
@@ -415,8 +416,10 @@ Where the names show and what staff can do:
   Midnight `#1B2A47`, `#34507F` and `#A9C2FF`. The same in all 12 layouts.
 - **Payment:** the method it was paid with ("Paid - UPI", "Paid - Card", "Paid - Net banking", "Paid - Wallet"), never
   Due; the bill button shows **Receipt**; it counts in Total, not Due. A Takeaway QR's row shows no cashier.
-- **Dishes added later at the Counter** are not paid, so the order becomes **Part paid** with the rest due. (The
-  Counter's side of this, opening a table's QR order to add a round, comes with part 3 of this pack.)
+- **More dishes later:** a paid order doesn't open on the Counter (owner, 13 Nov 2026): more food is a new order with
+  its own number, and a pager goes to the new order. (K's "dishes added at the Counter make a QR order Part paid" waits
+  for the owner's word, as it differs from that rule.)
+- **Its payment while the restaurant is offline:** QR payment Pending, below.
 
 ### The Order type filter (K)
 
@@ -474,6 +477,121 @@ only under its own type, and the "Order ready" text follows its own type.
 - **Midnight, all 6 layouts:** its colours stay, with its one orange `#FFA066`.
 - **Both themes:** the side rail's counts 13; **Held in the Split and Cards rail has no arrow**, like All, Open and
   Closed. (Classic's Held link in the sidebar keeps its arrow.)
+
+### QR payment Pending (H1): the Customer paid? pop-up
+
+Nothing new is asked of the app: the KOT prints through `printer.printKot` and the receipt through `printer.printBill`
+as before. This is how the page handles a QR order whose payment hasn't reached us, and what the cloud must do once it
+is back (Phase 2). Screens: `05_screens/03_Orders_Pending-QR-payment_12-layouts` (PQ1–PQ6, with and without the
+pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counter_Pending-popup` (CT1).
+
+- **When an order is Pending:** a QR order reaches the restaurant before the customer pays (the cloud waits for a
+  device's "got it" before the payment page opens, I1). When no payment confirmation arrives within **30 s** and this
+  system can't reach the cloud, the order is **Pending**. With the internet working a slow bank never makes an order
+  Pending: the cloud answers in the end. Any tablet may mark it (`orders.js` checks every 5 s and when the connection
+  changes; `RestroCounter.qrMark(uid, 'pending')`); the mark is the same on all.
+- **On the order** (`qr: true`), `qrPay`:
+
+  | `qrPay` | What it means | Orders shows |
+  | --- | --- | --- |
+  | `'waiting'` | the customer is on the payment page | nothing: it isn't listed, counted or on the home screen, and has no KOT |
+  | `'pending'` | 30 s, no confirmation, no cloud | **Pending** · "Not in kitchen yet", **Pending** and the amount, red **Confirm !** |
+  | `'matching'` | staff answered **Customer paid**: `paidAt` is when the customer paid, its KOT went | **Open** · "In kitchen · N min", **Paid · matching** |
+  | `'refund'` | staff answered **Cancel and refund**: no `paidAt`, no KOT | **Closed**, **Refund pending** (red, as Refunded) |
+  | none | paid as usual, or matched once online (`method`, `paidAt`, `payRef` from the payment) | **Paid - UPI** and the rest, as any QR order |
+
+  With it: `qrPayAt` (ms), when the customer paid ("paid today around 7:25 PM"; the order's time when missing), and
+  `qrChoice: { choice: 'paid' | 'refund', by, at }`, who answered and when (also in the Track history, `events`:
+  `qr-paid` or `qr-refund` with `by`), for Analytics › Activity › Payments and the Payments app (both to come).
+- **The row, in all 12 layouts:** the order status **"Pending"** with "Not in kitchen yet" under it (Split's list: on
+  one line, then a red line with the alert icon, **"Payment pending · tap Confirm !"**, as "KOT failed · tap the order
+  to reprint"); the payment status **"Pending"** and the amount; **Receipt, Notify and Buzz greyed** in their places;
+  the red **Confirm !** where KOT is, styled as KOT ! (the KOT icon). Split's header ends "· Not in kitchen yet". Pending
+  is amber in both columns: Light `#9A4108`, Midnight `#F5B14C` (as drawn: the Pending amber, not Due's orange). "Not in
+  kitchen yet" is the grey of the line under any status. **Paid · matching:** "Paid" as any payment status, then
+  "· matching" amber (Light `#B45309`, Midnight `#F5B14C`), 600, 16 beside Classic's 19 (the same share of the line in
+  Split and Cards: 0.842 em).
+- **Counts:** in **Due**, not in Total ("Due · 7 orders ₹9,532"); tapping Due lists it (Due, Part paid and Pending
+  together, the pill reading "Due"); **Pending** in the All payments filter, after Part paid; **Due first** puts Pending
+  first; it is in the Open tab. Confirmed, it moves to Total (Total ₹41,238, "Due · 6 orders ₹8,272"); cancelled, it is
+  in neither.
+- **The pop-up "Customer paid?"** opens from tapping the order (Classic, Cards) or its **Confirm !** (every layout); in
+  Split tapping the order picks it as any order, and **Open** opens the pop-up. It sits 122 under the status bar (170 on
+  the screen), centred, 700 wide, `#F3F4F7` rounded 34, over the usual dim (`rgba(15,23,42,.30)`; Midnight
+  `rgba(0,0,0,.58)`):
+  - the head: a 52 tile rounded 16, `#FFF4E0`, with an orange "?" (26, 800, `#B45309`); 14 from it **"Customer
+    paid?"** (26, 800) and under it "Order #1032 · Table 3 · QR · ₹1,260.00" (17, `#57534E`; a Takeaway QR's: the
+    customer's name); a white ✕, 46 round, its glyph `#57534E`;
+  - the orange words (16.5, 600, `#B45309`, 24 a line): "The payment hasn’t reached us yet. Check the customer’s
+    payment screen and choose one:";
+  - a white card (rounded 22, 20 in) with the two choices, 54 a row, a line `#EEECE9` between: "**₹1,260.00** paid
+    today around **7:25 PM** · shows **Successful**" and "**Cancel and refund** · the customer gets their money back"
+    (19; the parts in bold 700), each with a 26 box (rounded 8, a 2 border `#A8A29E`; ticked `#1E4FB8` with a white
+    tick). Tick one; ticking the other moves the tick; tapping the ticked one again unticks it. (Another day: "paid
+    yesterday around", "paid on Sun 8 Nov around".)
+  - the grey note (15, `#57534E`): "We match the payment as soon as the internet is back. A cancelled order is refunded
+    once we’re online.";
+  - the buttons, 64 tall, rounded 20, 19: **Not now** (250 wide, white) and the action filling the rest: **Choose
+    one**, greyed (`#E7E5E4`, `#A8A29E`), doing nothing until a choice is ticked; **Customer paid · print KOT** (blue
+    `#1E4FB8`, 800); **Cancel and refund** (red `#D92D20`, 800).
+  - Midnight (PQ1–PQ6 _popup_midnight): `#141E33`, the tile `#3A2A10` with `#F5B14C`, the title `#F1F4FA`, the grey
+    lines `#A8B3C7`, the ✕ and Not now `#22304A`, the card `#1B2742` with its line `#2A3754`, the boxes' border
+    `#5B6680`, Choose one `#22304A` with `#5B6680`; ticked, and the two actions, as the other Midnight pop-ups' blue
+    (`#2F6FDE`) and red (`#DC2626`).
+  - **Not now**, ✕ and Back close it: the order stays Pending. A tap outside it does nothing (it waits for an answer).
+  - The PIN, for staff without the access, comes with access levels.
+- **Customer paid · print KOT:** the order is paid (when the customer paid), `qrPay: 'matching'`, and its KOT goes to
+  the kitchen at once (its number as it prints). The bar: "**KOT sent for Order #1032** · payment will be matched when
+  the internet is back" (online: just the first part). It is treated as paid: tapping it opens its receipt (its details
+  page to come), Receipt and KOT work as for any paid order, and the receipt reads "PAID · QR ₹1,260" until the payment
+  is matched. The kitchen printer down: the row shows **KOT !**, the badge keeps counting it, and the bar says
+  "Kitchen printer offline · KOT 162 didn’t print · Order #1032" with RETRY.
+- **Cancel and refund:** `qrPay: 'refund'`: Closed, **Refund pending**, nothing to print (Bill / Receipt greyed), its
+  table free. The bar: "**Order #1032 cancelled** · refunded once we’re online".
+- **The first answer wins (K):** the answer is the Counter's (`RestroCounter.qrChoice(uid, 'paid' | 'refund')`). On a
+  tablet whose pop-up is open when another tablet answers, the pop-up goes and the bar says "**Already confirmed by
+  ‹name›** · 7:28 pm" ("Already cancelled by …"); an answer sent after another is refused the same way. Two answers made
+  at the same moment on two tablets: when their versions merge, the earlier answer stays, with what it set
+  (SYNC.md, Merging).
+- **The Counter (CT1):** picking Dine-in and a table that has a Pending QR order (Choose table; a table tapped on the
+  Floor or on the home screen's Floor widget) shows the same pop-up first, over the Counter, the table shown picked
+  behind it: "**Table 3 has a pending QR order**" · "Order #1032 · QR · ₹1,260.00 · confirm or cancel it first". The
+  table is taken once a choice is made (Customer paid or Cancel and refund; the message goes in the Counter's bar);
+  **Not now**, ✕ and Back put back the table there was. A Pending order never opens on the Counter, is never merged into
+  another table's order and can't be deleted; its table counts as in use (Floor); a waiting or cancelled one's doesn't.
+- **The sound:** while any order is Pending, a sound (`RestroSound.play('alert')`) at once and every minute until
+  someone answers, on every tablet (not the kitchen screen); a new Pending order sounds at once.
+- **Protection:** a Pending order can't be deleted: in delete mode it is dimmed with its **"Pending"** chip, and tapping
+  it says "Pending orders can’t be deleted". End Day is never blocked by it (End Day comes later).
+- **When the internet is back (the cloud, Phase 2):** the cloud settles each one and the change reaches the tablets
+  through sync:
+
+  | Answered | The money | The cloud | The tablets |
+  | --- | --- | --- | --- |
+  | Customer paid (`'matching'`) | arrived | matches it: takes off `qrPay`, sets `method`, `paidAt`, `payRef` | "Paid - UPI" (and the rest) |
+  | not yet (`'pending'`) | arrived | takes off `qrPay`, sets `method`, `paidAt`, `payRef` | the main system prints its KOT by itself, as for any QR order paid as usual; the pop-up, the badge and Confirm ! clear (an open pop-up: "Payment received for Order #1032 · its KOT goes to the kitchen") |
+  | Cancel and refund (`'refund'`) | arrived | refunds it: sets `paidAt`, `method`, `refundedAt`, `refundMethod`, takes off `qrPay` | "Refunded - UPI" |
+  | not yet, or Cancel and refund | never | deletes the order (a tombstone) | it disappears, with its badge count |
+  | Customer paid | never | tells the owner | (what the order shows then is for the owner to decide) |
+
+  A payment made twice is refunded by itself. There is no refund timer.
+- **A QR order paid with its KOT not gone yet** (the payment arrived after all, or the order came in paid as usual):
+  the main system (or a tablet on its own) sends its KOT by itself, once (`RestroCounter.sendKitchen`), on its day.
+- **Not built yet:** the Floor app's side (designed later), the Payments app, Analytics › Activity, the PIN.
+
+### Home-screen badges (J)
+
+- **The look (OR0):** an amber circle `#D97706`, 40 across in the home's units (44 on the 1920 screen), with its
+  number in white bold (18 home units: 20), its middle 8.5 in from the icon's top-right corner, and a 6 gap round it cut
+  through the icon and its shadow, so the home background shows (any theme, any wallpaper or Mirror picture). The same
+  in the dock and on the pages, wherever the app is put (`launcher.css`, `home-widgets.js`).
+- **Orders' badge** counts each order showing **KOT !** (on the day's list) and each **Pending QR payment** (Confirm !,
+  whatever its day kept): `RestroOrders.attention()`. Each clears by itself once fixed (reprinted, answered, settled
+  by the cloud); there is no "fixed" notice and no SMS or WhatsApp. "99+" past 99.
+- **Other apps:** QR Studio's badge (quiet QRs, renamed tables, pauses by itself) comes with QR Studio, Availability's
+  with Availability; the others have none until the owner defines them.
+- **The home's Orders widget:** a Pending order is listed as open, its chip **"Pending"** (`#FFEDD5`, `#B45309`);
+  tapping it opens Orders on the day's list with its Customer paid? pop-up.
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 

@@ -161,6 +161,11 @@
 .or-c.pm.np .l1 b{color:#C2410C}
 .or-c.pm.red .l1 b{color:#D92D20}
 .or-c.pm.grey .l1 b{color:#78716C}
+/* (Update Pack 5, H1, PQ1–PQ6) A QR order whose payment hasn't reached us: "Pending" amber in both columns (Split's list
+   and Cards too), "Not in kitchen yet" grey under it. Paid · matching (OR3): the words after Paid amber, 16 beside
+   Classic's 19 (the same share of the line in Split and Cards) */
+.or-c.st.pending .l1 b,.or-c.pm.pend .l1 b,.or-lm .lst.pending b,.or-lr.pend .l1 b{color:#9A4108}
+.or-mt{flex:none;font-size:.842em;font-weight:600;color:#B45309;white-space:nowrap}
 .or-mk{display:inline-flex;align-items:center;justify-content:center;width:calc(26 * var(--fu));height:calc(22 * var(--fu));border-radius:calc(6 * var(--fu));background:#F1F2F5;color:#78716C;margin-left:calc(4 * var(--fu));flex:none}
 .or-qr{flex:none;display:inline-flex;align-items:center;gap:calc(5 * var(--fu));height:calc(24 * var(--fu));box-sizing:border-box;margin-left:calc(8 * var(--fu));padding:0 calc(7 * var(--fu)) 0 calc(8 * var(--fu));border:1px solid #C7D7F6;border-radius:calc(7 * var(--fu));background:#EEF4FF;color:#1E4FB8;font-size:calc(12.5 * var(--fu));font-weight:700;line-height:1;white-space:nowrap;vertical-align:middle}
 .orders-app .or-qr .or-i{width:calc(11 * var(--fu));height:calc(11 * var(--fu))}
@@ -580,6 +585,8 @@
 .or-none{margin:0;padding:calc(16 * var(--fu)) calc(18 * var(--fu));border-radius:calc(16 * var(--fu));background:#FFFFFF;color:#78716C;font-size:calc(15.5 * var(--fu));font-weight:600;text-align:center;box-shadow:inset 0 0 0 1px rgba(17,24,39,.06)}
 /* Delete (P11a, P11b): the Counter's void sheet: the red sign, the orders, the slip line, the reason, the six reasons */
 .or-scrim.k-delete{place-items:start center;padding-top:calc(48 * var(--fu))}
+/* (Update Pack 5, H1) Customer paid?: 700 wide, its top 122 under the status bar (qr-pending.css draws it) */
+.or-scrim.k-paid{place-items:start center;padding-top:calc(122 * var(--fu))}
 .or-scrim.k-roll{place-items:start center;padding-top:calc(255 * var(--fu))}
 .or-pop.del{width:calc(1320 * var(--fu));padding:calc(28 * var(--fu)) calc(30 * var(--fu)) calc(28 * var(--fu));border-radius:calc(36 * var(--fu));background:#F3F4F7}
 .or-del-head{display:flex;align-items:center;gap:calc(14 * var(--fu))}

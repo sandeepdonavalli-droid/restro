@@ -5,8 +5,8 @@
 // - Orders: how many are open and ready, the latest three open ones with where they are. An order opens in Counter.
 // - Floor: the tables, the ones in use highlighted. A table opens its order (or a new one) in Counter.
 // - Pager Hub: the pagers out with customers, longest wait first. A pager buzzes.
-// The apps carry no count badges for now. Everything follows the data: on any change from another tablet, when an app
-// closes, and every 30 seconds (the waits).
+// Everything follows the data: on any change from another tablet, when an app closes, and every 30 seconds (the waits).
+// Home-screen badges (Update Pack 5, J), at the end: Orders' counts each order showing KOT ! and each Pending QR payment.
 (() => {
   const panel = document.querySelector('#home-widgets');
   if (!panel) return;
@@ -72,10 +72,11 @@
     const ready = open.filter(o => statusOf(o).sub === 'Ready').length;
     const line = open.length ? `${open.length} open${ready ? ` · ${ready} ready to serve` : ''}` : 'No open orders';
     const where = o => o.table ? `Table ${window.RestroFloor?.tableName(o.table) || o.table}` : o.customer?.name || TYPES[o.type] || 'Order';
-    const chip = s => (s.sub === 'Ready' ? 'ready' : s.sub === 'In kitchen' ? 'kitchen' : String(s.sub || '').startsWith('Scheduled') ? 'scheduled' : 'open');
+    // (Update Pack 5, H1, OR0: a QR order whose payment is Pending, its chip amber; tapped, its Customer paid? pop-up in Orders)
+    const chip = s => (s.sub === 'Ready' ? 'ready' : s.sub === 'In kitchen' ? 'kitchen' : s.sub === 'Pending' ? 'pending' : String(s.sub || '').startsWith('Scheduled') ? 'scheduled' : 'open');
     const rows = open.slice(0, 3).map(o => {
       const s = statusOf(o), label = s.sub || 'Open';
-      const go = () => (o.paidAt ? window.RestroOrders?.open() : window.RestroCounter?.openOrder(o.uid || o.number));
+      const go = () => (s.sub === 'Pending' ? window.RestroOrders?.open({ confirm: o.uid || `n${o.number}` }) : o.paidAt ? window.RestroOrders?.open() : window.RestroCounter?.openOrder(o.uid || o.number));
       return el('button', { type: 'button', class: 'hw-order', 'aria-label': `Order ${ticket(o.number)}, ${where(o)}, ${minutes(now - o.createdAt)}, ${label}`, onclick: go },
         el('strong', {}, ticket(o.number)), el('span', { class: 'hw-where' }, `${where(o)} · ${minutes(now - o.createdAt)}`), el('span', { class: `hw-chip ${chip(s)}` }, label.replace(/^Scheduled /, '')));
     });
@@ -110,7 +111,29 @@
   function render() {
     const now = Date.now(), orders = window.RestroCounter?.orders?.() || [];
     panel.replaceChildren(salesCard(orders, now), ordersCard(orders, now), el('div', { class: 'hw-pair' }, floorCard(), pagersCard(orders, now)));
+    paintBadges();
   }
+
+  // ---------- home-screen badges (Update Pack 5, J) ----------
+  // A 40 amber circle (home units) with its white bold number at an app's icon, top right, and a 6 gap round it cut
+  // through the icon to the home background (launcher.css). Orders: each order showing KOT ! and each Pending QR payment
+  // (RestroOrders.attention). Each item clears by itself once fixed. QR Studio's comes with QR Studio; other apps have
+  // none until the owner defines them. In the dock and on the pages alike, wherever the app is.
+  const counts = () => ({ orders: window.RestroOrders?.attention?.() || 0 });
+  function paintBadges() {
+    const n = counts();
+    for (const host of document.querySelectorAll('#home :is(.shortcut[data-app],.app-tile[data-id])')) {
+      const id = host.dataset.app || host.dataset.id, count = n[id] || 0, text = count > 99 ? '99+' : String(count);
+      let badge = host.querySelector(':scope > .app-badge');
+      if (host.classList.contains('has-badge') !== count > 0) host.classList.toggle('has-badge', count > 0);
+      if (!count) { badge?.remove(); continue; }
+      if (!badge) { badge = el('span', { class: 'app-badge', 'aria-hidden': 'true' }); host.append(badge); }
+      if (badge.textContent !== text) badge.textContent = text;
+    }
+  }
+  // (the dock and the pages are drawn again when apps move: the badges go back on)
+  const homeApps = document.querySelector('#home .workspace');
+  if (homeApps) new MutationObserver(paintBadges).observe(homeApps, { childList: true, subtree: true });
   document.addEventListener('DOMContentLoaded', render);
   window.addEventListener('restro:data-changed', render);
   window.addEventListener('restro:pager-docked', render);

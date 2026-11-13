@@ -219,6 +219,11 @@
   // changes to Takeaway) and comes back if Dine in is chosen again.
   const DEFAULT_TYPE = 'dine-in';
   const usesTable = o => Boolean(o.table) && (o.type === 'dine-in' || (Boolean(o.type) && o.split));
+  // (Update Pack 5, H1) A QR order whose payment hasn't been confirmed: 'waiting' (the customer is on the payment page),
+  // 'pending' (no confirmation in 30 s and no cloud) or 'refund' (staff cancelled it). Such an order never opens here,
+  // is never merged into another or deleted, and isn't Due here; a waiting or cancelled one doesn't keep its table busy.
+  const qrHeld = o => o?.qr === true && !o.platform && ['waiting', 'pending', 'refund'].includes(o.qrPay);
+  const qrPendingOn = id => loadOrders().find(o => o.qr === true && !o.platform && o.qrPay === 'pending' && o.table === id && usesTable(o));
   // With Modify on (called "split" in the code), each line keeps its own type; otherwise every line follows the order type.
   const typeOf = (o, line) => (o.split ? line.type || o.type : o.type) || DEFAULT_TYPE;
   const lineType = line => typeOf(order, line);
@@ -566,7 +571,7 @@
     closeMenu(); render();
     window.RestroFloor?.open({ pick: true, current: null, onPick: table => {
       const mine = o => (order.uid ? idOf(o) === order.uid : order.number ? o.number === order.number : false);
-      const other = loadOrders().find(o => !o.paidAt && o.table === table.id && usesTable(o) && !mine(o));
+      const other = loadOrders().find(o => !o.paidAt && !qrHeld(o) && o.table === table.id && usesTable(o) && !mine(o));
       if (!other) { render(); say(`Table ${tableName(table.id)} has no open order`); return; }
       if (order.merged.includes(idOf(other))) { render(); return; }
       const r = onScreen(other);
@@ -1036,7 +1041,7 @@
   }
   // Opens a saved order that is not paid yet (by its id, or its number), to add items or take the payment.
   function openOrder(ref) {
-    const saved = loadOrders().find(o => (typeof ref === 'string' ? idOf(o) === ref : o.number === ref) && !o.paidAt);
+    const saved = loadOrders().find(o => (typeof ref === 'string' ? idOf(o) === ref : o.number === ref) && !o.paidAt && !qrHeld(o));
     if (order.number && (saved ? (order.uid ? order.uid === idOf(saved) : order.number === saved.number) : order.number === ref)) { sheet = null; render(); return; }
     if (!saved) return;
     park();
@@ -1155,11 +1160,13 @@
   // A table tapped on the Floor: the order on that table (on screen, saved and not paid, or a saved order's held copy)
   // if it has one, otherwise a new Dine in order with the table already chosen. An order on screen with anything not
   // saved goes to Held (a new order's table and pager are freed). A held order never keeps a table busy.
-  function openTable(id) {
+  // (Update Pack 5, H1: a table with a Pending QR order asks Customer paid? first; it opens once a choice is made)
+  function openTable(id, asked = false) {
     const forTable = o => o.table === id && usesTable(o);
+    if (!asked && qrPendingOn(id) && window.RestroOrders?.askQr?.(idOf(qrPendingOn(id)), { host: dialog, then: choice => { if (choice && dialog.open) openTable(id, true); } })) return;
     query = ''; category = null;
     if (forTable(order) && (order.lines.length || order.number)) { selected = null; sheet = null; render(); return; }
-    const open = loadOrders().find(o => !o.paidAt && forTable(o));
+    const open = loadOrders().find(o => !o.paidAt && !qrHeld(o) && forTable(o));
     if (open) { openOrder(idOf(open)); return; }
     const waiting = held.find(h => h.number && forTable(h));
     if (waiting) { resume(waiting.heldId); return; }
@@ -1468,12 +1475,22 @@
   const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
   function pickTable() {
     window.RestroFloor?.open({ pick: true, current: order.table, guests: order.guests, onPick: table => {
-      if (order.table && order.table !== table.id && (order.uid || order.number)) logEvent('move', { from: order.table, to: table.id });
-      order.table = table.id;
-      // (Update 7: the guest count, asked in the Dining app the first time the table is picked for the order)
-      if (cleanGuests(table.guests)) order.guests = table.guests;
-      if (!order.type) { order.type = 'dine-in'; order.lines.forEach(l => { l.type = l.type || 'dine-in'; }); tidy(); } // a table means Dine in
-      render();
+      const take = () => {
+        if (order.table && order.table !== table.id && (order.uid || order.number)) logEvent('move', { from: order.table, to: table.id });
+        order.table = table.id;
+        // (Update 7: the guest count, asked in the Dining app the first time the table is picked for the order)
+        if (cleanGuests(table.guests)) order.guests = table.guests;
+        if (!order.type) { order.type = 'dine-in'; order.lines.forEach(l => { l.type = l.type || 'dine-in'; }); tidy(); } // a table means Dine in
+        render();
+      };
+      // (Update Pack 5, H1, CT1) a table with a Pending QR order: the table shows picked under "Table 3 has a pending QR
+      // order"; it is taken once a choice is made, and Not now puts back the table there was
+      const p = qrPendingOn(table.id);
+      if (!p || order.table === table.id) { take(); return; }
+      const was = { table: order.table, guests: order.guests };
+      order.table = table.id; if (cleanGuests(table.guests)) order.guests = table.guests; render();
+      const back = () => { order.table = was.table; order.guests = was.guests; };
+      if (!window.RestroOrders?.askQr?.(idOf(p), { host: dialog, then: choice => { back(); if (choice) take(); else render(); } })) { back(); take(); }
     } });
   }
   function pickCustomer() {
@@ -1510,7 +1527,9 @@
   const timeOf = when => new Date(when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
   // "7:30 pm" today, "Fri 7:30 pm" on another day.
   const whenShort = when => dayKey(when) === dayKey(Date.now()) ? timeOf(when) : `${new Date(when).toLocaleDateString('en-IN', { weekday: 'short' })} ${timeOf(when)}`;
-  const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card' };
+  // (Update Pack 5: a QR order's own methods; one paid by QR and not matched yet, H1: QR)
+  const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet' };
+  const methodOf = o => (o.qr === true && o.qrPay === 'matching' ? 'QR' : methodLabel[o.method] || 'Cash');
   // (Update Pack 5) paid in part (the Pay screen, to come: paidAmount in paise, less than the total): Orders' Part paid
   const partPaid = o => !o.paidAt && Number(o.paidAmount) > 0 && Number(o.paidAmount) < (Number(o.total) || 0);
   // ---------- the Counter screen (POS Counter Handoff) ----------
@@ -2618,14 +2637,15 @@
   // (Update Pack 4: Settings › Business details › Bill number. "At payment": a bill printed before the payment is "BILL ·
   // NOT A TAX INVOICE", with no number (`pre`; kept as { tax: false } among `bills`), and the receipt, with its number,
   // prints by itself at the payment. A bill that already has its number keeps it, and prints as the tax invoice.)
-  const PAID_AS = { cash: 'Cash', upi: 'UPI', card: 'Card', swiggy: 'Swiggy', zomato: 'Zomato' };
+  // (Update Pack 5: a QR order's own methods; paid by QR and not matched yet, H1: "PAID · QR")
+  const PAID_AS = { cash: 'Cash', upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet', swiggy: 'Swiggy', zomato: 'Zomato' };
   const atPayment = () => window.RestroPrefs?.get?.('billNumber')?.at === 'payment';
   function billDoc(o, kind, prints, rec = null, pre = false) {
     const same = prints.filter(p => (p?.tax === false) === pre), now = Date.now(), last = same.length ? { at: now, by: initialsOf(staffName()) } : null;
     // (the receipt carries the bill's date and time, as PS01 draws it, when a bill (a tax invoice) was printed first)
     const billAt = kind === 'receipt' && Array.isArray(rec?.bills) ? Number(rec.bills.find(b => b && b.tax !== false)?.at) || 0 : 0;
     const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : pre ? 'BILL · NOT A TAX INVOICE' : 'TAX INVOICE', at: billAt || same[0]?.at || now, reprint: last };
-    if (kind === 'receipt' && rec) bill.paid = { method: PAID_AS[rec.method] || 'Cash', amount: bill.total, at: Date.parse(rec.paidAt) || now, ref: typeof rec.payRef === 'string' ? rec.payRef : '' };
+    if (kind === 'receipt' && rec) bill.paid = { method: rec.qr === true && rec.qrPay === 'matching' ? 'QR' : PAID_AS[rec.method] || 'Cash', amount: bill.total, at: Date.parse(rec.paidAt) || now, ref: typeof rec.payRef === 'string' ? rec.payRef : '' };
     return bill;
   }
   // To the bill printer (RESTRODevice.printer.printBill), or the browser's printing; resolves whether it printed
@@ -3585,7 +3605,7 @@
           ...sumsOf(o).flatMap(([label, value]) => [el('dt', {}, label), el('dd', {}, value)]),
           el('dt', { class: 'ctr-total' }, 'Total'), el('dd', { class: 'ctr-total' }, money(o.total))),
         el('p', { class: 'ctr-history-pay' }, o.paidAt
-          ? [`Paid ${timeOf(o.paidAt)}`, methodLabel[o.method] || 'Cash', Number.isFinite(o.received) ? `received ${money(o.received)}` : '', o.change > 0 ? `change ${money(o.change)}` : ''].filter(Boolean).join(' · ')
+          ? [`Paid ${timeOf(o.paidAt)}`, methodOf(o), Number.isFinite(o.received) ? `received ${money(o.received)}` : '', o.change > 0 ? `change ${money(o.change)}` : ''].filter(Boolean).join(' · ')
           : 'Due'));
       const toggle = (li, button, o) => {
         const open = li.classList.contains('open');
@@ -3607,7 +3627,7 @@
       const paymentRow = o => el('li', { class: 'ctr-history-row' },
         el('div', { class: 'ctr-history-main' },
           el('span', { class: 'ctr-history-copy' },
-            el('strong', {}, money(o.total), el('span', { class: 'ctr-history-desc' }, ` · ${methodLabel[o.method] || 'Cash'}`)),
+            el('strong', {}, money(o.total), el('span', { class: 'ctr-history-desc' }, ` · ${methodOf(o)}`)),
             el('span', {}, [`Order ${ticket(o.number)}`, Number.isFinite(o.received) ? `Received ${money(o.received)}` : '', o.change > 0 ? `Change ${money(o.change)}` : ''].filter(Boolean).join(' · '))),
           el('span', { class: 'ctr-history-side' }, el('span', {}, timeOf(o.paidAt)))));
       let day = null;
@@ -3681,6 +3701,7 @@
 
   function goBack() {
     if (!dialog.open) return false;
+    if (window.RestroOrders?.closeQr?.()) return true; // (Update Pack 5, H1: Customer paid? over the Counter: Not now)
     if (typeMenu) { openTypeMenu(false); return true; }
     if (optionsMenu) { openOptions(false); return true; }
     // The pop-ups: the modifier one closes keeping its choices (or shows what is still needed), the quantity one closes
@@ -3806,7 +3827,33 @@
     delete rec.kitchenDoneAt; rec.savedAt = now; storeOrders(list); if (order.uid === uid) keepOpened(rec);
     await numberKot(uid, kot); // (its number, as it prints)
     const r = await sendSlip(kitchenSlip(rec, kot), { uid, id: kot.id });
-    return { ...r, no: kot.no, count: kot.lines.reduce((n, l) => n + l.qty, 0) };
+    return { ...r, no: kot.no, kot: kot.id, count: kot.lines.reduce((n, l) => n + l.qty, 0) };
+  }
+  // (Update Pack 5, H1) Customer paid? answered for a Pending QR order (Orders, or the Counter when its table is picked):
+  // 'paid' (Customer paid · print KOT: paid when the customer paid, qrPay 'matching' until the cloud matches the payment,
+  // and its KOT goes now) or 'refund' (Cancel and refund: qrPay 'refund', Closed, refunded by the cloud once online).
+  // Who chose and when go on the order (qrChoice, and its Track history). The first choice wins on every tablet: a later
+  // one gets { clash: { choice, by, at } }. Resolves { ok, choice, no, kot } (no, kot: its KOT's number and id).
+  async function qrChoice(uid, choice) {
+    if (choice !== 'paid' && choice !== 'refund') return { ok: false };
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false, gone: true };
+    if (!(rec.qr === true && (rec.qrPay === 'pending' || rec.qrPay === 'waiting'))) return { ok: false, clash: rec.qrChoice || { choice: rec.qrPay === 'refund' ? 'refund' : 'paid', by: null, at: null } };
+    const now = Date.now(), by = staffName();
+    rec.qrChoice = { choice, by: by || null, at: now };
+    rec.events = [...(Array.isArray(rec.events) ? rec.events : []), { id: newEventId(), at: now, kind: choice === 'paid' ? 'qr-paid' : 'qr-refund', by }].slice(-200);
+    if (choice === 'paid') { rec.qrPay = 'matching'; rec.paidAt = new Date(cleanTime(rec.qrPayAt) || createdOf(rec) || now).toISOString(); } else rec.qrPay = 'refund';
+    rec.savedAt = now; storeOrders(list);
+    if (choice === 'refund') { if (dialog.open) render(); return { ok: true, choice }; }
+    const r = await sendKitchen(uid);
+    if (dialog.open) render();
+    return { ok: r.ok !== false, choice, no: r.no || null, kot: r.kot || null };
+  }
+  // (H1) A QR order 30 s on the payment page with no confirmation and no cloud: Pending (orders.js decides; any tablet)
+  function qrMark(uid, state) {
+    if (state !== 'pending') return false;
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid);
+    if (!rec || rec.qr !== true || rec.qrPay !== 'waiting') return false;
+    rec.qrPay = 'pending'; storeOrders(list); return true;
   }
   // Deletes saved orders not paid yet (Orders: one, or several picked together), with the reason. They come off Orders
   // and the Counter for good (there are no grey Cancelled rows), their tables and pagers are free, and each is kept for
@@ -3816,7 +3863,7 @@
   // delivery-app orders are never deleted here.
   function deleteOrders(uids, reason) {
     const list = loadOrders(), now = Date.now(), by = staffName(), why = cleanReason(reason);
-    const gone = list.filter(o => uids.includes(idOf(o)) && !o.paidAt && !o.platform);
+    const gone = list.filter(o => uids.includes(idOf(o)) && !o.paidAt && !o.platform && !qrHeld(o));
     if (!gone.length || !why) return { count: 0, kitchen: 0 };
     const reached = gone.filter(o => kotsOf(o).length);
     for (const rec of gone) { keepCancelled(rec, { at: now, reason: why, by }); window.RestroSync?.removed('orders', idOf(rec)); }
@@ -3886,6 +3933,8 @@
     goBack,
     // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
     kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type), kitchenTime: o => kitchenTime(o),
+    // (Update Pack 5, H1) a Pending QR order: Customer paid? answered, and the 30 s mark
+    qrChoice, qrMark,
     // (a message or buzz that went, or didn't: Orders' line under Notify or Buzz green, or red until one goes)
     markNotified: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', true), markBuzzed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', true),
     markNotifyFailed: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', false), markBuzzFailed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', false),
@@ -3910,7 +3959,8 @@
     openHeld() { openCounter(); fromFloor = false; fromOrders = true; sheet = 'held'; render(); },
     tablesInUse() {
       // (a held order's table was freed when it was held, a saved one's too: Update Pack 4, C11)
-      const used = [...loadOrders().filter(o => !o.paidAt), ...held.filter(h => h.number)].filter(usesTable).map(o => o.table);
+      // (H1: a Pending QR order's table is in use; one still on the payment page, or cancelled, isn't)
+      const used = [...loadOrders().filter(o => !o.paidAt && !(qrHeld(o) && o.qrPay !== 'pending')), ...held.filter(h => h.number)].filter(usesTable).map(o => o.table);
       if (order.lines.length && usesTable(order)) used.push(order.table);
       return used;
     },

@@ -39,7 +39,10 @@
   // Collections: a list of records under one key, `id` naming a record, with the rules for merging two versions.
   const COLLECTIONS = {
     orders: { key: 'restro.counter.orders.v1', id: o => (typeof o?.uid === 'string' ? o.uid : Number.isFinite(o?.number) ? `n${o.number}` : null),
-      rules: { keyed: { lines: lineKey, kots: k => String(k.id || k.at), events: e => String(e.id || e.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'] } },
+      rules: { keyed: { lines: lineKey, kots: k => String(k.id || k.at), events: e => String(e.id || e.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'],
+        // (Update Pack 5, H1: a QR payment's Customer paid? answered on two tablets at once: the first answer stays, with
+        // what it set; K: "the first wins")
+        first: { key: 'qrChoice', with: ['qrPay', 'paidAt'] } } },
     held: { key: 'restro.counter.held.v1', id: h => (typeof h?.heldId === 'string' ? h.heldId : null), keep: h => !(Number.isFinite(h.holdUntil) && h.holdUntil <= Date.now()),
       rules: { keyed: { lines: lineKey }, additive: { lines: 'qty' } } },
     customers: { key: 'restro.customers.v1', id: c => (typeof c?.id === 'string' ? c.id : null) },
@@ -302,6 +305,12 @@
         if (sticky && sticky.includes(k) && k in out) continue;
         const v = merge3(isObj(base) ? base[k] : undefined, mine[k], theirs[k], rules, mineNewer, path ? `${path}.${k}` : k);
         if (v !== undefined) out[k] = v;
+      }
+      // (answered on both sides: the earlier answer stays, with the fields it set, over the payment rule above)
+      const first = path === '' ? rules.first : null, fm = first && mine[first.key], ft = first && theirs[first.key];
+      if (isObj(fm) && isObj(ft) && !same(fm, ft)) {
+        const from = (Number(fm.at) || 0) <= (Number(ft.at) || 0) ? mine : theirs;
+        for (const k of [first.key, ...first.with]) { if (from[k] === undefined) delete out[k]; else out[k] = from[k]; }
       }
       return out;
     }

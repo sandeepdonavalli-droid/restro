@@ -33,7 +33,11 @@
 // website or app (to come) carry online: true and source ('Website' or 'App'), shown where the cashier would be.
 // Orders placed by QR (Update Pack 5, K: a Table QR's are Dine-in on its table, a Takeaway QR's Takeaway with the
 // customer's name and phone) carry qr: true, are paid first (paidAt, and method 'upi', 'card', 'netbanking' or
-// 'wallet') and show a small blue QR tag by the order type; a Takeaway QR's has no cashier. A bill
+// 'wallet') and show a small blue QR tag by the order type; a Takeaway QR's has no cashier. Its payment while the
+// restaurant is offline (Update Pack 5, H1) is qrPay: 'waiting' (the customer is on the payment page: not listed yet),
+// 'pending' (no confirmation in 30 s and no cloud: Pending, red Confirm !, in Due), 'matching' (staff saw it paid:
+// paid, its KOT sent, matched once online) or 'refund' (staff cancelled it: Closed, Refund pending); qrPayAt is when the
+// customer paid, qrChoice who chose what and when. A bill
 // paid in part (the Pay screen, to come) carries paidAmount (paise) and paidAmountAt; refunds carry refundedAt,
 // refundAmount (paise; less than the total: a partial refund) and refundMethod.
 (() => {
@@ -120,13 +124,16 @@
   const PLATFORMS = { swiggy: ['Swiggy', '#E8711F'], zomato: ['Zomato', '#C8303B'] };
   const PAID_BY = { cash: 'Cash', upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet', swiggy: 'Swiggy', zomato: 'Zomato' };
   // Payment status (the filter, in this order) and the order of "Due first"
-  const PAYS = [['paid', 'Paid'], ['np', 'Due'], ['part', 'Part paid'], ['rf', 'Refunded'], ['prf', 'Partial refund'], ['comp', 'Complimentary'], ['await', 'Awaiting payout'], ['npp', 'Unpaid by platform']];
-  const PAY_RANK = { np: 0, part: 1, await: 2, npp: 3, paid: 4, comp: 5, prf: 6, rf: 7 };
+  // (Update Pack 5, H1: Pending, a QR order's payment that hasn't reached us, is first in "Due first")
+  const PAYS = [['paid', 'Paid'], ['np', 'Due'], ['part', 'Part paid'], ['pend', 'Pending'], ['rf', 'Refunded'], ['prf', 'Partial refund'], ['comp', 'Complimentary'], ['await', 'Awaiting payout'], ['npp', 'Unpaid by platform']];
+  const PAY_RANK = { pend: -1, np: 0, part: 1, await: 2, npp: 3, paid: 4, comp: 5, prf: 6, rf: 7 };
   const money = paise => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const rupees = paise => `₹${Math.round(paise / 100).toLocaleString('en-IN')}`;
   const ticket = n => `#${String(n).padStart(2, '0')}`;
   // "7:24 pm" (am and pm always lower-case)
   const timeOf = t => new Date(t).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?m\.?/i, (m, x) => ` ${x.toLowerCase()}m`);
+  // "7:25 PM" (the Customer paid? pop-up, as drawn)
+  const clockOf = t => timeOf(t).replace(/([ap])m$/, (m, x) => `${x.toUpperCase()}M`);
   const dateOf = t => new Date(t).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const shortDay = t => new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
   const weekday = t => new Date(t).toLocaleDateString('en-GB', { weekday: 'short' });
@@ -163,6 +170,12 @@
   // after its ready-by time); Ready · N min (green) once the kitchen completed it. Cancelled (red, "by Swiggy") when a
   // delivery app cancels it. Without the kitchen screen (a later subscription choice) an order is Open until paid.
   const KITCHEN_SCREEN = true;
+  // (Update Pack 5, H1) A QR order's payment while it isn't confirmed: 'waiting' · 'pending' · 'matching' · 'refund', or
+  // null (paid as usual, or matched)
+  const QR_PAYS = ['waiting', 'pending', 'matching', 'refund'];
+  const qrOf = o => (o?.qr === true && !o.platform && QR_PAYS.includes(o.qrPay) ? o.qrPay : null);
+  // Pending (H1): the order status "Pending", "Not in kitchen yet" under it; a cancelled one is Closed
+  // (a 'waiting' one isn't listed: the customer is still on the payment page)
   // (the day the page shows: "Scheduled 1:00 pm" on that order's own day, "Tomorrow 1:00 pm" the day before; OS5, OS6)
   let refDay = null;
   function schedLine(t, now) {
@@ -171,6 +184,9 @@
   }
   function statusOf(o, now = Date.now()) {
     if (o.cancelledBy) return { text: 'Cancelled', cls: 'cancelled', sub: `by ${o.cancelledBy}`, subCls: 'can', closed: true, rank: 2 };
+    const qp = qrOf(o);
+    if (qp === 'pending' || qp === 'waiting') return { text: 'Pending', cls: 'pending', sub: 'Not in kitchen yet', subCls: '', rank: 0, pending: true };
+    if (qp === 'refund') return { text: 'Closed', cls: 'closed', closed: true, rank: 2 };
     const waiting = !o.sentAt && Boolean(o.readyAt), screen = KITCHEN_SCREEN && Boolean(o.sentAt), ready = screen && Boolean(o.kitchenDoneAt);
     if (o.paidAt && !waiting && (!screen || ready) && !o.pagerOut) return { text: 'Closed', cls: 'closed', closed: true, rank: 2 };
     if (waiting) return { text: 'Open', cls: 'open', sub: schedLine(o.readyAt, now), base: 'Scheduled', subCls: 'sch', sched: true, rank: 1 };
@@ -191,8 +207,14 @@
       if (o.payout === 'unpaid') return { key: 'npp', text: `Unpaid - ${app}`, cls: 'red', short: 'Unpaid', kept: 0 };
       return { key: 'await', text: `Awaiting ${app}`, cls: 'grey', short: 'Awaiting', kept: 0 };
     }
+    // (H1) Pending: in Due, not in Total; cancelled by staff: "Refund pending" (red, as Refunded), in neither
+    const qp = qrOf(o);
+    if (qp === 'pending' || qp === 'waiting') return { key: 'pend', text: 'Pending', cls: 'pend', short: 'Pending', kept: 0, due: amount };
+    if (qp === 'refund') return { key: 'rf', text: 'Refund pending', cls: 'red', short: 'Refund pending', kept: 0, refundPending: true };
     if (o.paidAt) {
       const at = Date.parse(o.paidAt) || 0;
+      // (H1) staff saw it paid: "Paid · matching" until the payment is matched (then "Paid - UPI"), in Total
+      if (qp === 'matching') return { key: 'paid', text: 'Paid', matching: true, short: 'Paid', kept: amount, at };
       if (o.refundedAt) {
         const back = Number(o.refundAmount);
         if (back > 0 && back < amount) return { key: 'prf', text: `Partial refund - ${PAID_BY[o.refundMethod] || how}`, cls: 'red', short: 'Partial refund', kept: amount - back, at, refunded: back };
@@ -243,17 +265,20 @@
     if (platform && (o.callCode || o.handover || (o.platformType !== 'pickup' && o.riderAt))) who.codes = { call: o.callCode || '', handover: o.handover || '', rider: o.platformType !== 'pickup' && o.riderAt ? timeOf(o.riderAt) : '' };
     const status = statusOf(o, now), pay = payOf(o);
     const tags = { disc: Boolean(o.discountPct) || (o.lines || []).some(l => Number(l.off) > 0), void: (Array.isArray(o.kots) ? o.kots : []).some(k => k && (k.kind === 'void' || k.kind === 'changed')) };
-    // the four buttons
+    // the four buttons (H1: a Pending QR order's red Confirm ! where KOT is, styled as KOT !; Receipt, Notify and Buzz
+    // greyed in their places)
+    const pending = Boolean(status.pending);
     const kots = kotsOf(o), queued = !platform && !o.sentAt && Boolean(o.readyAt), kotAt = queued ? kotTimeOf(o) : 0;
-    const kot = past ? { look: 'off', label: 'KOT' } : kots.some(k => k.failed) ? { look: 'err', label: 'KOT !' }
+    const kot = pending ? { look: 'confirm', label: 'Confirm !' } : past ? { look: 'off', label: 'KOT' } : kots.some(k => k.failed) ? { look: 'err', label: 'KOT !' }
       : queued ? { look: 'q', at: kotAt, label: dayOf(kotAt) === (refDay || dayOf(now)) ? timeOf(kotAt) : weekday(kotAt) } : { look: kots.length ? 'on' : 'off', label: 'KOT' };
     const third = platform ? { kind: o.platformReadyAt || status.closed ? 'marked' : 'ready', on: !past }
-      : { kind: 'notify', on: !past && Boolean(phone), line: lastTry(o.notifiedAt, o.notifyFailedAt) };
-    const buzz = { no: o.pager ? String(o.pager) : '', on: !past && !status.closed && Boolean(o.pager) && Boolean(o.pagerOut), line: lastTry(o.buzzedAt, o.buzzFailedAt) };
-    // can it be deleted (long-press): only Due orders, and never a delivery app's (it is cancelled on the app)
-    const lock = platform ? `${type.name} · cancel on ${type.name}` : pay.key === 'np' ? '' : pay.key === 'part' ? 'Part paid' : 'Paid';
+      : { kind: 'notify', on: !past && !pending && Boolean(phone), line: lastTry(o.notifiedAt, o.notifyFailedAt) };
+    const buzz = { no: o.pager ? String(o.pager) : '', on: !past && !pending && !status.closed && Boolean(o.pager) && Boolean(o.pagerOut), line: lastTry(o.buzzedAt, o.buzzFailedAt) };
+    // can it be deleted (long-press): only Due orders, and never a delivery app's (it is cancelled on the app); a Pending
+    // QR order never (H1: dimmed with its "Pending" chip)
+    const lock = pending ? 'Pending' : platform ? `${type.name} · cancel on ${type.name}` : pay.key === 'np' ? '' : pay.key === 'part' ? 'Part paid' : 'Paid';
     const forDay = o.readyAt ? dayOf(o.readyAt) : null, taken = dayOfOrder(o);
-    return { o, id, when, type, qr, numbers, who, status, pay, tags, kot, third, buzz, lock, phone, name, server, dine,
+    return { o, id, when, type, qr, numbers, who, status, pay, tags, kot, third, buzz, lock, pending, phone, name, server, dine,
       taken, forDay: forDay && forDay !== taken ? forDay : null, paidDay: pay.at ? dayOf(pay.at) : null,
       find: { name: name.toLowerCase(), l1: who.l1.toLowerCase(), phone: (o.customer?.mobile || '').replace(/\D/g, ''), number: o.number, platformNo: String(o.platformNo || ''),
         table: dine ? String(tableName(o.table)).toLowerCase() : '', pager: Number(o.pager) || 0, handover: String(o.handover || '') } };
@@ -299,7 +324,7 @@
     try {
       const mine = window.RestroCounter?.orders?.() || [];
       for (const o of mine) {
-        if (onHold.has(o.uid)) continue;
+        if (onHold.has(o.uid) || qrOf(o) === 'waiting') continue;
         const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
         if ((taken >= from && taken <= to) || (forDay && forDay >= from && forDay <= to)) out.push(infoOf(o, now, { past }));
       }
@@ -370,8 +395,9 @@
     if (skip !== 'staff' && staffF && r.server !== staffF) return false;
     return true;
   }
-  // behind the Due number: Due or Part paid, for this day (an order for another day counts on its own day)
-  function dueOf(r) { const { from, to } = period(); return (r.pay.key === 'np' || r.pay.key === 'part') && (!r.forDay || (r.forDay >= from && r.forDay <= to)); }
+  // behind the Due number: Due, Part paid or Pending (H1), for this day (an order for another day counts on its own day)
+  const DUE_KEYS = ['np', 'part', 'pend'];
+  function dueOf(r) { const { from, to } = period(); return DUE_KEYS.includes(r.pay.key) && (!r.forDay || (r.forDay >= from && r.forDay <= to)); }
   const inTab = (r, t) => t === 'all' ? true : t === 'open' ? !r.status.closed : r.status.closed;
   const STATUS_MODES = ['open', 'sched', 'closed'];
   const STATUS_SORT = {
@@ -433,7 +459,7 @@
     if (range || dueOnly || sampleRows) return [];
     const today = todayKey(), now = Date.now(), seen = new Set(v.all.map(r => r.id)), out = [];
     const onHold = new Set((window.RestroCounter?.held?.() || []).map(h => h.uid).filter(Boolean));
-    const mine = (window.RestroCounter?.orders?.() || []).filter(o => !onHold.has(o.uid)), ids = new Set(mine.map(o => o.uid || `n${o.number}`));
+    const mine = (window.RestroCounter?.orders?.() || []).filter(o => !onHold.has(o.uid) && qrOf(o) !== 'waiting'), ids = new Set(mine.map(o => o.uid || `n${o.number}`));
     const orders = [...mine, ...[...older.orders.values()].filter(o => !ids.has(o.uid || `n${o.number}`))];
     let last = firstKept(); while (older.days.has(addDays(last, -1))) last = addDays(last, -1);
     for (let day = addDays(today, -1); day >= last; day = addDays(day, -1)) {
@@ -606,7 +632,7 @@
     const first = (set, names) => { const list = [...set]; return list.length ? `${names(list[0])}${list.length > 1 ? ` +${list.length - 1}` : ''}` : null; };
     const payName = k => PAYS.find(p => p[0] === k)?.[1] || k, typeName = k => TYPES[k]?.[0] || PLATFORMS[k]?.[0] || (k === 'qr' ? 'QR' : k);
     const dvName = { disc: 'Discounted', void: 'Voided after KOT', both: 'Discounted and voided' };
-    // (tapping Due ticks Due and Part paid: the pill reads just "Due", the Due total being both)
+    // (tapping Due ticks Due, Part paid and Pending: the pill reads just "Due", the Due total being all three)
     return [pill('pay', 'payments', (dueOnly ? 'Due' : first(payF, payName)) || 'All payments', payF.size > 0 || dueOnly, cls),
       pill('dv', 'tag', dv ? dvName[dv] : 'Discounts & voids', Boolean(dv), cls),
       pill('type', 'dineIn', first(typesF, typeName) || 'All order types', typesF.size > 0, cls),
@@ -644,7 +670,7 @@
   }
   function openHeld() { returning = true; if (window.RestroCounter?.openHeld) window.RestroCounter.openHeld(); else toast('Held orders are on the Counter'); }
   // Totals: Orders · Total · Due · N orders › (Due taps to the orders behind it; at ₹0 it is grey and does nothing)
-  function dueTap() { if (!view().totals.due) return; payF = new Set(['np', 'part']); dueOnly = true; tab = 'all'; scrollTop = 0; render(); }
+  function dueTap() { if (!view().totals.due) return; payF = new Set(DUE_KEYS); dueOnly = true; tab = 'all'; scrollTop = 0; render(); }
   // (Update Pack 5, H3) on Today, labelled as today's: Classic's card under "TODAY · MON 9 NOV", the bars' "Today's orders"
   const todayLab = () => `TODAY · ${shortDay(keyDate(todayKey())).toUpperCase()}`;
   const ordersWord = () => (range ? 'Orders' : 'Today’s orders');
@@ -713,10 +739,11 @@
   const payAmount = r => (r.pay.key === 'prf' ? `${money(r.pay.refunded)} refunded` : r.pay.key === 'part' ? `${money(r.pay.due)} due` : money(Number(r.o.total) || 0));
   // The payment status; a long one ("Partial refund - Card") is drawn smaller in every view, as the designs do (Classic
   // 16.5, Split and Cards 15.5)
-  const payLabel = r => el('b', r.pay.text.length >= 19 ? { class: 'long' } : {}, r.pay.text);
+  // (H1, OR3) "Paid · matching": the words after Paid amber and a little smaller, until the payment is matched
+  const payLabel = r => (r.pay.matching ? [el('b', {}, 'Paid'), ' ', el('span', { class: 'or-mt' }, '· matching')] : el('b', r.pay.text.length >= 19 ? { class: 'long' } : {}, r.pay.text));
   const payCellOf = r => el('div', { class: `or-c pm ${r.pay.cls || ''}`.trim(), role: 'cell' }, el('div', { class: 'l1' }, payLabel(r)),
     el('div', { class: 'l2' }, el('span', {}, payAmount(r)), ...tagsOf(r)));
-  const labelOf = r => `Order ${r.o.number != null ? ticket(r.o.number) : ''}, ${timeOf(r.when)}, ${r.type.label}, ${r.who.l1}, ${r.status.text}${r.status.sub ? ` ${r.status.sub}` : ''}, ${r.pay.text}, ${money(Number(r.o.total) || 0)}`;
+  const labelOf = r => `Order ${r.o.number != null ? ticket(r.o.number) : ''}, ${timeOf(r.when)}, ${r.type.label}, ${r.who.l1}, ${r.status.text}${r.status.sub ? ` ${r.status.sub}` : ''}, ${r.pay.text}${r.pay.matching ? ' · matching' : ''}, ${money(Number(r.o.total) || 0)}`;
   function tappable(r, cls, ...children) {
     const picked = picking?.has(r.id);
     return el('div', { class: `${cls}${picking ? r.lock ? ' locked' : picked ? ' picked' : '' : ''}`, role: 'row', tabindex: '0', 'data-id': r.id, 'aria-label': labelOf(r),
@@ -780,11 +807,14 @@
     const b = (cls, on, label, run, ...content) => el('button', { type: 'button', class: `or-b ${cls}${on ? '' : ' off'}`, 'aria-label': label, 'aria-disabled': on ? null : 'true',
       onclick: e => { stop(e); if (on) run(e.currentTarget); }, onpointerdown: stop }, ...content);
     const bill = r.pay.key === 'np' || r.pay.key === 'part', look = paperLook();
-    const pr = b('pr', true, bill ? 'Print the bill' : 'Print the receipt', () => printOrder(r), icon(look === 'off' ? 'printOff' : 'print'), el('span', {}, bill ? 'Bill' : 'Receipt'));
+    // (H1: nothing to print while a QR payment is Pending, or for one cancelled: no payment was confirmed)
+    const pr = b('pr', !r.pending && !r.pay.refundPending, bill ? 'Print the bill' : 'Print the receipt', () => printOrder(r), icon(look === 'off' ? 'printOff' : 'print'), el('span', {}, bill ? 'Bill' : 'Receipt'));
     paintPaper(pr);
     const k = r.kot;
-    const kot = b(`kot${k.look === 'err' ? ' err' : k.look === 'q' ? ' sk' : ''}`, k.look !== 'off', k.look === 'err' ? 'A KOT didn’t print: print it again' : k.look === 'q' ? `Scheduled KOT: prints by itself at ${timeOf(k.at)}` : 'Reprint a KOT',
-      btn => openKot(r, btn), icon('kot'), el('span', {}, k.label));
+    // (H1) Confirm !: the Customer paid? pop-up
+    const kot = k.look === 'confirm' ? b('kot err', true, 'Payment pending: confirm or cancel it', () => openPaid(r), icon('kot'), el('span', {}, k.label))
+      : b(`kot${k.look === 'err' ? ' err' : k.look === 'q' ? ' sk' : ''}`, k.look !== 'off', k.look === 'err' ? 'A KOT didn’t print: print it again' : k.look === 'q' ? `Scheduled KOT: prints by itself at ${timeOf(k.at)}` : 'Reprint a KOT',
+        btn => openKot(r, btn), icon('kot'), el('span', {}, k.label));
     const th = r.third;
     const third = th.kind === 'notify'
       ? b(`nt${th.line ? ` ${th.line}` : ''}`, th.on, th.on ? `Notify ${r.name || 'the customer'}` : 'Notify: no phone number', btn => openNotify(r, btn), icon('notify'), el('span', {}, 'Notify'))
@@ -845,7 +875,8 @@
       el('div', { class: 'l2' }, ...numbersOf(r), ` · ${timeOf(r.when)}${(range && range.from !== range.to) || (!range && r.taken !== todayKey()) ? ` · ${dateOf(r.when)}` : ''}`),
       el('div', { class: 'l2' }, el('b', { class: 'cn' }, hl(r.who.l1, 'name')), ...(r.who.l2 ? [' · ', ...(r.phone && r.who.l2.startsWith(r.phone) ? [el('span', { class: 'nb' }, hl(r.phone, 'phone')), r.who.l2.slice(r.phone.length)] : [r.who.l2])] : [])),
       el('div', { class: `lst ${r.status.cls}` }, el('b', {}, r.status.text), r.status.sub ? el('span', { class: `ss ${r.status.subCls || ''}`.trim() }, r.status.sub) : null),
-      r.kot.look === 'err' ? el('div', { class: 'kfl' }, icon('alert'), 'KOT failed · tap the order to reprint') : null];
+      r.pending ? el('div', { class: 'kfl' }, icon('alert'), 'Payment pending · tap Confirm !')
+        : r.kot.look === 'err' ? el('div', { class: 'kfl' }, icon('alert'), 'KOT failed · tap the order to reprint') : null];
     if (c && (c.call || c.handover)) lines.push(el('div', { class: 'lc' }, ...codesLine({ who: { codes: { ...c, rider: '' } } })));
     if (c?.rider) lines.push(el('div', { class: 'lc' }, `Rider arrival ${c.rider}`));
     return tappable(r, `or-li${!picking && chosen === r.id ? ' sel' : ''}`,
@@ -873,7 +904,8 @@
       : r.dine ? [r.type.label, r.qr ? ' · QR' : '', o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.server ? ` · Server: ${r.server}` : '']
         : [r.type.label, r.qr ? ' · QR' : '', r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null];
     // (OS4, OS7) "KOT prints at 8:00 pm" today; "KOT prints Tue 10 Nov, 12:20 pm" on another day
-    const kots = queued ? (dayOf(r.kot.at) === todayKey() ? ` · KOT prints at ${timeOf(r.kot.at)}` : ` · KOT prints ${shortDay(r.kot.at)}, ${timeOf(r.kot.at)}`) : kotsOf(o).length ? ` · KOT ${kotNos(o)}` : '';
+    // (H1, PQ3) a Pending QR order: "· Not in kitchen yet"
+    const kots = r.pending ? ' · Not in kitchen yet' : queued ? (dayOf(r.kot.at) === todayKey() ? ` · KOT prints at ${timeOf(r.kot.at)}` : ` · KOT prints ${shortDay(r.kot.at)}, ${timeOf(r.kot.at)}`) : kotsOf(o).length ? ` · KOT ${kotNos(o)}` : '';
     const c = r.who.codes, cbx = (cls, label, value) => el('div', { class: `cb ${cls}` }, el('span', {}, label), el('b', {}, value));
     const sumRow = (label, value, cls) => [el('span', cls ? { class: cls } : {}, label), el(cls ? 'span' : 'b', cls ? { class: cls } : {}, value)];
     const lines = (Array.isArray(o.lines) ? o.lines : []).filter(l => l.qty > 0);
@@ -980,6 +1012,8 @@
       if (picking.has(r.id)) picking.delete(r.id); else picking.add(r.id);
       render(); return;
     }
+    // (H1) a Pending QR order: the Customer paid? pop-up (Split: its Open)
+    if (r.pending) { openPaid(r); return; }
     if (r.pay.key === 'np' || r.pay.key === 'part') {
       if (r.type.platform) { say({ text: `${r.type.name} orders open with the ${r.type.name} integration` }); return; }
       returning = true; window.RestroCounter?.openOrder(r.id); return;
@@ -1072,6 +1106,47 @@
   }
   window.addEventListener('restro:data-changed', e => { if ((e.detail?.collections || []).includes('orders')) autoReady(); });
   setInterval(autoReady, 15000); setTimeout(autoReady, 3000);
+
+  // ---------- a QR order's payment that hasn't reached us (Update Pack 5, H1), by itself ----------
+  // - 30 s on the payment page with no confirmation while our system can't reach the cloud: Pending (with the internet
+  //   working, a slow bank never makes an order Pending: the cloud answers in the end). Any tablet may mark it; the mark
+  //   is the same on all.
+  // - While an order is Pending: a sound (RestroSound 'alert') at once and every minute until someone handles it, on
+  //   every device but the kitchen screen; the Orders home-screen badge counts it, with each order showing KOT !.
+  // - Its payment arriving after all (the internet back: the cloud marks it paid): the main system prints its KOT by
+  //   itself, as for any QR order paid as usual; the pop-up, the badge and Confirm ! clear.
+  const QR_WAIT = 30000, QR_RING = 60000;
+  const cloudOk = () => window.RestroSync?.cloudReachable?.() === true;
+  const uidOf = o => o.uid || `n${o.number}`;
+  function needsUs() {
+    const today = todayKey(), onHold = new Set((window.RestroCounter?.held?.() || []).map(h => h.uid).filter(Boolean));
+    return (window.RestroCounter?.orders?.() || []).filter(o => {
+      if (onHold.has(o.uid)) return false;
+      if (qrOf(o) === 'pending') return true;
+      const taken = dayOfOrder(o), forDay = o.readyAt ? dayOf(o.readyAt) : null;
+      return (taken === today || forDay === today) && kotsOf(o).some(k => k.failed);
+    });
+  }
+  let rangAt = 0, rang = new Set();
+  const kotGoing = new Set();
+  function qrWatch() {
+    const now = Date.now(), list = window.RestroCounter?.orders?.() || [];
+    if (!cloudOk()) for (const o of list) if (qrOf(o) === 'waiting' && now - (Number(o.qrPayAt) || o.createdAt) >= QR_WAIT) window.RestroCounter?.qrMark?.(uidOf(o), 'pending');
+    const pend = list.filter(o => qrOf(o) === 'pending');
+    if (!pend.length) { rangAt = 0; rang = new Set(); }
+    else if (pend.some(o => !rang.has(uidOf(o))) || now - rangAt >= QR_RING) { rangAt = now; rang = new Set(pend.map(uidOf)); window.RestroSound?.play?.('alert'); }
+    if (!sendsHere()) return;
+    for (const o of list) {
+      const id = uidOf(o);
+      if (o.qr !== true || o.platform || qrOf(o) || !o.paidAt || o.sentAt || kotsOf(o).length || o.readyAt || o.cancelledBy || kotGoing.has(id) || dayOfOrder(o) !== todayKey()) continue;
+      kotGoing.add(id);
+      Promise.resolve(window.RestroCounter?.sendKitchen?.(id)).then(res => { if (res && !res.ok) kotFailed(id, res.kot, res.no, ticket(o.number), notice); if (dialog.open) renderRest(); })
+        .catch(() => {}).finally(() => kotGoing.delete(id));
+    }
+  }
+  window.addEventListener('restro:data-changed', e => { if ((e.detail?.collections || []).includes('orders')) qrWatch(); });
+  window.addEventListener('restro:connectivity-changed', () => qrWatch());
+  setInterval(qrWatch, 5000); setTimeout(qrWatch, 2000);
 
   // ---------- pop-ups ----------
   // Notify (OR-P01): the customer's name, phone, order and type · the message · Order ready / Bill / Running late
@@ -1228,6 +1303,100 @@
     pop = null; picking = null; render();
     if (res.count) say({ bold: res.count === 1 ? 'Order deleted' : `${res.count} orders deleted`, text: ` · ${rows.map(r => ticket(r.o.number)).join(', ')}` });
   }
+  // ---------- Customer paid? (Update Pack 5, H1): a QR order whose payment hasn't reached us ----------
+  // Opened by tapping the order or Confirm ! (Split: Open), and from the Counter when its table is picked (askQr). Two
+  // choices, tick one: the amount paid around its time · shows Successful → Customer paid · print KOT (blue), or Cancel
+  // and refund (red); the button reads Choose one, greyed, until one is ticked. Not now, ✕ or Back leave it Pending.
+  // (The PIN for staff without the access comes with access levels.) The choice is the Counter's (qrChoice): the first
+  // one made wins on every tablet (K: "Already confirmed by ‹name› · 7:28 pm").
+  function openPaid(r) { pop = { kind: 'paid', id: r.id, choice: null }; renderLayer(); }
+  // the words: "Order #1032 · Table 3 · QR · ₹1,260.00" (a Takeaway QR's: the customer's name)
+  const qrWho = r => (r.dine ? r.who.l1.split(' · ')[0] : r.name || r.type.label);
+  const qrSub = r => `Order ${ticket(r.o.number)} · ${qrWho(r)} · QR · ${money(Number(r.o.total) || 0)}`;
+  // "paid today around 7:25 PM" (another day: "yesterday", "on Sun 8 Nov")
+  function aroundOf(t) {
+    const d = dayOf(t), today = todayKey();
+    return d === today ? 'today' : d === addDays(today, -1) ? 'yesterday' : `on ${shortDay(t)}`;
+  }
+  function qrCard(r, opt) {
+    const ch = opt.choice, at = Number(r.o.qrPayAt) || r.o.createdAt;
+    const tick = (key, ...words) => el('button', { type: 'button', class: `qrp-opt${ch === key ? ' on' : ''}`, role: 'radio', 'aria-checked': String(ch === key),
+      onclick: () => opt.pick(ch === key ? null : key) }, el('span', { class: 'qrp-cb', 'aria-hidden': 'true' }, ch === key ? icon('check') : null), el('span', { class: 'qrp-t' }, ...words));
+    return el('div', { class: 'qrp', role: 'dialog', 'aria-modal': 'true', 'aria-label': opt.title },
+      el('div', { class: 'qrp-head' }, el('span', { class: 'qrp-q', 'aria-hidden': 'true' }, '?'),
+        el('div', { class: 'qrp-tt' }, el('h3', {}, opt.title), el('p', {}, opt.sub)),
+        el('button', { type: 'button', class: 'qrp-x', 'aria-label': 'Close', onclick: opt.notNow }, icon('close'))),
+      el('p', { class: 'qrp-warn' }, 'The payment hasn’t reached us yet. Check the customer’s payment screen and choose one:'),
+      el('div', { class: 'qrp-opts', role: 'radiogroup', 'aria-label': 'What the customer’s payment screen shows' },
+        tick('paid', el('b', {}, money(Number(r.o.total) || 0)), ` paid ${aroundOf(at)} around `, el('b', {}, clockOf(at)), ' · shows ', el('b', {}, 'Successful')),
+        tick('refund', el('b', {}, 'Cancel and refund'), ' · the customer gets their money back')),
+      el('p', { class: 'qrp-note' }, 'We match the payment as soon as the internet is back. A cancelled order is refunded once we’re online.'),
+      el('div', { class: 'qrp-foot' },
+        el('button', { type: 'button', class: 'qrp-no', onclick: opt.notNow }, 'Not now'),
+        el('button', { type: 'button', class: `qrp-go${ch ? ` ${ch}` : ''}`, 'aria-disabled': ch ? null : 'true', onclick: () => { if (ch) opt.go(ch); } },
+          ch === 'paid' ? 'Customer paid · print KOT' : ch === 'refund' ? 'Cancel and refund' : 'Choose one')));
+  }
+  function paidCard(r) {
+    return qrCard(r, { title: 'Customer paid?', sub: qrSub(r), choice: pop.choice, pick: key => { pop.choice = key; renderLayer(); },
+      notNow: () => { pop = null; renderLayer(); }, go: choice => { pop = null; renderLayer(); decideQr(r, choice, say); } });
+  }
+  // The choice, made: kept on the order on every tablet (the Counter's qrChoice), and what came of it in the bar (show:
+  // Orders' say, or the Counter's notice). Customer paid: its KOT goes now ("KOT sent for Order #1032 · payment will be
+  // matched when the internet is back"; the kitchen printer down: KOT ! on the order, and the badge stays).
+  async function decideQr(r, choice, show) {
+    const no = ticket(r.o.number), res = await window.RestroCounter?.qrChoice?.(r.id, choice);
+    if (!res) return;
+    if (res.clash) { show({ bold: `Already ${res.clash.choice === 'refund' ? 'cancelled' : 'confirmed'} by ${res.clash.by || 'another tablet'}`, text: res.clash.at ? ` · ${timeOf(res.clash.at)}` : '' }); }
+    else if (choice === 'refund') show({ bold: `Order ${no} cancelled`, text: ' · refunded once we’re online' });
+    else if (res.ok) show({ bold: `KOT sent for Order ${no}`, text: readOnline() ? '' : ' · payment will be matched when the internet is back' });
+    else kotFailed(r.id, res.kot, res.no, no, show);
+    if (dialog.open) render();
+  }
+  // (the KOT didn't print: RETRY prints it again; the order shows KOT ! until it does)
+  function kotFailed(uid, kot, kotNo, no, show) {
+    const again = async () => {
+      const rr = kot ? await window.RestroCounter?.reprintKots?.(uid, [kot]) : null;
+      if (rr?.ok) show({ bold: `KOT ${kotNo || ''} sent`.replace('  ', ' '), text: ` · Order ${no}` }); else kotFailed(uid, kot, kotNo, no, show);
+      if (dialog.open) render();
+    };
+    show({ kind: 'error', bold: 'Kitchen printer offline', text: ` · ${kotNo ? `KOT ${kotNo}` : 'the KOT'} didn’t print · Order ${no}`, retry: kot ? again : null });
+  }
+  // (an order that stopped being Pending while its pop-up was open: someone chose on another tablet, or the payment
+  // arrived and its KOT went by itself)
+  function paidGone(r) {
+    const c = r?.o.qrChoice;
+    if (c && c.choice) say({ bold: `Already ${c.choice === 'refund' ? 'cancelled' : 'confirmed'} by ${c.by || 'another tablet'}`, text: c.at ? ` · ${timeOf(c.at)}` : '' });
+    else if (r?.o.paidAt) say({ bold: `Payment received for Order ${ticket(r.o.number)}`, text: ' · its KOT goes to the kitchen' });
+  }
+
+  // The same pop-up on the Counter (CT1): "Table 3 has a pending QR order" · "Order #1032 · QR · ₹1,260.00 · confirm or
+  // cancel it first", over the Counter; the table opens after a choice (then(choice)), Not now leaves it (then(null)).
+  let asked = null; // { scrim, uid, choice, opts }
+  function askQr(uid, opts = {}) {
+    closeAsk();
+    const o = (window.RestroCounter?.orders?.() || []).find(x => (x.uid || `n${x.number}`) === uid);
+    if (!o || qrOf(o) !== 'pending' || !opts.host) return false;
+    asked = { uid, choice: null, opts, scrim: el('div', { class: 'qrp-scrim', onclick: e => e.stopPropagation() }) };
+    paintAsk(); opts.host.append(asked.scrim);
+    return true;
+  }
+  function paintAsk() {
+    if (!asked) return;
+    const o = (window.RestroCounter?.orders?.() || []).find(x => (x.uid || `n${x.number}`) === asked.uid), r = o ? infoOf(o, Date.now()) : null;
+    // (chosen on another tablet, or paid by itself meanwhile: the table opens; the order gone: it doesn't)
+    if (!r || !r.pending) { const was = dropAsk(); if (r) was.opts.then?.(r.o.qrChoice?.choice || 'paid'); else was.opts.then?.(null); return; }
+    const table = r.dine ? r.who.l1.split(' · ')[0] : '';
+    const show = m => { if (!window.RestroCounter?.notice?.(m)) toast([m.bold, m.text].filter(Boolean).join('')); };
+    asked.scrim.replaceChildren(qrCard(r, { title: table ? `${table} has a pending QR order` : 'This order’s payment is pending',
+      sub: `Order ${ticket(r.o.number)} · QR · ${money(Number(r.o.total) || 0)} · confirm or cancel it first`, choice: asked.choice,
+      pick: key => { asked.choice = key; paintAsk(); }, notNow: () => closeAsk(),
+      go: choice => { const was = dropAsk(); decideQr(r, choice, show); was.opts.then?.(choice); } }));
+  }
+  // (taken off the Counter without an answer; dropAsk: taken off, the caller answers)
+  function dropAsk() { const was = asked; asked = null; was?.scrim.remove(); return was; }
+  function closeAsk() { const was = dropAsk(); if (!was) return false; was.opts.then?.(null); return true; }
+  window.addEventListener('restro:data-changed', e => { if (asked && (e.detail?.collections || []).includes('orders')) paintAsk(); });
+
   // New paper roll? (OR-P08)
   function rollCard() {
     const p = pop;
@@ -1450,8 +1619,11 @@
     const parts = [];
     if (menu) parts.push(menuView(v));
     if (pop) {
-      const r = ['notify', 'kot', 'queued'].includes(pop.kind) ? v.all.find(x => x.id === pop.id) : null;
-      const card = pop.kind === 'notify' && r ? notifyCard(r) : pop.kind === 'kot' && r ? kotCard(r) : pop.kind === 'queued' && r ? queuedCard(r) : pop.kind === 'delete' ? deleteCard() : pop.kind === 'roll' ? rollCard() : null;
+      const r = ['notify', 'kot', 'queued', 'paid'].includes(pop.kind) ? v.all.find(x => x.id === pop.id) || v.list.find(x => x.id === pop.id) : null;
+      // (Customer paid?: only while the order is still Pending; otherwise why it went)
+      if (pop.kind === 'paid' && !r?.pending) { pop = null; paidGone(r); }
+      const card = !pop ? null : pop.kind === 'notify' && r ? notifyCard(r) : pop.kind === 'kot' && r ? kotCard(r) : pop.kind === 'queued' && r ? queuedCard(r) : pop.kind === 'paid' ? paidCard(r)
+        : pop.kind === 'delete' ? deleteCard() : pop.kind === 'roll' ? rollCard() : null;
       if (card) {
         if (pop.anchor) card.style.cssText = `right:${pop.anchor.right}px;--mid:${pop.anchor.mid}px;--min:${pop.anchor.min}px`;
         card.classList.toggle('anchored', Boolean(pop.anchor));
@@ -1586,6 +1758,9 @@
       if (!back) { resetFilters(); fromCounter = options.from === 'counter'; older.days.clear(); older.orders.clear(); older.more = true; }
       const found = options.find ? (window.RestroCounter?.orders?.() || []).find(o => (o.uid || `n${o.number}`) === options.find) : null;
       if (found) { query = String(found.number); const d = dayOfOrder(found); range = d === todayKey() ? null : { from: d, to: d }; }
+      // (H1: a Pending QR order tapped on the home screen's Orders widget: its Customer paid? pop-up over the day's list)
+      const ask = options.confirm ? (window.RestroCounter?.orders?.() || []).find(o => (o.uid || `n${o.number}`) === options.confirm && qrOf(o) === 'pending') : null;
+      if (ask) pop = { kind: 'paid', id: options.confirm, choice: null };
       dialog.dataset.view = 'orders';
       trackOnline(); watchPaper(); render();
       if (!dialog.open) dialog.showModal();
@@ -1596,8 +1771,17 @@
     // A failure of the order-ready text or buzz that no one saw yet, for the Counter's bar when it opens (taken once)
     takeNotice() { const m = waiting; waiting = null; return m; },
     // An order's status as this page shows it ({ text: 'Open', 'Closed' or 'Cancelled', cls, sub, subCls }), for the
-    // home screen
-    status: o => { const s = statusOf(o); return { text: s.text, cls: s.cls.split(' ')[0], sub: s.base, subCls: s.subCls === 'rd' ? 'ready' : s.subCls === 'sch' ? 'scheduled' : s.base ? 'kitchen' : undefined }; },
+    // home screen (H1: a Pending QR order is open, its line "Pending"; one still on the payment page isn't shown)
+    status: o => {
+      const q = qrOf(o); if (q === 'waiting') return { text: 'Waiting' }; if (q === 'pending') return { text: 'Open', cls: 'open', sub: 'Pending', subCls: 'pending' };
+      const s = statusOf(o); return { text: s.text, cls: s.cls.split(' ')[0], sub: s.base, subCls: s.subCls === 'rd' ? 'ready' : s.subCls === 'sch' ? 'scheduled' : s.base ? 'kitchen' : undefined };
+    },
+    // (H1, J) What the Orders app's home-screen badge counts: each order showing KOT ! (on the day's list) and each
+    // Pending QR payment (Confirm !, whatever its day); it clears by itself as they are fixed
+    attention: () => needsUs().length,
+    // (H1, CT1) The Customer paid? pop-up over another app (the Counter, when a table with a Pending QR order is picked):
+    // askQr(uid, { host, then(choice) }) → false when the order isn't Pending; closeQr() is Back (Not now)
+    askQr, closeQr: () => closeAsk(),
     goBack
   });
 })();

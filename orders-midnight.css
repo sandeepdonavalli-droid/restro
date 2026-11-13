@@ -88,6 +88,8 @@ html[data-app-theme="midnight"] .orders-app .or-c.st.cancelled .l1 b{color:#FF9C
 html[data-app-theme="midnight"] .orders-app .or-c.pm.np .l1 b{color:#FFA066;--ink2:#FFA066}
 html[data-app-theme="midnight"] .orders-app .or-c.pm.red .l1 b{color:#FF9C9C;--ink2:#FF9C9C}
 html[data-app-theme="midnight"] .orders-app .or-c.pm.grey .l1 b{color:#8D97AB;--ink2:#8D97AB}
+html[data-app-theme="midnight"] .orders-app .or-c.st.pending .l1 b,html[data-app-theme="midnight"] .orders-app .or-c.pm.pend .l1 b,html[data-app-theme="midnight"] .orders-app .or-lm .lst.pending b,html[data-app-theme="midnight"] .orders-app .or-lr.pend .l1 b{color:#F8B081;--ink2:#F8B081}
+html[data-app-theme="midnight"] .orders-app .or-mt{color:#F8B581;--ink2:#F8B581}
 html[data-app-theme="midnight"] .orders-app .or-mk{background-color:#1B2539;background-image:none;color:#8D97AB;--ink2:#8D97AB}
 html[data-app-theme="midnight"] .orders-app .or-qr{border-color:#C7D7F6;background-color:#142C57;background-image:none;color:#C9DBFF;--ink2:#C9DBFF}
 html[data-app-theme="midnight"] .orders-app .or-root mark{background-color:#3A2A08;background-image:none;color:inherit}
@@ -343,6 +345,7 @@ html[data-app-theme="midnight"] .orders-app .or-c.pm.np .l1 b,html[data-app-them
 html[data-app-theme="midnight"] .orders-app .or-c.pm.red .l1 b,html[data-app-theme="midnight"] .orders-app .or-lr.red .l1 b{color:#FF9C9C!important}
 html[data-app-theme="midnight"] .orders-app .or-c.pm.grey .l1 b,html[data-app-theme="midnight"] .orders-app .or-lr.grey .l1 b{color:#8D97AB!important}
 html[data-app-theme="midnight"] .orders-app .or-lm .kfl{color:#FFB0B0!important}
+html[data-app-theme="midnight"] .orders-app .or-c.st.pending .l1 b,html[data-app-theme="midnight"] .orders-app .or-c.pm.pend .l1 b,html[data-app-theme="midnight"] .orders-app .or-lm .lst.pending b,html[data-app-theme="midnight"] .orders-app .or-lr.pend .l1 b,html[data-app-theme="midnight"] .orders-app .or-mt{color:#F5B14C!important}
 html[data-app-theme="midnight"] .orders-app .chip.y{background-color:#3A2A08!important;background-image:none!important;box-shadow:inset 0 0 0 1px #7A5A1C!important;color:#FFD27A!important}
 html[data-app-theme="midnight"] .orders-app .chip.g{background-color:#123D24!important;background-image:none!important;box-shadow:inset 0 0 0 1px #2E7D4F!important;color:#8CF0B4!important}
 html[data-app-theme="midnight"] .orders-app .chip.hit{box-shadow:inset 0 0 0 1px #2E7D4F!important;color:#FFD27A!important;position:relative!important;z-index:0!important}

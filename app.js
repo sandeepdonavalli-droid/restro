@@ -127,10 +127,9 @@ window.addEventListener('restro:theme-changed',refreshArtwork);
 window.addEventListener('restro:artwork-changed',refreshArtwork);
 document.querySelectorAll('[data-app-icon]').forEach(image=>{const item=apps[image.dataset.appIcon]||shortcuts.find(entry=>entry.id===image.dataset.appIcon);if(item)image.replaceWith(artNode(item.art));});
 
-// An app's icon: its art on a rounded-square tile; the dock's apps also carry a red count badge (home-widgets.js)
-function appIcon(item,badge=false){
+// An app's icon: its art on a rounded-square tile (an app's count badge goes beside it: home-widgets.js, Update Pack 5 J)
+function appIcon(item){
   const icon=document.createElement('span');icon.className='app-icon';icon.dataset.icon=item.art.key;icon.append(artNode(item.art));
-  if(badge){const count=document.createElement('span');count.className='app-badge';count.hidden=true;icon.append(count);}
   return icon;
 }
 // The dock: its five apps, each opening as it does on the pages. End Day has nothing to open yet.

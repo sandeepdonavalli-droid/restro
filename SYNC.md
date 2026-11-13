@@ -110,6 +110,25 @@ If a client's cursor is past the server's `seq`, the client starts again from 0.
 
 Ticket numbers are settled by the server too, as described under Ticket numbers below.
 
+### QR payments (Update Pack 5, H1)
+
+A QR order whose payment hasn't been confirmed carries `qrPay` (ANDROID-BRIDGE.md, QR payment Pending): `'waiting'`
+(the customer is on the payment page), `'pending'` (marked by a tablet after 30 s with no confirmation and no cloud),
+`'matching'` (staff answered Customer paid: `paidAt` set, its KOT sent) or `'refund'` (staff answered Cancel and
+refund); with `qrPayAt` (when the customer paid) and `qrChoice: { choice, by, at }`. Once the cloud can reach the
+payment provider again it settles each one, and its change goes to the tablets as any other:
+
+| Answered | The money | The cloud |
+| --- | --- | --- |
+| Customer paid (`'matching'`) | arrived | takes off `qrPay`; sets `method` (`'upi'`, `'card'`, `'netbanking'`, `'wallet'`), `paidAt` (the payment's time) and `payRef` |
+| not yet (`'waiting'`, `'pending'`) | arrived | the same; the main system then prints its KOT by itself |
+| Cancel and refund (`'refund'`) | arrived | refunds it; sets `paidAt`, `method`, `refundedAt`, `refundMethod`; takes off `qrPay` |
+| not yet, or Cancel and refund | never | deletes the order (a tombstone, as any deletion) |
+| Customer paid | never | tells the owner (what the order shows then is for the owner to decide) |
+
+A payment made twice is refunded by itself. Every answer and settlement is kept for Analytics › Activity › Payments and
+the Payments app, with who did it (`qrChoice`, the Track history's `qr-paid` / `qr-refund`).
+
 ## On each tablet
 
 ### Saving
@@ -139,6 +158,8 @@ A merge starts from the version both sides started from:
 - **Kitchen tickets.** The tickets from both sides are kept. For what was sent to the kitchen, the larger count wins.
 - **Track history** (`events`: discounts, moves, priority and the like, Update Pack 3). Kept from both sides, by id.
 - **Payments.** A payment taken on either side stays. If both sides took one, the earlier stays.
+- **A QR payment's answer** (Update Pack 5, H1: Customer paid? answered on two tablets at the same moment, `qrChoice`).
+  The earlier answer stays, with what it set (`qrPay`, `paidAt`), over the payment rule above (K: "the first wins").
 - **Totals.** The order's totals are worked out again from its lines.
 - **Deletion against an edit.** The later of the two wins.
 - **No common version.** If the same record was made on two tablets before they met, the later whole record wins.
