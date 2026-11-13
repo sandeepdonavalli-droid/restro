@@ -1041,7 +1041,8 @@
   // readyAutoAt) before anything goes. Not for a delivery app's orders (they have Ready), nor for a Done mark over 30
   // minutes old (a main system that was off).
   // Once for each Done mark (owner, 13 Nov 2026): dishes added to an order that isn't paid yet, after it was ready, send
-  // it back to the kitchen (its Done mark is cleared); when they are done, the text and the buzz go again. A paid order
+  // it back to the kitchen (its Done mark is cleared; the dishes already done stay done, only the added ones wait); when
+  // they are done, the text and the buzz go again. A paid order
   // can't take more dishes (it doesn't open on the Counter): more food is a new order, with its own number, and the pager
   // goes to that order.
   const AUTO_WITHIN = 30 * 60000;

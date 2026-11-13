@@ -261,9 +261,11 @@ built 12 Nov 2026, tried with a pretend Done mark):
   open there; a success never covers a failure still showing. On every tablet the line under Notify or Buzz turns
   green when it went, red when it didn't.
 - **Dishes added after the order was ready** (owner, 13 Nov 2026): only an order that isn't paid yet can take more
-  dishes. They go to the kitchen on a new KOT, and the order is In kitchen again (`kitchenDoneAt` is cleared). When the
-  kitchen marks it done again, the "ready" text goes again, and the pager buzzes again if the customer still has it,
-  even when the customer paid while the new dishes were cooking. A paid order doesn't open on the Counter: more food
+  dishes. They go to the kitchen on a new KOT, and the order is In kitchen again (`kitchenDoneAt` is cleared). The
+  dishes the kitchen already finished stay finished: with 5 dishes done and 2 added, the kitchen screen keeps the 5
+  ticked and shows only the 2 new ones as not done (a dish's done mark, once set, is never cleared, and merging keeps
+  it). When the 2 are ticked, the order is done again: the "ready" text goes again, and the pager buzzes again if the
+  customer still has it, even when the customer paid while the new dishes were cooking. A paid order doesn't open on the Counter: more food
   for that customer is a new order with its own number, its own "ready" text, and the pager taken back from the first
   order and given to the new one.
 - **Trying it without a SIM or a pager:** a stand-in `RESTRODevice` whose `sms.send`, `whatsapp.send` and `pager.buzz`
