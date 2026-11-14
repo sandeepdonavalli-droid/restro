@@ -1252,7 +1252,8 @@
 
   // ---------- the kitchen printer (Update 7; Update Pack 5, C1–C5) ----------
   // Each slip as the kitchen printer prints it, top to bottom (C1, SL1–SL3): the order type on a black band; the boxes,
-  // red outlined (white on black on a black-only printer): ★★ PRIORITY ★★ first when the order is marked priority (C3),
+  // red outlined (a black-only printer prints the same slip all in black): ★★ PRIORITY ★★ first when the order is
+  // marked priority (C3),
   // then ADD-ON + (every KOT after the order's first, C4), SCHEDULED · READY 10:00 PM, and what the slip is (TIME
   // CHANGED, ORDER CANCELLED, VOID, CHANGED); the first row, the largest: who the order is for (C2: "Table 6",
   // "‹customer› · Swiggy #4521", "‹customer› · Pager 18", "‹customer› · ‹phone›"; in black, owner 13 Nov 2026, not the
@@ -1319,7 +1320,6 @@
     const kotNo = kind === 'void' || kind === 'changed' ? k.lines?.[0]?.kot || k.lines?.[0]?.was?.kot || null : kind === 'time' ? k.kot?.no || null : no;
     const kotPart = kind === 'cancel' ? (nos.length ? `KOT #${nos.join(', #')}` : '') : kotNo ? `KOT #${kotNo}` : '';
     const when = kind === 'time' ? `Ready by ${timeOf(k.readyAt)}` : !app && type === 'phone' && cleanTime(o.readyAt) ? `Pickup ${timeOf(o.readyAt)}` : '';
-    const pagerOf = type === 'takeaway' || type === 'phone' ? (cleanPager(o.pager) ? '' : 'no pager') : '';
     const info = kind === 'cancel' && app ? [appTime, 'VOID ALL', at, by ? `By: ${by}` : '']
       : kind === 'cancel' ? ['VOID ALL', at, by ? `By: ${by}` : '']
       // (C5) TIME CHANGED: "was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹initials›"
@@ -1327,7 +1327,8 @@
       : kind === 'void' || kind === 'changed' ? [at, by ? `By: ${by}` : '']
       : app ? [appTime, `placed ${timeOf(o.createdAt || k.at || Date.now())}`]
       : type === 'dine-in' || usesTable(o) ? [round ? `Round ${round}` : '', o.guests ? plural(o.guests, 'guest') : '', printed, server ? `Server: ${server}` : '']
-      : [round ? `Round ${round}` : '', printed, server, pagerOf];
+      // (a pager shows in the first row; no pager, nothing is said of it: owner, 13 Nov 2026)
+      : [round ? `Round ${round}` : '', printed, server];
     return {
       kind, type, band: app ? app.toUpperCase() : BAND[type], boxes, priority, addOn: Boolean(round), round, kot: kind === 'time' ? null : kotNo, order: ticket(o.number),
       first: firstRow(o, app), title: [kotPart, `Order ${ticket(o.number)}`].filter(Boolean).join(' · '), when, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(),
