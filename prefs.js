@@ -25,8 +25,11 @@
     // the restaurant closes, and the next one starts the minute after (owner, 11 Nov 2026: open till 2 am, an order at
     // 12:40 am belongs to the day before and one at 2:01 am to the next; open till 11 pm, one at 11:01 pm to the next
     // day). A day it is closed ends at midnight. 11:00 am – 2:00 am every day until changed.
+    // (Update Pack 5, I3) Last order time: QR ordering, Swiggy, Zomato and the restaurant's own online ordering take orders
+    // until this many minutes before closing (0: until closing); orders staff take work as usual until closing.
+    // 30 minutes until changed (the Pack 5 designs: open till 11:00 pm, last orders 10:30 pm).
     hours: { days: { mon: { open: true, from: 660, to: 120 }, tue: { open: true, from: 660, to: 120 }, wed: { open: true, from: 660, to: 120 }, thu: { open: true, from: 660, to: 120 },
-      fri: { open: true, from: 660, to: 120 }, sat: { open: true, from: 660, to: 120 }, sun: { open: true, from: 660, to: 120 } } },
+      fri: { open: true, from: 660, to: 120 }, sat: { open: true, from: 660, to: 120 }, sun: { open: true, from: 660, to: 120 } }, lastOrder: 30 },
     // (Update Pack 4) Business details › Bill number: when a bill gets its number, at its first print ('print', the
     // default) or at payment ('payment'), and every change of it (`log`: { to, at, by }, the latest 20)
     billNumber: { at: 'print', log: [] },
@@ -43,6 +46,7 @@
   const GO_DARK = Object.freeze([1, 2, 5, 10, 15, 30, 0]);      // minutes; 0 = never
   const LANGUAGES = Object.freeze(['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati']);
   const ROLES = Object.freeze(['bills', 'kitchen', 'both']);
+  const LAST_ORDER = Object.freeze([0, 15, 30, 45, 60]);      // minutes before closing; 0 = at closing
   const TYPES = ['takeaway', 'delivery', 'phone'];
 
   const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
@@ -78,7 +82,10 @@
       const out = {};
       if (isObj(v)) for (const [id, p] of Object.entries(v)) {
         if (typeof id !== 'string' || id.length > 80 || !isObj(p)) continue;
-        out[id] = { role: ROLES.includes(p.role) ? p.role : 'both', language: LANGUAGES.includes(p.language) ? p.language : 'English', copies: Math.round(num(p.copies, 1, 3, 1)) };
+        const role = ROLES.includes(p.role) ? p.role : 'both';
+        // (Update Pack 5, I2) Use as backup printer: one kitchen printer at most (a bills-only printer never is one)
+        out[id] = { role, language: LANGUAGES.includes(p.language) ? p.language : 'English', copies: Math.round(num(p.copies, 1, 3, 1)),
+          ...(p.backup === true && role !== 'bills' && !Object.values(out).some(x => x.backup) ? { backup: true } : {}) };
       }
       return out;
     },
@@ -94,7 +101,7 @@
         // (it closes after it opens: later that day, or the next morning by 6:00 am; otherwise at midnight)
         days[d] = { open: x.open !== false, from, to: closesOk(from, to) ? to : 0 };
       }
-      return { days };
+      return { days, lastOrder: LAST_ORDER.includes(Number(v?.lastOrder)) ? Number(v.lastOrder) : DEFAULTS.hours.lastOrder };
     },
     billNumber(v) {
       const log = (Array.isArray(v?.log) ? v.log : []).filter(x => isObj(x) && (x.to === 'print' || x.to === 'payment') && Number.isFinite(x.at))
@@ -126,6 +133,9 @@
     return m <= lastMinute(d) ? keyOf(d) : keyOf(next);
   }
   // A business day's opening hours: { from, to } in milliseconds, or null when the restaurant is closed that day
+  // (Update Pack 5, I3) A business day's last order time for QR, Swiggy, Zomato and online ordering, in milliseconds, or
+  // null when the restaurant is closed that day
+  function lastOrderOn(key) { const h = hoursOn(key); return h ? h.to - hoursNow().lastOrder * 60000 : null; }
   function hoursOn(key) {
     const date = dateOf(key); if (!Number.isFinite(date.getTime())) return null;
     const day = hoursNow().days[DAYS[(date.getDay() + 6) % 7]]; if (!day.open) return null;
@@ -212,5 +222,5 @@
   const fssaiOk = value => /^\d{14}$/.test(String(value || ''));
 
   window.RestroPrefs = Object.freeze({ get: name => (SCOPED[name] && !CLEAN[name] ? scoped(name).value : get(name)), set, update, scoped, setScoped, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, printerRoles: ROLES, gstinOk, fssaiOk,
-    days: DAYS, latestClose: LATEST_CLOSE, hoursOn, businessDay, spillMinutes });
+    days: DAYS, latestClose: LATEST_CLOSE, hoursOn, lastOrderOn, lastOrderChoices: LAST_ORDER, businessDay, spillMinutes });
 })();

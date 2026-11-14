@@ -1287,6 +1287,10 @@
   // "(sent early)". Times on slips in capitals: "9:30 PM".
   const appName = o => (o?.platform ? String(o.platform).charAt(0).toUpperCase() + String(o.platform).slice(1) : '');
   const slipTime = t => timeOf(t).toUpperCase();
+  // The kitchen printers a slip goes to (Settings › Printers: role Kitchen or Both), each with its KOT language and copies;
+  // `backup: true` on the one chosen as the backup printer (Update Pack 5, I2)
+  const kitchenPrinters = () => Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'kitchen' || p.role === 'both'))
+    .map(([id, p]) => ({ id, language: p.language || 'English', copies: p.copies || 1, ...(p.backup ? { backup: true } : {}) }));
   // (a phone number on a slip: 5 + 5 digits, "9xxxx xxxxx"; one as a delivery app sends it, as sent)
   const slipPhone = m => { const raw = String(m || '').trim(), d = raw.replace(/\s+/g, ''); return /^\d{10}$/.test(d) ? `${d.slice(0, 5)} ${d.slice(5)}` : raw; };
   // The first row (C2): the table (dine-in); the customer · the app's order number (a delivery app); the customer · the
@@ -1336,8 +1340,8 @@
       lines: (k.lines || []).map(l => ({ qty: l.qty, name: l.name, names: items.get(l.id)?.names || null, mods: kind === 'changed' ? changesOf(l) : (l.mods || []).map(labelOf), note: l.note || '' })),
       footer: kind === 'priority' ? 'Priority · cook this order first' : kind === 'time' ? 'No dish changes · cook as already sent' : kind !== 'kot' && k.reason ? `Reason: ${k.reason}` : '',
       reason: k.reason || '', by: k.by || null,
-      // the kitchen printers (Settings › Devices › Printers): KOT language and copies
-      printers: Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'kitchen' || p.role === 'both')).map(([id, p]) => ({ id, language: p.language || 'English', copies: p.copies || 1 }))
+      // the kitchen printers (Settings › Printers): KOT language and copies, and the backup printer (Update Pack 5, I2)
+      printers: kitchenPrinters()
     };
   }
   // A slip to the kitchen printer; a printer that doesn't answer is an error with Retry ("Kitchen printer offline /
@@ -3931,7 +3935,7 @@
         info: [`By: ${initialsOf(by) || '—'}`, `Reason: ${why}`].join(' · '),
         orders: [...gone].sort((a, b) => createdOf(b) - createdOf(a)).map(o => ({ order: ticket(o.number), kots: kotsOf(o).map((k, i) => k.no || i + 1).join(' · ') || '—', at: createdOf(o) })),
         footer: '— = order never reached the kitchen.',
-        printers: Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'kitchen' || p.role === 'both')).map(([id, p]) => ({ id, language: p.language || 'English', copies: p.copies || 1 })) });
+        printers: kitchenPrinters() });
     }
     if (dialog.open) render();
     return { count: gone.length, kitchen: reached.length };

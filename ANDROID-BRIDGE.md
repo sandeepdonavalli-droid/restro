@@ -632,6 +632,34 @@ money is due again. There is no design: it is built from the Pending pieces.
   without paying, it stays Payment failed. The customer paying again through the table QR comes with the customer
   pages.
 
+### Settings (Update Pack 5, I2 and I3) and the Availability label
+
+The pack's only two new settings (everything else has fixed defaults); there are no screens for them in the pack, so
+they are built as the other Settings cards.
+
+- **Settings › Printers › a kitchen printer › Use as backup printer** (I2): a switch on its own card under Copies per
+  KOT, "When another kitchen printer stops working for 30 seconds, its KOTs print here with this printer’s own. One
+  printer can be the backup.", with the note "With no backup printer, or the backup down too, they print on the first
+  kitchen printer that works." One printer at most: turning it on turns it off on any other; a Bills printer never is
+  one (its card greyed, as KOT language and Copies). The Printers list says "· Backup printer" after its role. Kept in
+  `restro.printers.v1` as `backup: true` (shared by every tablet) and sent with every slip in `printers` (above).
+  **What the app does with it:** a kitchen printer is down only after **30 s** without printing (a grace); its dishes
+  then print on the backup printer, with the backup's own, and nothing says they moved; with no backup, or the backup
+  down too, on the first kitchen printer that works. A KOT not confirmed as printed reprints on the backup with the
+  REPRINT box. Kitchen printers only: a bill or receipt printer never takes KOTs.
+- **Settings › Business details › Last order time** (I3): a card under Business hours, "For QR ordering, Swiggy,
+  Zomato and your own online ordering. Orders your staff take work as usual until closing.", with five tiles: **At
+  closing · 15 min before · 30 min before** (the default: the designs' "last orders 10:30 PM" for an 11:00 PM close) **·
+  45 min before · 1 hour before**, and under them today's: "Today: last orders 10:30 pm · closes 11:00 pm" ("Closed
+  today."). Kept in `restro.hours.v1` as `lastOrder` (minutes before closing; shared by every tablet);
+  `RestroPrefs.lastOrderOn(day)` gives a business day's time in milliseconds (`null` when closed). The cloud (Phase 2)
+  stops QR ordering, Swiggy, Zomato and the restaurant's own online ordering at it, until opening: from then to
+  closing customers see the menu, and checkout says "QR ordering is paused. Please reach out to staff."; a customer who
+  reached the payment page before it can finish paying. Staff-taken orders (dine-in, takeaway, walk-in, phone) work
+  until closing. QR Studio shows it (QR Studio, to come).
+- **The home screen:** the app that was "Menu" reads **"Availability"** (K: renamed; its icon unchanged). The
+  Availability app itself (store hours, what each channel sells, pausing a channel) comes later.
+
 ### Home-screen badges (J)
 
 - **The look (OR0):** an amber circle `#D97706`, 40 across in the home's units (44 on the 1920 screen), with its
@@ -866,7 +894,7 @@ that sent it tries again by itself every 30 seconds until it prints.
 | `footer` | small, at the end: `"Priority · cook this order first"`, `"No dish changes · cook as already sent"` (TIME CHANGED), `"Reason: Customer changed mind"`, or `""` (a KOT has none: no "earlier KOT" line, C4) |
 | `reason`, `by` | the reason staff gave (`""` for none) and who did it (their full name, or `null`) |
 | `priority` | true when the ★★ PRIORITY ★★ box is on it |
-| `printers` | Settings › Printers: `[{ id, language, copies }]` for the kitchen printers |
+| `printers` | Settings › Printers: `[{ id, language, copies, backup }]` for the kitchen printers; `backup: true` on the backup printer only (Update Pack 5, I2: Settings, below) |
 | `reprint` | KOTs reprinted from Orders (Update Pack 3): `{ at, by }` (`by`: initials), the red **REPRINT** box with the time and initials, and **(R)** after every dish (Update Pack 1); `undefined` otherwise |
 
 - **Red** (modifiers, dish notes, the order note, the boxes, the **REPRINT** box) prints red on two-colour printers

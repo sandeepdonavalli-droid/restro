@@ -24,7 +24,7 @@ const apps = {
   settings:{name:'Settings',art:{file:'settings-g39.png',w:1254,h:1254,viewBox:'22 150 1221 986'}},
   store:{name:'More Apps',art:art('apps',980,659,211,146)},
   'qr-studio':{name:'QR Studio',art:{url:'assets/qr-studio/D.webp',w:1536,h:1024,viewBox:'48 405 244 264',sprite:true,themeId:'D'}},
-  menu:{name:'Menu',art:art('master',49,478,212,128)},
+  menu:{name:'Availability',art:art('master',49,478,212,128)},
   gallery:{name:'Gallery',art:tileArt('gallery')},
   camera:{name:'Camera',art:tileArt('camera')},
   help:{name:'Help',art:art('master',778,668,155,123)}

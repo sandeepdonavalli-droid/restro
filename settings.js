@@ -270,7 +270,18 @@
     return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. A new business day starts the minute after closing: open till 2:00 am, an order at 12:40 am counts in the day before.'),
       el('div', { class: 'st-rows' }, Prefs.days.map(row)));
   }
-  builders.business = () => rebuild(businessHost, () => [billNumberCard(), hoursCard()]);
+  // (Update Pack 5, I3) Last order time: how long before closing QR ordering, Swiggy, Zomato and the restaurant's own
+  // online ordering stop taking orders; staff-taken orders as usual until closing. Under it, today's: "Today: last orders
+  // 10:30 pm · closes 11:00 pm".
+  function lastOrderCard() {
+    const h = Prefs.get('hours'), key = Prefs.businessDay(Date.now()), on = Prefs.hoursOn(key), last = Prefs.lastOrderOn(key);
+    const at = t => clock(Math.round((t - new Date(new Date(t).setHours(0, 0, 0, 0)).getTime()) / 60000));
+    const choices = Prefs.lastOrderChoices.map(m => ({ value: m, label: m === 0 ? 'At closing' : m === 60 ? '1 hour before' : `${m} min before` }));
+    return card('', lab('Last order time'), sub('For QR ordering, Swiggy, Zomato and your own online ordering. Orders your staff take work as usual until closing.'),
+      tiles('Last order time', choices, h.lastOrder, m => Prefs.update('hours', v => { v.lastOrder = m; })),
+      note(on ? `Today: last orders ${at(last)} · closes ${at(on.to)}` : 'Closed today.'));
+  }
+  builders.business = () => rebuild(businessHost, () => [billNumberCard(), hoursCard(), lastOrderCard()]);
   window.addEventListener('restro:prefs-changed', e => { if (dialog.open && current === 'business' && ['hours', 'billNumber'].includes(e.detail?.name)) builders.business(); });
 
   // ---------- Update Pack 3: option tiles with a live preview ----------
@@ -514,6 +525,7 @@
   const printerSettings = id => Prefs.get('printers')[id] || { role: 'both', language: 'English', copies: 1 };
   const printerName = id => printers.find(p => p.id === id)?.name || 'Printer';
   const roleName = { bills: 'Bills', kitchen: 'Kitchen', both: 'Bills and kitchen' };
+  const backupOf = s => (s.backup && s.role !== 'bills' ? ' · Backup printer' : '');
   async function loadPrinters() {
     const host = window.RESTRODevice?.printer;
     if (typeof host?.list !== 'function') { printers = []; return false; }
@@ -529,7 +541,7 @@
       ...(printers.length ? printers.map(p => {
         const s = printerSettings(p.id);
         return el('button', { type: 'button', class: 'st-row st-link', onclick: () => { printerId = p.id; show('printer', { focus: true }); } },
-          el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, p.name), el('span', {}, `${roleName[s.role]}${kotOf(s)}${p.connection ? ` · ${p.connection}` : ''}`)), ms('ms-chevron-right', 'ms st-chev'));
+          el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, p.name), el('span', {}, `${roleName[s.role]}${backupOf(s)}${kotOf(s)}${p.connection ? ` · ${p.connection}` : ''}`)), ms('ms-chevron-right', 'ms st-chev'));
       }) : [el('div', { class: 'st-row' }, el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, 'No printers here'),
         el('span', {}, bridged ? 'The main system hasn’t found a printer yet.' : 'Printers connect to the main system through the RESTRO Android app.')))])))]);
   }
@@ -544,7 +556,11 @@
       card(kitchen ? '' : 'dis', lab('KOT language'), sub('Kitchen tickets print in this language. Other than English, a ticket prints as a picture, as thermal printers have no Indian-language fonts. Dish names come from Inventory; a dish without a name in this language prints in English.'),
         el('div', { class: 'st-langs' }, tiles('KOT language', Prefs.languages.map(l => ({ value: l, label: l })), s.language, l => { setPrinter(x => { x.language = l; }); again(); }, { disabled: !kitchen }))),
       card(kitchen ? '' : 'dis', lab('Copies per KOT'), sub('How many of each kitchen ticket it prints.'),
-        tiles('Copies per KOT', [1, 2, 3].map(n => ({ value: n, label: String(n) })), s.copies, n => { setPrinter(x => { x.copies = n; }); again(); }, { disabled: !kitchen }))
+        tiles('Copies per KOT', [1, 2, 3].map(n => ({ value: n, label: String(n) })), s.copies, n => { setPrinter(x => { x.copies = n; }); again(); }, { disabled: !kitchen })),
+      // (Update Pack 5, I2) one kitchen printer is the backup: turning it on here turns it off on any other
+      card(kitchen ? '' : 'dis', switchHead('printer-backup', 'Use as backup printer', 'When another kitchen printer stops working for 30 seconds, its KOTs print here with this printer’s own. One printer can be the backup.',
+        Boolean(s.backup) && kitchen, on => { Prefs.update('printers', all => { for (const id of Object.keys(all)) delete all[id].backup; all[printerId] = { ...printerSettings(printerId), ...(on ? { backup: true } : {}) }; if (!on) delete all[printerId].backup; }); again(); }),
+        note('With no backup printer, or the backup down too, they print on the first kitchen printer that works.'))
     ];
   });
   builders.printers = () => { paintPrinters(); };
