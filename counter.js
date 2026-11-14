@@ -538,7 +538,7 @@
     tidy(); sheet = null; dishPop = null; selected = null; render();
   }
   function cancelDish() { sheet = null; dishPop = null; render(); }
-  // Mark as priority (kitchen only): KOTs print with the ★ PRIORITY band, and the order header says ⚑ PRIORITY. Turned on
+  // Mark as priority (kitchen only): KOTs print with the ★★ PRIORITY ★★ box, and the order header says ⚑ PRIORITY. Turned on
   // after a KOT has gone, a short priority notice goes to the kitchen.
   function togglePriority() {
     closeMenu();
@@ -1250,11 +1250,16 @@
     root.append(node);
   }
 
-  // ---------- the kitchen printer (Update 7) ----------
-  // Each slip as the kitchen printer prints it (26_kot-slips-v2): the order type on a black band; the action, when there
-  // is one, in a red box (★ PRIORITY, VOID, CHANGED, ORDER CANCELLED); KOT # · Order #, then the table, the pager or the
-  // pickup time, bold; guests · time · server (or the customer, or "By:") small; the order note in a red box; then each
-  // dish: quantity × name, its choices one per line right-aligned in red, its note last in red italics; a small footer.
+  // ---------- the kitchen printer (Update 7; Update Pack 5, C1–C5) ----------
+  // Each slip as the kitchen printer prints it, top to bottom (C1, SL1–SL3): the order type on a black band; the boxes,
+  // red outlined (white on black on a black-only printer): ★★ PRIORITY ★★ first when the order is marked priority (C3),
+  // then ADD-ON + (every KOT after the order's first, C4), SCHEDULED · READY 10:00 PM, and what the slip is (TIME
+  // CHANGED, ORDER CANCELLED, VOID, CHANGED); the first row, the largest: who the order is for (C2: "Table 6",
+  // "‹customer› · Swiggy #4521", "‹customer› · Pager 18", "‹customer› · ‹phone›"; in black, owner 13 Nov 2026, not the
+  // designs' red); the second row, bold: KOT # · Order #, then "Pickup 8:30 PM" (a phone order's pickup) or "Ready by
+  // 10:30 PM" (TIME CHANGED); a small plain line (round, guests, times, server…); the order note in a red box; a dashed
+  // line, then each dish: quantity × name, its choices one per line right-aligned in red, its note last in red italics;
+  // a small footer.
   // The RESTRO Android app prints it (RESTRODevice.printer.printKot) on the printers whose role is Kitchen or Both, in
   // each one's KOT language (anything but English as an image) and copies (Settings › Devices › Printers).
   const BAND = { 'dine-in': 'DINE-IN', takeaway: 'TAKEAWAY', delivery: 'DELIVERY', phone: 'PHONE ORDER' };
@@ -1281,35 +1286,54 @@
   // "(sent early)". Times on slips in capitals: "9:30 PM".
   const appName = o => (o?.platform ? String(o.platform).charAt(0).toUpperCase() + String(o.platform).slice(1) : '');
   const slipTime = t => timeOf(t).toUpperCase();
+  // (a phone number on a slip: 5 + 5 digits, "9xxxx xxxxx"; one as a delivery app sends it, as sent)
+  const slipPhone = m => { const raw = String(m || '').trim(), d = raw.replace(/\s+/g, ''); return /^\d{10}$/.test(d) ? `${d.slice(0, 5)} ${d.slice(5)}` : raw; };
+  // The first row (C2): the table (dine-in); the customer · the app's order number (a delivery app); the customer · the
+  // pager (takeaway and phone orders with one), otherwise the customer · their phone number (own delivery too)
+  function firstRow(o, app) {
+    const name = String(o.customer?.name || '').trim(), pager = cleanPager(o.pager);
+    if (app) return [name, `${app} #${o.platformNo || '—'}`].filter(Boolean).join(' · ');
+    if (usesTable(o)) return `Table ${tableName(o.table)}`;
+    if (pager && (o.type === 'takeaway' || o.type === 'phone')) return [name, `Pager ${pager}`].filter(Boolean).join(' · ');
+    return [name, slipPhone(o.customer?.mobile)].filter(Boolean).join(' · ');
+  }
   function kitchenSlip(o, k) {
-    const kind = k.kind || 'kot', type = o.type || DEFAULT_TYPE, no = k.no || null, nos = kotsOf(o).map(x => x.no).filter(Boolean);
+    const kind = k.kind || 'kot', type = o.type || DEFAULT_TYPE, no = k.no || null, kots = kotsOf(o), nos = kots.map(x => x.no).filter(Boolean);
     const app = appName(o), timeOf = slipTime;
-    const action = kind === 'void' ? 'VOID' : kind === 'changed' ? 'CHANGED' : kind === 'cancel' ? 'ORDER CANCELLED' : kind === 'time' ? 'TIME CHANGED' : kind === 'priority' || k.priority || o.priority ? '★ PRIORITY' : null;
-    const where = app ? `${app} #${o.platformNo || '—'}` : usesTable(o) ? `Table ${tableName(o.table)}` : cleanPager(o.pager) ? `Pager ${o.pager}` : type === 'phone' && o.readyAt ? `Pickup ${timeOf(o.readyAt)}` : '';
+    // (C4) Round 2, 3…: a KOT after the order's first (by its place on the order, or by time for one not on it yet),
+    // ADD-ON +, with only the new dishes and no "earlier KOT" line
+    const place = kots.findIndex(x => x === k || (k.id && x.id === k.id));
+    const before = place < 0 ? kots.filter(x => (Number(x.at) || 0) < (Number(k.at) || 0)) : kots.slice(0, place);
+    const round = kind === 'kot' && before.length ? before.length + 1 : null;
+    // (C3) ★★ PRIORITY ★★ on every slip of an order marked as priority, and on the priority notice
+    const priority = kind === 'priority' || Boolean(k.priority) || Boolean(o.priority);
+    // (a scheduled order's KOT: printed by itself at the kitchen time, or before it: Send now, Instant KOT)
+    const sched = kind === 'kot' && cleanTime(o.readyAt) && !app;
+    const what = { void: 'VOID', changed: 'CHANGED', cancel: 'ORDER CANCELLED', time: 'TIME CHANGED' }[kind] || null;
+    const boxes = [priority ? '★★ PRIORITY ★★' : null, round ? 'ADD-ON +' : null, sched ? `SCHEDULED · READY ${timeOf(o.readyAt)}` : null, what].filter(Boolean);
     const appTime = !app ? '' : o.platformType === 'pickup' ? (o.readyBy ? `Ready by ${timeOf(o.readyBy)}` : '') : o.pickupAt ? `Pickup ${timeOf(o.pickupAt)}` : '';
     const at = timeOf(k.at || Date.now()), by = k.byApp || initialsOf(k.by || staffName()), server = initialsOf(o.server);
-    // (a scheduled order's KOT: printed by itself at the kitchen time, or before it: Send now, Instant KOT)
-    const sched = kind === 'kot' && cleanTime(o.readyAt) && !app, when = sched && k.how ? `${at} (${k.how === 'queue' ? 'scheduled' : 'sent early'})` : at;
-    const kotNo = kind === 'void' || kind === 'changed' ? k.lines?.[0]?.kot || k.lines?.[0]?.was?.kot || null : no;
-    // (the customer's name and whole phone number: owner, 11 Nov 2026)
-    const who = o.customer ? [o.customer.name, o.customer.mobile || ''].filter(Boolean).join(' · ') : '';
+    const printed = sched && k.how ? `${at} (${k.how === 'queue' ? 'scheduled' : 'sent early'})` : at;
+    // the second row: KOT # · Order # (VOID and CHANGED: the KOT the dish was on; ORDER CANCELLED: the order's KOTs;
+    // TIME CHANGED: the KOT it is about, C5; the priority notice: the order alone)
+    const kotNo = kind === 'void' || kind === 'changed' ? k.lines?.[0]?.kot || k.lines?.[0]?.was?.kot || null : kind === 'time' ? k.kot?.no || null : no;
+    const kotPart = kind === 'cancel' ? (nos.length ? `KOT #${nos.join(', #')}` : '') : kotNo ? `KOT #${kotNo}` : '';
+    const when = kind === 'time' ? `Ready by ${timeOf(k.readyAt)}` : !app && type === 'phone' && cleanTime(o.readyAt) ? `Pickup ${timeOf(o.readyAt)}` : '';
+    const pagerOf = type === 'takeaway' || type === 'phone' ? (cleanPager(o.pager) ? '' : 'no pager') : '';
     const info = kind === 'cancel' && app ? [appTime, 'VOID ALL', at, by ? `By: ${by}` : '']
-      : kind === 'cancel' ? [`VOID ALL${nos.length ? ` · KOT ${nos.map(n => `#${n}`).join(', ')}` : ''}`, at, by ? `By: ${by}` : '']
-      // (Update Pack 4) TIME CHANGED: "was 10:00 PM · KOT #163 sent 9:30 PM · 9:41 PM · By: RK"
-      : kind === 'time' ? [k.was ? `was ${timeOf(k.was)}` : '', k.kot ? `KOT ${k.kot.no ? `#${k.kot.no} ` : ''}sent ${timeOf(k.kot.at)}` : '', at, by ? `By: ${by}` : '']
+      : kind === 'cancel' ? ['VOID ALL', at, by ? `By: ${by}` : '']
+      // (C5) TIME CHANGED: "was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹initials›"
+      : kind === 'time' ? [k.was ? `was ${timeOf(k.was)}` : '', k.kot?.at ? `KOT sent ${timeOf(k.kot.at)}` : '', `changed ${at}`, by]
       : kind === 'void' || kind === 'changed' ? [at, by ? `By: ${by}` : '']
-      : app ? [appTime, o.customer?.name || '', at, server]
-      : type === 'dine-in' ? [o.guests ? plural(o.guests, 'guest') : '', when, server ? `Server: ${server}` : '']
-      : [who, when, server];
-    const place = kotsOf(o).findIndex(x => x === k || (k.id && x.id === k.id));
-    const earlier = (place < 0 ? kotsOf(o).filter(x => (Number(x.at) || 0) < (Number(k.at) || 0)) : kotsOf(o).slice(0, place)).map(x => x.no).filter(Boolean);
+      : app ? [appTime, `placed ${timeOf(o.createdAt || k.at || Date.now())}`]
+      : type === 'dine-in' || usesTable(o) ? [round ? `Round ${round}` : '', o.guests ? plural(o.guests, 'guest') : '', printed, server ? `Server: ${server}` : '']
+      : [round ? `Round ${round}` : '', printed, server, pagerOf];
     return {
-      kind, type, band: app ? app.toUpperCase() : BAND[type], action, scheduled: sched ? `SCHEDULED · READY ${timeOf(o.readyAt)}` : null, kot: kind === 'time' ? null : kotNo, order: ticket(o.number),
-      title: (kind === 'cancel' && !app) || kind === 'time' ? `Order ${ticket(o.number)}${where ? ` · ${where}` : ''}` : `${(kotNo || (kind === 'cancel' && nos[0])) ? `KOT #${kotNo || nos.join(', #')} · ` : ''}Order ${ticket(o.number)}`,
-      where: kind === 'cancel' && !app ? '' : kind === 'time' ? `Ready by ${timeOf(k.readyAt)}` : where, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(), priority: Boolean(action === '★ PRIORITY'),
+      kind, type, band: app ? app.toUpperCase() : BAND[type], boxes, priority, addOn: Boolean(round), round, kot: kind === 'time' ? null : kotNo, order: ticket(o.number),
+      first: firstRow(o, app), title: [kotPart, `Order ${ticket(o.number)}`].filter(Boolean).join(' · '), when, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(),
       note: (kind === 'kot' || kind === 'priority') && o.note ? o.note : '',
       lines: (k.lines || []).map(l => ({ qty: l.qty, name: l.name, names: items.get(l.id)?.names || null, mods: kind === 'changed' ? changesOf(l) : (l.mods || []).map(labelOf), note: l.note || '' })),
-      footer: kind === 'kot' && earlier.length ? `KOT ${earlier.map(n => `#${n}`).join(', ')} sent earlier · only new dishes on this KOT` : kind === 'priority' ? 'Priority · cook this order first' : kind === 'time' ? 'No dish changes · cook as already sent' : k.reason ? `Reason: ${k.reason}` : '',
+      footer: kind === 'priority' ? 'Priority · cook this order first' : kind === 'time' ? 'No dish changes · cook as already sent' : kind !== 'kot' && k.reason ? `Reason: ${k.reason}` : '',
       reason: k.reason || '', by: k.by || null,
       // the kitchen printers (Settings › Devices › Printers): KOT language and copies
       printers: Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'kitchen' || p.role === 'both')).map(([id, p]) => ({ id, language: p.language || 'English', copies: p.copies || 1 }))

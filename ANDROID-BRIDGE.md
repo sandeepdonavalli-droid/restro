@@ -786,7 +786,7 @@ after closing time: Settings › Business details › Business hours). A KOT get
 sequence kept by the main system or the cloud (Update Pack 4; SYNC.md › KOT numbers), so `kot` is on every KOT slip. After a KOT has gone, taking a
 dish off or reducing it prints a **VOID** slip, deleting the order prints **ORDER CANCELLED** (both with the reason
 staff gave), changing a dish's choices or note prints a **CHANGED** slip, and marking the order as priority prints a
-short **★ PRIORITY** notice. Counter's **Reprint KOT** (the order menu) sends the order's last KOT again, as it was.
+short **★★ PRIORITY ★★** notice. Counter's **Reprint KOT** (the order menu) sends the order's last KOT again, as it was.
 Orders' KOT button reprints the KOTs staff tick, each with the REPRINT box (`reprint`, below); a KOT that never printed
 prints as it was. Orders can also send the dishes the kitchen doesn't have yet as a new KOT.
 
@@ -799,19 +799,45 @@ that tablet hasn't printed it 30 seconds later, the main system prints it, and 2
 so it prints even when the tablet that saved it is off (and the moment one comes on). While the order is on hold
 nothing prints. Deleting it before its KOT has printed prints nothing in the kitchen. Once the KOT has printed, a new
 ready-by time prints a **TIME CHANGED** slip (`kind: "time"`, below) and dishes added later go on a new KOT.
-Every KOT of a scheduled order carries the red band **SCHEDULED · READY 10:00 PM** (`scheduled`, below), and its
+Every KOT of a scheduled order carries the red box **SCHEDULED · READY 10:00 PM** (in `boxes`, below), and its
 `info` says when it printed: `"9:30 PM (scheduled)"` when it printed by itself at the kitchen time, `"7:27 PM (sent
 early)"` when it went before the kitchen time (Instant KOT, or Orders' Send now). A KOT printed after the kitchen time
 (dishes added later) shows only the time.
 
-**Delivery apps** (Update Pack 4, `SL1_kot-slips-scheduled-platform`). A Swiggy or Zomato order's band is the app's
-name (`"SWIGGY"`, `"ZOMATO"`), never DELIVERY; `where` is the app's order number (`"Swiggy #4521"`), and `info` starts
-with the app's time: `"Pickup 7:25 PM · [customer] · 7:11 PM"` (the rider picks it up at 7:25) or `"Ready by 7:05 PM · …"`
-(the customer collects it), then the customer's name as the app gives it, the time and the staff's initials
-when the order has a staff member. When the app cancels the order after its KOT printed (`restro:platform-cancelled`,
-Orders above), the ORDER CANCELLED slip keeps the KOT number in `title` (`"KOT #153 · Order #1029"`), `where`
-`"Swiggy #4521"`, `info` `"Pickup 7:25 PM · VOID ALL · 7:40 PM · By: Swiggy"`, the dishes with minus quantities and
-`footer` `"Reason: Cancelled by Swiggy"`; `by` is `null`.
+**Delivery apps** (Update Pack 4, `SL1_kot-slips-scheduled-platform`; Update Pack 5, C2). A Swiggy or Zomato order's
+band is the app's name (`"SWIGGY"`, `"ZOMATO"`), never DELIVERY; the first row is the customer and the app's order number
+(`"‹customer› · Swiggy #4521"`), and `info` the app's time and when it was placed: `"Pickup 7:25 PM · placed 7:11 PM"` (the
+rider picks it up at 7:25) or `"Ready by 7:05 PM · placed …"` (the customer collects it). When the app cancels the
+order after its KOT printed (`restro:platform-cancelled`, Orders above), the ORDER CANCELLED slip has the same first
+row, `title` `"KOT #153 · Order #1029"`, `info` `"Pickup 7:25 PM · VOID ALL · 7:40 PM · By: Swiggy"`, the dishes with
+minus quantities and `footer` `"Reason: Cancelled by Swiggy"`; `by` is `null`.
+
+**The slip, top to bottom** (Update Pack 5, C1–C5; `05_screens/07_KOT-slips` SL1–SL3), on every slip:
+
+1. **The band** (black, white letters): `band`.
+2. **The boxes** (`boxes`, in this order, each as wide as the band, red outlined with red letters): **★★ PRIORITY ★★**
+   (C3: every slip of an order marked as priority, and the priority notice; it replaces Counter Update 7's single
+   star), **ADD-ON +** (C4: every KOT after the order's first, the plus on the right only), **SCHEDULED · READY 10:00
+   PM** (every KOT of a scheduled order), then what the slip is: **TIME CHANGED**, **ORDER CANCELLED**, **VOID** or
+   **CHANGED**. None on a plain first KOT.
+3. **The first row** (`first`), the largest on the slip, bold, **black** (owner, 13 Nov 2026: the designs' red isn't
+   used; it is never red): who the order is for (C2): Dine-in `"Table 6"`; a delivery app's `"‹customer› · Swiggy
+   #4521"`; Takeaway and Phone order `"‹customer› · Pager 18"`, with no pager the customer's phone number,
+   `"‹customer› · ‹phone›"` (as 5 + 5 digits, `"9xxxx xxxxx"`, or as a delivery app sends it); own delivery the same,
+   `"‹customer› · ‹phone›"`. The designs draw a
+   table 31 tall and a customer 26 (on the 420-wide slip). `""` when there is nothing to show (a walk-in with no name):
+   leave the row out.
+4. **The second row**, bold: `title`, `"KOT #163 · Order #1033"` (C2: always KOT # · Order #; on VOID and CHANGED the KOT
+   the dish was on; on ORDER CANCELLED the order's KOTs, `"KOT #141, #152 · Order #1015"`; on TIME CHANGED the KOT it
+   is about, C5; the priority notice `"Order #1033"`), then on a line of its own, bold, `when` when there is one: a
+   phone order's pickup, `"Pickup 8:30 PM"`, or TIME CHANGED's new time, `"Ready by 10:30 PM"`.
+5. **The small plain line**: `info` (round, guests, times, server…; below).
+6. The order note in its red box (`note`), then a dashed line and the dishes (`lines`), then `footer` after a dashed
+   line.
+
+On a **black-only printer** the boxes print white on black (a black box, white letters) and the other red (choices,
+notes, REPRINT) prints black: the same slip, only the colour changes. (Whether a printer has red will be a setting in
+Settings › Printers, to come.)
 
 Print each slip on every printer whose role is **Kitchen** or **Both**. Return `true` (or a Promise of it) when it
 printed, `false` (or throw, or reject) when it didn't: Counter then shows "Kitchen printer offline / KOT #3 not sent"
@@ -829,22 +855,23 @@ that sent it tries again by itself every 30 seconds until it prints.
 | --- | --- |
 | `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"`, `"time"` (TIME CHANGED, Update Pack 4) or `"cancel-bulk"` (below) |
 | `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"`, or a delivery app's name in capitals, `"SWIGGY"`, `"ZOMATO"` (Update Pack 4) (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
-| `scheduled` | Update Pack 4: on every KOT (`kind: "kot"`) of a scheduled order, a red outlined band under the black band, as wide as it, `"SCHEDULED · READY 10:00 PM"`; `null` otherwise. With `action` too (★ PRIORITY), print the scheduled band first |
-| `action` | the red outlined box under it, or `null` for a plain KOT: `"★ PRIORITY"` (also on every KOT of an order marked as priority), `"VOID"`, `"CHANGED"`, `"ORDER CANCELLED"`, `"TIME CHANGED"` |
-| `title`, `where` | bold: `"KOT #3 · Order #1015"` (on VOID and CHANGED, the KOT the dish was on; on ORDER CANCELLED `"Order #1015 · Table 12"` and `where` is `""`; on TIME CHANGED `"Order #1033 · Table 6"` and `where` the new time, `"Ready by 10:30 PM"`), then `"Table 12"` / `"Pager 18"` / `"Pickup 1:15 PM"` (a phone order's pickup time) / `"Swiggy #4521"` (a delivery app's order number) (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket) |
-| `info` | small: `"4 guests · 11:46 AM · Server: EC"`; for takeaway, delivery and phone orders the customer's name and phone number in full (every digit, never masked; Update Pack 4), the time and the server's initials; on VOID and CHANGED `"11:52 AM · By: EC"`; on ORDER CANCELLED `"VOID ALL · KOT #141, #152 · 12:05 PM · By: EC"`; on TIME CHANGED `"was 10:00 PM · KOT #163 sent 9:30 PM · 9:41 PM · By: RK"` (the ready-by time before, when the KOT went, now, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: RK"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · [customer] · 7:11 PM"` (both above). Times are in capitals, `"9:30 PM"` (Update Pack 4) |
+| `boxes` | Update Pack 5 (C1): the boxes under the band, in order (above): `["★★ PRIORITY ★★", "ADD-ON +", "SCHEDULED · READY 10:00 PM", "TIME CHANGED"]`, any of them, or `[]` |
+| `first` | Update Pack 5 (C2): the first row, black, the largest (above): `"Table 6"`, `"‹customer› · Swiggy #4521"`, `"‹customer› · Pager 18"`, `"‹customer› · ‹phone›"`; `""` for none. The customer's phone number is in full, every digit, never masked (Update Pack 4) |
+| `title`, `when` | the second row, bold (above): `"KOT #3 · Order #1015"` (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket), then `when`, `"Pickup 1:15 PM"` or `"Ready by 10:30 PM"`, or `""` |
+| `round`, `addOn` | Update Pack 5 (C4): the KOT's round, `2`, `3`…, and `true`, on every KOT after the order's first (ADD-ON +); `null` and `false` on the first |
+| `info` | small: dine-in `"4 guests · 11:46 AM · Server: ‹initials›"`, a later round `"Round 2 · 4 guests · 7:40 PM · Server: ‹initials›"`; takeaway, phone and own delivery `"7:58 PM · ‹initials›"` (a takeaway or phone order with no pager ends `"· no pager"`); on VOID and CHANGED `"11:52 AM · By: ‹initials›"`; on ORDER CANCELLED `"VOID ALL · 12:05 PM · By: ‹initials›"`; on TIME CHANGED (C5) `"was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹initials›"` (the ready-by time before, when the KOT went, when it changed, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: RK"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · placed 7:11 PM"` (above). Times are in capitals, `"9:30 PM"` (Update Pack 4) |
 | `at` | when it happened, milliseconds |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT and the priority notice; `""` for none |
 | `lines` | (none on TIME CHANGED: the dishes don't change) `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |
-| `footer` | small, at the end: `"KOT #141, #152 sent earlier · only new dishes on this KOT"`, `"Priority · cook this order first"`, `"No dish changes · cook as already sent"` (TIME CHANGED), or `"Reason: Customer changed mind"` |
+| `footer` | small, at the end: `"Priority · cook this order first"`, `"No dish changes · cook as already sent"` (TIME CHANGED), `"Reason: Customer changed mind"`, or `""` (a KOT has none: no "earlier KOT" line, C4) |
 | `reason`, `by` | the reason staff gave (`""` for none) and who did it (their full name, or `null`) |
-| `priority` | true when the ★ PRIORITY box is on it |
+| `priority` | true when the ★★ PRIORITY ★★ box is on it |
 | `printers` | Settings › Printers: `[{ id, language, copies }]` for the kitchen printers |
 | `reprint` | KOTs reprinted from Orders (Update Pack 3): `{ at, by }` (`by`: initials), the red **REPRINT** box with the time and initials, and **(R)** after every dish (Update Pack 1); `undefined` otherwise |
 
-- **Red** (modifiers, dish notes, the order note, the action box, the **REPRINT** box) prints red on two-colour printers
-  (red/black ribbon or two-colour thermal paper) and black on black-only printers: the same slip, only the colour
-  changes. (Whether a printer has red will be a setting in Settings › Printers, to come.)
+- **Red** (modifiers, dish notes, the order note, the boxes, the **REPRINT** box) prints red on two-colour printers
+  (red/black ribbon or two-colour thermal paper). On black-only printers the boxes print white on black and the rest
+  of the red prints black (above). The first row is always black.
 - **Language:** each printer's KOT language (`"English"`, `"Telugu"`, `"Hindi"`, `"Tamil"`, `"Kannada"`,
   `"Malayalam"`, `"Marathi"`, `"Bengali"`, `"Gujarati"`). Anything but English is printed as an image (raster), as
   thermal printers have no Indic fonts; a dish's name in that language comes from `names` (keyed by the language's code:
