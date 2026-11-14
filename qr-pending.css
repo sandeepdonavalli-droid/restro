@@ -6,7 +6,10 @@
    #FFA066: one orange, owner 13 Nov 2026); the white card with the two
    choices (ticked: #1E4FB8); the grey note; Not now (white) and the action: Choose one greyed, Customer paid · print KOT
    blue (#1E4FB8), Cancel and refund red (#D92D20). Midnight (both apps): the design's own colours, at the end.
-   (!important on the buttons: over Orders' own button reset, which is stronger) */
+   (!important on the buttons: over Orders' own button reset, which is stronger)
+   Payment failed (.qrp.fail, owner 13 Nov 2026: staff saw a QR payment as paid, but it never reached us): the same
+   frame, opened by the red Bill !, in KOT !'s red: the tile #FDECEC with a "!" #B42318 and the words #B42318 (Midnight
+   #4A1414, #FFB0B0); Not now and Print bill (blue, as Customer paid · print KOT). */
 .qrp-scrim{position:absolute;inset:0;z-index:50;display:grid;place-items:start center;padding-top:calc(122 * var(--fu));background:rgba(15,23,42,.30)}
 .qrp{position:relative;width:calc(700 * var(--fu));box-sizing:border-box;padding:calc(28 * var(--fu)) calc(30 * var(--fu)) calc(30 * var(--fu));border-radius:calc(34 * var(--fu));
   background:#F3F4F7;color:#1C1917;font-family:Inter,system-ui,sans-serif;text-align:left;
@@ -37,6 +40,9 @@
 .qrp .qrp-go{background:#E7E5E4!important;color:#A8A29E!important;cursor:default}
 .qrp .qrp-go.paid{background:#1E4FB8!important;color:#FFFFFF!important;font-weight:800!important;cursor:pointer}
 .qrp .qrp-go.refund{background:#D92D20!important;color:#FFFFFF!important;font-weight:800!important;cursor:pointer}
+.qrp.fail .qrp-q{background:#FDECEC;color:#B42318}
+.qrp.fail .qrp-warn{color:#B42318}
+.qrp-warn b{font-weight:800}
 /* (the action's words heavier once it can be tapped: 800, as drawn; Not now and Choose one 700) */
 
 /* Midnight (the Counter and Orders): PQ1–PQ6 _popup_midnight. (Ticked, and the two actions, aren't drawn in Midnight:
@@ -59,3 +65,5 @@ html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp .qrp-go{backg
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp .qrp-go.paid{background:#2F6FDE!important;color:#FFFFFF!important}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp .qrp-go.refund{background:#DC2626!important;color:#FFFFFF!important}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp button:focus-visible{outline-color:#5B8EF0}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp.fail .qrp-q{background:#4A1414;color:#FFB0B0}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp.fail .qrp-warn{color:#FFB0B0}

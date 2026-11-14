@@ -114,9 +114,10 @@ Ticket numbers are settled by the server too, as described under Ticket numbers 
 
 A QR order whose payment hasn't been confirmed carries `qrPay` (ANDROID-BRIDGE.md, QR payment Pending): `'waiting'`
 (the customer is on the payment page), `'pending'` (marked by a tablet after 30 s with no confirmation and no cloud),
-`'matching'` (staff answered Customer paid: `paidAt` set, its KOT sent) or `'refund'` (staff answered Cancel and
-refund); with `qrPayAt` (when the customer paid) and `qrChoice: { choice, by, at }`. Once the cloud can reach the
-payment provider again it settles each one, and its change goes to the tablets as any other:
+`'matching'` (staff answered Customer paid: `paidAt` set, its KOT sent), `'refund'` (staff answered Cancel and
+refund: the order shows Refunded at once) or `'failed'` (set by the cloud, below); with `qrPayAt` (when the customer
+paid) and `qrChoice: { choice, by, at }`. Once the cloud can reach the payment provider again it settles each one, and
+its change goes to the tablets as any other:
 
 | Answered | The money | The cloud |
 | --- | --- | --- |
@@ -124,10 +125,13 @@ payment provider again it settles each one, and its change goes to the tablets a
 | not yet (`'waiting'`, `'pending'`) | arrived | the same; the main system then prints its KOT by itself |
 | Cancel and refund (`'refund'`) | arrived | refunds it; sets `paidAt`, `method`, `refundedAt`, `refundMethod`; takes off `qrPay` |
 | not yet, or Cancel and refund | never | deletes the order (a tombstone, as any deletion) |
-| Customer paid | never | tells the owner (what the order shows then is for the owner to decide) |
+| Customer paid (`'matching'`) | never | marks it failed: `qrPay: 'failed'`, `qrFailedAt` (ms); takes off `paidAt` (the order is due again: Payment failed, owner 13 Nov 2026) |
 
 A payment made twice is refunded by itself. Every answer and settlement is kept for Analytics › Activity › Payments and
-the Payments app, with who did it (`qrChoice`, the Track history's `qr-paid` / `qr-refund`).
+the Payments app, with who did it (`qrChoice`, the Track history's `qr-paid` / `qr-refund`; for a failed payment
+`qrFailSeen: { by, at }` and `qr-fail-bill`, who printed its bill). A failed one paid at the Counter is paid as any
+order: `paidAt` and `method` are set, `qrPay` goes, the rest stays. Taking off `paidAt` is the cloud's settlement:
+see Merging, below.
 
 ## On each tablet
 
@@ -160,6 +164,9 @@ A merge starts from the version both sides started from:
 - **Payments.** A payment taken on either side stays. If both sides took one, the earlier stays.
 - **A QR payment's answer** (Update Pack 5, H1: Customer paid? answered on two tablets at the same moment, `qrChoice`).
   The earlier answer stays, with what it set (`qrPay`, `paidAt`), over the payment rule above (K: "the first wins").
+- **A QR payment the cloud found missing** (`qrPay: 'failed'`, owner 13 Nov 2026). When a merge ends with it, the
+  `paidAt` (and `method`, `received`, `change`) of a version from before it doesn't stay, over the payment rule above:
+  the order is due again. A payment taken since takes `qrPay` off on its own side, so it stays.
 - **Totals.** The order's totals are worked out again from its lines.
 - **Deletion against an edit.** The later of the two wins.
 - **No common version.** If the same record was made on two tablets before they met, the later whole record wins.

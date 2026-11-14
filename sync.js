@@ -42,7 +42,10 @@
       rules: { keyed: { lines: lineKey, kots: k => String(k.id || k.at), events: e => String(e.id || e.at) }, additive: { lines: 'qty' }, maxMap: ['sent'], sticky: ['paidAt', 'method', 'received', 'change'],
         // (Update Pack 5, H1: a QR payment's Customer paid? answered on two tablets at once: the first answer stays, with
         // what it set; K: "the first wins")
-        first: { key: 'qrChoice', with: ['qrPay', 'paidAt'] } } },
+        first: { key: 'qrChoice', with: ['qrPay', 'paidAt'] },
+        // (owner, 13 Nov 2026: a QR payment the cloud found missing, qrPay 'failed', is due again: the paidAt that
+        // Customer paid set doesn't stay over it; a payment taken since takes 'failed' off on its own side)
+        unpaidWhen: { key: 'qrPay', is: 'failed', drop: ['paidAt', 'method', 'received', 'change'] } } },
     held: { key: 'restro.counter.held.v1', id: h => (typeof h?.heldId === 'string' ? h.heldId : null), keep: h => !(Number.isFinite(h.holdUntil) && h.holdUntil <= Date.now()),
       rules: { keyed: { lines: lineKey }, additive: { lines: 'qty' } } },
     customers: { key: 'restro.customers.v1', id: c => (typeof c?.id === 'string' ? c.id : null) },
@@ -312,6 +315,8 @@
         const from = (Number(fm.at) || 0) <= (Number(ft.at) || 0) ? mine : theirs;
         for (const k of [first.key, ...first.with]) { if (from[k] === undefined) delete out[k]; else out[k] = from[k]; }
       }
+      const unpaid = path === '' ? rules.unpaidWhen : null;
+      if (unpaid && out[unpaid.key] === unpaid.is) for (const k of unpaid.drop) delete out[k];
       return out;
     }
     return mineNewer ? mine : theirs;

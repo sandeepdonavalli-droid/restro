@@ -348,17 +348,21 @@ Each order shows one payment status, worked out from the order (orders.js `payOf
 | **Awaiting Swiggy** | a delivery app cancelled it, `payout: 'awaiting'` | grey `#78716C` | `#8D97AB` | neither |
 | **Paid - Swiggy** | cancelled, `payout: 'paid'` (`payoutAmount`) | black | `#F1F4FA` | Total |
 | **Unpaid - Swiggy** (was "Not paid - Swiggy") | cancelled, `payout: 'unpaid'`: the app refused to pay, so the money will never be collected | red | `#FF9C9C` | **not** Due |
+| **Pending** (a QR order, Update Pack 5 H1) | `qr: true`, `qrPay: 'pending'`: its payment hasn't reached us and the cloud can't be reached | Due's orange `#C2410C` | `#FFA066` | Due |
+| **Refunded** (a QR order staff cancelled) | `qrPay: 'refund'`; "Refunded - UPI" once the cloud has refunded it | red | `#FF9C9C` | neither |
+| **Payment failed** (a QR order, owner 13 Nov 2026) | `qrPay: 'failed'`, `paidAt` not set: staff saw it paid, the cloud found no payment | red | `#FF9C9C` | Due |
 
 Where the names show and what staff can do:
 - **Orders, the payment status column** in every layout, with the amount under it.
-- **Payment status filter** (tick one or more): Paid · Due · Part paid · Refunded · Partial refund · Complimentary ·
-  Awaiting payout · **Unpaid by platform** (was "Not paid by platform"). The pill names the first ticked, "+1" for more.
-- **Tapping Due** in the totals ticks Due and Part paid and lists exactly the orders behind the Due number; the pill
-  reads just **"Due"** (not "Due +1"), because the Due total is both.
-- **Sort › Payment status:** **"Due first"** (was "Not paid first"): Due, Part paid, Awaiting, Unpaid by platform,
-  Paid, Complimentary, Partial refund, Refunded; or "Paid first", the other way.
+- **Payment status filter** (tick one or more): Paid · Due · Part paid · Pending · Payment failed · Refunded · Partial
+  refund · Complimentary · Awaiting payout · **Unpaid by platform** (was "Not paid by platform"). The pill names the
+  first ticked, "+1" for more.
+- **Tapping Due** in the totals ticks Due and Part paid (with Pending and Payment failed) and lists exactly the orders
+  behind the Due number; the pill reads just **"Due"** (not "Due +1"), because the Due total is all of them.
+- **Sort › Payment status:** **"Due first"** (was "Not paid first"): Pending, Payment failed, Due, Part paid, Awaiting,
+  Unpaid by platform, Paid, Complimentary, Partial refund, Refunded; or "Paid first", the other way.
 - **Deleting** (long-press an order): only Due orders that aren't a delivery app's. Other rows say why they can't be
-  picked ("Part paid", "Paid", "Swiggy · cancel on Swiggy"). The summary: "Due · 3 orders ₹2,345"; the pop-up's line:
+  picked ("Part paid", "Paid", "Pending", "Payment failed", "Swiggy · cancel on Swiggy"). The summary: "Due · 3 orders ₹2,345"; the pop-up's line:
   "#1031 · #1027 · ₹3,759 due".
 - **The Counter** shows a payment word in one place: the pager question ("Pager 7 is still with #1031 · ‹customer› · **Due** ·
   In kitchen", above), Due orange, Part paid red, Paid black (Midnight: `#FFA066`, `#FF9C9C`, `#F1F4FA`), in all three
@@ -481,8 +485,8 @@ only under its own type, and the "Order ready" text follows its own type.
 
 ### QR payment Pending (H1): the Customer paid? pop-up
 
-Nothing new is asked of the app: the KOT prints through `printer.printKot` and the receipt through `printer.printBill`
-as before. This is how the page handles a QR order whose payment hasn't reached us, and what the cloud must do once it
+Nothing new is asked of the app: the KOT prints through `printer.printKot` and the bill, receipt and refund slip
+through `printer.printBill` as before. This is how the page handles a QR order whose payment hasn't reached us, and what the cloud must do once it
 is back (Phase 2). Screens: `05_screens/03_Orders_Pending-QR-payment_12-layouts` (PQ1–PQ6, with and without the
 pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counter_Pending-popup` (CT1).
 
@@ -498,12 +502,14 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   | `'waiting'` | the customer is on the payment page | nothing: it isn't listed, counted or on the home screen, and has no KOT |
   | `'pending'` | 30 s, no confirmation, no cloud | **Pending** · "Not in kitchen yet", **Pending** and the amount, red **Confirm !** |
   | `'matching'` | staff answered **Customer paid**: `paidAt` is when the customer paid, its KOT went | **Open** · "In kitchen · N min", **Paid · matching** |
-  | `'refund'` | staff answered **Cancel and refund**: no `paidAt`, no KOT | **Closed**, **Refund pending** (red, as Refunded) |
+  | `'refund'` | staff answered **Cancel and refund**: no `paidAt`, no KOT | **Closed**, **Refunded** (red, as any refund; its Receipt prints the refund slip) |
+  | `'failed'` | staff answered **Customer paid**, but once online the cloud found no payment: no `paidAt`, `qrFailedAt` (ms) | **Open** as its kitchen has it, **Payment failed** (red) and the amount, red **Bill !** (below) |
   | none | paid as usual, or matched once online (`method`, `paidAt`, `payRef` from the payment) | **Paid - UPI** and the rest, as any QR order |
 
-  With it: `qrPayAt` (ms), when the customer paid ("paid today around 7:25 PM"; the order's time when missing), and
+  With it: `qrPayAt` (ms), when the customer paid ("paid today around 7:25 PM"; the order's time when missing),
   `qrChoice: { choice: 'paid' | 'refund', by, at }`, who answered and when (also in the Track history, `events`:
-  `qr-paid` or `qr-refund` with `by`), for Analytics › Activity › Payments and the Payments app (both to come).
+  `qr-paid` or `qr-refund` with `by`), and for a failed payment `qrFailSeen: { by, at }`, who tapped Print bill (the
+  Track history's `qr-fail-bill`), for Analytics › Activity › Payments and the Payments app (both to come).
 - **The row, in all 12 layouts:** the order status **"Pending"** with "Not in kitchen yet" under it (Split's list: on
   one line, then a red line with the alert icon, **"Payment pending · tap Confirm !"**, as "KOT failed · tap the order
   to reprint"); the payment status **"Pending"** and the amount; **Receipt, Notify and Buzz greyed** in their places;
@@ -512,10 +518,11 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   Midnight `#FFA066` (the designs' amber is not used). "Not in kitchen yet" is the grey of the line under any status.
   **Paid · matching:** "Paid" as any payment status, then "· matching" in the same orange, 600, 16 beside Classic's 19
   (the same share of the line in Split and Cards: 0.842 em).
-- **Counts:** in **Due**, not in Total ("Due · 7 orders ₹9,532"); tapping Due lists it (Due, Part paid and Pending
-  together, the pill reading "Due"); **Pending** in the All payments filter, after Part paid; **Due first** puts Pending
-  first; it is in the Open tab. Confirmed, it moves to Total (Total ₹41,238, "Due · 6 orders ₹8,272"); cancelled, it is
-  in neither.
+- **Counts:** in **Due**, not in Total ("Due · 7 orders ₹9,532"); tapping Due lists it (Due, Part paid, Pending and
+  Payment failed together, the pill reading "Due"); **Pending** in the All payments filter, after Part paid, and
+  **Payment failed** after it; **Due first** puts Pending first, then Payment failed; it is in the Open tab. Confirmed,
+  it moves to Total (Total ₹41,238, "Due · 6 orders ₹8,272"); cancelled and refunded, it is in neither; a payment that
+  failed is back in Due.
 - **The pop-up "Customer paid?"** opens from tapping the order (Classic, Cards) or its **Confirm !** (every layout); in
   Split tapping the order picks it as any order, and **Open** opens the pop-up. It sits 122 under the status bar (170 on
   the screen), centred, 700 wide, `#F3F4F7` rounded 34, over the usual dim (`rgba(15,23,42,.30)`; Midnight
@@ -547,8 +554,12 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   page to come), Receipt and KOT work as for any paid order, and the receipt reads "PAID · QR ₹1,260" until the payment
   is matched. The kitchen printer down: the row shows **KOT !**, the badge keeps counting it, and the bar says
   "Kitchen printer offline · KOT 162 didn’t print · Order #1032" with RETRY.
-- **Cancel and refund:** `qrPay: 'refund'`: Closed, **Refund pending**, nothing to print (Bill / Receipt greyed), its
-  table free. The bar: "**Order #1032 cancelled** · refunded once we’re online".
+- **Cancel and refund:** `qrPay: 'refund'`: Closed, **Refunded** at once (red, as any refund; owner, 13 Nov 2026: not
+  "Refund pending": the customer is given the refund slip and doesn't wait), its table free. **Receipt** prints the
+  refund slip, "REFUND · NOT A TAX INVOICE" with a boxed "REFUNDED ₹1,260" (Printing the bill, below); KOT, Notify and
+  Buzz as for any closed order. The bar: "**Order #1032 cancelled** · refunded once we’re online". The money goes back
+  when the cloud can reach the payment provider (the table below); then the row reads "Refunded - UPI" and the slip
+  "REFUNDED · UPI ₹1,260".
 - **The first answer wins (K):** the answer is the Counter's (`RestroCounter.qrChoice(uid, 'paid' | 'refund')`). On a
   tablet whose pop-up is open when another tablet answers, the pop-up goes and the bar says "**Already confirmed by
   ‹name›** · 7:28 pm" ("Already cancelled by …"); an answer sent after another is refused the same way. Two answers made
@@ -573,12 +584,44 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   | not yet (`'pending'`) | arrived | takes off `qrPay`, sets `method`, `paidAt`, `payRef` | the main system prints its KOT by itself, as for any QR order paid as usual; the pop-up, the badge and Confirm ! clear (an open pop-up: "Payment received for Order #1032 · its KOT goes to the kitchen") |
   | Cancel and refund (`'refund'`) | arrived | refunds it: sets `paidAt`, `method`, `refundedAt`, `refundMethod`, takes off `qrPay` | "Refunded - UPI" |
   | not yet, or Cancel and refund | never | deletes the order (a tombstone) | it disappears, with its badge count |
-  | Customer paid | never | tells the owner | (what the order shows then is for the owner to decide) |
+  | Customer paid (`'matching'`) | never | marks it failed: `qrPay: 'failed'`, `qrFailedAt`, takes off `paidAt` | **Payment failed**, in Due, red **Bill !**, the badge and the sound (below) |
 
   A payment made twice is refunded by itself. There is no refund timer.
 - **A QR order paid with its KOT not gone yet** (the payment arrived after all, or the order came in paid as usual):
   the main system (or a tablet on its own) sends its KOT by itself, once (`RestroCounter.sendKitchen`), on its day.
 - **Not built yet:** the Floor app's side (designed later), the Payments app, Analytics › Activity, the PIN.
+
+### Payment failed: a QR payment staff confirmed that never reached us (owner, 13 Nov 2026)
+
+The pack says only "confirmed but no money → the owner is told"; the owner set how (13 Nov 2026). Rare: what staff saw
+wasn't a real, finished payment for this order (a fake payment app or an edited screenshot, an old "Successful"
+screen, or a payment still processing that then failed and went back to the customer). The food has gone out; the
+money is due again. There is no design: it is built from the Pending pieces.
+
+- **The row, in all 12 layouts:** the order status as its kitchen has it ("Open · In kitchen · N min", "Ready"); the
+  payment status **"Payment failed"** in red (as Part paid and Refunded: Light `#D92D20`, Midnight `#FF9C9C`) and the
+  amount; where Bill is, a red **Bill !** styled as KOT ! (Light `#FDECEC` with `#B42318`; Midnight `#4A1414` with
+  `#FFB0B0`; the printer icon); KOT, Notify and Buzz as for any order. Split's list: a red line with the alert icon,
+  **"Payment failed · tap Bill !"**. It is Bill, not Receipt: the order is unpaid again.
+- **Counts:** in **Due**, not in Total, as Pending (above). It can't be deleted: in delete mode its chip reads
+  **"Payment failed"** ("Payment failed orders can’t be deleted").
+- **Bill !** opens the pop-up **"Payment failed for this order"**: the Customer paid? frame (700 wide, 122 under the
+  status bar, the same type sizes), in red: the 52 tile `#FDECEC` with a "!" (26, 800, `#B42318`); the title (26,
+  800); "Order #1032 · Table 3 · QR · ₹1,260.00" (17, `#57534E`); the ✕; then the words (16.5, 600, `#B42318`, the
+  bold parts 800): "**₹1,260.00** was confirmed as paid by **‹name›** at **7:27 PM**, but the payment never reached us.
+  Please ask the customer to pay again." (`qrChoice.by`, `qrChoice.at`; without a name: "was confirmed as paid at
+  7:27 PM"); the buttons: **Not now** (250, white) and **Print bill** (blue `#1E4FB8`, 800). Midnight: `#141E33`, the
+  tile `#4A1414` with `#FFB0B0`, the words `#FFB0B0`, Print bill `#2F6FDE`, the rest as Customer paid?'s Midnight.
+  - **Not now**, ✕ and Back close it; a tap outside does nothing; it stays Payment failed.
+  - **Print bill** prints the bill (`printer.printBill`, `kind` `"bill"`, a tax invoice with its number, as any bill
+    not paid yet) and keeps who did it (`RestroCounter.qrFailSeen(uid)`: `qrFailSeen`, Track history `qr-fail-bill`).
+- **The sound:** `RestroSound.play('alert')` at once when an order turns Payment failed, and every minute until
+  someone taps **Print bill** (on any tablet; Not now doesn't stop it), on every tablet but the kitchen screen.
+- **The badge:** Orders' badge counts it until it is paid.
+- **Paying it:** tapping the order (Classic, Cards; Split's Open) opens it on the Counter, as any order still to pay;
+  **Pay** there makes it paid as any order ("Paid - Cash"): `qrPay` goes, `qr`, `qrPayAt`, `qrChoice`, `qrFailedAt` and
+  `qrFailSeen` stay, its KOT doesn't go again, and Bill !, the badge and the sound go. Saved there without paying, it
+  stays Payment failed. The customer paying again through the table QR comes with the customer pages.
 
 ### Home-screen badges (J)
 
@@ -586,9 +629,10 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   number in white bold (18 home units: 20), its middle 8.5 in from the icon's top-right corner, and a 6 gap round it cut
   through the icon and its shadow, so the home background shows (any theme, any wallpaper or Mirror picture). The same
   in the dock and on the pages, wherever the app is put (`launcher.css`, `home-widgets.js`).
-- **Orders' badge** counts each order showing **KOT !** (on the day's list) and each **Pending QR payment** (Confirm !,
-  whatever its day kept): `RestroOrders.attention()`. Each clears by itself once fixed (reprinted, answered, settled
-  by the cloud); there is no "fixed" notice and no SMS or WhatsApp. "99+" past 99.
+- **Orders' badge** counts each order showing **KOT !** (on the day's list), each **Pending QR payment** (Confirm !,
+  whatever its day kept) and each **Payment failed** (Bill !, until it is paid): `RestroOrders.attention()`. Each
+  clears by itself once fixed (reprinted, answered, settled by the cloud, paid); there is no "fixed" notice and no SMS
+  or WhatsApp. "99+" past 99.
 - **Other apps:** QR Studio's badge (quiet QRs, renamed tables, pauses by itself) comes with QR Studio, Availability's
   with Availability; the others have none until the owner defines them.
 - **The home's Orders widget:** a Pending order is listed as open, its chip **"Pending"** (`#FFEDD5`, Due's orange `#C2410C`);
@@ -698,13 +742,21 @@ Amounts are in rupees.
 
 | Field | |
 | --- | --- |
-| `kind` | `"bill"` (not paid yet) or `"receipt"` (paid: a document of its own, not a reprint of the bill) |
-| `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is; or `"BILL · NOT A TAX INVOICE"` (below) |
+| `kind` | `"bill"` (not paid yet) or `"receipt"` (paid: a document of its own, not a reprint of the bill); or `"refund"`, a QR order cancelled and refunded (below) |
+| `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is; or `"BILL · NOT A TAX INVOICE"` (below); or `"REFUND · NOT A TAX INVOICE"` |
 | `at` | the bill's first print (a receipt keeps the bill's date and time when a bill was printed first, otherwise its own first print); a reprint keeps it |
 | `reprint` | `null` on a first print; on every later print of the same bill or receipt `{ at, by }`: a bold black outlined box at the very top, **REPRINT** in large letters, and under it `"Reprinted 7 Nov 2026 12:20 PM · by RK"` (`by`: the staff's initials) |
-| `paid` | receipts only: `{ method, amount, at, ref }`, a boxed line above the footer, `"PAID · UPI ₹837"` and under it `"7 Nov 2026 12:41 PM · Ref 4318 9920 1187"` (`method`: `"Cash"`, `"UPI"`, `"Card"`, `"Swiggy"` or `"Zomato"`; `ref` only when the payment has one) |
+| `paid` | receipts only: `{ method, amount, at, ref }`, a boxed line above the footer, `"PAID · UPI ₹837"` and under it `"7 Nov 2026 12:41 PM · Ref 4318 9920 1187"` (`method`: `"Cash"`, `"UPI"`, `"Card"`, `"Net banking"`, `"Wallet"`, `"Swiggy"` or `"Zomato"`, or `"QR"` for a QR order staff saw paid and not matched yet; `ref` only when the payment has one) |
+| `refunded` | refund slips only: `{ method, amount, at }`, the same boxed line where PAID goes, `"REFUNDED ₹1,260"` and under it `"9 Nov 2026 7:28 PM · Order cancelled"` (`at`: when staff cancelled it); `method` is `""` until the cloud has refunded it, then `"UPI"` and the rest: `"REFUNDED · UPI ₹1,260"` |
 
-Each print is kept on the order (`bills`, `receipts`: `{ at, by, total }`), so the next one is a REPRINT on every tablet.
+Each print is kept on the order (`bills`, `receipts`, `refundSlips`: `{ at, by, total }`), so the next one is a REPRINT
+on every tablet.
+
+**The refund slip** (owner, 13 Nov 2026): a QR order staff answered **Cancel and refund** for (QR payment Pending,
+above) shows **Refunded**, and its Receipt button prints a slip for the customer to take: `kind`
+`"refund"`, `title` `"REFUND · NOT A TAX INVOICE"` (nothing was sold), `bill` `null` (it takes no bill number), the
+dishes and the sums as on any bill, then the `refunded` box. The refund itself goes once the cloud can reach the
+payment provider; the customer doesn't wait for it.
 
 **Bill number "At payment"** (Update Pack 4, Settings › Business details › Bill number; `restro.billNumber.v1`). The
 owner chooses when a bill gets its number: **When the bill is first printed** (the default, as above) or **At

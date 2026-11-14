@@ -823,6 +823,8 @@
       // (Update Pack 3) the bill and receipt prints (a later print is a REPRINT) and what a delivery app's integration
       // sent with the order
       ...Object.fromEntries(KEPT.filter(k => prev && prev[k] != null).map(k => [k, prev[k]])),
+      // (a QR order whose payment failed stays so until it is paid: Pay here makes it paid as any order)
+      ...(prev?.qr === true && prev.qrPay === 'failed' && !pay ? { qrPay: 'failed' } : {}),
       ...(!prev && Array.isArray(order.bills) && order.bills.length ? { bills: order.bills } : {}),
       // the bill's number (Update Pack 3), given at its first print or at the payment
       ...(order.billNo && !prev?.billNo ? { billNo: order.billNo, billYear: order.billYear } : {}) };
@@ -868,7 +870,10 @@
     const printed = kot ? printKot(entry, kot) : null;
     return { entry, kot, printed, sentNow: kot ? kot.lines.reduce((n, l) => n + l.qty, 0) : 0, isNew: !prev };
   }
-  const KEPT = ['bills', 'receipts', 'billNo', 'billYear', 'platform', 'platformNo', 'platformType', 'platformLogo', 'pickupAt', 'readyBy', 'callCode', 'handover', 'riderAt', 'platformReadyAt', 'payRef'];
+  // (Update Pack 5: a QR order's own fields; a QR order whose payment failed, owner 13 Nov 2026, opens here to be paid:
+  // it stays a QR order, with who confirmed it and when)
+  const KEPT = ['bills', 'receipts', 'refundSlips', 'billNo', 'billYear', 'platform', 'platformNo', 'platformType', 'platformLogo', 'pickupAt', 'readyBy', 'callCode', 'handover', 'riderAt', 'platformReadyAt', 'payRef',
+    'qr', 'qrPayAt', 'qrChoice', 'qrFailedAt', 'qrFailSeen'];
   // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
   // main system or the cloud, as a new order takes its number from them, so no two orders share one. Otherwise it says
   // so and the order stays on screen. Returns what upsertOrder does, or null. A dish that sold out before its KOT went
@@ -2644,8 +2649,11 @@
     const same = prints.filter(p => (p?.tax === false) === pre), now = Date.now(), last = same.length ? { at: now, by: initialsOf(staffName()) } : null;
     // (the receipt carries the bill's date and time, as PS01 draws it, when a bill (a tax invoice) was printed first)
     const billAt = kind === 'receipt' && Array.isArray(rec?.bills) ? Number(rec.bills.find(b => b && b.tax !== false)?.at) || 0 : 0;
-    const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : pre ? 'BILL · NOT A TAX INVOICE' : 'TAX INVOICE', at: billAt || same[0]?.at || now, reprint: last };
+    const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : kind === 'refund' ? 'REFUND · NOT A TAX INVOICE' : pre ? 'BILL · NOT A TAX INVOICE' : 'TAX INVOICE', at: billAt || same[0]?.at || now, reprint: last };
     if (kind === 'receipt' && rec) bill.paid = { method: rec.qr === true && rec.qrPay === 'matching' ? 'QR' : PAID_AS[rec.method] || 'Cash', amount: bill.total, at: Date.parse(rec.paidAt) || now, ref: typeof rec.payRef === 'string' ? rec.payRef : '' };
+    // (a QR order cancelled and refunded: a boxed "REFUNDED ₹1,260" where PAID goes, with when it was cancelled; its
+    // method once the cloud has refunded it: "REFUNDED · UPI ₹1,260")
+    if (kind === 'refund' && rec) bill.refunded = { method: rec.refundedAt ? PAID_AS[rec.refundMethod] || PAID_AS[rec.method] || '' : '', amount: bill.total, at: Number(rec.qrChoice?.at) || Date.parse(rec.refundedAt) || now };
     return bill;
   }
   // To the bill printer (RESTRODevice.printer.printBill), or the browser's printing; resolves whether it printed
@@ -2693,15 +2701,18 @@
     const copy = () => (doc && typeof doc === 'object' && idOf(doc) === uid && Array.isArray(doc.lines) ? JSON.parse(JSON.stringify(doc)) : null);
     let list = loadOrders(), rec = list.find(o => idOf(o) === uid) || copy(); if (!rec) return { ok: false };
     const keep = (all, r) => { if (!all.some(o => idOf(o) === uid)) all.push(r); return all; };
+    // (owner, 13 Nov 2026: a QR order cancelled and refunded prints its refund slip, for the customer to take, with no
+    // bill number of its own: nothing was sold)
+    const refund = rec.qr === true && (rec.qrPay === 'refund' || (rec.qrChoice?.choice === 'refund' && Boolean(rec.refundedAt)));
     // (its bill number first, when it has none yet; Bill number "At payment": not before it is paid)
-    const pre = !rec.paidAt && !rec.billNo && atPayment();
-    if (!pre && !rec.billNo && window.RestroSync?.takeBillNumber) {
+    const pre = !refund && !rec.paidAt && !rec.billNo && atPayment();
+    if (!refund && !pre && !rec.billNo && window.RestroSync?.takeBillNumber) {
       let t = null; try { t = await window.RestroSync.takeBillNumber(); } catch { t = null; }
       if (!t) return { ok: false, why: 'number' };
       list = loadOrders(); rec = list.find(o => idOf(o) === uid) || copy(); if (!rec) return { ok: false };
       if (!rec.billNo) { rec.billNo = t.number; rec.billYear = t.year; storeOrders(keep(list, rec)); if (order.uid === uid) keepOpened(rec); }
     }
-    const kind = rec.paidAt ? 'receipt' : 'bill', key = kind === 'receipt' ? 'receipts' : 'bills', prints = Array.isArray(rec[key]) ? rec[key] : [];
+    const kind = refund ? 'refund' : rec.paidAt ? 'receipt' : 'bill', key = refund ? 'refundSlips' : kind === 'receipt' ? 'receipts' : 'bills', prints = Array.isArray(rec[key]) ? rec[key] : [];
     const bill = { ...billDoc(restoreOrder(rec), kind, prints, rec, pre), bill: billLabel(rec.billNo) };
     const ok = await deliverBill(bill);
     if (ok) {
@@ -2741,6 +2752,7 @@
       el('hr'),
       el('table', { class: 'gt' }, el('tbody', {}, row('GRAND TOTAL', `₹${bill.total.toLocaleString('en-IN')}`))),
       bill.paid ? el('div', { class: 'paid' }, el('b', {}, `PAID · ${bill.paid.method} ₹${bill.paid.amount.toLocaleString('en-IN')}`), el('span', {}, [stamp(bill.paid.at), bill.paid.ref ? `Ref ${bill.paid.ref}` : ''].filter(Boolean).join(' · '))) : null,
+      bill.refunded ? el('div', { class: 'paid' }, el('b', {}, `REFUNDED${bill.refunded.method ? ` · ${bill.refunded.method}` : ''} ₹${bill.refunded.amount.toLocaleString('en-IN')}`), el('span', {}, `${stamp(bill.refunded.at)} · Order cancelled`)) : null,
       bill.footer.length ? [el('hr'), el('p', { class: 'small' }, ...bill.footer.flatMap((f, i) => (i ? [el('br'), f] : [f])))] : null].flat().filter(Boolean));
     try { window.print(); } catch { toast('Printing isn’t available here'); }
   }
@@ -3855,6 +3867,19 @@
     if (!rec || rec.qr !== true || rec.qrPay !== 'waiting') return false;
     rec.qrPay = 'pending'; storeOrders(list); return true;
   }
+  // (owner, 13 Nov 2026) A QR order staff saw as paid whose payment the cloud didn't find once online (qrPay 'failed', set
+  // by the cloud): Print bill in its Payment failed pop-up. Who did it and when go on the order (qrFailSeen, and its Track
+  // history: 'qr-fail-bill'), which stops its sound on every tablet; it stays Payment failed, in Due, until it is paid.
+  function qrFailSeen(uid) {
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid);
+    if (!rec || rec.qr !== true || rec.qrPay !== 'failed' || rec.paidAt) return false;
+    if (rec.qrFailSeen) return true;
+    const now = Date.now(), by = staffName();
+    rec.qrFailSeen = { by: by || null, at: now };
+    rec.events = [...(Array.isArray(rec.events) ? rec.events : []), { id: newEventId(), at: now, kind: 'qr-fail-bill', by }].slice(-200);
+    rec.savedAt = now; storeOrders(list); if (order.uid === uid) keepOpened(rec);
+    return true;
+  }
   // Deletes saved orders not paid yet (Orders: one, or several picked together), with the reason. They come off Orders
   // and the Counter for good (there are no grey Cancelled rows), their tables and pagers are free, and each is kept for
   // the record (Analytics: who, when, why, the amount, whether a KOT or the bill had printed). The kitchen gets one slip:
@@ -3934,7 +3959,7 @@
     // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
     kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type), kitchenTime: o => kitchenTime(o),
     // (Update Pack 5, H1) a Pending QR order: Customer paid? answered, and the 30 s mark
-    qrChoice, qrMark,
+    qrChoice, qrMark, qrFailSeen,
     // (a message or buzz that went, or didn't: Orders' line under Notify or Buzz green, or red until one goes)
     markNotified: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', true), markBuzzed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', true),
     markNotifyFailed: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', false), markBuzzFailed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', false),
