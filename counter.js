@@ -941,7 +941,8 @@
   // ---------- Schedule (Update Pack 4: Counter scheduling, CS1–CS12) ----------
   // The time the customer wants the order ready: Today · Tomorrow · Pick a date (business days: 12:30 am belongs to the
   // day before until the cut-off), then hour · minute (in 5s) · am/pm on wheels (hour and minute go round). Only times
-  // inside business hours (Settings › Business details; Update Pack 4, C1): the others are greyed on the wheels and
+  // inside business hours and not in a break (Settings › Business details; Update Pack 4, C1; break hours, owner 14 Nov
+  // 2026): the others are greyed on the wheels and
   // turning skips them, and a day the restaurant is closed can't be picked. The kitchen gets the KOT that order type's
   // prep time before (Settings › Kitchen). Two equal grey buttons: Schedule KOT (it prints by itself then) and Instant KOT
   // (it prints with Save or Pay, as for any order). Too soon (the kitchen time has passed): Instant KOT only. While the KOT
@@ -958,15 +959,18 @@
   const atOn = (k, h, m) => { const d = keyDate(k); if (h * 60 + m <= (window.RestroPrefs?.spillMinutes?.(k) ?? 0)) d.setDate(d.getDate() + 1); d.setHours(h, m, 0, 0); return d.getTime(); };
   // a business day's opening hours ({ from, to }, null: closed that day); without Settings, any time
   const hoursOn = k => (window.RestroPrefs?.hoursOn ? window.RestroPrefs.hoursOn(k) : { from: -Infinity, to: Infinity });
-  // the time on a business day nearest to h:m that is inside its hours (5-minute steps; `half`: in the am (false) or pm
-  // (true) half only, when it has one), or null when it is closed
+  // (owner, 14 Nov 2026) a business day's break ({ from, to }, null: none): closed then, so no order is ready in it
+  const breakOn = k => window.RestroPrefs?.breakOn?.(k) || null;
+  const inBreak = (b, t) => Boolean(b) && t > b.from && t < b.to;
+  // the time on a business day nearest to h:m that is inside its hours and not in its break (5-minute steps; `half`: in
+  // the am (false) or pm (true) half only, when it has one), or null when it is closed
   function nearestOpen(k, h, m, half = null) {
     const w = hoursOn(k); if (!w) return null;
-    const want = atOn(k, h, m), first = Math.ceil(w.from / 300000) * 300000, last = Math.floor(w.to / 300000) * 300000;
+    const b = breakOn(k), want = atOn(k, h, m), first = Math.ceil(w.from / 300000) * 300000, last = Math.floor(w.to / 300000) * 300000;
     let best = Math.min(last, Math.max(first, want));
-    if (half != null && Number.isFinite(first) && Number.isFinite(last)) {
+    if ((half != null || inBreak(b, best)) && Number.isFinite(first) && Number.isFinite(last)) {
       let gap = Infinity;
-      for (let t = first; t <= last; t += 300000) if ((new Date(t).getHours() >= 12) === half && Math.abs(t - want) < gap) { gap = Math.abs(t - want); best = t; }
+      for (let t = first; t <= last; t += 300000) if ((half == null || (new Date(t).getHours() >= 12) === half) && !inBreak(b, t) && Math.abs(t - want) < gap) { gap = Math.abs(t - want); best = t; }
     }
     const c = new Date(best);
     return { h: c.getHours(), m: c.getMinutes() };
@@ -986,8 +990,9 @@
     const soon = Math.ceil((now + prep * 60000) / 300000) * 300000;
     let at = order.readyAt || soon;
     if (!order.readyAt) for (let i = 0; i < 14; i++) {
-      const k = addDays(bizKey(soon), i), w = hoursOn(k); if (!w) continue;
-      const t = Math.max(soon, Math.ceil(w.from / 300000) * 300000); if (t <= w.to) { at = t; break; }
+      const k = addDays(bizKey(soon), i), w = hoursOn(k), b = breakOn(k); if (!w) continue;
+      let t = Math.max(soon, Math.ceil(w.from / 300000) * 300000); if (inBreak(b, t)) t = Math.ceil(b.to / 300000) * 300000;
+      if (t <= w.to) { at = t; break; }
     }
     const r = new Date(at);
     scheduleDraft = { day: bizKey(r.getTime()), h: r.getHours(), m: r.getMinutes() - r.getMinutes() % 5, cal: null, then };
@@ -2852,10 +2857,11 @@
     const press = fn => ({ onpointerdown: hold, onmousedown: hold, onclick: fn });
     // the day: Today · Tomorrow · Pick a date (a date picked there shows on it, "Thu 12 Nov"); its calendar under it
     const other = d.day !== today && d.day !== tomorrow;
-    // (business hours: a day it is closed can't be picked; a time outside its hours moves to the nearest inside them)
+    // (business hours: a day it is closed can't be picked; a time outside its hours, or in its break, moves to the
+    // nearest inside them)
     let seen = null;
-    const hoursOf = k => (seen && seen.k === k ? seen.w : (seen = { k, w: hoursOn(k) }).w);
-    const okAt = (h, m) => { const w = hoursOf(d.day), t = w && atOn(d.day, h, m); return Boolean(w) && t >= w.from && t <= w.to; };
+    const hoursOf = k => (seen && seen.k === k ? seen.w : (seen = { k, w: hoursOn(k), b: breakOn(k) }).w);
+    const okAt = (h, m) => { const w = hoursOf(d.day), t = w && atOn(d.day, h, m); return Boolean(w) && t >= w.from && t <= w.to && !inBreak(seen.b, t); };
     // (am / pm turned: the nearest time in that half)
     const fit = () => { const half = d.half; d.half = null; if (okAt(d.h, d.m)) return; const n = nearestOpen(d.day, d.h, d.m, half); if (n) { d.h = n.h; d.m = n.m; } };
     const pickDay = k => { d.day = k; d.cal = null; fit(); render(); };

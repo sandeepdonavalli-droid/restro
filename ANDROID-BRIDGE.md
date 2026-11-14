@@ -112,7 +112,7 @@ A status is plain data (a JSON string of it is fine too):
 
 ```js
 {
-  internetAvailable: true,          // the tablet can reach the internet (NET_CAPABILITY_VALIDATED): Online / Offline
+  internetAvailable: true,          // the tablet reaches the cloud, by itself or through another device: Online / Offline
   transport: 'wifi',                // what the internet goes through: 'wifi', 'cellular', 'ethernet' ...
   wifi: { connected: true, level: 3, internetAvailable: true },  // level 0-4: the bars; false: the "no internet" mark
   hasCellular: true,                // the tablet has a SIM: the mobile signal icon shows
@@ -123,6 +123,16 @@ A status is plain data (a JSON string of it is fine too):
 Send only what you know: a field left out keeps its last value. The flat names `wifiConnected`, `wifiLevel`,
 `wifiInternetAvailable`, `cellularLevel` and `validated` (for `internetAvailable`) are read too. Settings › Network &
 internet shows Connected through **Wi-Fi** or **Mobile data** from `wifi.connected` and `cellular.connected`.
+
+**Online or Offline, in every app (owner, 14 Nov 2026; a strict rule).** The bar's pill says only **Online** or
+**Offline**, from `internetAvailable`; no app shows anything else there (QR Studio's "No internet" pills are gone).
+`internetAvailable` is `true` while this device reaches the cloud **by itself** (its Wi-Fi's internet or its own mobile
+data, `NET_CAPABILITY_VALIDATED`) **or through another RESTRO device** on the restaurant Wi-Fi: the devices sync with
+each other over the Wi-Fi, and a device whose mobile data reaches the cloud (a handheld) carries everyone's cloud
+traffic, so every device is online (Update Pack 5, I1: local traffic stays on the Wi-Fi, cloud traffic goes over
+mobile data). It is `false` only when no route to the cloud works for this device: no device has internet, or this
+device can't reach the one that has. When the cloud is reached through another device, send `wifi.internetAvailable:
+false` too (the Wi-Fi's own internet), so the Wi-Fi icon keeps its "no internet" mark.
 
 Without these, the page checks the internet itself every 30 seconds (and whenever the connection changes) by loading
 `connectivity-check.txt` from its own server, and takes Wi-Fi or mobile data from Capacitor's Network plugin when the
@@ -648,16 +658,37 @@ they are built as the other Settings cards.
   then print on the backup printer, with the backup's own, and nothing says they moved; with no backup, or the backup
   down too, on the first kitchen printer that works. A KOT not confirmed as printed reprints on the backup with the
   REPRINT box. Kitchen printers only: a bill or receipt printer never takes KOTs.
-- **Settings › Business details › Last order time** (I3): a card under Business hours, "For QR ordering, Swiggy,
-  Zomato and your own online ordering. Orders your staff take work as usual until closing.", with five tiles: **At
-  closing · 15 min before · 30 min before** (the default: the designs' "last orders 10:30 PM" for an 11:00 PM close) **·
-  45 min before · 1 hour before**, and under them today's: "Today: last orders 10:30 pm · closes 11:00 pm" ("Closed
-  today."). Kept in `restro.hours.v1` as `lastOrder` (minutes before closing; shared by every tablet);
-  `RestroPrefs.lastOrderOn(day)` gives a business day's time in milliseconds (`null` when closed). The cloud (Phase 2)
-  stops QR ordering, Swiggy, Zomato and the restaurant's own online ordering at it, until opening: from then to
-  closing customers see the menu, and checkout says "QR ordering is paused. Please reach out to staff."; a customer who
-  reached the payment page before it can finish paying. Staff-taken orders (dine-in, takeaway, walk-in, phone) work
-  until closing. QR Studio shows it (QR Studio, below).
+- **Settings › Business details › Last order time** (I3): a card under Business hours (after Break hours, below),
+  "For QR ordering, Swiggy, Zomato, other delivery apps and your own online ordering. Orders your staff take work as
+  usual until closing.", with five tiles: **At closing · 15 min before · 30 min before** (the default: the designs'
+  "last orders 10:30 PM" for an 11:00 PM close) **· 45 min before · 1 hour before**, and under them today's: "Today:
+  last orders 10:30 pm · closes 11:00 pm" ("Closed today."). Kept in `restro.hours.v1` as `lastOrder` (minutes before
+  closing; shared by every tablet); `RestroPrefs.lastOrderOn(day)` gives a business day's time in milliseconds (`null`
+  when closed). The cloud (Phase 2) stops QR ordering, Swiggy, Zomato, any other delivery app and the restaurant's own
+  online ordering at it, until opening: from then to closing customers see the menu, and checkout says "QR ordering is
+  paused. Please reach out to staff."; a customer who reached the payment page before it can finish paying.
+  Staff-taken orders (dine-in, takeaway, walk-in, phone) work until closing. QR Studio shows it (QR Studio, below).
+- **Settings › Business details › Break hours** (owner, 14 Nov 2026; optional): a card under Business hours, "Optional.
+  A break in the day when you're closed, for example 3:30 pm to 7:00 pm. QR ordering, Swiggy, Zomato, other delivery
+  apps and your own online ordering stop for it, and scheduled orders can't be ready during it." A row a day as Business
+  hours: the day ("Break", "No break" or "Closed"), a switch, then from and to. Off on every day until turned on;
+  turning it on gives 3:30 pm to 7:00 pm when the day has room for it (the designs' break), otherwise an hour in the
+  middle of its hours. Its times are in 15s, inside that day's hours with time open before and after the break; while
+  a day has a break, its opening and closing can only be set around it. Kept in `restro.hours.v1` on each day as
+  `break: { from, to }` (minutes after midnight; a time at or before the opening is the next morning's) or `break:
+  null`; `Prefs` drops a break that doesn't fit its day. `RestroPrefs.breakOn(day)` gives a business day's break in
+  milliseconds (`null`: none); `RestroPrefs.openAt(ms)` is `false` in a break. A break doesn't move the business day.
+  **During a break** the restaurant is closed: the cloud stops QR ordering and the delivery and online channels as
+  after the last order time, and turns them back on at the break's end; customers see "QR ordering is paused. Please
+  reach out to staff." at checkout. The Counter's Schedule can't set a ready time inside a break (greyed on the wheels,
+  as closed hours). Orders staff take are not stopped.
+- **Settings › Business details › Last order before break** (owner, 14 Nov 2026): shown only while a day has a break,
+  under Last order time: "For QR ordering, Swiggy, Zomato, other delivery apps and your own online ordering. Orders
+  your staff take aren't affected.", tiles **At the break · 15 min before · 30 min before** (the default) **· 45 min
+  before · 1 hour before**, and today's: "Today: last orders 3:00 pm · break 3:30 pm – 7:00 pm" ("No break today.").
+  Kept in `restro.hours.v1` as `lastOrderBreak` (minutes before a break; one value for every day);
+  `RestroPrefs.lastOrderBreakOn(day)` gives a business day's time (`null` without a break). The cloud stops the same
+  channels at it, until the break ends.
 - **The home screen:** the app that was "Menu" reads **"Availability"** (K: renamed; its icon unchanged). The
   Availability app itself (store hours, what each channel sells, pausing a channel) comes later.
 
@@ -680,9 +711,11 @@ they are built as the other Settings cards.
 ## QR Studio (Update Pack 5): `printer.printQr`, `qr.send`, `restro:qr-path`, `restro:qr-scan`
 
 Built 13 Nov 2026 (Update Pack 5, part 6: the Light screens QS1–QS6 and QS16–QS53, with E, G, I1, I3, I4 and J), in
-`qr-studio.js` and `qr-studio.css`. The QR codes are made by `vendor/qrcode-generator.js` (Kazuhiko Arase, MIT,
-unchanged), error correction H, so the table's number in the middle still scans. Every method here is optional, as
-noted.
+`qr-studio.js` and `qr-studio.css`; changed 14 Nov 2026 by the owner's answers: who did something in full names,
+break hours (QS48), See devices on the sidebar card while a step is down, the bar's pill Online or Offline only, the
+links on a page of our own GitHub Pages site until the domain is decided, and the Menu design pill. The QR codes are
+made by `vendor/qrcode-generator.js` (Kazuhiko Arase, MIT, unchanged), error correction H, so the table's number in
+the middle still scans. Every method here is optional, as noted.
 
 ### What QR Studio holds
 
@@ -691,12 +724,14 @@ noted.
   code, path, name, createdAt, createdBy, replacedAt, replacedBy, printedAt, printedBy, sentAt, sentBy, quietOk }`.
   - `table`: a table QR's table, Floor's permanent id. Renaming or renumbering a table never breaks its printed QR.
   - `code`: 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no 0, O, 1, I or L, so it is easy to type).
-  - `path`: `<restaurant>/<T7 | TK | MN>-<code>`. The QR holds `https://<our website>/<path>`. The domain is still to be
-    decided (J), so `example.com` stands in for it.
+  - `path`: `<restaurant>/<T7 | TK | MN>-<code>`; `<restaurant>` is the restaurant's name in small letters with "-"
+    between words ("hotel-sri-sai"). The QR holds `https://<our website>/<path>`. The domain is still to be decided
+    (J); until then our website is RESTRO's GitHub Pages site, `sandeepdonavalli-droid.github.io/restro`, whose page for
+    these links says QR ordering is coming soon (below, "Our website for now").
   - `name`: the table's name as on the card printed or sent last.
   - `printedAt` / `printedBy`: Print, black and white. `sentAt` / `sentBy`: Send, the colour PDF.
-  - `createdBy`, `replacedBy`, `printedBy`, `sentBy` (and QR ordering's `by`, below): the staff's names. The screens
-    show their initials ("by ‹initials›"), as the Counter's history and the slips do.
+  - `createdBy`, `replacedBy`, `printedBy`, `sentBy` (and QR ordering's `by`, below): the staff's names. QR Studio shows
+    them in full, "by ‹name›" (owner, 14 Nov 2026); the Counter's history and the slips keep initials.
   - `quietOk`: the quiet warning hidden until then (ms).
 - **Replace** gives the QR a new code, so the old card stops working. **Delete** removes the QR. The cloud (Phase 2)
   keeps which codes work, from these records as they sync. Delete, Send and Test scan need the internet (greyed
@@ -709,7 +744,7 @@ noted.
   this link" and the link. Colours (the PDF): Table `#9A6B1F`, Takeaway `#2E7D4F`, Menu `#8E1E3C`.
 - **What needs looking at** (the home badge, J: `RestroQrStudio.attention()`). Each clears by itself once fixed.
   - Each table renamed in Floor since its card was printed or sent: "Now Table 11 · reprint the card". QR Studio
-    compares the names. Floor notes the change on the table as `renamed: { at, by }` for "Renamed today by ‹initials›".
+    compares the names. Floor notes the change on the table as `renamed: { at, by }` for "Renamed today by ‹name›".
   - Each quiet QR: no scan in 3 open business days, for a QR the cloud says usually gets scans (`usual`, below).
     "Card is fine · hide for 7 days" sets `quietOk`.
   - QR ordering paused by itself (not while the restaurant is closed).
@@ -722,12 +757,25 @@ see the menu, and checkout says "QR ordering is paused. Please reach out to staf
 
 | State | When | `restro.qrOrdering.v1` |
 | --- | --- | --- |
-| On | Within business hours, until the last order time (Settings, above) | `off: null` |
-| Paused for a while | **30 min · 1 hour · 1 business day** (back on at the next opening time) | `off: { until (ms), choice: '30m' \| '1h' \| 'day', by, at }` |
-| Off until turned on | **Until turned on** | `off: { until: null, choice: 'hand', by, at }` |
-| Closed | Outside business hours, a weekly day off, or after the last order time | nothing: from Settings › Business details |
-| Staying open late | The switch turned on while closed: on until the next opening time, then the business hours take over again | `late: { by, at, until (the next opening) }` |
+| On | Within business hours, until the last order time, and until the last order before a break (Settings, above) | `off: null` |
+| Paused for a while | **30 min · 1 hour · 1 business day** (back on at the next day's opening time, not when a break ends) | `off: { until (ms), choice: '30m' \| '1h' \| 'day', by, at }` |
+| Off until turned on | **Until turned on**: off until someone turns it on in QR Studio, on any device (no reminder, never by itself) | `off: { until: null, choice: 'hand', by, at }` |
+| Closed | Outside business hours, a weekly day off, after the last order time, during a break, or after the last order before a break | nothing: from Settings › Business details |
+| Staying open late | The switch turned on while closed (a break too): on until the next opening time (a break's end too), then the business hours take over again, so it stays on until that day's last orders. Paused by itself as usual | `late: { by, at, until (the next opening) }` |
 | Paused by itself | No path for a QR order to reach a working kitchen printer (below). Back on once the path has worked for 10 s | nothing: each device works it out |
+
+The sidebar's card and the banner (QS37, QS48, QS53 and the like):
+- On: "On · last orders 10:30 PM"; before a break, "On · last orders before the break 3:00 PM".
+- After the last order before a break: banner "QR ordering closed · last orders before the break were at 3:00 PM", card
+  "Closed · last orders before the break were 3:00 PM", then the hours and "Opens today 7:00 PM." (as QS53).
+- During a break (QS48): banner "QR ordering closed for a break · opens today at 7:00 PM", "Turns on by itself at
+  opening time."; card "Closed for a break · opens 7:00 PM", "Business hours 11:00 AM – 3:30 PM, 7:00 PM – 11:00 PM
+  · last orders 10:30 PM."
+- **See devices** (owner, 14 Nov 2026): on the card, above Pause for a while, while it is paused by itself (QS46), and
+  while it is on (or staying open late) but a step is down: orders coming in on a handheld's mobile data (QS45), or a
+  kitchen printer down while another prints (QS47). Not while closed, and not when every step works (QS1).
+- **Menu design** (the templates come with the next set of designs): its pill reads "Menu design"; a tap says "Coming
+  soon".
 
 `RestroQrStudio.ordering()` returns `{ state: 'on' | 'paused' | 'hand' | 'closed' | 'late' | 'auto', reason }`
 (`reason`: why it paused by itself, below).
@@ -771,8 +819,9 @@ working.
 Without the app, a device knows only its own internet. It counts the internet gone after 30 s without it (not while
 it starts up, not for a blip) and takes the kitchen printers as working. Send `null` to go back to that.
 
-**The bar's pill while QR Studio is open:** "No internet" when `internet` is false; amber "No internet · orders via
-Handheld 1" when `wifiInternet` is false and `mobileVia` is set. Otherwise "Online" or "Offline", as everywhere.
+**The bar's pill:** "Online" or "Offline", as in every app (Connectivity, above; owner, 14 Nov 2026). The pack's "No
+internet" and amber "No internet · orders via Handheld 1" are not shown: a device that reaches the cloud through a
+handheld's mobile data is online, and See devices on the sidebar's card shows how the orders are coming in.
 
 ### Scans: `restro:qr-scan` or `RestroQrStudio.scanned(scan)`
 
@@ -806,9 +855,21 @@ Each card is `{ kind, restaurant, heading, qr, mark, title, lines, note, linkLab
 - `title`: "Table 7", "Takeaway" or "Menu", large and bold.
 - `lines`: two short lines.
 - `note`: the table card's bell note, bold; `null` on the others.
-- `linkLabel` ("QR not scanning? Type this link") then `link` (`example.com/<restaurant>/T7-<code>`), small, at the
-  bottom.
+- `linkLabel` ("QR not scanning? Type this link") then `link`
+  (`sandeepdonavalli-droid.github.io/restro/<restaurant>/T7-<code>` for now), small, at the bottom. A link too long for
+  one line goes on after a "/" on the next (the screens' card puts it on two lines, after `github.io/restro/`).
 - `kind` (`'table'`, `'takeaway'` or `'menu'`) and `url` (the full link the QR holds) are for the app.
+
+### Our website for now: `404.html` on GitHub Pages
+
+Until the domain is decided, the QRs hold `https://sandeepdonavalli-droid.github.io/restro/<restaurant>/<T7 | TK |
+MN>-<code>` (owner, 14 Nov 2026). There is no page at that address, so GitHub Pages serves the repository's `404.html`
+(with status 404, which browsers and phone cameras show as usual). It reads the link and shows the restaurant's name
+(from the link, in capitals: hotel-sri-sai shows "HOTEL SRI SAI"), the QR's "Table 7", "Takeaway" or "Menu" in the
+card's colour, and "QR ordering is coming soon. Please order with staff." Anything else shows "Page not found". It
+holds no data and sends nothing; it loads only Inter from the site. The menu, ordering, payment and the menu designs
+replace it with the cloud and the next set of designs; when the domain is chosen, `HOST` in `qr-studio.js` changes,
+and this page can send the cards already printed on to the new address.
 
 ### Sending the colour PDF: `RESTRODevice.qr.send({ to, size, language, cards })`
 

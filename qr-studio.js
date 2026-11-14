@@ -8,8 +8,10 @@
 //       a table never breaks a printed QR), code (6 characters), path ('<restaurant>/<T7 | TK | MN>-<code>'), name (the
 //       table's name as on the printed card), createdAt, createdBy, replacedAt, replacedBy, printedAt, printedBy (black
 //       and white, on the receipt printer), sentAt, sentBy (the colour PDF), quietOk (the quiet-QR warning hidden until
-//       then) }. The ...By fields hold the staff's names; the screens show their initials.
-//   Its link is https://<our website>/<path>. The domain is still to be decided (J), so example.com stands in for it.
+//       then) }. The ...By fields hold the staff's names, and the screens show them in full (owner, 14 Nov 2026).
+//   Its link is https://<our website>/<path>. The domain is still to be decided (J); until then the links go to RESTRO's
+//   GitHub Pages site, whose 404.html shows the restaurant, the QR's table (or Takeaway, Menu) and "QR ordering is
+//   coming soon. Please order with staff." (owner, 14 Nov 2026).
 //   Replace gives the QR a new code (the old one stops working); Delete removes it. The cloud keeps which codes work.
 // - QR ordering: restro.qrOrdering.v1, the restaurant's (synced): { off: { until (ms; null: until turned on), choice,
 //   by, at } | null, late: { by, at } | null }. It follows the business hours and the last order time by itself (I3), and
@@ -22,7 +24,8 @@
   const dialog = document.querySelector('#qr-studio-dialog');
   if (!dialog) return;
   const KEY = 'restro.qr.v1', ORDERING_KEY = 'restro.qrOrdering.v1', SCANS_KEY = 'restro.qrScans.v1';
-  const HOST = 'example.com';
+  // (our website until the domain is decided: the GitHub Pages site, 404.html)
+  const HOST = 'sandeepdonavalli-droid.github.io/restro';
   const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // (no 0 / O, 1 / I / L: easy to type from the card)
   const MIN = 60000, DAY = 864e5;
   // (J: fixed defaults, no settings) a quiet QR: no scan in 3 open days; "Card is fine" hides it for 7 days. A test scan
@@ -103,19 +106,15 @@
   const midnight = t => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
   const daysApart = (a, b) => Math.round((midnight(b) - midnight(a)) / DAY);
   const dayMonth = t => { const d = new Date(t); return `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : ''}`; };
-  // "today" or "8 Nov" (as the designs: "Replaced 8 Nov by ‹initials›" the day after)
+  // "today" or "8 Nov" (as the designs: "Replaced 8 Nov by ‹name›" the day after)
   const dayWord = t => (daysApart(t, Date.now()) === 0 ? 'today' : dayMonth(t));
   // "Fri 6 Nov"
   const weekdayDate = t => { const d = new Date(t); return `${WEEKDAYS[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   const who = () => window.RestroStaff?.current?.name || null;
-  // Who did it, as initials, as in the Counter's history and on the slips (a name already in 2 or 3 capitals stays)
-  const initialsOf = name => {
-    const words = typeof name === 'string' ? name.trim().split(/\s+/).filter(Boolean) : [];
-    if (words.length === 1 && /^[A-Z]{2,3}$/.test(words[0])) return words[0];
-    return (words.length > 1 ? [words[0], words.at(-1)] : words).map(w => Array.from(w)[0]).join('').toLocaleUpperCase('en-IN');
-  };
-  const byWho = name => (name ? ` by ${initialsOf(name)}` : '');
+  // Who did it: the staff member's full name (owner, 14 Nov 2026: "by ‹name›", not initials; the Counter and the slips
+  // keep initials)
+  const byWho = name => (typeof name === 'string' && name.trim() ? ` by ${name.trim().replace(/\s+/g, ' ')}` : '');
 
   // ---------- the floor: its areas and tables (Floor app, floor-data.js) ----------
   // A table renamed or renumbered in Floor keeps its id; Floor notes it on the table as renamed: { at, by }.
@@ -148,9 +147,13 @@
     let code = ''; for (const b of bytes) code += CODE_CHARS[(b || Math.floor(Math.random() * 256)) % CODE_CHARS.length];
     return records.some(r => r.code === code) ? newCode() : code;
   }
-  const slug = () => (window.RestroRestaurantName?.value || '').toLowerCase().replace(/[^a-z0-9]+/g, '') || 'restaurant';
+  // (the restaurant in the link: its name in small letters, words joined by "-", so the page can show it: "Hotel Sri Sai"
+  // is hotel-sri-sai)
+  const slug = () => (window.RestroRestaurantName?.value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'restaurant';
   const pathFor = (kind, name, code) => `${slug()}/${kind === 'table' ? `T${String(name).replace(/[^A-Za-z0-9]+/g, '')}` : KINDS[kind].prefix}-${code}`;
   const linkOf = r => `${HOST}/${r.path}`, urlOf = r => `https://${linkOf(r)}`;
+  // The typed link on a card: a long one goes onto a second line after a "/" (the GitHub address is long)
+  const linkWords = link => link.split('/').flatMap((part, i, all) => (i < all.length - 1 ? [`${part}/`, el('wbr')] : [part]));
   const newId = () => `qr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   // (the card on the table, as printed or sent last: printed or sent since the QR was made)
   const printedOf = r => Math.max(Number(r.printedAt) || 0, Number(r.sentAt) || 0);
@@ -176,13 +179,22 @@
   const addDays = (key, n) => { const [y, m, d] = key.split('-').map(Number); return dayKeyOf(new Date(y, m - 1, d + n).getTime()); };
   const hoursOn = key => window.RestroPrefs?.hoursOn?.(key) || null;
   const lastOrderOn = key => window.RestroPrefs?.lastOrderOn?.(key) ?? null;
-  // The next opening from a moment: { at, key } (within two weeks), or null when the restaurant never opens
-  function nextOpening(t) {
+  // (owner, 14 Nov 2026) a business day's break, and its last order before the break
+  const breakOn = key => window.RestroPrefs?.breakOn?.(key) || null;
+  const lastBreakOn = key => window.RestroPrefs?.lastOrderBreakOn?.(key) ?? null;
+  // The next opening from a moment: { at, key } (within two weeks), or null when the restaurant never opens. The end of
+  // a break is an opening too, unless `dayStart` (1 business day: the next day's opening, not the break's end)
+  function nextOpening(t, dayStart = false) {
     const start = businessDay(t);
-    for (let i = 0; i < 15; i++) { const key = addDays(start, i), h = hoursOn(key); if (h && h.from > t) return { at: h.from, key }; }
+    for (let i = 0; i < 15; i++) {
+      const key = addDays(start, i), h = hoursOn(key), b = dayStart ? null : breakOn(key); if (!h) continue;
+      if (h.from > t) return { at: h.from, key };
+      if (b && b.to > t) return { at: b.to, key };
+    }
     return null;
   }
-  const hoursText = h => `${clock(h.from)} – ${clock(h.to)}`;
+  // "11:00 AM – 11:00 PM", with a break "11:00 AM – 3:30 PM, 7:00 PM – 11:00 PM"
+  const hoursText = key => { const h = hoursOn(key), b = breakOn(key); return !h ? '' : b ? `${clock(h.from)} – ${clock(b.from)}, ${clock(b.to)} – ${clock(h.to)}` : `${clock(h.from)} – ${clock(h.to)}`; };
   // "tomorrow at 11:00 AM" / "today at 7:00 PM" / "Wednesday at 11:00 AM" (and the short "tomorrow 11:00 AM", "Wed 11:00 AM")
   function openingWords(at, short = false, byName = false) {
     const n = daysApart(Date.now(), at), day = WEEKDAYS[new Date(at).getDay()];
@@ -240,11 +252,15 @@
   // Where QR ordering stands now: { state: 'on' | 'late' | 'paused' | 'hand' | 'auto' | 'closed', ... }
   function ordering(now = Date.now()) {
     const o = readOrdering();
-    const key = businessDay(now), h = hoursOn(key), last = lastOrderOn(key);
+    const key = businessDay(now), h = hoursOn(key), last = lastOrderOn(key), b = breakOn(key), lastB = lastBreakOn(key);
+    // (closed: a weekly day off, before opening, a break and its last order before it (owner, 14 Nov 2026), after the
+    // last order time)
     let closed = null;
     if (!h) closed = { why: 'weekly', key };
-    else if (now < h.from) closed = { why: 'before', h };
-    else if (last != null && now >= last) closed = { why: last < h.to ? 'last' : 'after', h, last };
+    else if (now < h.from) closed = { why: 'before', key, h };
+    else if (b && now >= b.from && now < b.to) closed = { why: 'break', key, h, b };
+    else if (b && lastB != null && now >= lastB && now < b.from) closed = { why: 'lastbreak', key, h, b, last: lastB };
+    else if (last != null && now >= last) closed = { why: last < h.to ? 'last' : 'after', key, h, last };
     // (a pause for a while ends by itself; "Until turned on" stays until someone turns it on; turned on after hours lasts
     // until the next opening time, when the business hours take over again)
     const off = o.off && (o.off.until == null || o.off.until > now) ? o.off : null;
@@ -254,7 +270,15 @@
     if (off) return { state: 'paused', off, closed };
     const auto = autoPause(now);
     if (auto) return { state: 'auto', auto };
-    return closed ? { state: 'late', late, closed } : { state: 'on', h, last };
+    // (on before a break: its last orders come first)
+    return closed ? { state: 'late', late, closed } : { state: 'on', h, last, lastB: b && lastB != null && now < lastB ? lastB : null };
+  }
+  // A step down while QR orders still get through (owner, 14 Nov 2026: See devices on the card then, as QS46): the
+  // internet only through a handheld's mobile data, or a kitchen printer down while another prints
+  function degraded(p = pathNow()) {
+    if (brokenStep(p)) return false;
+    if (p.mobileVia && p.wifiInternet === false) return true;
+    return (p.printers || []).some(k => !(k.state === 'ok' && (k.link !== 'wired' || k.device?.on !== false)));
   }
 
   // ---------- what needs looking at (the home badge, J) ----------
@@ -337,7 +361,7 @@
       k.note ? el('div', { class: 'qrs-card-note' }, el('span', { class: 'qrs-card-bell' }, icon('bell')), el('span', {}, k.note)) : null,
       el('div', { class: 'qrs-card-rule' }),
       el('div', { class: 'qrs-card-type' }, 'QR not scanning? Type this link'),
-      el('div', { class: 'qrs-card-link' }, icon('link'), el('span', {}, linkOf(r))));
+      el('div', { class: 'qrs-card-link' }, icon('link'), linkWords(linkOf(r))));
   }
 
   // ---------- what the screen shows ----------
@@ -362,8 +386,8 @@
     return el('aside', { class: 'qrs-side' },
       el('div', { class: 'qrs-sh' }, el('button', { type: 'button', class: 'qrs-home', 'aria-label': 'Home', onclick: goHome }, icon('home')), appArt(), el('h2', { id: 'qr-studio-title', class: 'qrs-studio', tabindex: '-1' }, 'Studio')),
       el('nav', { class: 'qrs-pills', 'aria-label': 'QR types' }, pill('table', 'table', 'Table QRs'), pill('takeaway', 'bag', 'Takeaway QR'), pill('menu', 'menu', 'Menu QR'),
-        // (Menu design: the templates are being redesigned, Pack 5 "don't build yet")
-        el('button', { type: 'button', class: 'qrs-pill two', ...greyed('Menu design', 'Coming soon') }, el('span', { class: 'qrs-pill-i' }, icon('palette')), el('span', { class: 'qrs-pill-t' }, 'Menu design', el('small', {}, 'Coming soon')))),
+        // (Menu design: the templates come in the next set; owner, 14 Nov 2026: one line, a tap says "Coming soon")
+        el('button', { type: 'button', class: 'qrs-pill', onclick: () => toast('Coming soon', null, null) }, el('span', { class: 'qrs-pill-i' }, icon('palette')), el('span', { class: 'qrs-pill-t' }, 'Menu design'))),
       orderingCard(st));
   }
   const pauseBtn = (off = false) => btn('qrs-cbtn', 'Pause for a while', () => openPop('pause'), 'pause', { off });
@@ -373,16 +397,23 @@
     const on = st.state === 'on' || st.state === 'late';
     let cls = '', line, text, buttons;
     const sw = el('button', { type: 'button', class: `qrs-switch${on ? ' on' : ''}`, role: 'switch', 'aria-checked': String(on), 'aria-label': 'QR ordering', onclick: () => switchTapped(st), ...(st.state === 'auto' ? { 'aria-disabled': 'true' } : {}) }, el('span'));
-    if (st.state === 'on') { line = el('b', { class: 'ok' }, `On · last orders ${clock(st.last ?? st.h.to)}`); text = 'Follows your business hours. Table and Takeaway QRs take paid orders; the Menu QR always works.'; buttons = [pauseBtn()]; }
-    else if (st.state === 'late') { line = el('b', { class: 'ok' }, `On · turned on${byWho(st.late.by)} at ${clock(st.late.at)}`); text = 'Turned on by hand outside business hours, so it stays on until someone turns it off.'; buttons = [pauseBtn(true)]; }
+    // (See devices while it is on but a step is down: on mobile data, or a kitchen printer down; as QS46's card)
+    const devices = on && degraded() ? btn('qrs-cbtn plain', 'See devices', () => openPop('devices')) : null;
+    if (st.state === 'on') { line = el('b', { class: 'ok' }, st.lastB ? `On · last orders before the break ${clock(st.lastB)}` : `On · last orders ${clock(st.last ?? st.h.to)}`); text = 'Follows your business hours. Table and Takeaway QRs take paid orders; the Menu QR always works.'; buttons = [devices, pauseBtn()]; }
+    else if (st.state === 'late') { line = el('b', { class: 'ok' }, `On · turned on${byWho(st.late.by)} at ${clock(st.late.at)}`); text = 'Turned on by hand outside business hours, so it stays on until someone turns it off.'; buttons = [devices, pauseBtn(true)]; }
     else if (st.state === 'paused') { line = el('b', { class: 'warn' }, `Paused until ${untilWords(st.off.until)}`); text = 'Customers can see the menu but can’t order.'; buttons = [btn('qrs-cbtn', 'Resume now', resume, 'send')]; }
     else if (st.state === 'hand') { line = el('b', { class: 'warn' }, `Off until turned on${st.off.by ? ` ·${byWho(st.off.by)}` : ''} at ${clock(st.off.at)}`); text = 'Turned off by hand, so it stays off until someone turns it on. Customers can see the menu but can’t order.'; buttons = [btn('qrs-cbtn', 'Turn on', resume, 'send')]; }
     else if (st.state === 'auto') { cls = ' auto'; line = el('b', { class: 'bad' }, `Paused · ${REASONS[st.auto.reason].card}`); text = `Paused by itself at ${clock(st.auto.since)}. It turns back on by itself.`; buttons = [btn('qrs-cbtn plain', 'See devices', () => openPop('devices')), pauseBtn()]; }
     else {
-      const c = st.closed, next = nextOpening(Date.now()), hours = c.h ? `Business hours ${hoursText(c.h)} · last orders ${clock(c.last ?? c.h.to)}.` : '';
+      const c = st.closed, next = nextOpening(Date.now());
+      // "Business hours 11:00 AM – 3:30 PM, 7:00 PM – 11:00 PM · last orders 10:30 PM." (QS48)
+      const hoursLine = key => { const h = hoursOn(key); return h ? `Business hours ${hoursText(key)} · last orders ${clock(lastOrderOn(key) ?? h.to)}.` : ''; };
+      const opens = next ? ` Opens ${openingWords(next.at, true)}.` : '';
       if (c.why === 'weekly') { line = el('b', {}, `Closed today${next ? ` · opens ${openingWords(next.at, true, true)}` : ''}`); text = `${WEEKDAYS[new Date(Date.now()).getDay()]} is your weekly off in business hours.`; }
-      else if (c.why === 'last') { line = el('b', {}, `Closed · last orders were ${clock(c.last)}`); text = `${hours}${next ? ` Opens ${openingWords(next.at, true)}.` : ''}`; }
-      else { line = el('b', {}, `Closed${next ? ` · opens ${openingWords(next.at, true)}` : ''}`); const h = next ? hoursOn(next.key) : c.h; text = h ? `Business hours ${hoursText(h)} · last orders ${clock(lastOrderOn(next ? next.key : businessDay(Date.now())) ?? h.to)}.` : ''; }
+      else if (c.why === 'last') { line = el('b', {}, `Closed · last orders were ${clock(c.last)}`); text = `${hoursLine(c.key)}${opens}`; }
+      else if (c.why === 'lastbreak') { line = el('b', {}, `Closed · last orders before the break were ${clock(c.last)}`); text = `${hoursLine(c.key)}${opens}`; }
+      else if (c.why === 'break') { line = el('b', {}, `Closed for a break${next ? ` · opens ${clock(next.at)}` : ''}`); text = hoursLine(c.key); }
+      else { line = el('b', {}, `Closed${next ? ` · opens ${openingWords(next.at, true)}` : ''}`); text = hoursLine(next ? next.key : c.key); }
       buttons = [pauseBtn(true)];
     }
     return el('section', { class: `qrs-ord${cls}`, 'aria-label': 'QR ordering' }, el('div', { class: 'qrs-ord-top' }, el('h3', {}, 'QR ordering'), sw), el('p', { class: 'qrs-ord-line' }, line), el('p', { class: 'qrs-ord-text' }, text), el('div', { class: 'qrs-ord-btns' }, buttons));
@@ -400,7 +431,9 @@
     else {
       const c = st.closed, next = nextOpening(Date.now());
       cls = 'shut'; ic = el('span', { class: 'qrs-bn-i' }, icon('clock')); text = 'Turns on by itself at opening time.';
-      title = c.why === 'weekly' ? `QR ordering closed today${next ? ` · opens ${openingWords(next.at, false, true)}` : ''}` : c.why === 'last' ? `QR ordering closed · last orders were at ${clock(c.last)}` : `QR ordering closed${next ? ` · opens ${openingWords(next.at)}` : ''}`;
+      title = c.why === 'weekly' ? `QR ordering closed today${next ? ` · opens ${openingWords(next.at, false, true)}` : ''}` : c.why === 'last' ? `QR ordering closed · last orders were at ${clock(c.last)}`
+        : c.why === 'lastbreak' ? `QR ordering closed · last orders before the break were at ${clock(c.last)}` : c.why === 'break' ? `QR ordering closed for a break${next ? ` · opens ${openingWords(next.at)}` : ''}`
+        : `QR ordering closed${next ? ` · opens ${openingWords(next.at)}` : ''}`;
     }
     return el('div', { class: `qrs-banner ${cls}`, role: 'status' }, ic, el('div', {}, el('b', {}, title), el('span', {}, text)), action);
   }
@@ -801,7 +834,7 @@
     if (!page) { page = el('div', { id: 'print-qr', 'aria-hidden': 'true' }); document.body.append(page); }
     page.replaceChildren(...cards.map(c => el('section', { class: 'pq-card' }, el('h1', {}, c.restaurant), el('p', { class: 'pq-head' }, c.heading),
       qrSvg(c.url, c.mark, '#000000', 'pq-qr'), el('h2', {}, c.title), c.lines.map(l => el('p', {}, l)), c.note ? el('p', { class: 'pq-note' }, c.note) : null,
-      el('p', { class: 'pq-small' }, c.linkLabel), el('p', { class: 'pq-link' }, c.link))));
+      el('p', { class: 'pq-small' }, c.linkLabel), el('p', { class: 'pq-link' }, linkWords(c.link)))));
     try { window.print(); } catch {}
   }
   // Send (G, J): a colour, print-ready PDF to the business's registered email or WhatsApp, made and sent by the cloud
@@ -838,9 +871,11 @@
     changed();
   }
   // QR ordering by hand (I3): the switch or Pause for a while: 30 min · 1 hour · 1 business day (back on at the next
-  // opening time) · Until turned on. Outside business hours, the switch turns it on (staying open late).
+  // day's opening time, not when a break ends: owner, 14 Nov 2026) · Until turned on. Outside business hours (a break
+  // too), the switch turns it on (staying open late) until the next opening, a break's end included; then the business
+  // hours take over again.
   function pauseFor(choice) {
-    const now = Date.now(), until = choice === '30m' ? now + 30 * MIN : choice === '1h' ? now + 60 * MIN : choice === 'day' ? nextOpening(now)?.at ?? now + DAY : null;
+    const now = Date.now(), until = choice === '30m' ? now + 30 * MIN : choice === '1h' ? now + 60 * MIN : choice === 'day' ? nextOpening(now, true)?.at ?? now + DAY : null;
     pop = null; writeOrdering({ off: { until, choice, by: who(), at: now }, late: null });
   }
   function resume() { writeOrdering({ off: null, late: null }); }
@@ -854,9 +889,10 @@
 
   // ---------- the toast (QS6, QS28) ----------
   const toastEl = el('div', { class: 'qrs-toast', role: 'status', 'aria-live': 'polite', hidden: true });
-  function toast(text, action) {
+  // (ic: the tick, or null for none, as "Coming soon")
+  function toast(text, action, ic = 'check') {
     clearTimeout(toastTimer);
-    toastEl.replaceChildren(...[el('span', { class: 'qrs-toast-i' }, icon('check')), el('span', {}, text), action ? el('button', { type: 'button', class: 'qrs-toast-btn', onclick: () => { toastEl.hidden = true; action[1](); } }, action[0]) : null].filter(Boolean));
+    toastEl.replaceChildren(...[ic ? el('span', { class: 'qrs-toast-i' }, icon(ic)) : null, el('span', {}, text), action ? el('button', { type: 'button', class: 'qrs-toast-btn', onclick: () => { toastEl.hidden = true; action[1](); } }, action[0]) : null].filter(Boolean));
     toastEl.hidden = false;
     const ms = window.RESTRODevice?.recommendedTimeout?.(action ? 6000 : 3000, Boolean(action)) || (action ? 6000 : 3000);
     toastTimer = setTimeout(() => { toastEl.hidden = true; }, ms);
@@ -875,32 +911,36 @@
     const sc = root.querySelector('.qrs-scroll'); if (sc) sc.scrollTop = scroll;
     if (typing) { const input = root.querySelector('.qrs-search input'); input?.focus(); input?.setSelectionRange?.(input.value.length, input.value.length); }
     fitPreview();
-    paintPill();
   }
   // The card in the panel fills the grey box's height (QS1); a taller box above it makes it smaller (QS25, QS35)
   // (the grey box is 563 tall where there's room, smaller where there isn't; the card in it is 288 wide at most, with 14
-  // above and below; the note under the buttons goes when the box would be under 400)
+  // above and below; the note under the buttons goes when the box would be under 400). A typed link on two lines makes
+  // the card taller (the designs' one line is 20 card units), so it fits in the same box; the Takeaway and Menu card
+  // (QS2, QS3: 1 design pixel a card unit) too.
   function fitPreview() {
+    const u = unit();
+    const extra = card => { const cu = card.offsetWidth / 426, link = card.querySelector('.qrs-card-link'); return cu > 0 && link ? Math.max(0, link.offsetHeight / cu - 20) : 0; };
     for (const box of root?.querySelectorAll('.qrs-prev') || []) {
       const card = box.querySelector('.qrs-card'); if (!card) continue;
       const note = box.parentElement.querySelector(':scope > .qrs-note');
-      if (note && box.clientHeight < 400 * unit()) note.hidden = true;
-      const tall = card.classList.contains('k-table') ? 733.6 : 660, u = unit();
-      const k = Math.min(0.676 * u, (box.clientHeight - 28 * u) / tall, (box.clientWidth - 40 * u) / 426);
-      card.style.setProperty('--cu', `${Math.max(0.2 * u, k)}px`);
+      if (note && box.clientHeight < 400 * u) note.hidden = true;
+      const base = card.classList.contains('k-table') ? 733.6 : 660, more = extra(card), tall = base + more;
+      const k = Math.max(0.2 * u, Math.min(0.676 * u, (box.clientHeight - 28 * u) / tall, (box.clientWidth - 40 * u) / 426));
+      card.style.setProperty('--cu', `${k}px`);
+      // (a link on two lines: the card keeps the designs' place in the box, and only its link line goes on below)
+      const top = more > 0 ? Math.max(14 * u, Math.min((box.clientHeight - base * k) / 2, box.clientHeight - 14 * u - tall * k)) : null;
+      card.style.alignSelf = top == null ? '' : 'start'; card.style.marginTop = top == null ? '' : `${top}px`;
+    }
+    for (const box of root?.querySelectorAll('.qrs-big') || []) {
+      const card = box.querySelector('.qrs-card'); if (!card) continue;
+      const more = extra(card); if (more > 0) card.style.setProperty('--cu', `${Math.min(1, (680 - 20) / (660 + more)) * u}px`);
     }
   }
   // One design pixel on this screen (--fu)
   function unit() { const probe = root?.querySelector('.qrs-unit'); return probe ? probe.getBoundingClientRect().width / 100 : 1; }
-  // The bar's Online pill while QR Studio shows (I1): "No internet", or amber "No internet · orders via Handheld 1"
-  function paintPill() {
-    const pill = document.querySelector('#top-banner .online-pill'), label = document.querySelector('#online-text'); if (!pill || !label) return;
-    const p = pathNow(), mine = dialog.open, none = mine && !p.internet, via = mine && p.internet && p.mobileVia && p.wifiInternet === false;
-    pill.classList.toggle('qrs-noint', Boolean(none)); pill.classList.toggle('qrs-via', Boolean(via));
-    const text = none ? 'No internet' : via ? `No internet · orders via ${p.mobileVia}` : internetHere() ? 'Online' : 'Offline';
-    if (label.textContent !== text) label.textContent = text;
-    if (typeof window.alignBannerText === 'function') window.alignBannerText();
-  }
+  // (The bar's pill says Online or Offline in every app, QR Studio too (owner, 14 Nov 2026): connectivity-status.js. A
+  // device reaching the cloud through another one, a handheld on mobile data, is Online. The pack's "No internet" and
+  // "No internet · orders via Handheld 1" pills are gone.)
   // Something changed: the screen, and the home badge
   let lastCount = -1;
   function changed() {
@@ -932,7 +972,7 @@
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
-  dialog.addEventListener('close', () => { pop = null; view.picked = null; clearInterval(tick); clearInterval(testTimer); paintPill(); });
+  dialog.addEventListener('close', () => { pop = null; view.picked = null; clearInterval(tick); clearInterval(testTimer); });
   window.addEventListener('restro:data-changed', e => { const c = e.detail?.collections || []; if (c.includes('qr') || c.includes('settings')) { load(); loadScans(); changed(); } });
   window.addEventListener('restro:prefs-changed', () => changed());
   window.addEventListener('restro:connectivity-changed', () => { if (dialog.open) { render(); } else changed(); });

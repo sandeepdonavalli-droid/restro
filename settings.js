@@ -258,30 +258,74 @@
     const dayTimes = Array.from({ length: 96 }, (_, i) => i * 15);
     const row = d => {
       const x = h.days[d], name = DAY_NAMES[d];
-      const toValues = [...dayTimes.filter(m => m > x.from), ...dayTimes.filter(m => m <= Prefs.latestClose && m <= x.from)];
+      // (a day with a break: only hours that keep the break inside them; an opening after the closing time makes it close
+      // at midnight, as Prefs keeps it)
+      const keeps = (from, to) => !x.break || Prefs.breakOk(from, to, x.break);
+      const closeFor = from => (x.to > from || x.to <= Prefs.latestClose ? x.to : 0);
+      const fromValues = dayTimes.filter(m => keeps(m, closeFor(m)) || m === x.from);
+      const toValues = [...dayTimes.filter(m => m > x.from), ...dayTimes.filter(m => m <= Prefs.latestClose && m <= x.from)].filter(m => keeps(x.from, m) || m === x.to);
       return el('div', { class: 'st-row' },
         el('span', { class: 'st-row-copy' }, el('strong', {}, name), el('span', {}, x.open ? 'Open' : 'Closed')),
         el('input', { id: `hours-${d}`, class: 'st-switch', type: 'checkbox', role: 'switch', 'aria-label': `${name}: open`, checked: x.open, onchange: e => setHours(v => { v.days[d].open = e.target.checked; }) }),
         el('span', { class: 'st-hours-times' },
-          select(`hours-${d}-from`, `${name}: opens at`, dayTimes.map(m => [m, clock(m)]), x.from, m => setHours(v => { v.days[d].from = m; }), !x.open),
+          select(`hours-${d}-from`, `${name}: opens at`, fromValues.map(m => [m, clock(m)]), x.from, m => setHours(v => { v.days[d].from = m; }), !x.open),
           el('span', {}, 'to'),
           select(`hours-${d}-to`, `${name}: closes at`, toValues.map(m => [m, clock(m)]), x.to, m => setHours(v => { v.days[d].to = m; }), !x.open)));
     };
     return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. A new business day starts the minute after closing: open till 2:00 am, an order at 12:40 am counts in the day before.'),
       el('div', { class: 'st-rows' }, Prefs.days.map(row)));
   }
-  // (Update Pack 5, I3) Last order time: how long before closing QR ordering, Swiggy, Zomato and the restaurant's own
-  // online ordering stop taking orders; staff-taken orders as usual until closing. Under it, today's: "Today: last orders
-  // 10:30 pm · closes 11:00 pm".
+  // (Owner, 14 Nov 2026) Break hours: optional, a break in a day's hours when the restaurant is closed (e.g. 3:30 pm to
+  // 7:00 pm), off on every day until turned on. A row per day as Business hours: the switch, then from and to, only
+  // times inside that day's hours with time open before and after the break. A day closed all day can't have one.
+  function breakCard() {
+    const h = Prefs.get('hours'), setHours = change => Prefs.update('hours', change);
+    const select = (id, label, values, value, change, disabled) => el('select', { id, class: 'st-select st-time', 'aria-label': label, disabled, onchange: e => change(Number(e.target.value)) },
+      values.map(v => el('option', { value: String(v % 1440), selected: v % 1440 === value }, clock(v))));
+    const row = d => {
+      const x = h.days[d], name = DAY_NAMES[d], on = Boolean(x.open && x.break);
+      // (the day's times in 15s from just after opening to just before closing, the next morning's past 1440)
+      const close = x.to <= x.from ? x.to + 1440 : x.to, inside = [];
+      for (let m = x.from + 15; m < close; m += 15) inside.push(m);
+      // (a new break: 3:30 pm to 7:00 pm when the day has room for it, as the designs; otherwise an hour in its middle)
+      const mid = Math.round((x.from + close) / 2 / 15) * 15;
+      const fresh = Prefs.breakOk(x.from, x.to, { from: 930, to: 1140 }) ? { from: 930, to: 1140 } : { from: (mid - 30) % 1440, to: (mid + 30) % 1440 };
+      const room = x.open && Prefs.breakOk(x.from, x.to, fresh), b = x.break || fresh;
+      const start = b.from <= x.from ? b.from + 1440 : b.from, end = b.to <= x.from ? b.to + 1440 : b.to;
+      return el('div', { class: 'st-row' },
+        el('span', { class: 'st-row-copy' }, el('strong', {}, name), el('span', {}, !x.open ? 'Closed' : on ? 'Break' : 'No break')),
+        el('input', { id: `break-${d}`, class: 'st-switch', type: 'checkbox', role: 'switch', 'aria-label': `${name}: break`, checked: on, disabled: !on && !room,
+          onchange: e => setHours(v => { v.days[d].break = e.target.checked ? { ...fresh } : null; }) }),
+        el('span', { class: 'st-hours-times' },
+          select(`break-${d}-from`, `${name}: break from`, inside.filter(m => m < end), b.from, m => setHours(v => { v.days[d].break = { from: m, to: b.to }; }), !on),
+          el('span', {}, 'to'),
+          select(`break-${d}-to`, `${name}: break to`, inside.filter(m => m > start), b.to, m => setHours(v => { v.days[d].break = { from: b.from, to: m }; }), !on)));
+    };
+    return card('st-hours', lab('Break hours'), sub('Optional. A break in the day when you’re closed, for example 3:30 pm to 7:00 pm. QR ordering, Swiggy, Zomato, other delivery apps and your own online ordering stop for it, and scheduled orders can’t be ready during it.'),
+      el('div', { class: 'st-rows' }, Prefs.days.map(row)));
+  }
+  // (Update Pack 5, I3) Last order time: how long before closing QR ordering, Swiggy, Zomato, other delivery apps and the
+  // restaurant's own online ordering stop taking orders; staff-taken orders as usual until closing. Under it, today's:
+  // "Today: last orders 10:30 pm · closes 11:00 pm".
+  const atClock = t => clock(Math.round((t - new Date(new Date(t).setHours(0, 0, 0, 0)).getTime()) / 60000));
   function lastOrderCard() {
     const h = Prefs.get('hours'), key = Prefs.businessDay(Date.now()), on = Prefs.hoursOn(key), last = Prefs.lastOrderOn(key);
-    const at = t => clock(Math.round((t - new Date(new Date(t).setHours(0, 0, 0, 0)).getTime()) / 60000));
     const choices = Prefs.lastOrderChoices.map(m => ({ value: m, label: m === 0 ? 'At closing' : m === 60 ? '1 hour before' : `${m} min before` }));
-    return card('', lab('Last order time'), sub('For QR ordering, Swiggy, Zomato and your own online ordering. Orders your staff take work as usual until closing.'),
+    return card('', lab('Last order time'), sub('For QR ordering, Swiggy, Zomato, other delivery apps and your own online ordering. Orders your staff take work as usual until closing.'),
       tiles('Last order time', choices, h.lastOrder, m => Prefs.update('hours', v => { v.lastOrder = m; })),
-      note(on ? `Today: last orders ${at(last)} · closes ${at(on.to)}` : 'Closed today.'));
+      note(on ? `Today: last orders ${atClock(last)} · closes ${atClock(on.to)}` : 'Closed today.'));
   }
-  builders.business = () => rebuild(businessHost, () => [billNumberCard(), hoursCard(), lastOrderCard()]);
+  // (Owner, 14 Nov 2026) Last order before break: shown once a day has a break; the same tiles and channels as Last order
+  // time, counted back from the break. Under it, today's: "Today: last orders 3:00 pm · break 3:30 pm – 7:00 pm".
+  function lastBreakCard() {
+    const h = Prefs.get('hours'); if (!Prefs.days.some(d => h.days[d].open && h.days[d].break)) return null;
+    const key = Prefs.businessDay(Date.now()), b = Prefs.breakOn(key), last = Prefs.lastOrderBreakOn(key);
+    const choices = Prefs.lastOrderChoices.map(m => ({ value: m, label: m === 0 ? 'At the break' : m === 60 ? '1 hour before' : `${m} min before` }));
+    return card('', lab('Last order before break'), sub('For QR ordering, Swiggy, Zomato, other delivery apps and your own online ordering. Orders your staff take aren’t affected.'),
+      tiles('Last order before break', choices, h.lastOrderBreak, m => Prefs.update('hours', v => { v.lastOrderBreak = m; })),
+      note(b ? `Today: last orders ${atClock(last)} · break ${atClock(b.from)} – ${atClock(b.to)}` : 'No break today.'));
+  }
+  builders.business = () => rebuild(businessHost, () => [billNumberCard(), hoursCard(), breakCard(), lastOrderCard(), lastBreakCard()].filter(Boolean));
   window.addEventListener('restro:prefs-changed', e => { if (dialog.open && current === 'business' && ['hours', 'billNumber'].includes(e.detail?.name)) builders.business(); });
 
   // ---------- Update Pack 3: option tiles with a live preview ----------

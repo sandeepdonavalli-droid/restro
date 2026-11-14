@@ -37,8 +37,6 @@
 .qrs-pill-t small{display:block;margin-top:calc(3 * var(--fu));font-size:calc(13 * var(--fu));font-weight:500;color:#57534E}
 .qrs-pill-n{flex:none;min-width:calc(26 * var(--fu));height:calc(21 * var(--fu));box-sizing:border-box;padding:0 calc(8 * var(--fu));display:grid;place-items:center;border-radius:calc(11 * var(--fu));background:#E7E4DF;color:#44403C;font-size:calc(13 * var(--fu));font-weight:700}
 .qrs-pill.on .qrs-pill-n{background:rgba(255,255,255,.22);color:#FFFFFF}
-.qrs-pill.two{height:calc(64 * var(--fu));border-radius:calc(32 * var(--fu))}
-.qrs-pill.two:disabled{opacity:.62}
 
 /* The QR ordering card, at the panel's foot: switch, where it stands, what can be done (QS1, QS30, QS31, QS37, QS49, QS52) */
 .qrs-ord{margin-top:auto;padding:calc(15 * var(--fu));border:1px solid #E7E5E3;border-radius:calc(22 * var(--fu));background:#F5F4F2}
@@ -285,8 +283,9 @@
 .qrs-card-rule{width:100%;height:0;margin-top:calc(14.5 * var(--cu));border-top:calc(1.5 * var(--cu)) dashed #E2DFDA}
 .qrs-card-note+.qrs-card-rule{margin-top:calc(14.1 * var(--cu))}
 .qrs-card-type{margin-top:calc(11.6 * var(--cu));font-size:calc(13.5 * var(--cu));font-weight:600;line-height:calc(18 * var(--cu));color:#78716C;white-space:nowrap}
-.qrs-card-link{display:flex;align-items:center;gap:calc(8 * var(--cu));height:calc(20 * var(--cu));margin-top:0;font-size:calc(15.8 * var(--cu));font-weight:700;color:var(--accent);white-space:nowrap}
-.qrs-card-link .qi{width:calc(17 * var(--cu));height:calc(17 * var(--cu));stroke-width:2.4}
+/* (the typed link: one 20-unit line as the designs; a long one, the GitHub address, goes on after a "/" on a second line) */
+.qrs-card-link{max-width:100%;margin-top:0;font-size:calc(15.8 * var(--cu));font-weight:700;line-height:calc(20 * var(--cu));color:var(--accent);text-align:center;overflow-wrap:anywhere}
+.qrs-card-link .qi{display:inline-block;width:calc(17 * var(--cu));height:calc(17 * var(--cu));margin-right:calc(8 * var(--cu));vertical-align:calc(-2.7 * var(--cu));stroke-width:2.4}
 
 /* ---------- pop-ups: centred on the screen, each kind at its design's height ---------- */
 .qrs-scrim{position:absolute;inset:0;z-index:30;display:flex;justify-content:center;align-items:flex-start;background:rgba(28,25,23,.28)}
@@ -397,16 +396,12 @@
 .qrs-toast[hidden]{display:none}
 .qrs-toast-i{flex:none;width:calc(24 * var(--fu));height:calc(24 * var(--fu));display:grid;place-items:center;border-radius:50%;background:#16A34A;color:#FFFFFF}
 .qrs-toast-i .qi{width:calc(15 * var(--fu));height:calc(15 * var(--fu));stroke-width:3.2}
-.qrs-toast>span:nth-child(2){margin-left:calc(12 * var(--fu));font-size:calc(16 * var(--fu));font-weight:600}
+.qrs-toast>span:not(.qrs-toast-i){font-size:calc(16 * var(--fu));font-weight:600}
+.qrs-toast-i+span{margin-left:calc(12 * var(--fu))}
+.qrs-toast:not(:has(.qrs-toast-i)){padding-left:calc(22 * var(--fu))}
 .qrs-toast:has(.qrs-toast-btn){min-height:calc(60 * var(--fu));padding-right:calc(14 * var(--fu))}
 .qrs-toast-btn{display:inline-flex;align-items:center;gap:calc(8 * var(--fu));height:calc(32 * var(--fu));margin-left:calc(18 * var(--fu))!important;padding:0 calc(14 * var(--fu))!important;border-radius:calc(16 * var(--fu));background:#FFFFFF!important;color:#1C1917!important;font-size:calc(15 * var(--fu))!important;font-weight:700!important}
 .qrs-toast-btn .qi{width:calc(16 * var(--fu));height:calc(16 * var(--fu))}
-
-/* The bar's Online pill while QR Studio shows (I1): "No internet" in red, or amber "No internet · orders via …" */
-#top-banner .online-pill.qrs-noint{background:#FEF2F2;box-shadow:inset 0 0 0 1px #FCA5A5;color:#B91C1C}
-#top-banner .online-pill.qrs-noint .status-dot{background:#DC2626}
-#top-banner .online-pill.qrs-via{background:#FFF7ED;box-shadow:inset 0 0 0 1px #F7C9A5;color:#9A3412}
-#top-banner .online-pill.qrs-via .status-dot{background:#D97706}
 
 /* ---------- Print (J): black and white on the receipt printer (in a browser, its print page) ---------- */
 #print-qr{display:none}
@@ -421,5 +416,5 @@
   #print-qr .pq-qr{display:block;width:56mm;height:56mm;margin:4mm auto 0}
   #print-qr .pq-note{margin-top:2mm;font-weight:700}
   #print-qr .pq-small{margin-top:3mm;font-size:3mm}
-  #print-qr .pq-link{font-size:3.4mm;font-weight:700;word-break:break-all}
+  #print-qr .pq-link{font-size:3.4mm;font-weight:700;overflow-wrap:anywhere}
 }

@@ -18,7 +18,7 @@ number (`RestroSync.takeBillNumber()`, Bill numbers below).
 | Held tickets (`restro.counter.held.v1`) | Navigation (swipe or bar) and Go dark |
 | Customers (`restro.customers.v1`) | Home screen and tile order |
 | Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | The order being rung up |
-| The restaurant's name, profile and Business details (`restro.business.v1`), with its Business hours (`restro.hours.v1`, with the last order time, Update Pack 5) and Bill number (`restro.billNumber.v1`; Update Pack 4) | |
+| The restaurant's name, profile and Business details (`restro.business.v1`), with its Business hours (`restro.hours.v1`, with the last order time, Update Pack 5, and the break hours and last order before break, owner 14 Nov 2026) and Bill number (`restro.billNumber.v1`; Update Pack 4) | |
 | Billing & charges (`restro.billing.v1`), Staff & security (`restro.security.v1`) | Who is signed in |
 | The printers' settings: role, KOT language, copies, the backup printer (`restro.printers.v1`) | The pairing code and the cloud sign-in |
 | Kitchen prep time (`restro.kitchen.prep.v1`, and the older `restro.counter.prepMinutes.v1`) | |
@@ -201,7 +201,7 @@ orders never share a number, and a number never changes.
 **Every business day starts again at #01.** A business day ends when the restaurant closes, and the next one starts the
 minute after (Settings › Business details › Business hours, `restro.hours.v1`; Update Pack 4): open till 2 AM, 2:00 AM
 is the day's last minute and 2:01 AM the new day, so a late night after midnight stays on the same day; open till
-11 PM, 11:01 PM is the next day already. A day the restaurant is closed ends at midnight. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
+11 PM, 11:01 PM is the next day already. A day the restaurant is closed ends at midnight. A break in the day (Break hours) doesn't end it. Each order keeps the day it was numbered on (`day`, as `YYYY-MM-DD`). Numbers show as #01, #02 … #10.
 They repeat from day to day, so an order is always found by its `uid`, never by its number.
 
 **Firing an order:** a tablet asks for the next number when it fires a new order, and saves the order with it:

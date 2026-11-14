@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#FFFFFF">
+<title>QR ordering</title>
+<!--
+  RESTRO's QR links until the domain is decided (owner, 14 Nov 2026). A QR from QR Studio holds
+  https://sandeepdonavalli-droid.github.io/restro/<restaurant>/<T7 | TK | MN>-<code>; GitHub Pages has no page there, so
+  it serves this one, which reads the link and shows the restaurant, the table (or Takeaway, Menu) and "QR ordering is
+  coming soon. Please order with staff." Everything shown comes from the link itself: there is no data here and nothing
+  is sent anywhere. The menu, ordering and the menu designs come with the cloud and the next set of designs.
+-->
+<style>
+:root{color-scheme:light;--ink:#1C1917;--muted:#57534E;--line:#E7E5E3}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%;background:#FFFFFF}
+body{display:flex;justify-content:center;padding:max(48px,env(safe-area-inset-top)) 16px max(32px,env(safe-area-inset-bottom));font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);-webkit-text-size-adjust:100%}
+main{width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.brand{display:flex;align-items:center;justify-content:center;gap:12px;max-width:100%}
+.logo{flex:none;width:36px;height:36px;display:grid;place-items:center;border-radius:9px;background:var(--ink);color:#FFFFFF;font-size:20px;font-weight:800}
+.name{min-width:0;font-size:20px;font-weight:800;letter-spacing:.06em;line-height:1.25;overflow-wrap:anywhere;text-align:left}
+.kind{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:44px;color:var(--accent);font-size:44px;font-weight:800;line-height:1.1}
+.kind svg{flex:none;width:40px;height:40px}
+.kind .line{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.kind .fill{fill:currentColor}
+.note{width:100%;margin-top:36px;padding:22px 20px;border:1px solid var(--line);border-radius:20px;background:#F7F4EE}
+.note b{display:block;font-size:19px;font-weight:700;line-height:1.35}
+.note span{display:block;margin-top:6px;font-size:17px;line-height:1.45;color:var(--muted)}
+.missing{margin-top:24vh}
+.missing b{display:block;font-size:22px;font-weight:700}
+.missing span{display:block;margin-top:8px;font-size:16px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main id="page" aria-live="polite"></main>
+<script>
+'use strict';
+(() => {
+  // The site's own folder: /restro/ on GitHub Pages ("/" anywhere else), for Inter from the site's assets
+  const base = location.pathname.startsWith('/restro/') ? '/restro/' : '/';
+  const font = document.createElement('style');
+  font.textContent = `@font-face{font-family:Inter;font-style:normal;font-weight:100 900;font-display:swap;src:url(${base}assets/fonts/inter-latin-wght-normal.woff2) format('woff2')}`;
+  document.head.append(font);
+
+  const page = document.getElementById('page');
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const NS = 'http://www.w3.org/2000/svg';
+  // The QR Studio card's icons: the table's fork and knife, Takeaway's bag (Material Symbols local_mall, Apache 2.0) and
+  // the Menu's open menu
+  const ICONS = {
+    table: ['0 0 24 24', [['fill', 'M5.6 2.8h1.5v5.6h1V2.8h1.5v5.6h1V2.8h1.5v6.3a3 3 0 0 1-2.1 2.9v9.2H7.8V12a3 3 0 0 1-2.2-2.9z'], ['fill', 'M17.9 2.8c-2.2 1.3-3.3 4.1-3.3 7.6v3.3h2.4v7.5h2.2V2.8z']]],
+    takeaway: ['0 -960 960 960', [['fill', 'M180-80q-24 0-42-18t-18-42v-530q0-24 18-42t42-18h110q0-79 53-134.5T475-920q79 0 137 55.5T670-730h110q24 0 42 18t18 42v530q0 24-18 42t-42 18H180Zm437-408q58-58 58-137h-60q0 55-40 95t-95 40q-55 0-95-40t-40-95h-60q0 79 58 137t137 58q79 0 137-58ZM350-730h260q0-55-37.5-92.5T480-860q-55 0-92.5 37.5T350-730Z']]],
+    menu: ['0 0 24 24', [['line', 'M6.2 3.5h11.6a2.2 2.2 0 0 1 2.2 2.2v12.6a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 18.3V5.7a2.2 2.2 0 0 1 2.2-2.2z'], ['line', 'M12 3.5v17M7.2 8h2.2M7.2 11.5h2.2M14.6 8h2.2M14.6 11.5h2.2']]]
+  };
+  const icon = kind => {
+    const [box, paths] = ICONS[kind], s = document.createElementNS(NS, 'svg');
+    s.setAttribute('viewBox', box); s.setAttribute('aria-hidden', 'true');
+    for (const [cls, d] of paths) { const p = document.createElementNS(NS, 'path'); p.setAttribute('class', cls); p.setAttribute('d', d); s.append(p); }
+    return s;
+  };
+
+  // <restaurant>/<T7 | TK | MN>-<code>: the restaurant's name in small letters with "-" between words, a table's name
+  // (letters and numbers), and the QR's 6-character code
+  let path = '';
+  try { path = decodeURIComponent(location.pathname.slice(base.length)).replace(/\/+$/, ''); } catch {}
+  const m = /^([a-z0-9]+(?:-[a-z0-9]+)*)\/(?:(TK|MN)|T([A-Za-z0-9]{1,12}))-([A-Z0-9]{6})$/.exec(path);
+  if (!m) {
+    document.title = 'Page not found';
+    const box = el('div', 'missing'); box.append(el('b', null, 'Page not found'), el('span', null, 'Check the link and try again.'));
+    page.append(box);
+    return;
+  }
+  const [, slug, kindCode, table] = m;
+  const restaurant = slug.split('-').join(' ').toUpperCase();
+  const kind = kindCode === 'TK' ? 'takeaway' : kindCode === 'MN' ? 'menu' : 'table';
+  const title = kind === 'table' ? `Table ${table}` : kind === 'takeaway' ? 'Takeaway' : 'Menu';
+  const accent = { table: '#9A6B1F', takeaway: '#2E7D4F', menu: '#8E1E3C' }[kind];
+  document.title = `${restaurant} · ${title}`;
+
+  const brand = el('div', 'brand');
+  brand.append(el('span', 'logo', restaurant.charAt(0)), el('span', 'name', restaurant));
+  const head = el('h1', 'kind'); head.style.setProperty('--accent', accent);
+  head.append(icon(kind), el('span', null, title));
+  const note = el('div', 'note');
+  note.append(el('b', null, 'QR ordering is coming soon.'), el('span', null, 'Please order with staff.'));
+  page.append(brand, head, note);
+})();
+</script>
+</body>
+</html>
