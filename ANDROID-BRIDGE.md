@@ -416,9 +416,10 @@ Where the names show and what staff can do:
   Midnight `#1B2A47`, `#34507F` and `#A9C2FF`. The same in all 12 layouts.
 - **Payment:** the method it was paid with ("Paid - UPI", "Paid - Card", "Paid - Net banking", "Paid - Wallet"), never
   Due; the bill button shows **Receipt**; it counts in Total, not Due. A Takeaway QR's row shows no cashier.
-- **More dishes later:** a paid order doesn't open on the Counter (owner, 13 Nov 2026): more food is a new order with
-  its own number, and a pager goes to the new order. (K's "dishes added at the Counter make a QR order Part paid" waits
-  for the owner's word, as it differs from that rule.)
+- **Never Part paid** (owner, 13 Nov 2026): a paid QR order always shows the method it was paid with. A paid order
+  doesn't open on the Counter: more food is a new order with its own number, and a pager goes to the new order. (The
+  pack's line "If staff later add dishes at the Counter, those are unpaid, so the order becomes Part paid" is
+  withdrawn.)
 - **Its payment while the restaurant is offline:** QR payment Pending, below.
 
 ### The Order type filter (K)
@@ -507,10 +508,10 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   one line, then a red line with the alert icon, **"Payment pending · tap Confirm !"**, as "KOT failed · tap the order
   to reprint"); the payment status **"Pending"** and the amount; **Receipt, Notify and Buzz greyed** in their places;
   the red **Confirm !** where KOT is, styled as KOT ! (the KOT icon). Split's header ends "· Not in kitchen yet". Pending
-  is amber in both columns: Light `#9A4108`, Midnight `#F5B14C` (as drawn: the Pending amber, not Due's orange). "Not in
-  kitchen yet" is the grey of the line under any status. **Paid · matching:** "Paid" as any payment status, then
-  "· matching" amber (Light `#B45309`, Midnight `#F5B14C`), 600, 16 beside Classic's 19 (the same share of the line in
-  Split and Cards: 0.842 em).
+  is in **Due's orange**, the one Due and late orders use (owner, 13 Nov 2026), in both columns: Light `#C2410C`,
+  Midnight `#FFA066` (the designs' amber is not used). "Not in kitchen yet" is the grey of the line under any status.
+  **Paid · matching:** "Paid" as any payment status, then "· matching" in the same orange, 600, 16 beside Classic's 19
+  (the same share of the line in Split and Cards: 0.842 em).
 - **Counts:** in **Due**, not in Total ("Due · 7 orders ₹9,532"); tapping Due lists it (Due, Part paid and Pending
   together, the pill reading "Due"); **Pending** in the All payments filter, after Part paid; **Due first** puts Pending
   first; it is in the Open tab. Confirmed, it moves to Total (Total ₹41,238, "Due · 6 orders ₹8,272"); cancelled, it is
@@ -519,10 +520,10 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   Split tapping the order picks it as any order, and **Open** opens the pop-up. It sits 122 under the status bar (170 on
   the screen), centred, 700 wide, `#F3F4F7` rounded 34, over the usual dim (`rgba(15,23,42,.30)`; Midnight
   `rgba(0,0,0,.58)`):
-  - the head: a 52 tile rounded 16, `#FFF4E0`, with an orange "?" (26, 800, `#B45309`); 14 from it **"Customer
+  - the head: a 52 tile rounded 16, `#FFF4E0`, with an orange "?" (26, 800, `#C2410C`); 14 from it **"Customer
     paid?"** (26, 800) and under it "Order #1032 · Table 3 · QR · ₹1,260.00" (17, `#57534E`; a Takeaway QR's: the
     customer's name); a white ✕, 46 round, its glyph `#57534E`;
-  - the orange words (16.5, 600, `#B45309`, 24 a line): "The payment hasn’t reached us yet. Check the customer’s
+  - the orange words (16.5, 600, `#C2410C`, 24 a line; Due's orange, as the "?": one orange): "The payment hasn’t reached us yet. Check the customer’s
     payment screen and choose one:";
   - a white card (rounded 22, 20 in) with the two choices, 54 a row, a line `#EEECE9` between: "**₹1,260.00** paid
     today around **7:25 PM** · shows **Successful**" and "**Cancel and refund** · the customer gets their money back"
@@ -534,7 +535,7 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   - the buttons, 64 tall, rounded 20, 19: **Not now** (250 wide, white) and the action filling the rest: **Choose
     one**, greyed (`#E7E5E4`, `#A8A29E`), doing nothing until a choice is ticked; **Customer paid · print KOT** (blue
     `#1E4FB8`, 800); **Cancel and refund** (red `#D92D20`, 800).
-  - Midnight (PQ1–PQ6 _popup_midnight): `#141E33`, the tile `#3A2A10` with `#F5B14C`, the title `#F1F4FA`, the grey
+  - Midnight (PQ1–PQ6 _popup_midnight): `#141E33`, the tile `#3A2A10` with `#FFA066` (the "?" and the orange words: Due's Midnight orange), the title `#F1F4FA`, the grey
     lines `#A8B3C7`, the ✕ and Not now `#22304A`, the card `#1B2742` with its line `#2A3754`, the boxes' border
     `#5B6680`, Choose one `#22304A` with `#5B6680`; ticked, and the two actions, as the other Midnight pop-ups' blue
     (`#2F6FDE`) and red (`#DC2626`).
@@ -590,7 +591,7 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
   by the cloud); there is no "fixed" notice and no SMS or WhatsApp. "99+" past 99.
 - **Other apps:** QR Studio's badge (quiet QRs, renamed tables, pauses by itself) comes with QR Studio, Availability's
   with Availability; the others have none until the owner defines them.
-- **The home's Orders widget:** a Pending order is listed as open, its chip **"Pending"** (`#FFEDD5`, `#B45309`);
+- **The home's Orders widget:** a Pending order is listed as open, its chip **"Pending"** (`#FFEDD5`, Due's orange `#C2410C`);
   tapping it opens Orders on the day's list with its Customer paid? pop-up.
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`

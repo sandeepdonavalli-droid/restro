@@ -161,11 +161,12 @@
 .or-c.pm.np .l1 b{color:#C2410C}
 .or-c.pm.red .l1 b{color:#D92D20}
 .or-c.pm.grey .l1 b{color:#78716C}
-/* (Update Pack 5, H1, PQ1–PQ6) A QR order whose payment hasn't reached us: "Pending" amber in both columns (Split's list
-   and Cards too), "Not in kitchen yet" grey under it. Paid · matching (OR3): the words after Paid amber, 16 beside
-   Classic's 19 (the same share of the line in Split and Cards) */
-.or-c.st.pending .l1 b,.or-c.pm.pend .l1 b,.or-lm .lst.pending b,.or-lr.pend .l1 b{color:#9A4108}
-.or-mt{flex:none;font-size:.842em;font-weight:600;color:#B45309;white-space:nowrap}
+/* (Update Pack 5, H1, PQ1–PQ6) A QR order whose payment hasn't reached us: "Pending" in Due's orange in both columns
+   (owner, 13 Nov 2026: the orange Due and late orders use; Split's list and Cards too), "Not in kitchen yet" grey under
+   it. Paid · matching (OR3): the words after Paid in the same orange, 16 beside Classic's 19 (the same share of the
+   line in Split and Cards) */
+.or-c.st.pending .l1 b,.or-c.pm.pend .l1 b,.or-lm .lst.pending b,.or-lr.pend .l1 b{color:#C2410C}
+.or-mt{flex:none;font-size:.842em;font-weight:600;color:#C2410C;white-space:nowrap}
 .or-mk{display:inline-flex;align-items:center;justify-content:center;width:calc(26 * var(--fu));height:calc(22 * var(--fu));border-radius:calc(6 * var(--fu));background:#F1F2F5;color:#78716C;margin-left:calc(4 * var(--fu));flex:none}
 .or-qr{flex:none;display:inline-flex;align-items:center;gap:calc(5 * var(--fu));height:calc(24 * var(--fu));box-sizing:border-box;margin-left:calc(8 * var(--fu));padding:0 calc(7 * var(--fu)) 0 calc(8 * var(--fu));border:1px solid #C7D7F6;border-radius:calc(7 * var(--fu));background:#EEF4FF;color:#1E4FB8;font-size:calc(12.5 * var(--fu));font-weight:700;line-height:1;white-space:nowrap;vertical-align:middle}
 .orders-app .or-qr .or-i{width:calc(11 * var(--fu));height:calc(11 * var(--fu))}

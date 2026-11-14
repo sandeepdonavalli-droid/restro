@@ -124,7 +124,7 @@ html[data-home-background="mirror"][data-home-theme="aurora"]{--home-mirror-base
 #home .hw-chip.kitchen{background:#FDE68A;color:#9A3412}
 #home .hw-chip.scheduled{background:#F5D0E6;color:#9C3F68}
 #home .hw-chip.open{background:#FED7AA;color:#C2410C}
-#home .hw-chip.pending{background:#FFEDD5;color:#B45309} /* (Update Pack 5, H1, OR0: a QR order's payment Pending) */
+#home .hw-chip.pending{background:#FFEDD5;color:#C2410C} /* (Update Pack 5, H1, OR0: a QR order's payment Pending; Due's orange) */
 /* Floor: the tables, 5 to a row, 4 apart, at the bottom of the card; in use in peach, free in lilac grey */
 #home .hw-tables{margin-top:auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:calc(4 * var(--hl-u))}
 #home .hw-table{height:calc(19 * var(--hl-u));min-width:0;padding:0;border:0;border-radius:calc(7 * var(--hl-u));background:#E9E7F3;color:#3F3F46;font:inherit;font-size:calc(12 * var(--hl-u));font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}

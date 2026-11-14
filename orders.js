@@ -739,7 +739,7 @@
   const payAmount = r => (r.pay.key === 'prf' ? `${money(r.pay.refunded)} refunded` : r.pay.key === 'part' ? `${money(r.pay.due)} due` : money(Number(r.o.total) || 0));
   // The payment status; a long one ("Partial refund - Card") is drawn smaller in every view, as the designs do (Classic
   // 16.5, Split and Cards 15.5)
-  // (H1, OR3) "Paid · matching": the words after Paid amber and a little smaller, until the payment is matched
+  // (H1, OR3) "Paid · matching": the words after Paid in Due's orange and a little smaller, until the payment is matched
   const payLabel = r => (r.pay.matching ? [el('b', {}, 'Paid'), ' ', el('span', { class: 'or-mt' }, '· matching')] : el('b', r.pay.text.length >= 19 ? { class: 'long' } : {}, r.pay.text));
   const payCellOf = r => el('div', { class: `or-c pm ${r.pay.cls || ''}`.trim(), role: 'cell' }, el('div', { class: 'l1' }, payLabel(r)),
     el('div', { class: 'l2' }, el('span', {}, payAmount(r)), ...tagsOf(r)));

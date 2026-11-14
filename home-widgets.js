@@ -72,7 +72,7 @@
     const ready = open.filter(o => statusOf(o).sub === 'Ready').length;
     const line = open.length ? `${open.length} open${ready ? ` · ${ready} ready to serve` : ''}` : 'No open orders';
     const where = o => o.table ? `Table ${window.RestroFloor?.tableName(o.table) || o.table}` : o.customer?.name || TYPES[o.type] || 'Order';
-    // (Update Pack 5, H1, OR0: a QR order whose payment is Pending, its chip amber; tapped, its Customer paid? pop-up in Orders)
+    // (Update Pack 5, H1, OR0: a QR order whose payment is Pending, its chip in Due's orange; tapped, its Customer paid? pop-up in Orders)
     const chip = s => (s.sub === 'Ready' ? 'ready' : s.sub === 'In kitchen' ? 'kitchen' : s.sub === 'Pending' ? 'pending' : String(s.sub || '').startsWith('Scheduled') ? 'scheduled' : 'open');
     const rows = open.slice(0, 3).map(o => {
       const s = statusOf(o), label = s.sub || 'Open';

@@ -2,7 +2,8 @@
    hasn't reached us. The same pop-up in Orders (in its pop-up layer, orders.css .or-scrim.k-paid) and over the Counter
    (.qrp-scrim, when a table with a Pending QR order is picked). Sizes are the design's pixels on the 1920 x 1080
    screen (--fu): 700 wide, its top 122 under the status bar (170 on the screen), centred.
-   Light: #F3F4F7, rounded 34; the cream tile with the orange "?"; the orange words; the white card with the two
+   Light: #F3F4F7, rounded 34; the cream tile with the orange "?"; the orange words (Due's orange, #C2410C; Midnight
+   #FFA066: one orange, owner 13 Nov 2026); the white card with the two
    choices (ticked: #1E4FB8); the grey note; Not now (white) and the action: Choose one greyed, Customer paid · print KOT
    blue (#1E4FB8), Cancel and refund red (#D92D20). Midnight (both apps): the design's own colours, at the end.
    (!important on the buttons: over Orders' own button reset, which is stronger) */
@@ -14,13 +15,13 @@
 .qrp button:focus-visible{outline:2px solid #2F6FDE;outline-offset:2px}
 .qrp svg{flex:none;fill:currentColor}
 .qrp-head{display:flex;align-items:flex-start;gap:calc(14 * var(--fu))}
-.qrp-q{flex:none;width:calc(52 * var(--fu));height:calc(52 * var(--fu));border-radius:calc(16 * var(--fu));display:grid;place-items:center;background:#FFF4E0;color:#B45309;font-size:calc(26 * var(--fu));font-weight:800;line-height:1}
+.qrp-q{flex:none;width:calc(52 * var(--fu));height:calc(52 * var(--fu));border-radius:calc(16 * var(--fu));display:grid;place-items:center;background:#FFF4E0;color:#C2410C;font-size:calc(26 * var(--fu));font-weight:800;line-height:1}
 .qrp-tt{flex:1;min-width:0;margin-top:calc(-1 * var(--fu))}
 .qrp h3{margin:0;font-size:calc(26 * var(--fu));font-weight:800;line-height:calc(31 * var(--fu));letter-spacing:0;color:#1C1917;white-space:nowrap}
 .qrp-tt p{margin:calc(3 * var(--fu)) 0 0;font-size:calc(17 * var(--fu));font-weight:400;line-height:calc(21 * var(--fu));color:#57534E;white-space:nowrap}
 .qrp .qrp-x{flex:none;width:calc(46 * var(--fu));height:calc(46 * var(--fu));border-radius:999px;display:grid;place-items:center;background:#FFFFFF!important;color:#57534E!important}
 .qrp-x svg{width:calc(25 * var(--fu));height:calc(25 * var(--fu));margin-top:calc(-2.5 * var(--fu))} /* (the ✕ a touch above the middle, as drawn) */
-.qrp-warn{margin:calc(17 * var(--fu)) 0 0;font-size:calc(16.5 * var(--fu));font-weight:600;line-height:calc(24 * var(--fu));color:#B45309}
+.qrp-warn{margin:calc(17 * var(--fu)) 0 0;font-size:calc(16.5 * var(--fu));font-weight:600;line-height:calc(24 * var(--fu));color:#C2410C}
 .qrp-opts{margin-top:calc(15 * var(--fu));padding:calc(4 * var(--fu)) calc(20 * var(--fu));border-radius:calc(22 * var(--fu));background:#FFFFFF}
 .qrp .qrp-opt{width:100%;min-height:calc(54 * var(--fu));box-sizing:border-box;display:flex;align-items:center;gap:calc(12 * var(--fu));padding:0!important;text-align:left;font-size:calc(19 * var(--fu))!important;font-weight:400!important;line-height:normal!important;color:#1C1917!important}
 .qrp .qrp-opt+.qrp-opt{min-height:calc(55 * var(--fu));border-top:1px solid #EEECE9!important} /* (54 under the line) */
@@ -42,11 +43,11 @@
    the blue and red of the other Midnight pop-ups' buttons.) */
 html[data-app-theme="midnight"] .counter-app .qrp-scrim{background:rgba(0,0,0,.58)}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp{background:#141E33;color:#F1F4FA;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 calc(30 * var(--fu)) calc(80 * var(--fu)) rgba(0,0,0,.6)}
-html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp-q{background:#3A2A10;color:#F5B14C}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp-q{background:#3A2A10;color:#FFA066}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp h3{color:#F1F4FA}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp-tt p{color:#A8B3C7}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp .qrp-x{background:#22304A!important;color:#A8B3C7!important}
-html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp-warn{color:#F5B14C}
+html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp-warn{color:#FFA066}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp-opts{background:#1B2742}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp .qrp-opt{color:#F1F4FA!important}
 html[data-app-theme="midnight"] :is(.counter-app,.orders-app) .qrp .qrp-opt+.qrp-opt{border-top-color:#2A3754!important}

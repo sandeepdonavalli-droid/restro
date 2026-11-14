@@ -393,8 +393,8 @@ def orders_tokens():
     R('.or-c.st.closed .l1 b,.or-lm .lst.closed b', ('color', CLOSED)); R('.or-c.st.cancelled .l1 b,.or-lm .lst.cancelled b', ('color', REF))
     R('.or-c.pm.np .l1 b,.or-lr.np .l1 b', ('color', NP)); R('.or-c.pm.red .l1 b,.or-lr.red .l1 b', ('color', REF)); R('.or-c.pm.grey .l1 b,.or-lr.grey .l1 b', ('color', T3))
     R('.or-lm .kfl', ('color', '#FFB0B0'))
-    # (Update Pack 5, H1: PQ1–PQ6 Midnight) a QR order's Pending in amber, both columns; Paid · matching's words the same
-    R('.or-c.st.pending .l1 b,.or-c.pm.pend .l1 b,.or-lm .lst.pending b,.or-lr.pend .l1 b,.or-mt', ('color', '#F5B14C'))
+    # (Update Pack 5, H1) a QR order's Pending in Due's orange, both columns (owner, 13 Nov 2026); Paid · matching's words the same
+    R('.or-c.st.pending .l1 b,.or-c.pm.pend .l1 b,.or-lm .lst.pending b,.or-lr.pend .l1 b,.or-mt', ('color', NP))
     # code chips and boxes, discount and void marks
     T('.chip.y', '#3A2A08', '#FFD27A', '#7A5A1C'); T('.chip.g', '#123D24', '#8CF0B4', '#2E7D4F')
     # (a code the search found: marked like other found words, amber on brown inside the chip, as in K2)
