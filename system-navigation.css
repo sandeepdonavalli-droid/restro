@@ -11,7 +11,7 @@
 :root{--nav-h:0px;--home-bar-height:max(16px,calc(16 * var(--fu)))}
 html[data-nav="bar"]{--nav-h:calc(56 * var(--fu))}
 /* Full-screen apps end at the bar, or at the bottom of the screen in swipe mode */
-.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{bottom:var(--nav-h)!important}
+.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app,.qr-studio-app{bottom:var(--nav-h)!important}
 
 /* Swipe mode: a clear strip along the bottom edge takes the swipes (a stray tap on it does nothing); the handle and the
    lock button are drawn over the app */

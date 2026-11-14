@@ -49,8 +49,8 @@ html[data-app-open][data-restro-theme] body .app-shell{background:#FFFFFF}
    on the top of the app as on a plain page: the apps sit above the bar, so each app draws them, from a bar-sized box just
    above its top edge (clipped away, only its shadow shows). The Counter's sheets, Recent apps, quick
    controls and the small dialogs keep their spacing to both. */
-.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app{top:var(--top-banner-height);bottom:var(--nav-h,0px)}
-:is(.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app)::before{content:"";position:absolute;left:0;right:0;top:calc(-1 * var(--top-banner-height));z-index:39;height:var(--top-banner-height);box-shadow:var(--bar-shadow);pointer-events:none}
+.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app,.qr-studio-app{top:var(--top-banner-height);bottom:var(--nav-h,0px)}
+:is(.counter-app,.floor-app,.customers-app,.orders-app,.settings-app,.employees-app,.qr-studio-app)::before{content:"";position:absolute;left:0;right:0;top:calc(-1 * var(--top-banner-height));z-index:39;height:var(--top-banner-height);box-shadow:var(--bar-shadow);pointer-events:none}
 .ctr-root .ctr-sheet-wrap{padding-top:calc(var(--top-banner-height) + 24px);padding-bottom:calc(var(--nav-h,0px) + 24px)}
 .quick-drawer{padding-bottom:calc(var(--nav-h,0px) + env(safe-area-inset-bottom,0px))}
 .delete-app-dialog,.insight-detail-dialog{padding-bottom:calc(28px + var(--nav-h,0px))}

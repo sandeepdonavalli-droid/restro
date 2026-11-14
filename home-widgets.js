@@ -117,9 +117,10 @@
   // ---------- home-screen badges (Update Pack 5, J) ----------
   // A 40 amber circle (home units) with its white bold number at an app's icon, top right, and a 6 gap round it cut
   // through the icon to the home background (launcher.css). Orders: each order showing KOT ! and each Pending QR payment
-  // (RestroOrders.attention). Each item clears by itself once fixed. QR Studio's comes with QR Studio; other apps have
+  // (RestroOrders.attention). QR Studio: each quiet QR, each table renamed since its card was printed, and QR ordering
+  // paused by itself, not while closed (RestroQrStudio.attention). Each item clears by itself once fixed. Other apps have
   // none until the owner defines them. In the dock and on the pages alike, wherever the app is.
-  const counts = () => ({ orders: window.RestroOrders?.attention?.() || 0 });
+  const counts = () => ({ orders: window.RestroOrders?.attention?.() || 0, 'qr-studio': window.RestroQrStudio?.attention?.() || 0 });
   function paintBadges() {
     const n = counts();
     for (const host of document.querySelectorAll('#home :is(.shortcut[data-app],.app-tile[data-id])')) {
@@ -137,6 +138,7 @@
   document.addEventListener('DOMContentLoaded', render);
   window.addEventListener('restro:data-changed', render);
   window.addEventListener('restro:pager-docked', render);
+  window.addEventListener('restro:qr-attention', paintBadges);
   // An app closing (back to the home screen) may have changed orders, tables or pagers
   document.addEventListener('close', event => { if (event.target instanceof HTMLDialogElement) render(); }, true);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });

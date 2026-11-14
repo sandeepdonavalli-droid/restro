@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="styles.css?v=27">
   <link rel="stylesheet" href="quality-layout.css?v=4">
   <link rel="stylesheet" href="device-controls.css?v=3">
-  <link rel="stylesheet" href="system-navigation.css?v=18">
+  <link rel="stylesheet" href="system-navigation.css?v=19">
   <link rel="stylesheet" href="themes.css?v=3">
   <link rel="stylesheet" href="sync-button.css?v=1">
   <link rel="stylesheet" href="settings.css?v=23">
@@ -23,11 +23,12 @@
   <link rel="stylesheet" href="orders.css?v=45">
   <link rel="stylesheet" href="orders-midnight.css?v=5">
   <link rel="stylesheet" href="qr-pending.css?v=2">
+  <link rel="stylesheet" href="qr-studio.css?v=1">
   <link rel="stylesheet" href="app-widget-controls.css?v=6">
   <link rel="stylesheet" href="notification-shade.css?v=1">
   <link rel="stylesheet" href="battery-status.css?v=2">
-  <link rel="stylesheet" href="connectivity-status.css?v=2">
-  <link rel="stylesheet" href="status-bar.css?v=23">
+  <link rel="stylesheet" href="connectivity-status.css?v=3">
+  <link rel="stylesheet" href="status-bar.css?v=24">
   <link rel="stylesheet" href="launcher.css?v=13">
   <link rel="stylesheet" href="keyboard.css?v=1">
   <script src="theme-data.js?v=4"></script>
@@ -36,10 +37,10 @@
   <script src="app-layout.js?v=4" defer></script>
   <script src="prefs.js?v=9" defer></script>
   <script src="bill.js?v=3" defer></script>
-  <script src="sync.js?v=22" defer></script>
+  <script src="sync.js?v=23" defer></script>
   <script src="sync-button.js?v=1" defer></script>
-  <script src="app.js?v=44" defer></script>
-  <script src="home-widgets.js?v=8" defer></script>
+  <script src="app.js?v=45" defer></script>
+  <script src="home-widgets.js?v=9" defer></script>
   <script src="connectivity-status.js?v=4" defer></script>
   <script src="wifi.js?v=4" defer></script>
   <script src="bluetooth.js?v=6" defer></script>
@@ -52,10 +53,12 @@
   <script src="floor.js?v=4" defer></script>
   <script src="customers.js?v=4" defer></script>
   <script src="orders.js?v=32" defer></script>
+  <script src="vendor/qrcode-generator.js?v=1" defer></script>
+  <script src="qr-studio.js?v=1" defer></script>
   <script src="settings.js?v=26" defer></script>
   <script src="battery-status.js?v=2" defer></script>
   <script src="notifications.js?v=1" defer></script>
-  <script src="system-navigation.js?v=21" defer></script>
+  <script src="system-navigation.js?v=22" defer></script>
   <script src="keyboard.js?v=1" defer></script>
   <script src="staff.js?v=2" defer></script>
   <script src="employees.js?v=6" defer></script>
@@ -328,10 +331,7 @@
     <p id="delete-app-error" class="field-note" role="alert"></p>
     <div class="delete-app-actions"><button id="delete-app-no" class="secondary-button" type="button" autofocus>No</button><button id="delete-app-yes" class="primary-button" type="button">Yes</button></div>
   </dialog>
-  <dialog id="qr-studio-dialog" class="dialog qr-studio-dialog" aria-labelledby="qr-studio-title">
-    <div class="dialog-heading"><h2 id="qr-studio-title">QR Studio</h2><button class="icon-button" data-close aria-label="Close QR Studio"><svg class="icon"><use href="#close"/></svg></button></div>
-    <div id="qr-studio-art" class="qr-studio-art" aria-hidden="true"></div>
-  </dialog>
+  <dialog id="qr-studio-dialog" class="qr-studio-app" aria-labelledby="qr-studio-title"></dialog>
   <dialog id="order-details-dialog" class="dialog insight-detail-dialog" aria-labelledby="order-details-title">
     <div class="dialog-heading"><div><h2 id="order-details-title">Order #042</h2><p class="muted">Last order · Dine-in · Sample data</p></div><button class="icon-button" data-close aria-label="Close last order"><svg class="icon"><use href="#close"/></svg></button></div>
     <div class="insight-order-state"><span>Paid by UPI</span><strong>₹480</strong></div>

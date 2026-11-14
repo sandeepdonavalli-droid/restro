@@ -39,6 +39,7 @@ Run it after any change to how the page talks to the app.
 | `setScreenDark` | method | Going dark |
 | `restro:device-ready` | event | The WebView |
 | (nothing to add in the app) | what staff see | Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability, QR payment Pending, home-screen badges |
+| `printer.printQr`, `qr.send`, `restro:qr-path`, `restro:qr-scan`, `RestroQrStudio.path`, `RestroQrStudio.scanned` | methods, events, page calls | QR Studio (Update Pack 5) |
 
 ## The WebView
 
@@ -656,7 +657,7 @@ they are built as the other Settings cards.
   stops QR ordering, Swiggy, Zomato and the restaurant's own online ordering at it, until opening: from then to
   closing customers see the menu, and checkout says "QR ordering is paused. Please reach out to staff."; a customer who
   reached the payment page before it can finish paying. Staff-taken orders (dine-in, takeaway, walk-in, phone) work
-  until closing. QR Studio shows it (QR Studio, to come).
+  until closing. QR Studio shows it (QR Studio, below).
 - **The home screen:** the app that was "Menu" reads **"Availability"** (K: renamed; its icon unchanged). The
   Availability app itself (store hours, what each channel sells, pausing a channel) comes later.
 
@@ -670,10 +671,159 @@ they are built as the other Settings cards.
   whatever its day kept) and each **Payment failed** (Bill !, until it is paid): `RestroOrders.attention()`. Each
   clears by itself once fixed (reprinted, answered, settled by the cloud, paid); there is no "fixed" notice and no SMS
   or WhatsApp. "99+" past 99.
-- **Other apps:** QR Studio's badge (quiet QRs, renamed tables, pauses by itself) comes with QR Studio, Availability's
-  with Availability; the others have none until the owner defines them.
+- **QR Studio's badge** counts each table renamed since its card was printed, each quiet QR and QR ordering paused by
+  itself: `RestroQrStudio.attention()` (QR Studio, below). Each clears by itself once fixed.
+- **Other apps:** Availability's badge comes with Availability; the others have none until the owner defines them.
 - **The home's Orders widget:** a Pending order is listed as open, its chip **"Pending"** (`#FFEDD5`, Due's orange `#C2410C`);
   tapping it opens Orders on the day's list with its Customer paid? pop-up.
+
+## QR Studio (Update Pack 5): `printer.printQr`, `qr.send`, `restro:qr-path`, `restro:qr-scan`
+
+Built 13 Nov 2026 (Update Pack 5, part 6: the Light screens QS1–QS6 and QS16–QS53, with E, G, I1, I3, I4 and J), in
+`qr-studio.js` and `qr-studio.css`. The QR codes are made by `vendor/qrcode-generator.js` (Kazuhiko Arase, MIT,
+unchanged), error correction H, so the table's number in the middle still scans. Every method here is optional, as
+noted.
+
+### What QR Studio holds
+
+- **The QRs:** one per table of the floor plan (Table QRs, listed by area), one **Takeaway** QR and one **Menu** QR
+  (the menu only, no ordering), in `restro.qr.v1` (synced, SYNC.md): `{ id, kind: 'table' | 'takeaway' | 'menu', table,
+  code, path, name, createdAt, createdBy, replacedAt, replacedBy, printedAt, printedBy, sentAt, sentBy, quietOk }`.
+  - `table`: a table QR's table, Floor's permanent id. Renaming or renumbering a table never breaks its printed QR.
+  - `code`: 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no 0, O, 1, I or L, so it is easy to type).
+  - `path`: `<restaurant>/<T7 | TK | MN>-<code>`. The QR holds `https://<our website>/<path>`. The domain is still to be
+    decided (J), so `example.com` stands in for it.
+  - `name`: the table's name as on the card printed or sent last.
+  - `printedAt` / `printedBy`: Print, black and white. `sentAt` / `sentBy`: Send, the colour PDF.
+  - `quietOk`: the quiet warning hidden until then (ms).
+- **Replace** gives the QR a new code, so the old card stops working. **Delete** removes the QR. The cloud (Phase 2)
+  keeps which codes work, from these records as they sync. Delete, Send and Test scan need the internet (greyed
+  offline; Delete says "Needs internet"). Replace works offline: the new code starts working once the change reaches
+  the cloud, and QR ordering is paused anyway while there is no internet. The cloud finds a table QR's table by its
+  code, so the card of a renamed table keeps working; reprinting it prints the same QR with the new name.
+- **The card** (the screens' preview, the print and the PDF): the restaurant's name; "Scan · Order · Pay" (Menu: "Scan
+  to see our menu"); the QR, with a table's number on a rounded tile in the middle; the title ("Table 7", "Takeaway",
+  "Menu"); two lines; a table card's "Need a waiter or the bill? Tap the bell on the menu"; then "QR not scanning? Type
+  this link" and the link. Colours (the PDF): Table `#9A6B1F`, Takeaway `#2E7D4F`, Menu `#8E1E3C`.
+- **What needs looking at** (the home badge, J: `RestroQrStudio.attention()`). Each clears by itself once fixed.
+  - Each table renamed in Floor since its card was printed or sent: "Now Table 11 · reprint the card". QR Studio
+    compares the names. Floor notes the change on the table as `renamed: { at, by }` for "Renamed today by ‹initials›".
+  - Each quiet QR: no scan in 3 open business days, for a QR the cloud says usually gets scans (`usual`, below).
+    "Card is fine · hide for 7 days" sets `quietOk`.
+  - QR ordering paused by itself (not while the restaurant is closed).
+
+### QR ordering (I1, I3)
+
+The sidebar's card, kept in `restro.qrOrdering.v1` (synced): `{ off: { until, choice, by, at } | null, late: { by, at,
+until } | null }`. The cloud (Phase 2) reads it to take or refuse QR orders; while QR ordering is not on, customers
+see the menu, and checkout says "QR ordering is paused. Please reach out to staff."
+
+| State | When | `restro.qrOrdering.v1` |
+| --- | --- | --- |
+| On | Within business hours, until the last order time (Settings, above) | `off: null` |
+| Paused for a while | **30 min · 1 hour · 1 business day** (back on at the next opening time) | `off: { until (ms), choice: '30m' \| '1h' \| 'day', by, at }` |
+| Off until turned on | **Until turned on** | `off: { until: null, choice: 'hand', by, at }` |
+| Closed | Outside business hours, a weekly day off, or after the last order time | nothing: from Settings › Business details |
+| Staying open late | The switch turned on while closed: on until the next opening time, then the business hours take over again | `late: { by, at, until (the next opening) }` |
+| Paused by itself | No path for a QR order to reach a working kitchen printer (below). Back on once the path has worked for 10 s | nothing: each device works it out |
+
+`RestroQrStudio.ordering()` returns `{ state: 'on' | 'paused' | 'hand' | 'closed' | 'late' | 'auto', reason }`
+(`reason`: why it paused by itself, below).
+
+### The path for QR orders: `restro:qr-path` or `RestroQrStudio.path(status)`
+
+QR ordering pauses by itself while a QR order can't reach a kitchen printer. Only the app knows the path, so send it
+at start-up and whenever any of it changes, as the event's `detail` or as the call's argument (an object or its JSON):
+
+```
+{ internet, wifiInternet, mobileVia, since, printers: [{ id, name, link, state, paper, backup, device }] }
+```
+
+- `internet`: QR orders can reach the restaurant (its Wi-Fi's internet or a handheld's mobile data).
+- `wifiInternet`: the restaurant's Wi-Fi has internet. `false` with `mobileVia` set means a handheld's mobile data is
+  carrying the QR orders.
+- `mobileVia`: that device's name ("Handheld 1"), or `null`.
+- `since`: when the path broke (ms), so the pause is timed from then. 0 when not known.
+- `printers`: the kitchen printers (role Kitchen or Both).
+  - `link`: `'wired'` (USB or Bluetooth to a printer device) or `'wifi'`.
+  - `state`: `'ok'` or `'down'`. `paper`: `'ok'`, or `null` when not known.
+  - `backup`: `true` for the backup printer (Settings › Printers, above).
+  - `device`: a wired printer's printer device, `{ name, on, lastSeen (ms) }`.
+
+It pauses when there is no internet, or no kitchen printer works (a wired one needs its printer device on). The
+reason, checked in this order:
+
+| `reason` | When | The banner: "QR ordering paused · …" |
+| --- | --- | --- |
+| `internet` | `internet` is false | no internet in the restaurant |
+| `device` | the one kitchen printer is wired and its printer device is off | the printer device is off |
+| `wired` | the one kitchen printer is wired and not connected | kitchen printer not connected |
+| `wifi` | the one kitchen printer is on Wi-Fi and can't be reached | kitchen printer not reachable |
+| `printers` | several kitchen printers and none works | no kitchen printer is working |
+
+It turns back on by itself once the path has worked for 10 s. **See devices** shows the path, from the internet
+through each printer device to each kitchen printer. The cloud (Phase 2) must pause the restaurant's QR ordering in
+the same way for customers: when it can't reach the restaurant, and when the restaurant reports no kitchen printer
+working.
+
+Without the app, a device knows only its own internet. It counts the internet gone after 30 s without it (not while
+it starts up, not for a blip) and takes the kitchen printers as working. Send `null` to go back to that.
+
+**The bar's pill while QR Studio is open:** "No internet" when `internet` is false; amber "No internet · orders via
+Handheld 1" when `wifiInternet` is false and `mobileVia` is set. Otherwise "Online" or "Offline", as everywhere.
+
+### Scans: `restro:qr-scan` or `RestroQrStudio.scanned(scan)`
+
+Dispatch every scan of the restaurant's QRs that the cloud reports, on every tablet: `{ code, at, today, usual }`.
+- `code`: the QR's code. `at`: when (ms).
+- `today`: the QR's scans so far this business day. Optional; without it the page counts the scans it receives.
+- `usual`: how many scans the QR usually gets on an open day. 0 or left out until the cloud has a normal history; quiet
+  warnings come only for a QR with `usual` above 0.
+
+Each device keeps the latest per code in `restro.qrScans.v1` (not synced: each tablet gets them from the cloud).
+**Test scan** waits 1 minute for a scan of that QR's code (from 2 s before the button was tapped) and shows "Table 7
+QR works" when one comes, "Didn’t get a scan" when none does. A scan clears a quiet warning by itself.
+
+### Printing a card: `RESTRODevice.printer.printQr({ cards })`
+
+Print, Print all, Reprint and the toast's Print now print the cards on this device's **bill printer** (role Bills or
+Both), black only, one card after another, cut between them. Return `true` (or nothing) once printed; `false`, or
+throwing, keeps them not printed and says "Table 7 didn’t print · check the receipt printer". Without it the browser's
+printing opens, one 72 mm card a page.
+
+Each card is `{ kind, restaurant, heading, qr, mark, title, lines, note, linkLabel, link, url }`, printed in this order:
+- `restaurant`: the restaurant's name, large and bold.
+- `heading`: "Scan · Order · Pay", or "Scan to see our menu".
+- `qr`: `{ size, rows, tile }`.
+  - `size`: modules a side.
+  - `rows`: `size` strings of `'1'` (black) and `'0'` (white), the square round the mark already cleared.
+  - `tile`: `{ x, y, size }` in modules, or `null`. Fill it black with rounded corners (16% of its size) and print
+    `mark` on it in white bold, centred.
+  - Print the QR about 56 mm square, with white round it (the quiet zone).
+- `mark`: the table's name ("7"); `null` for Takeaway and Menu.
+- `title`: "Table 7", "Takeaway" or "Menu", large and bold.
+- `lines`: two short lines.
+- `note`: the table card's bell note, bold; `null` on the others.
+- `linkLabel` ("QR not scanning? Type this link") then `link` (`example.com/<restaurant>/T7-<code>`), small, at the
+  bottom.
+- `kind` (`'table'`, `'takeaway'` or `'menu'`) and `url` (the full link the QR holds) are for the app.
+
+### Sending the colour PDF: `RESTRODevice.qr.send({ to, size, language, cards })`
+
+Send and Send all send the cards as a colour, print-ready PDF made by the cloud (Phase 2), to the business's registered
+email or WhatsApp (Settings › Business details; the pop-up shows them masked). Pass it on to the cloud, which makes the
+PDF and sends it with the backend's own email and WhatsApp service: no keys on the tablet.
+
+- `to`: `'email'` or `'whatsapp'`.
+- `size`: `'a6'` (Table card, A6), `'sticker'` (Sticker, 10 × 10 cm) or `'a4'` (A4 sheet, 4 per page).
+- `language`: `'en'` (English), `'te'` (తెలుగు), `'hi'` (हिन्दी) or `'en+te'` (English + తెలుగు). The texts in
+  `cards` are in English; the cloud prints them in the language chosen. The restaurant's name and the link stay as
+  they are.
+- `cards`: as for printing, above. The PDF draws them in colour, as the screens' preview does.
+
+Return `true` (or nothing) once the cloud has it: the page marks them sent and says "Table 7 sent to email ‹masked›".
+`false`, or throwing, says "Table 7 not sent · try again". Without the method: "Sending starts with the RESTRO Android
+app". Download comes with the web dashboard.
 
 ## Screen lock: `restro:device-locked` and `restro:device-unlocked`
 

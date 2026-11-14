@@ -26,7 +26,7 @@
   const dialogs=[...document.querySelectorAll('dialog')];
   const navigation=[...bar.querySelectorAll('.system-control')];
   const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
-  const fullApps='.counter-app,.floor-app,.orders-app,.settings-app,.customers-app,.employees-app';
+  const fullApps='.counter-app,.floor-app,.orders-app,.settings-app,.customers-app,.employees-app,.qr-studio-app';
   let locked=false;
   try{locked=sessionStorage.getItem('restro.screenLocked')==='true';}catch{}
   // A swipe on the bar under way, windows on their way home (or back), and Recent apps while it shows
@@ -573,7 +573,7 @@
     const typing=document.activeElement;
     if(typing&&typing!==document.body&&(typing.matches?.('textarea,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit])')||typing.isContentEditable)&&!typing.closest('#settings-search')){typing.blur();return;}
     const opened=dialogs.filter(dialog=>dialog.open).at(-1);
-    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='orders-dialog'&&window.RestroOrders?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;if(opened.id==='employees-dialog'&&window.RestroEmployees?.goBack())return;opened.close();return;}
+    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='orders-dialog'&&window.RestroOrders?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;if(opened.id==='employees-dialog'&&window.RestroEmployees?.goBack())return;if(opened.id==='qr-studio-dialog'&&window.RestroQrStudio?.goBack())return;opened.close();return;}
     if(arranging){endDrag(true);setArranging(false);return;}
     if(currentPage>0){goToPage(currentPage-1);return;}
     await nativeAction('goBack');

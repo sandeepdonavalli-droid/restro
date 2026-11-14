@@ -247,7 +247,7 @@ $('#delete-app-dialog').addEventListener('close',()=>{deleteAppId=null;const slo
 function syncInstalledControls(){$$('[data-control="settings"]').forEach(control=>{control.hidden=!isInstalledApp('settings');});}
 window.addEventListener('restro:app-uninstalled',syncInstalledControls);syncInstalledControls();
 function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroProfile?.fill();window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
-function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='employees')window.RestroEmployees?.open();else if(id==='qr-studio'){$('#qr-studio-art').replaceChildren(artNode(apps[id].art));openDialog('qr-studio-dialog');}else if(id==='calculator'||id==='camera')document.querySelector(`[data-control="${id}"]`)?.click();}
+function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='employees')window.RestroEmployees?.open();else if(id==='qr-studio')window.RestroQrStudio?.open();else if(id==='calculator'||id==='camera')document.querySelector(`[data-control="${id}"]`)?.click();}
 function openMove(id){
   const item=itemOf(id);if(!item)return;
   moveId=id;setArranging(true);

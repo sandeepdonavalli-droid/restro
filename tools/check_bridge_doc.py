@@ -24,7 +24,7 @@ def scripts():
     for path in sorted(ROOT.glob('*.js')):
         yield path.name, strip_comments(path.read_text(encoding='utf-8'))
 
-PARTS = ('printer', 'pager', 'sms', 'whatsapp', 'integrations', 'localSync', 'wifi', 'bluetooth')
+PARTS = ('printer', 'pager', 'sms', 'whatsapp', 'integrations', 'localSync', 'wifi', 'bluetooth', 'qr')
 
 def members():
     found = {}  # 'printer.printKot' -> {files}

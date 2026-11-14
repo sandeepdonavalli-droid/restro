@@ -49,7 +49,9 @@
     held: { key: 'restro.counter.held.v1', id: h => (typeof h?.heldId === 'string' ? h.heldId : null), keep: h => !(Number.isFinite(h.holdUntil) && h.holdUntil <= Date.now()),
       rules: { keyed: { lines: lineKey }, additive: { lines: 'qty' } } },
     customers: { key: 'restro.customers.v1', id: c => (typeof c?.id === 'string' ? c.id : null) },
-    staff: { key: 'restro.staff.v1', id: p => (typeof p?.id === 'string' ? p.id : null) }
+    staff: { key: 'restro.staff.v1', id: p => (typeof p?.id === 'string' ? p.id : null) },
+    // (Update Pack 5: QR Studio's Table, Takeaway and Menu QRs)
+    qr: { key: 'restro.qr.v1', id: q => (typeof q?.id === 'string' ? q.id : null) }
   };
   // Settings: one value per key, synced as the records { value } of 'settings'. The name's placeholder is no name, so it
   // never travels (a new tablet takes the restaurant's name from the others).
@@ -73,7 +75,9 @@
     // (Update Pack 4: Settings › Orders, the order-ready message sent by itself: SMS, WhatsApp or off)
     readyMessage: { key: 'restro.readyMessage.v1' },
     // (Counter Update 7: what is sold out, set in the Availability app (today's Menu app), shown live on every Counter)
-    availability: { key: 'restro.menu.availability.v1' }
+    availability: { key: 'restro.menu.availability.v1' },
+    // (Update Pack 5, I3: QR ordering paused or turned off by hand, or turned on after hours)
+    qrOrdering: { key: 'restro.qrOrdering.v1' }
   };
   const NAMES = [...Object.keys(COLLECTIONS), 'settings'];
   const TICKET_KEY = 'restro.counter.ticket.v2'; // { day, next }: after the highest number this tablet has given or seen today
