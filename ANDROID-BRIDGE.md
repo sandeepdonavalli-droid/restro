@@ -508,8 +508,9 @@ pop-up, Light and Midnight), `04_Orders_Pending-flow` (OR0–OR3) and `05_Counte
 
   With it: `qrPayAt` (ms), when the customer paid ("paid today around 7:25 PM"; the order's time when missing),
   `qrChoice: { choice: 'paid' | 'refund', by, at }`, who answered and when (also in the Track history, `events`:
-  `qr-paid` or `qr-refund` with `by`), and for a failed payment `qrFailSeen: { by, at }`, who tapped Print bill (the
-  Track history's `qr-fail-bill`), for Analytics › Activity › Payments and the Payments app (both to come).
+  `qr-paid` or `qr-refund` with `by`), and for a failed payment `qrFailSeen: { by, at }`, who first answered its pop-up
+  (the Track history's `qr-fail-seen` for Not now, ✕ or Back, `qr-fail-bill` for each Print bill), for Analytics ›
+  Activity › Payments and the Payments app (both to come).
 - **The row, in all 12 layouts:** the order status **"Pending"** with "Not in kitchen yet" under it (Split's list: on
   one line, then a red line with the alert icon, **"Payment pending · tap Confirm !"**, as "KOT failed · tap the order
   to reprint"); the payment status **"Pending"** and the amount; **Receipt, Notify and Buzz greyed** in their places;
@@ -612,16 +613,24 @@ money is due again. There is no design: it is built from the Pending pieces.
   Please ask the customer to pay again." (`qrChoice.by`, `qrChoice.at`; without a name: "was confirmed as paid at
   7:27 PM"); the buttons: **Not now** (250, white) and **Print bill** (blue `#1E4FB8`, 800). Midnight: `#141E33`, the
   tile `#4A1414` with `#FFB0B0`, the words `#FFB0B0`, Print bill `#2F6FDE`, the rest as Customer paid?'s Midnight.
-  - **Not now**, ✕ and Back close it; a tap outside does nothing; it stays Payment failed.
+  - **Not now**, ✕ and Back close it; a tap outside does nothing; it stays Payment failed, with Bill ! and the badge.
   - **Print bill** prints the bill (`printer.printBill`, `kind` `"bill"`, a tax invoice with its number, as any bill
-    not paid yet) and keeps who did it (`RestroCounter.qrFailSeen(uid)`: `qrFailSeen`, Track history `qr-fail-bill`).
-- **The sound:** `RestroSound.play('alert')` at once when an order turns Payment failed, and every minute until
-  someone taps **Print bill** (on any tablet; Not now doesn't stop it), on every tablet but the kitchen screen.
+    not paid yet).
+  - Whichever is tapped (Not now, ✕, Back or Print bill) is an answer: someone has seen it
+    (`RestroCounter.qrFailSeen(uid, 'later' | 'bill')`: the first answer's `qrFailSeen`; Track history `qr-fail-seen` or
+    `qr-fail-bill`).
+- **The sound:** `RestroSound.play('alert')` at once when an order turns Payment failed, and every minute until someone
+  answers its pop-up on any tablet (Not now, ✕, Back or Print bill: owner, 13 Nov 2026, so the restaurant isn't
+  disturbed once someone has seen it), on every tablet but the kitchen screen. **Bill !** and the **badge** stay until
+  it is paid. (A Pending QR order's sound is unchanged: it goes on until Customer paid? is answered; Not now doesn't
+  stop it.)
 - **The badge:** Orders' badge counts it until it is paid.
 - **Paying it:** tapping the order (Classic, Cards; Split's Open) opens it on the Counter, as any order still to pay;
-  **Pay** there makes it paid as any order ("Paid - Cash"): `qrPay` goes, `qr`, `qrPayAt`, `qrChoice`, `qrFailedAt` and
-  `qrFailSeen` stay, its KOT doesn't go again, and Bill !, the badge and the sound go. Saved there without paying, it
-  stays Payment failed. The customer paying again through the table QR comes with the customer pages.
+  paid there (or on the Pay screen, to come), it is paid as any order and shows how it was paid: "Paid - UPI", "Paid -
+  Card", "Paid - Cash" (the Counter takes cash only until the Pay screen comes). `qrPay` goes; `qr`, `qrPayAt`,
+  `qrChoice`, `qrFailedAt` and `qrFailSeen` stay; its KOT doesn't go again; Bill ! and the badge go. Saved there
+  without paying, it stays Payment failed. The customer paying again through the table QR comes with the customer
+  pages.
 
 ### Home-screen badges (J)
 

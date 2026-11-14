@@ -3868,15 +3868,17 @@
     rec.qrPay = 'pending'; storeOrders(list); return true;
   }
   // (owner, 13 Nov 2026) A QR order staff saw as paid whose payment the cloud didn't find once online (qrPay 'failed', set
-  // by the cloud): Print bill in its Payment failed pop-up. Who did it and when go on the order (qrFailSeen, and its Track
-  // history: 'qr-fail-bill'), which stops its sound on every tablet; it stays Payment failed, in Due, until it is paid.
-  function qrFailSeen(uid) {
+  // by the cloud): its Payment failed pop-up answered, how 'later' (Not now, ✕, Back) or 'bill' (Print bill). The first
+  // answer, who and when, goes on the order (qrFailSeen), which stops its sound on every tablet; each answer goes in its
+  // Track history ('qr-fail-seen', or 'qr-fail-bill' for every Print bill). It stays Payment failed, with Bill ! and the
+  // badge, in Due, until it is paid.
+  function qrFailSeen(uid, how = 'bill') {
     const list = loadOrders(), rec = list.find(o => idOf(o) === uid);
     if (!rec || rec.qr !== true || rec.qrPay !== 'failed' || rec.paidAt) return false;
-    if (rec.qrFailSeen) return true;
+    if (rec.qrFailSeen && how !== 'bill') return true;
     const now = Date.now(), by = staffName();
-    rec.qrFailSeen = { by: by || null, at: now };
-    rec.events = [...(Array.isArray(rec.events) ? rec.events : []), { id: newEventId(), at: now, kind: 'qr-fail-bill', by }].slice(-200);
+    if (!rec.qrFailSeen) rec.qrFailSeen = { by: by || null, at: now };
+    rec.events = [...(Array.isArray(rec.events) ? rec.events : []), { id: newEventId(), at: now, kind: how === 'bill' ? 'qr-fail-bill' : 'qr-fail-seen', by }].slice(-200);
     rec.savedAt = now; storeOrders(list); if (order.uid === uid) keepOpened(rec);
     return true;
   }

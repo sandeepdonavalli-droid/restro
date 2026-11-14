@@ -129,7 +129,7 @@ its change goes to the tablets as any other:
 
 A payment made twice is refunded by itself. Every answer and settlement is kept for Analytics › Activity › Payments and
 the Payments app, with who did it (`qrChoice`, the Track history's `qr-paid` / `qr-refund`; for a failed payment
-`qrFailSeen: { by, at }` and `qr-fail-bill`, who printed its bill). A failed one paid at the Counter is paid as any
+`qrFailSeen: { by, at }`, who first answered its pop-up, and `qr-fail-seen` / `qr-fail-bill`). A failed one paid at the Counter is paid as any
 order: `paidAt` and `method` are set, `qrPay` goes, the rest stays. Taking off `paidAt` is the cloud's settlement:
 see Merging, below.
 

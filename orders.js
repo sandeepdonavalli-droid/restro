@@ -39,7 +39,7 @@
 // paid, its KOT sent, matched once online), 'refund' (staff cancelled it: Closed, Refunded; the refund itself goes once
 // online) or 'failed' (staff saw it paid, but the cloud found no payment once online: Payment failed, in Due, red
 // Bill !; owner, 13 Nov 2026); qrPayAt is when the customer paid, qrChoice who chose what and when, qrFailedAt when the
-// cloud found the payment missing, qrFailSeen who tapped Print bill in its pop-up. A bill
+// cloud found the payment missing, qrFailSeen who first answered its pop-up (the sound stops). A bill
 // paid in part (the Pay screen, to come) carries paidAmount (paise) and paidAmountAt; refunds carry refundedAt,
 // refundAmount (paise; less than the total: a partial refund) and refundMethod.
 (() => {
@@ -1129,8 +1129,8 @@
   // - Its payment arriving after all (the internet back: the cloud marks it paid): the main system prints its KOT by
   //   itself, as for any QR order paid as usual; the pop-up, the badge and Confirm ! clear.
   // - Staff saw it paid, but the cloud found no payment once online (qrPay 'failed', owner 13 Nov 2026): the same sound,
-  //   at once and every minute until someone taps Print bill in its pop-up (qrFailSeen), on every device; the badge
-  //   counts it until it is paid.
+  //   at once and every minute until someone answers its pop-up (Not now, ✕, Back or Print bill: qrFailSeen), on every
+  //   device; Bill ! and the badge stay until it is paid.
   const QR_WAIT = 30000, QR_RING = 60000;
   const cloudOk = () => window.RestroSync?.cloudReachable?.() === true;
   const uidOf = o => o.uid || `n${o.number}`;
@@ -1390,12 +1390,14 @@
   // ---------- Payment failed (owner, 13 Nov 2026): staff saw a QR payment as paid, but it never reached us ----------
   // Opened by the red Bill ! (every layout). The Customer paid? pop-up's frame, in red: the "!" tile, "Payment failed for
   // this order", "Order #1032 · Table 3 · QR · ₹1,260.00", then in red "₹1,260.00 was confirmed as paid by ‹name› at
-  // 7:27 PM, but the payment never reached us. Please ask the customer to pay again."; Not now (✕, Back: it stays) and
-  // Print bill (blue): the bill prints for the customer to pay again, and the sound stops on every tablet (qrFailSeen).
-  // Paid at the Counter, it is paid as any order: Bill !, the badge and the pop-up go.
+  // 7:27 PM, but the payment never reached us. Please ask the customer to pay again."; Not now (✕, Back) and Print bill
+  // (blue): the bill prints for the customer to pay again. Whichever is tapped, someone has seen it: the sound stops on
+  // every tablet (qrFailSeen); Bill ! and the badge stay until it is paid (owner, 13 Nov 2026). Paid (the Counter now, the
+  // Pay screen later), it is paid as any order, "Paid - UPI" or however it was paid: Bill !, the badge and the pop-up go.
   function openFailed(r) { pop = { kind: 'failed', id: r.id }; renderLayer(); }
+  const failSeen = (id, how) => window.RestroCounter?.qrFailSeen?.(id, how);
   function failCard(r) {
-    const c = r.o.qrChoice || {}, close = () => { pop = null; renderLayer(); };
+    const c = r.o.qrChoice || {}, close = () => { pop = null; renderLayer(); failSeen(r.id, 'later'); };
     return el('div', { class: 'qrp fail', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Payment failed for this order' },
       el('div', { class: 'qrp-head' }, el('span', { class: 'qrp-q', 'aria-hidden': 'true' }, '!'),
         el('div', { class: 'qrp-tt' }, el('h3', {}, 'Payment failed for this order'), el('p', {}, qrSub(r))),
@@ -1404,7 +1406,7 @@
         c.at ? [' at ', el('b', {}, clockOf(c.at))] : null, ', but the payment never reached us. Please ask the customer to pay again.'),
       el('div', { class: 'qrp-foot' },
         el('button', { type: 'button', class: 'qrp-no', onclick: close }, 'Not now'),
-        el('button', { type: 'button', class: 'qrp-go paid', onclick: () => { close(); window.RestroCounter?.qrFailSeen?.(r.id); printOrder(r); } }, 'Print bill')));
+        el('button', { type: 'button', class: 'qrp-go paid', onclick: () => { pop = null; renderLayer(); failSeen(r.id, 'bill'); printOrder(r); } }, 'Print bill')));
   }
 
   // The same pop-up on the Counter (CT1): "Table 3 has a pending QR order" · "Order #1032 · QR · ₹1,260.00 · confirm or
@@ -1736,7 +1738,7 @@
   function goBack() {
     if (!dialog.open) return false;
     if (closeReceipt()) return true;
-    if (menu || pop || picking) { menu = null; pop = null; picking = null; render(); return true; }
+    if (menu || pop || picking) { if (pop?.kind === 'failed') failSeen(pop.id, 'later'); menu = null; pop = null; picking = null; render(); return true; }
     if (!fromCounter || !window.RestroCounter) return false;
     fromCounter = false; returning = false; window.RestroCounter.resume(); return true;
   }
