@@ -8,7 +8,7 @@
 //       a table never breaks a printed QR), code (6 characters), path ('<restaurant>/<T7 | TK | MN>-<code>'), name (the
 //       table's name as on the printed card), createdAt, createdBy, replacedAt, replacedBy, printedAt, printedBy (black
 //       and white, on the receipt printer), sentAt, sentBy (the colour PDF), quietOk (the quiet-QR warning hidden until
-//       then) }.
+//       then) }. The ...By fields hold the staff's names; the screens show their initials.
 //   Its link is https://<our website>/<path>. The domain is still to be decided (J), so example.com stands in for it.
 //   Replace gives the QR a new code (the old one stops working); Delete removes it. The cloud keeps which codes work.
 // - QR ordering: restro.qrOrdering.v1, the restaurant's (synced): { off: { until (ms; null: until turned on), choice,
@@ -50,22 +50,28 @@
     return node;
   }
   const NS = 'http://www.w3.org/2000/svg';
-  // Icons on a 24 grid: s = drawn with lines, f = filled; m = Material Symbols (Apache 2.0) on their 960 grid
+  // Icons on a 24 grid: s = drawn with lines, f = filled; m = Material Symbols (Apache 2.0) on their 960 grid, with an
+  // optional outline to match the designs' weight. send: Material Icons (Apache 2.0), as the designs.
   const ICONS = {
     home: ['s', '<path d="M4.5 11.2 L12 4.6 L19.5 11.2 V18.4 a1.6 1.6 0 0 1 -1.6 1.6 H14.6 V15.4 a2.6 2.6 0 0 0 -5.2 0 V20 H6.1 a1.6 1.6 0 0 1 -1.6 -1.6 Z"/>'],
     table: ['f', '<path d="M2.6 5.6c0-.6.5-1.1 1.1-1.1h16.6c.6 0 1.1.5 1.1 1.1v2.2c0 .6-.5 1.1-1.1 1.1H3.7c-.6 0-1.1-.5-1.1-1.1z"/><path d="M5.2 8.9h2.5l-.8 10.6H4.4zM16.3 8.9h2.5l.8 10.6h-2.5z"/><path d="M6.8 12.2h10.4v2H6.8z"/>'],
-    bag: ['f', '<path fill-rule="evenodd" d="M5.4 8.2h13.2l1 12.1a1.6 1.6 0 0 1-1.6 1.7H6a1.6 1.6 0 0 1-1.6-1.7zm3.4 3.3a3.2 3.2 0 0 0 6.4 0h-1.7a1.5 1.5 0 0 1-3 0z"/><path d="M8.6 9V7a3.4 3.4 0 0 1 6.8 0v2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'],
+    // (Takeaway: Material Symbols' local_mall, as the designs)
+    bag: ['m', 'M180-80q-24 0-42-18t-18-42v-530q0-24 18-42t42-18h110q0-79 53-134.5T475-920q79 0 137 55.5T670-730h110q24 0 42 18t18 42v530q0 24-18 42t-42 18H180Zm437-408q58-58 58-137h-60q0 55-40 95t-95 40q-55 0-95-40t-40-95h-60q0 79 58 137t137 58q79 0 137-58ZM350-730h260q0-55-37.5-92.5T480-860q-55 0-92.5 37.5T350-730Z'],
     menu: ['s', '<rect x="4" y="3.5" width="16" height="17" rx="2.2"/><path d="M12 3.5v17M7.2 8h2.2M7.2 11.5h2.2M14.6 8h2.2M14.6 11.5h2.2"/>'],
     palette: ['s', '<path d="M12 3.2a8.8 8.8 0 1 0 0 17.6c1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2a1.7 1.7 0 0 1 1.3-2.9h2a4.4 4.4 0 0 0 4.4-4.4C20.9 6.6 16.9 3.2 12 3.2z"/><circle cx="7.6" cy="11.3" r="1.25" fill="currentColor" stroke="none"/><circle cx="10.2" cy="7.6" r="1.25" fill="currentColor" stroke="none"/><circle cx="14.6" cy="7.6" r="1.25" fill="currentColor" stroke="none"/>'],
     print: ['s', '<path d="M7 8.2V3.8h10v4.4"/><path d="M7 17H5.2A2.2 2.2 0 0 1 3 14.8v-4.4a2.2 2.2 0 0 1 2.2-2.2h13.6a2.2 2.2 0 0 1 2.2 2.2v4.4a2.2 2.2 0 0 1-2.2 2.2H17"/><path d="M7 13.6h10v6.6H7z"/>'],
-    send: ['s', '<path d="M3.8 4.4 20.6 12 3.8 19.6 6.4 12z"/><path d="M6.4 12h7.2"/>'],
+    send: ['f', '<path d="m4.01 6.03 7.51 3.22-7.52-1 .01-2.22m7.5 8.72L4 17.97v-2.22l7.51-1M2.01 3 2 10l15 2-15 2 .01 7L23 12 2.01 3z"/>'],
     scan: ['s', '<path d="M3.8 8V5.4c0-.9.7-1.6 1.6-1.6H8M16 3.8h2.6c.9 0 1.6.7 1.6 1.6V8M20.2 16v2.6c0 .9-.7 1.6-1.6 1.6H16M8 20.2H5.4c-.9 0-1.6-.7-1.6-1.6V16"/><path d="m8.4 12.3 2.5 2.5 4.8-5"/>'],
-    replace: ['s', '<path d="M10 4.3a7.8 7.8 0 0 0-5.3 11.8"/><path d="m4.2 12.6.5 3.5 3.4-.8"/><path d="M14 19.7a7.8 7.8 0 0 0 5.3-11.8"/><path d="m19.8 11.4-.5-3.5-3.4.8"/>'],
+    replace: ['m', 'M167-160v-60h130l-15-12q-64-51-93-111t-29-134q0-106 62.5-190.5T387-784v62q-75 29-121 96.5T220-477q0 63 23.5 109.5T307-287l30 21v-124h60v230H167Zm407-15v-63q76-29 121-96.5T740-483q0-48-23.5-97.5T655-668l-29-26v124h-60v-230h230v60H665l15 14q60 56 90 120t30 123q0 106-62 191T574-175Z', 16],
     trash: ['m', 'M280-120q-33 0-56.5-23.5T200-200v-520q-17 0-28.5-11.5T160-760q0-17 11.5-28.5T200-800h160q0-17 11.5-28.5T400-840h160q17 0 28.5 11.5T600-800h160q17 0 28.5 11.5T800-760q0 17-11.5 28.5T760-720v520q0 33-23.5 56.5T680-120H280Zm120-160q17 0 28.5-11.5T440-320v-280q0-17-11.5-28.5T400-640q-17 0-28.5 11.5T360-600v280q0 17 11.5 28.5T400-280Zm160 0q17 0 28.5-11.5T600-320v-280q0-17-11.5-28.5T560-640q-17 0-28.5 11.5T520-600v280q0 17 11.5 28.5T560-280Z'],
-    pause: ['f', '<rect x="6.4" y="4.8" width="4" height="14.4" rx="1.3"/><rect x="13.6" y="4.8" width="4" height="14.4" rx="1.3"/>'],
+    pause: ['f', '<rect x="6" y="3.75" width="4.5" height="16.5" rx="1.4"/><rect x="13.5" y="3.75" width="4.5" height="16.5" rx="1.4"/>'],
+    // (the banners' own: narrow bars close together, as the designs)
+    pausebn: ['f', '<path d="M7.9 6.3h3.5v11.4H7.9zM12.6 6.3h3.5v11.4h-3.5z"/>'],
     plus: ['s', '<path d="M12 5v14M5 12h14"/>'],
     grid: ['s', '<rect x="4.2" y="4.2" width="6.4" height="6.4" rx="1.8"/><rect x="13.4" y="4.2" width="6.4" height="6.4" rx="1.8"/><rect x="4.2" y="13.4" width="6.4" height="6.4" rx="1.8"/><path d="M13.6 13.4h1.6v2.2M19.8 13.4v6.4h-6.2"/>'],
     check: ['s', '<path d="m5 12.6 4.6 4.6L19.2 7.6"/>'],
+    // (the Menu QR's green banner: a small, thin tick)
+    tick: ['s', '<path d="M6.9 11.7 9.3 15.3 17.1 8.7"/>'],
     close: ['s', '<path d="M6.2 6.2 17.8 17.8M17.8 6.2 6.2 17.8"/>'],
     search: ['s', '<circle cx="10.6" cy="10.6" r="6.4"/><path d="m15.4 15.4 4.6 4.6"/>'],
     chevron: ['s', '<path d="m9.5 6 6 6-6 6"/>'],
@@ -80,10 +86,10 @@
     chat: ['m', 'm240-240-92 92q-19 19-43.5 8.5T80-177v-623q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240Zm40-160h240q17 0 28.5-11.5T560-440q0-17-11.5-28.5T520-480H280q-17 0-28.5 11.5T240-440q0 17 11.5 28.5T280-400Zm0-120h400q17 0 28.5-11.5T720-560q0-17-11.5-28.5T680-600H280q-17 0-28.5 11.5T240-560q0 17 11.5 28.5T280-520Zm0-120h400q17 0 28.5-11.5T720-680q0-17-11.5-28.5T680-720H280q-17 0-28.5 11.5T240-680q0 17 11.5 28.5T280-640Z']
   };
   function icon(name, cls = '') {
-    const [kind, body] = ICONS[name], s = document.createElementNS(NS, 'svg');
+    const [kind, body, outline] = ICONS[name], s = document.createElementNS(NS, 'svg');
     s.setAttribute('viewBox', kind === 'm' ? '0 -960 960 960' : '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
     s.setAttribute('class', `qi qi-${kind === 's' ? 'line' : 'fill'} qi-${name} ${cls}`.trim());
-    s.innerHTML = kind === 'm' ? `<path d="${body}"/>` : body; return s;
+    s.innerHTML = kind === 'm' ? `<path d="${body}"${outline ? ` stroke="currentColor" stroke-width="${outline}" stroke-linejoin="miter"` : ''}/>` : body; return s;
   }
   const appArt = () => {
     const art = typeof artNode === 'function' && typeof apps !== 'undefined' && apps['qr-studio'] ? artNode({ ...apps['qr-studio'].art, plain: true }) : el('span');
@@ -103,7 +109,13 @@
   const weekdayDate = t => { const d = new Date(t); return `${WEEKDAYS[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   const who = () => window.RestroStaff?.current?.name || null;
-  const byWho = name => (name ? ` by ${name}` : '');
+  // Who did it, as initials, as in the Counter's history and on the slips (a name already in 2 or 3 capitals stays)
+  const initialsOf = name => {
+    const words = typeof name === 'string' ? name.trim().split(/\s+/).filter(Boolean) : [];
+    if (words.length === 1 && /^[A-Z]{2,3}$/.test(words[0])) return words[0];
+    return (words.length > 1 ? [words[0], words.at(-1)] : words).map(w => Array.from(w)[0]).join('').toLocaleUpperCase('en-IN');
+  };
+  const byWho = name => (name ? ` by ${initialsOf(name)}` : '');
 
   // ---------- the floor: its areas and tables (Floor app, floor-data.js) ----------
   // A table renamed or renumbered in Floor keeps its id; Floor notes it on the table as renamed: { at, by }.
@@ -364,7 +376,7 @@
     if (st.state === 'on') { line = el('b', { class: 'ok' }, `On · last orders ${clock(st.last ?? st.h.to)}`); text = 'Follows your business hours. Table and Takeaway QRs take paid orders; the Menu QR always works.'; buttons = [pauseBtn()]; }
     else if (st.state === 'late') { line = el('b', { class: 'ok' }, `On · turned on${byWho(st.late.by)} at ${clock(st.late.at)}`); text = 'Turned on by hand outside business hours, so it stays on until someone turns it off.'; buttons = [pauseBtn(true)]; }
     else if (st.state === 'paused') { line = el('b', { class: 'warn' }, `Paused until ${untilWords(st.off.until)}`); text = 'Customers can see the menu but can’t order.'; buttons = [btn('qrs-cbtn', 'Resume now', resume, 'send')]; }
-    else if (st.state === 'hand') { line = el('b', { class: 'warn' }, `Off until turned on${st.off.by ? ` · by ${st.off.by}` : ''} at ${clock(st.off.at)}`); text = 'Turned off by hand, so it stays off until someone turns it on. Customers can see the menu but can’t order.'; buttons = [btn('qrs-cbtn', 'Turn on', resume, 'send')]; }
+    else if (st.state === 'hand') { line = el('b', { class: 'warn' }, `Off until turned on${st.off.by ? ` ·${byWho(st.off.by)}` : ''} at ${clock(st.off.at)}`); text = 'Turned off by hand, so it stays off until someone turns it on. Customers can see the menu but can’t order.'; buttons = [btn('qrs-cbtn', 'Turn on', resume, 'send')]; }
     else if (st.state === 'auto') { cls = ' auto'; line = el('b', { class: 'bad' }, `Paused · ${REASONS[st.auto.reason].card}`); text = `Paused by itself at ${clock(st.auto.since)}. It turns back on by itself.`; buttons = [btn('qrs-cbtn plain', 'See devices', () => openPop('devices')), pauseBtn()]; }
     else {
       const c = st.closed, next = nextOpening(Date.now()), hours = c.h ? `Business hours ${hoursText(c.h)} · last orders ${clock(c.last ?? c.h.to)}.` : '';
@@ -379,12 +391,12 @@
   // The banner under a page's line while QR ordering isn't taking orders (I1, I3); the Menu QR's own (green)
   function bannerEl(st, page) {
     if (st.state === 'on' || st.state === 'late') return null;
-    if (page === 'menu') return el('div', { class: 'qrs-banner good', role: 'status' }, el('span', { class: 'qrs-bn-i' }, icon('check')),
+    if (page === 'menu') return el('div', { class: 'qrs-banner good', role: 'status' }, el('span', { class: 'qrs-bn-i' }, icon('tick')),
       el('div', {}, el('b', {}, 'Menu QR still works'), el('span', {}, `QR ordering is ${st.state === 'closed' ? 'closed' : 'paused'}, but customers can still see the menu and prices.`)));
     let cls, ic, title, text, action = null;
-    if (st.state === 'paused') { cls = 'warn'; ic = el('span', { class: 'qrs-bn-i' }, icon('pause')); title = `QR ordering paused until ${untilWords(st.off.until)}`; text = `Customers see the menu with “${CUSTOMER_PAUSED}” Paid orders still go to the kitchen.`; action = btn('qrs-bn-btn', 'Resume now', resume, 'send'); }
-    else if (st.state === 'hand') { cls = 'warn'; ic = el('span', { class: 'qrs-bn-i' }, icon('pause')); title = `QR ordering off until turned on · turned off${byWho(st.off.by)} at ${clock(st.off.at)}`; text = `Stays off until someone turns it on. Customers see the menu with “${CUSTOMER_PAUSED}”`; action = btn('qrs-bn-btn', 'Turn on', resume, 'send'); }
-    else if (st.state === 'auto') { cls = 'bad'; ic = el('span', { class: 'qrs-bn-i' }, '!'); title = `QR ordering paused · ${REASONS[st.auto.reason].banner}`; text = `Paused by itself at ${clock(st.auto.since)} · turns back on by itself. Customers see “${CUSTOMER_PAUSED}”`; action = btn('qrs-bn-btn', 'See devices', () => openPop('devices')); }
+    if (st.state === 'paused') { cls = 'warn'; ic = el('span', { class: 'qrs-bn-i' }, icon('pausebn')); title = `QR ordering paused until ${untilWords(st.off.until)}`; text = `Customers see the menu with “${CUSTOMER_PAUSED}” Paid orders still go to the kitchen.`; action = btn('qrs-bn-btn', 'Resume now', resume, 'send'); }
+    else if (st.state === 'hand') { cls = 'warn'; ic = el('span', { class: 'qrs-bn-i' }, icon('pausebn')); title = `QR ordering off until turned on · turned off${byWho(st.off.by)} at ${clock(st.off.at)}`; text = `Stays off until someone turns it on. Customers see the menu with “${CUSTOMER_PAUSED}”`; action = btn('qrs-bn-btn', 'Turn on', resume, 'send'); }
+    else if (st.state === 'auto') { cls = 'bad'; ic = el('span', { class: 'qrs-bn-i' }, el('span', { class: 'qrs-bn-x' }, '!')); title = `QR ordering paused · ${REASONS[st.auto.reason].banner}`; text = `Paused by itself at ${clock(st.auto.since)} · turns back on by itself. Customers see “${CUSTOMER_PAUSED}”`; action = btn('qrs-bn-btn', 'See devices', () => openPop('devices')); }
     else {
       const c = st.closed, next = nextOpening(Date.now());
       cls = 'shut'; ic = el('span', { class: 'qrs-bn-i' }, icon('clock')); text = 'Turns on by itself at opening time.';
@@ -866,7 +878,7 @@
     paintPill();
   }
   // The card in the panel fills the grey box's height (QS1); a taller box above it makes it smaller (QS25, QS35)
-  // (the grey box is 560 tall where there's room, smaller where there isn't; the card in it is 288 wide at most, with 14
+  // (the grey box is 563 tall where there's room, smaller where there isn't; the card in it is 288 wide at most, with 14
   // above and below; the note under the buttons goes when the box would be under 400)
   function fitPreview() {
     for (const box of root?.querySelectorAll('.qrs-prev') || []) {

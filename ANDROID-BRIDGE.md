@@ -695,6 +695,8 @@ noted.
     decided (J), so `example.com` stands in for it.
   - `name`: the table's name as on the card printed or sent last.
   - `printedAt` / `printedBy`: Print, black and white. `sentAt` / `sentBy`: Send, the colour PDF.
+  - `createdBy`, `replacedBy`, `printedBy`, `sentBy` (and QR ordering's `by`, below): the staff's names. The screens
+    show their initials ("by ‹initials›"), as the Counter's history and the slips do.
   - `quietOk`: the quiet warning hidden until then (ms).
 - **Replace** gives the QR a new code, so the old card stops working. **Delete** removes the QR. The cloud (Phase 2)
   keeps which codes work, from these records as they sync. Delete, Send and Test scan need the internet (greyed
