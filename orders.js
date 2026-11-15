@@ -599,7 +599,9 @@
 
   // ---------- offline (Update Pack 4, A6; G7, K5, K6): a quiet note under the search; nothing is greyed ----------
   let offlineSince = null;
-  const readOnline = () => { const st = window.RestroConnectivity?.getStatus?.(); return st ? st.internetAvailable !== false : navigator.onLine !== false; };
+  // (connected to the cloud: by this device, or through another one over the restaurant Wi-Fi, a handheld on mobile data;
+  // owner, 14 Nov 2026. The bar's pill shows the device's own internet.)
+  const readOnline = () => { const st = window.RestroConnectivity?.getStatus?.(); return st ? st.cloudAvailable !== false : navigator.onLine !== false; };
   function trackOnline() { const on = readOnline(); if (!on && !offlineSince) offlineSince = Date.now(); if (on) offlineSince = null; }
   window.addEventListener('restro:connectivity-changed', () => { const was = Boolean(offlineSince); trackOnline(); if (dialog.open && was !== Boolean(offlineSince)) render(); });
   const offlineNote = () => (offlineSince ? el('div', { class: 'or-offline', role: 'status' }, icon('cloudOff'),

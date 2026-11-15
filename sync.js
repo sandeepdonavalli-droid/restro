@@ -848,7 +848,9 @@
   // main system, and it asks the cloud for ticket numbers then.
   const Cloud = (() => {
     let status = 'not-set-up', lastSync = 0, busy = false, again = false, failures = 0, timer = null, live = null;
-    const online = () => navigator.onLine !== false && window.RestroConnectivity?.getStatus?.().internetAvailable !== false;
+    // (the cloud can be reached by this device itself or through another one over the restaurant Wi-Fi, a handheld on
+    // mobile data: RestroConnectivity's cloudAvailable; owner, 14 Nov 2026)
+    const online = () => navigator.onLine !== false && window.RestroConnectivity?.getStatus?.().cloudAvailable !== false;
     // Worth trying: online, and the last call didn't fail (a sync tries again)
     const reachable = () => online() && status !== 'offline';
     async function call(method, path, body, wait = 20000) {

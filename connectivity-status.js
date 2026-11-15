@@ -1,7 +1,7 @@
 'use strict';
 (() => {
   const cellular=document.querySelector('#cellular-status'),wifi=document.querySelector('#wifi-status');
-  const dot=document.querySelector('#online-dot'),label=document.querySelector('#online-text');
+  const dot=document.querySelector('#online-dot'),label=document.querySelector('#online-text'),pill=label.closest('.online-pill');
   const previewToggle=document.querySelector('#wifi-preview-toggle'),previewSection=document.querySelector('#browser-preview-settings'),previewNote=document.querySelector('#wifi-preview-note');
   let wifiPreview=false,previewLevel=4;
   try{wifiPreview=window.localStorage.getItem('restro.wifiPreview.v1')==='true';}catch{}
@@ -14,10 +14,14 @@
   };
   const bool=value=>typeof value==='boolean'?value:null;
   const level=value=>typeof value==='number'&&Number.isFinite(value)?Math.max(0,Math.min(4,Math.round(value))):null;
-  let state={hasCellular:false,cellular:{connected:false,level:null},wifi:{connected:false,level:null,internetAvailable:null},internetAvailable:false,source:'browser'};
+  // internetAvailable: this device's own internet, the bar's Online / Offline pill (owner, 14 Nov 2026: the pill shows the
+  // device, not the cloud). cloudAvailable: this device's data reaches the cloud, by itself or through another RESTRO
+  // device over the restaurant Wi-Fi (one with internet, a handheld on mobile data); the cloud icon and everything that
+  // needs the cloud follow it. null until the device reports it: then it follows internetAvailable.
+  let state={hasCellular:false,cellular:{connected:false,level:null},wifi:{connected:false,level:null,internetAvailable:null},internetAvailable:false,cloudAvailable:null,source:'browser'};
   let nativeActive=false,subscribedHost=null,unsubscribe=null,poll=null,controller=null,probeVersion=0,refreshing=null,refreshQueued=false,disposed=false,lastBrowserProbe=0;
   let boundConnection=null,networkSource=null,networkReport=null,networkListener=null,networkGeneration=0,networkVersion=0;
-  function snapshot(){return {...state,cellular:{...state.cellular},wifi:{...state.wifi},preview:{wifi:wifiPreview&&!nativeActive},wifiPreviewEnabled:wifiPreview};}
+  function snapshot(){return {...state,cloudAvailable:state.cloudAvailable??state.internetAvailable,cellular:{...state.cellular},wifi:{...state.wifi},preview:{wifi:wifiPreview&&!nativeActive},wifiPreviewEnabled:wifiPreview};}
   function signal(node,selector,value){
     node.dataset.signalLevel=value===null?'unknown':String(value);
     node.querySelectorAll(selector).forEach(segment=>{
@@ -44,6 +48,7 @@
     cellular.title=cellLabel;cellular.setAttribute('aria-label',cellLabel);
     wifi.title=wifiLabel;wifi.setAttribute('aria-label',wifiLabel);
     label.textContent=state.internetAvailable?'Online':'Offline';dot.classList.toggle('offline',!state.internetAvailable);
+    pill.setAttribute('aria-label',`${label.textContent}. Open Network & internet`);
     document.documentElement.dataset.internetStatus=state.internetAvailable?'online':'offline';
     if(typeof window.alignBannerText==='function')window.alignBannerText();
     window.dispatchEvent(new CustomEvent('restro:connectivity-changed',{detail:snapshot()}));
@@ -61,8 +66,9 @@
     const connected=bool(wlan.connected)??bool(input.wifiConnected);
     const available=bool(input.internetAvailable)??bool(input.validated);
     const wifiInternet=bool(wlan.internetAvailable)??bool(input.wifiInternetAvailable);
+    const cloud=bool(input.cloudAvailable);
     const reading=(nested,key,flat)=>Object.hasOwn(nested,key)&&(nested[key]===null||level(nested[key])!==null)||Object.hasOwn(input,flat)&&(input[flat]===null||level(input[flat])!==null);
-    if(supported===null&&cellConnected===null&&connected===null&&available===null&&wifiInternet===null&&!reading(cell,'level','cellularLevel')&&!reading(wlan,'level','wifiLevel'))return false;
+    if(supported===null&&cellConnected===null&&connected===null&&available===null&&wifiInternet===null&&cloud===null&&!reading(cell,'level','cellularLevel')&&!reading(wlan,'level','wifiLevel'))return false;
     nativeActive=true;probeVersion++;controller?.abort();state.source='native';
     if(supported!==null)state.hasCellular=supported;
     if(cellConnected!==null)state.cellular.connected=cellConnected;
@@ -70,6 +76,7 @@
     if(connected!==null)state.wifi.connected=connected;
     if(Object.hasOwn(wlan,'level')||Object.hasOwn(input,'wifiLevel'))state.wifi.level=level(wlan.level??input.wifiLevel);
     if(available!==null)state.internetAvailable=available;
+    if(cloud!==null)state.cloudAvailable=cloud;
     if(wifiInternet!==null)state.wifi.internetAvailable=wifiInternet;
     else if(connected===true&&available!==null&&(input.transport==='wifi'||!state.hasCellular))state.wifi.internetAvailable=available;
     if(!state.hasCellular)state.cellular={connected:false,level:null};
@@ -181,6 +188,24 @@
     render();return true;
   }
   previewToggle?.addEventListener?.('change',()=>setWifiPreview(previewToggle.checked));
+  // (owner, 14 Nov 2026) A tap on the pill opens Settings › Network & internet, on the home screen and over an open app.
+  // Over an app the bar is outside the app's window, so the tap is read from where it lands. Not while the screen is
+  // locked, the quick controls or Recent apps show, or a small window is open (a tap there closes that window, as
+  // before).
+  const fullApp=dialog=>[...dialog.classList].some(name=>name.endsWith('-app'));
+  function openNetwork(){
+    if([...document.querySelectorAll('dialog[open]')].some(dialog=>!fullApp(dialog))||typeof window.openSettings!=='function')return false;
+    if(!document.querySelector('#settings-dialog')?.open)window.openSettings();
+    window.RestroThemeSettings?.show('network');
+    return true;
+  }
+  pill.setAttribute('role','button');pill.tabIndex=0;
+  document.addEventListener('click',event=>{
+    const r=pill.getBoundingClientRect();
+    if(!r.width||event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)return;
+    if(openNetwork()){event.preventDefault();event.stopPropagation();}
+  },true);
+  pill.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openNetwork();}});
   window.RestroConnectivity=Object.freeze({update,getStatus:snapshot,refresh,attachNetworkSource,setWifiPreview});
   window.addEventListener('restro:connectivity-status',event=>update(event.detail));
   window.addEventListener('restro:device-ready',refresh);

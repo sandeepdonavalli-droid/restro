@@ -428,7 +428,9 @@ $('#apps-panel').addEventListener('pointerup',event=>{
 });
 $('#apps-panel').addEventListener('pointercancel',()=>{blankPanelPress=null;});
 $$('[data-close]').forEach(button=>button.addEventListener('click',()=>button.closest('dialog').close()));
-$$('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target!==dialog||dialog.classList.contains('settings-app')||dialog.classList.contains('counter-app')||dialog.classList.contains('floor-app')||dialog.classList.contains('customers-app'))return;const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom){dialog.close();if(arranging)setArranging(false);}}));
+// (a tap outside a small window closes it; the full-screen apps (…-app: Counter, Floor, Orders, Customers, Staff,
+// Settings, QR Studio) have no outside but the bar, so a tap on the bar never closes them)
+$$('dialog').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target!==dialog||[...dialog.classList].some(name=>name.endsWith('-app')))return;const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom){dialog.close();if(arranging)setArranging(false);}}));
 $('#move-page').addEventListener('change',updateMovePositions);
 $('#move-form').addEventListener('submit',event=>{
   event.preventDefault();const value=$('#move-page').value,position=Number($('#move-position').value),name=itemOf(moveId).name;

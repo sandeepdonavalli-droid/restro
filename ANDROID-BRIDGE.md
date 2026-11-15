@@ -112,7 +112,8 @@ A status is plain data (a JSON string of it is fine too):
 
 ```js
 {
-  internetAvailable: true,          // the tablet reaches the cloud, by itself or through another device: Online / Offline
+  internetAvailable: true,          // the tablet's own internet (NET_CAPABILITY_VALIDATED): the pill, Online / Offline
+  cloudAvailable: true,             // its data reaches the cloud, itself or through another device: the cloud icon
   transport: 'wifi',                // what the internet goes through: 'wifi', 'cellular', 'ethernet' ...
   wifi: { connected: true, level: 3, internetAvailable: true },  // level 0-4: the bars; false: the "no internet" mark
   hasCellular: true,                // the tablet has a SIM: the mobile signal icon shows
@@ -124,15 +125,23 @@ Send only what you know: a field left out keeps its last value. The flat names `
 `wifiInternetAvailable`, `cellularLevel` and `validated` (for `internetAvailable`) are read too. Settings › Network &
 internet shows Connected through **Wi-Fi** or **Mobile data** from `wifi.connected` and `cellular.connected`.
 
-**Online or Offline, in every app (owner, 14 Nov 2026; a strict rule).** The bar's pill says only **Online** or
-**Offline**, from `internetAvailable`; no app shows anything else there (QR Studio's "No internet" pills are gone).
-`internetAvailable` is `true` while this device reaches the cloud **by itself** (its Wi-Fi's internet or its own mobile
-data, `NET_CAPABILITY_VALIDATED`) **or through another RESTRO device** on the restaurant Wi-Fi: the devices sync with
-each other over the Wi-Fi, and a device whose mobile data reaches the cloud (a handheld) carries everyone's cloud
-traffic, so every device is online (Update Pack 5, I1: local traffic stays on the Wi-Fi, cloud traffic goes over
-mobile data). It is `false` only when no route to the cloud works for this device: no device has internet, or this
-device can't reach the one that has. When the cloud is reached through another device, send `wifi.internetAvailable:
-false` too (the Wi-Fi's own internet), so the Wi-Fi icon keeps its "no internet" mark.
+**Online or Offline: this device (owner, 14 Nov 2026; a strict rule).** The bar's pill says only **Online** or
+**Offline**, in every app, from `internetAvailable`: **this device's own internet** (its Wi-Fi's internet or its own
+mobile data, `NET_CAPABILITY_VALIDATED`). No app shows anything else there (QR Studio's "No internet" pills are gone).
+A tap on the pill opens Settings › Network & internet, on the home screen and over an open app.
+
+**The cloud: the cloud icon (owner, 14 Nov 2026).** The devices sync with each other over the restaurant Wi-Fi, even
+without the internet, and any device that reaches the cloud carries the others' cloud traffic: the main system, or a
+handheld on mobile data while the Wi-Fi has no internet (Update Pack 5, I1: local traffic stays on the Wi-Fi, cloud
+traffic goes over mobile data). `cloudAvailable` is `true` while this device's data reaches the cloud, **by itself or
+through another RESTRO device**, and `false` when no route works (no device has internet, or this device can't reach
+the one that has). The cloud icon (the Sync button, the same on every device: Counter, Orders) shows the crossed-out
+cloud while it is `false`, and everything that needs the cloud follows it, not the pill: UPI and card payments, QR
+orders and Pending, sending messages, Send and Test scan in QR Studio, Orders' older days and its offline note. So a
+tablet whose Wi-Fi has no internet shows **Offline** on the pill while the handheld carries its cloud traffic, and all
+of that keeps working. Left out, `cloudAvailable` follows `internetAvailable` (a browser knows only its own). When the
+cloud is reached only through another device, send `wifi.internetAvailable: false` too, so the Wi-Fi icon keeps its "no
+internet" mark.
 
 Without these, the page checks the internet itself every 30 seconds (and whenever the connection changes) by loading
 `connectivity-check.txt` from its own server, and takes Wi-Fi or mobile data from Capacitor's Network plugin when the
@@ -734,8 +743,8 @@ the middle still scans. Every method here is optional, as noted.
     them in full, "by ‹name›" (owner, 14 Nov 2026); the Counter's history and the slips keep initials.
   - `quietOk`: the quiet warning hidden until then (ms).
 - **Replace** gives the QR a new code, so the old card stops working. **Delete** removes the QR. The cloud (Phase 2)
-  keeps which codes work, from these records as they sync. Delete, Send and Test scan need the internet (greyed
-  offline; Delete says "Needs internet"). Replace works offline: the new code starts working once the change reaches
+  keeps which codes work, from these records as they sync. Delete, Send and Test scan need the cloud (greyed while
+  `cloudAvailable` is false; Delete says "Needs internet"). Replace works offline: the new code starts working once the change reaches
   the cloud, and QR ordering is paused anyway while there is no internet. The cloud finds a table QR's table by its
   code, so the card of a renamed table keeps working; reprinting it prints the same QR with the new name.
 - **The card** (the screens' preview, the print and the PDF): the restaurant's name; "Scan · Order · Pay" (Menu: "Scan
@@ -819,9 +828,11 @@ working.
 Without the app, a device knows only its own internet. It counts the internet gone after 30 s without it (not while
 it starts up, not for a blip) and takes the kitchen printers as working. Send `null` to go back to that.
 
-**The bar's pill:** "Online" or "Offline", as in every app (Connectivity, above; owner, 14 Nov 2026). The pack's "No
-internet" and amber "No internet · orders via Handheld 1" are not shown: a device that reaches the cloud through a
-handheld's mobile data is online, and See devices on the sidebar's card shows how the orders are coming in.
+**The bar's pill:** "Online" or "Offline", as in every app: this device's own internet (Connectivity, above; owner,
+14 Nov 2026). The pack's "No internet" and amber "No internet · orders via Handheld 1" are not shown. A tablet whose
+Wi-Fi has no internet says "Offline" while a handheld's mobile data carries the orders (QS45); QR ordering stays on,
+Send and Test scan stay usable (they follow `cloudAvailable`), and See devices on the sidebar's card shows how the
+orders are coming in.
 
 ### Scans: `restro:qr-scan` or `RestroQrStudio.scanned(scan)`
 

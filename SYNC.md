@@ -49,6 +49,14 @@ change was made on, so a tablet can change servers safely.
 
 **Without the internet:** the tablets keep working together through the main system, and it prints for the kitchen.
 
+**The cloud through any device (owner, 14 Nov 2026):** the devices stay in sync with each other over the restaurant's
+Wi-Fi, and the cloud traffic goes out through whichever device reaches the internet: the main system, or a handheld on
+mobile data while the Wi-Fi has no internet (Update Pack 5, I1). The Android app routes it; for the page, the cloud can
+be reached while `RestroConnectivity`'s `cloudAvailable` is true (ANDROID-BRIDGE.md, Connectivity). The **cloud icon**
+(the Sync button, the same on every device) shows whether this device is connected to the cloud: the crossed-out cloud
+while its data can't reach the cloud by any route, even while it syncs with the other devices. The bar's Online pill
+shows the device's own internet.
+
 **If the main system is off:** a paired tablet signed in to the cloud carries on with the cloud on its own, once the
 main system has been gone for 5 seconds. It goes back to the main system when it is on again. The kitchen printer is
 wired to the main system, so it can't print until then.

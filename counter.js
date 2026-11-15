@@ -1825,19 +1825,22 @@
   // The sync button (Counter Update 5), last on the bar: a tap syncs with the main system or the cloud straight away
   // (RestroSync.syncNow). White with the sync arrows; light blue, turning, while it syncs; a green cloud with a tick for
   // 2 seconds once it is done; amber with the number of changes still to go up; grey with a crossed-out cloud while
-  // there is nothing to sync with (orders are saved on this tablet meanwhile).
+  // there is nothing to sync with (orders are saved on this tablet meanwhile). (Owner, 14 Nov 2026) It tells whether this
+  // device is connected to the cloud: crossed out while its data can't reach the cloud by any route, itself or another
+  // device over the restaurant Wi-Fi (RestroConnectivity's cloudAvailable), as the Sync button in every app.
   let syncBusy = false, syncedUntil = 0, syncTimer = 0;
+  const cloudNow = () => window.RestroConnectivity?.getStatus?.().cloudAvailable !== false;
   function syncLook() {
     const st = window.RestroSync?.status?.();
     if (syncBusy || (st?.upstream === 'cloud' && st.cloud.state === 'syncing')) return { kind: 'syncing' };
     if (Date.now() < syncedUntil) return { kind: 'synced' };
     const reached = st?.upstream === 'hub' ? st.local.state === 'connected' : st?.upstream === 'cloud' ? st.cloud.state !== 'offline' : false;
-    if (!reached) return { kind: 'offline' };
+    if (!reached || !cloudNow()) return { kind: 'offline' };
     return st.waiting > 0 ? { kind: 'pending', count: st.waiting } : { kind: 'normal' };
   }
   function syncButton() {
     const look = syncLook();
-    const label = { normal: 'Sync now', syncing: 'Syncing', synced: 'Synced', pending: `Sync now: ${plural(look.count || 0, 'change')} waiting`, offline: 'Sync now: offline, orders are saved on this tablet' }[look.kind];
+    const label = { normal: 'Sync now', syncing: 'Syncing', synced: 'Synced', pending: `Sync now: ${plural(look.count || 0, 'change')} waiting`, offline: 'Sync now: not connected to the cloud, orders are saved on this tablet' }[look.kind];
     return el('button', { type: 'button', class: `cx-sync ${look.kind}`, 'aria-label': label, title: label, onclick: syncNow },
       mi(look.kind === 'synced' ? 'cloud_done' : look.kind === 'offline' ? 'cloud_off' : 'sync', 20),
       look.kind === 'pending' ? el('span', { class: 'cx-sync-n', 'aria-hidden': 'true' }, look.count > 99 ? '99+' : String(look.count)) : null);
@@ -1858,6 +1861,9 @@
     paintSync();
   }
   window.addEventListener('restro:sync-status', () => { if (dialog.open) paintSync(); });
+  // (the cloud reached or lost through another device: drawn again only when that changes)
+  let cloudWas = cloudNow();
+  window.addEventListener('restro:connectivity-changed', () => { const now = cloudNow(); if (now !== cloudWas) { cloudWas = now; if (dialog.open) paintSync(); } });
 
   const matches = () => {
     const q = query.trim().toLowerCase(); if (!q) return [];

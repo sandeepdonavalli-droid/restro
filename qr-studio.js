@@ -207,7 +207,8 @@
   // 'wifi', state: 'ok' | 'down', paper: 'ok' | null, device: { name, on, lastSeen } (a wired printer's), backup }] }.
   // Without it the page knows only its own internet, and takes the kitchen printers as working.
   let path = null, pathOkSince = 0, autoSince = 0, offlineSince = 0;
-  const internetHere = () => window.RestroConnectivity?.getStatus?.().internetAvailable !== false;
+  // (the cloud from this device: by itself, or through another device over the restaurant Wi-Fi; owner, 14 Nov 2026)
+  const internetHere = () => window.RestroConnectivity?.getStatus?.().cloudAvailable !== false;
   // (on its own, a device counts the internet as gone once it has been gone 30 s: not while it starts up, not for a blip)
   function pathNow(now = Date.now()) {
     if (path) return path;
