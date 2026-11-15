@@ -780,9 +780,12 @@ The sidebar's card and the banner (QS37, QS48, QS53 and the like):
 - During a break (QS48): banner "QR ordering closed for a break · opens today at 7:00 PM", "Turns on by itself at
   opening time."; card "Closed for a break · opens 7:00 PM", "Business hours 11:00 AM – 3:30 PM, 7:00 PM – 11:00 PM
   · last orders 10:30 PM."
-- **See devices** (owner, 14 Nov 2026): on the card, above Pause for a while, while it is paused by itself (QS46), and
-  while it is on (or staying open late) but a step is down: orders coming in on a handheld's mobile data (QS45), or a
-  kitchen printer down while another prints (QS47). Not while closed, and not when every step works (QS1).
+- **See devices** (owner, 14 and 15 Nov 2026): on the card, above Pause for a while, all the time QR ordering is on (or
+  staying open late), so it is always in the same place, and while it is paused by itself (QS46). With every step
+  working it shows them all green: "QR ordering is on · every step works", "Nothing to do."; on a handheld's mobile
+  data or with a kitchen printer down, how the orders get through (QS45, QS47). Not while closed, paused or turned off
+  by hand. In a web browser, with no path from the Android app, it shows the internet only and adds "The printer device
+  and the kitchen printers show here in the RESTRO Android app."
 - **Menu design** (the templates come with the next set of designs): its pill reads "Menu design"; a tap says "Coming
   soon".
 

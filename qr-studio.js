@@ -274,13 +274,6 @@
     // (on before a break: its last orders come first)
     return closed ? { state: 'late', late, closed } : { state: 'on', h, last, lastB: b && lastB != null && now < lastB ? lastB : null };
   }
-  // A step down while QR orders still get through (owner, 14 Nov 2026: See devices on the card then, as QS46): the
-  // internet only through a handheld's mobile data, or a kitchen printer down while another prints
-  function degraded(p = pathNow()) {
-    if (brokenStep(p)) return false;
-    if (p.mobileVia && p.wifiInternet === false) return true;
-    return (p.printers || []).some(k => !(k.state === 'ok' && (k.link !== 'wired' || k.device?.on !== false)));
-  }
 
   // ---------- what needs looking at (the home badge, J) ----------
   // Quiet QRs (no scan in 3 open days, for a QR with a normal scan history), tables renamed since their card was
@@ -398,8 +391,10 @@
     const on = st.state === 'on' || st.state === 'late';
     let cls = '', line, text, buttons;
     const sw = el('button', { type: 'button', class: `qrs-switch${on ? ' on' : ''}`, role: 'switch', 'aria-checked': String(on), 'aria-label': 'QR ordering', onclick: () => switchTapped(st), ...(st.state === 'auto' ? { 'aria-disabled': 'true' } : {}) }, el('span'));
-    // (See devices while it is on but a step is down: on mobile data, or a kitchen printer down; as QS46's card)
-    const devices = on && degraded() ? btn('qrs-cbtn plain', 'See devices', () => openPop('devices')) : null;
+    // (See devices all the time QR ordering is on, in QS46's place, so it is always there to tap (owner, 15 Nov 2026):
+    // with every step working it shows them all green; on mobile data or with a kitchen printer down, how the orders get
+    // through (QS45, QS47))
+    const devices = on ? btn('qrs-cbtn plain', 'See devices', () => openPop('devices')) : null;
     if (st.state === 'on') { line = el('b', { class: 'ok' }, st.lastB ? `On · last orders before the break ${clock(st.lastB)}` : `On · last orders ${clock(st.last ?? st.h.to)}`); text = 'Follows your business hours. Table and Takeaway QRs take paid orders; the Menu QR always works.'; buttons = [devices, pauseBtn()]; }
     else if (st.state === 'late') { line = el('b', { class: 'ok' }, `On · turned on${byWho(st.late.by)} at ${clock(st.late.at)}`); text = 'Turned on by hand outside business hours, so it stays on until someone turns it off.'; buttons = [devices, pauseBtn(true)]; }
     else if (st.state === 'paused') { line = el('b', { class: 'warn' }, `Paused until ${untilWords(st.off.until)}`); text = 'Customers can see the menu but can’t order.'; buttons = [btn('qrs-cbtn', 'Resume now', resume, 'send')]; }
@@ -731,7 +726,8 @@
     else if (many && working.length < kitchen.length) { const backup = working.find(k => k.backup) || working[0], down = kitchen.filter(k => !working.includes(k));
       text = el('p', { class: 'qrs-pnote dark' }, `${backup.name} is ${backup.backup ? 'your backup printer' : 'the first kitchen printer that works'}, so it prints ${down.map(k => `${k.name}’s`).join(' and ')} dishes along with its own until ${down.length === 1 ? `printer ${down[0].name.replace(/^Kitchen printer\s*/i, '') || down[0].name}` : 'they'} ${down.length === 1 ? 'is' : 'are'} back. Bill and receipt printers don’t count.`); }
     else if (p.mobileVia && p.wifiInternet === false) text = el('p', { class: 'qrs-pnote dark' }, `${p.mobileVia} takes in QR orders and sends them over the Wi-Fi to the printer device. Nothing to do.`);
-    else text = el('p', { class: 'qrs-pnote dark' }, 'Nothing to do.');
+    // (a web browser can't see the printers: only the RESTRO Android app reports them, ANDROID-BRIDGE.md)
+    else text = el('p', { class: 'qrs-pnote dark' }, path ? 'Nothing to do.' : 'Nothing to do. The printer device and the kitchen printers show here in the RESTRO Android app.');
     let flow, cls = 'one';
     if (!kitchen.length) flow = el('div', { class: 'qrs-flow' }, internet);
     else if (!many) { const k = kitchen[0]; flow = el('div', { class: 'qrs-flow' }, internet, arrow(), k.link === 'wired' ? [deviceBox(k), arrow()] : null, printerBox(k)); cls = k.link === 'wired' ? 'three' : 'two'; }
