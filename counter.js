@@ -150,7 +150,8 @@
   const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
   // (owner, 16 Nov 2026) An event's order (Update Pack 6, I) and an online one (the restaurant's own website or app) keep
   // their type here: the type tile at the top shows Event or Online, and a tap on it changes nothing. Neither is one of
-  // the four types to pick.
+  // the four types to pick. Beside it, the customer the order came with, or an event table ("Event table 3"), a tap
+  // changing nothing either. Pager works; Modify works for the dishes added here only; Schedule and Hold are greyed.
   const fixedType = o => (o?.type === 'event' ? 'event' : o?.online === true ? 'online' : null);
   const cleanPager = n => Number.isInteger(n) && n >= 1 && n <= 99 ? n : 0;
   // A pager's life on an order: handed out (pagerAt; an order from before this kept its creation time) and back
@@ -211,7 +212,7 @@
   const cleanEvents = list => (Array.isArray(list) ? list : []).filter(e => e && typeof e === 'object' && EVENT_KINDS.includes(e.kind) && Number.isFinite(e.at)).slice(-200);
   const restoreOrder = o => {
     const type = TYPES.includes(o.type) || o.type === 'event' ? o.type : null;
-    return { type, ...(o.online === true ? { online: true } : {}), split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer) || guestOf(o.customer),
+    return { type, ...(o.online === true ? { online: true } : {}), ...(type === 'event' && o.event && typeof o.event === 'object' ? { event: { ...o.event } } : {}), split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer) || guestOf(o.customer),
       pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), pagerShared: o.pagerShared === true && cleanPager(o.pager) > 0, readyAt: cleanTime(o.readyAt), kotMode: ['queue', 'now', 'ask'].includes(o.kotMode) ? o.kotMode : null, prepMin: prepOf(o.prepMin), holdUntil: cleanTime(o.holdUntil),
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
       discountPct: window.RestroBill.pct(o.discountPct), servicePct: window.RestroBill.rate(o.servicePct), priority: o.priority === true, note: cleanNote(o.note), guests: cleanGuests(o.guests),
@@ -222,7 +223,7 @@
         .map(l => {
           const custom = items.has(l.id) ? null : cleanCustom(l.custom), off = window.RestroBill.pct(l.off), kit = cleanKit(l.id, l.kit);
           return { id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type, mods: custom ? [] : cleanMods(l.id, l.mods), note: cleanNote(l.note), ...(custom ? { custom } : {}),
-            ...(off ? { off, ...(off === 100 && cleanReason(l.offReason) ? { offReason: cleanReason(l.offReason) } : {}) } : {}), ...(kit.length ? { kit } : {}) };
+            ...(off ? { off, ...(off === 100 && cleanReason(l.offReason) ? { offReason: cleanReason(l.offReason) } : {}) } : {}), ...(kit.length ? { kit } : {}), ...(l.here === true ? { here: true } : {}) };
         }) };
   };
   // The kitchen side of a line (Update 7): the dish as the kitchen knows it (its type and choices; not its discount), and
@@ -261,7 +262,10 @@
   // (A line whose choices are being changed in its pop-up is "edit": it stays a line of its own until the pop-up closes,
   // even when its choices match another line's; then they are merged. A dish discount makes a line of its own too.)
   const offKey = line => (line.off ? `%${line.off}` : '');
-  const keyOf = line => `${line.id}@${lineType(line)}${modsKey(line.mods)}${offKey(line)}${line.edit ? '!edit' : ''}`;
+  // (On an event's order or an online one, a dish added here is "here": a line of its own, never merged with the dishes
+  // the order came with, and only it can be moved to another order type with Modify: owner, 16 Nov 2026.)
+  const hereKey = line => (line.here ? '~here' : '');
+  const keyOf = line => `${line.id}@${lineType(line)}${modsKey(line.mods)}${offKey(line)}${hereKey(line)}${line.edit ? '!edit' : ''}`;
   let order = blankOrder(), category = null, query = '', selected = null, sheet = null, receipt = null, typeMenu = false, optionsMenu = false, deleteArmed = false;
   // The pop-ups over the menu (Counter Update 4); sheet says which one is open ('mods', 'qty', 'note')
   let modPop = null;                                    // modifiers: { key (the line), added (opened as the dish was added), tried (closing was tried with a required group empty), note (Update 6: { draft }, the note being typed in it) }
@@ -366,14 +370,14 @@
     // (a sold-out dish (Update 7) adds nothing: "Fish fingers is sold out")
     if (soldOut(id)) { say({ b: items.get(id)?.name || 'This dish', t: ' is sold out' }); return; }
     if (!groupsOf(id).length) { addLine(id, []); return; }
-    const line = { id, qty: 1, type: order.type, mods: [], note: '', edit: true };
+    const line = { id, qty: 1, type: order.type, mods: [], note: '', edit: true, ...(fixedType(order) ? { here: true } : {}) };
     order.lines.push(line);
     selected = keyOf(line); modPop = { key: selected, added: true, tried: false, was: { mods: [], qty: 1, note: '' } }; qtyPop = null; notePop = null; sheet = 'mods'; render();
     showLine(selected);
   }
   function addLine(id, mods) {
-    const type = order.type, key = `${id}@${type || DEFAULT_TYPE}${modsKey(mods)}`, line = order.lines.find(l => keyOf(l) === key);
-    if (line) line.qty += 1; else order.lines.push({ id, qty: 1, type, mods: [...mods], note: '' });
+    const here = Boolean(fixedType(order)), type = order.type, key = `${id}@${type || DEFAULT_TYPE}${modsKey(mods)}${here ? '~here' : ''}`, line = order.lines.find(l => keyOf(l) === key);
+    if (line) line.qty += 1; else order.lines.push({ id, qty: 1, type, mods: [...mods], note: '', ...(here ? { here: true } : {}) });
     selected = null; render();
     showLine(key);
   }
@@ -417,10 +421,10 @@
     const merged = [];
     for (const line of order.lines) {
       if (line.edit) { merged.push(line); continue; } // (its modifier pop-up is open: a line of its own until it closes)
-      const type = lineType(line), mods = line.mods || [], same = merged.find(m => !m.edit && m.id === line.id && m.type === type && modsKey(m.mods) === modsKey(mods) && (m.off || 0) === (line.off || 0));
+      const type = lineType(line), mods = line.mods || [], same = merged.find(m => !m.edit && m.id === line.id && m.type === type && modsKey(m.mods) === modsKey(mods) && (m.off || 0) === (line.off || 0) && Boolean(m.here) === Boolean(line.here));
       if (!same) {
         merged.push({ id: line.id, qty: line.qty, type, mods: [...mods], note: line.note || '', ...(line.custom ? { custom: line.custom } : {}),
-          ...(line.off ? { off: line.off, ...(line.offReason ? { offReason: line.offReason } : {}) } : {}), ...(line.kit?.length ? { kit: line.kit.map(k => ({ ...k, mods: [...k.mods] })) } : {}) });
+          ...(line.off ? { off: line.off, ...(line.offReason ? { offReason: line.offReason } : {}) } : {}), ...(line.kit?.length ? { kit: line.kit.map(k => ({ ...k, mods: [...k.mods] })) } : {}), ...(line.here ? { here: true } : {}) });
         continue;
       }
       same.qty += line.qty;
@@ -431,7 +435,7 @@
   }
   function moveLine(key, type) {
     const line = order.lines.find(l => keyOf(l) === key); if (!line) return;
-    line.type = type; tidy(); selected = `${line.id}@${type}${modsKey(line.mods)}${offKey(line)}`; render();
+    line.type = type; tidy(); selected = `${line.id}@${type}${modsKey(line.mods)}${offKey(line)}${hereKey(line)}`; render();
   }
   // Changing the order type puts every item on the new type, with Modify on or off (with Modify on, items can then be
   // moved to other types again). The same item on two types becomes one line. No type (null) means the default, Dine in.
@@ -830,7 +834,7 @@
       // each line's price is one with its add-ons (a choice that sets the price: that price); its choices and note; its
       // dish discount (Update 7); a custom item keeps what was typed for it (Counter Update 5), so the order opens again
       // with it
-      lines: order.lines.map(l => ({ id: l.id, name: itemOf(l).name, price: eachOf(l), qty: l.qty, type: lineType(l), ...(l.custom ? { custom: { ...l.custom } } : {}),
+      lines: order.lines.map(l => ({ id: l.id, name: itemOf(l).name, price: eachOf(l), qty: l.qty, type: lineType(l), ...(l.here ? { here: true } : {}), ...(l.custom ? { custom: { ...l.custom } } : {}),
         ...(l.mods?.length ? { mods: modObjs(l.mods) } : {}), ...(l.note ? { note: l.note } : {}),
         ...(l.off ? { off: l.off, ...(l.offReason ? { offReason: l.offReason } : {}) } : {}) })), ...totals(),
       // Update 7: the order note (on every KOT), priority (kitchen only), the guest count
@@ -956,6 +960,7 @@
   // nothing); a scheduled order's queued KOT doesn't stop it, and nothing prints while it is held. A held order lets its
   // table and pager go (a saved one's too); its customer and ready time stay.
   function holdTicket() {
+    if (fixedType(order)) return; // (an event's order or an online one isn't held: owner, 16 Nov 2026)
     if (!order.lines.length) { toast('Nothing to hold'); return; }
     const list = loadOrders(), rec = savedOf(list);
     if (kotPrinted(rec)) return;
@@ -1189,7 +1194,7 @@
       return;
     }
     const n = order.number, was = opened ? restoreOrder(JSON.parse(opened)) : null;
-    const before = new Map((was ? was.lines : []).map(l => [`${l.id}@${typeOf(was, l)}${modsKey(l.mods)}${offKey(l)}`, l.qty]));
+    const before = new Map((was ? was.lines : []).map(l => [`${l.id}@${typeOf(was, l)}${modsKey(l.mods)}${offKey(l)}${hereKey(l)}`, l.qty]));
     const added = unsaved ? order.lines.map(l => { const { kit, ...rest } = l; return { ...rest, qty: l.qty - (before.get(keyOf(l)) || 0) }; }).filter(l => l.qty > 0) : [];
     const how = stored ? 'paid' : 'deleted';
     if (added.length) {
@@ -1688,19 +1693,26 @@
     const typeBtn = ctxButton(shown ? 'amber' : 'grey unset', shown ? typeIcon[shown] : 'receipt_long', 20, typeLabel[shown] || 'Order type',
       { class: `cx-b ${shown ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': fixed ? null : 'true', 'aria-expanded': fixed ? null : String(typeMenu),
         'aria-label': fixed ? `Order type ${typeLabel[fixed]}` : order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
-    const who = order.type === 'dine-in'
+    // (an event's order or an online one: the customer it came with, or an event table's name, "Event table 3"; a tap
+    // changes nothing, as on the type tile: owner, 16 Nov 2026)
+    const evTable = order.type === 'event' && order.event?.table ? `Event table ${order.event.floor ? tableName(order.event.table) : order.event.table}` : '';
+    const who = fixed && (evTable || c)
+      ? ctxButton('grey', evTable ? 'table' : 'person', 19, evTable || c.name, { class: 'cx-b grey cx-who set', 'aria-label': evTable || `Customer ${c.name}` })
+      : order.type === 'dine-in'
       ? ctxButton('grey', 'table', 19, table ? `Table ${table}` : 'Choose table', { class: `cx-b grey cx-who${table ? ' set' : ''}`, 'aria-label': table ? `Table ${table}${order.guests ? `, ${plural(order.guests, 'guest')}` : ''}. Tap to change the table` : 'Choose table', onclick: pickTable },
         false, table && order.guests ? el('span', { class: 'cx-gchip', 'aria-hidden': 'true' }, mi('group', 18), String(order.guests)) : null)
       : ctxButton('grey', c ? 'person' : 'person_add', 19, c ? c.name : 'Add Customer', { class: `cx-b grey cx-who${c ? ' set' : ''}`, 'aria-label': c ? `Customer ${c.name}. Tap to change the customer` : 'Add customer', onclick: pickCustomer });
     const pager = ctxButton(order.pager ? 'violet' : 'grey', 'vibration', 19, order.pager ? `Pager ${order.pager}` : 'Pager',
       { class: `cx-b ${order.pager ? 'violet' : 'grey'} sm cx-pager`, 'aria-label': order.pager ? `Pager ${order.pager}. Tap to change the pager` : 'Assign a pager', onclick: () => { sheet = 'pager'; render(); } });
     const print = printButton();
-    // (Update Pack 4: plum with the time, "10:00 pm" or "Thu 1:00 pm"; it opens the picker)
+    // (Update Pack 4: plum with the time, "10:00 pm" or "Thu 1:00 pm"; it opens the picker. Greyed on an event's order or
+    // an online one, as Hold: owner, 16 Nov 2026)
     const schedule = chip(order.readyAt ? 'plum' : 'grey', 'schedule', 17, order.readyAt ? readyShort(order.readyAt) : 'Schedule',
-      { class: `cx-chip ${order.readyAt ? 'plum' : 'grey'} cx-sched`, 'aria-label': order.readyAt ? `Ready by ${readyShort(order.readyAt)}. Tap to change` : 'Schedule', onclick: () => openSchedule() });
+      { class: `cx-chip ${order.readyAt ? 'plum' : 'grey'} cx-sched${fixed ? ' off' : ''}`, 'aria-disabled': fixed ? 'true' : null,
+        'aria-label': order.readyAt ? `Ready by ${readyShort(order.readyAt)}${fixed ? '' : '. Tap to change'}` : 'Schedule', onclick: () => { if (!fixed) openSchedule(); } });
     const modify = chip(order.split ? 'dark' : 'grey', 'edit', 17, 'Modify', { class: `cx-chip ${order.split ? 'dark' : 'grey'} cx-modify`, role: 'switch', 'aria-checked': String(order.split), onclick: () => setSplit(!order.split) });
-    const rec = savedOf(loadOrders()), kotGone = kotPrinted(rec);
-    const holdBtn = chip('hold', 'pause_circle', 17, 'Hold', { class: `cx-chip hold cx-hold${kotGone ? ' off' : ''}`, 'aria-disabled': kotGone ? 'true' : null, onclick: holdTicket });
+    const rec = savedOf(loadOrders()), kotGone = kotPrinted(rec), noHold = kotGone || Boolean(fixed);
+    const holdBtn = chip('hold', 'pause_circle', 17, 'Hold', { class: `cx-chip hold cx-hold${noHold ? ' off' : ''}`, 'aria-disabled': noHold ? 'true' : null, onclick: holdTicket });
     const tiles = { type: typeBtn, customer: who, pager, print, schedule, modify, hold: holdBtn };
     const group = name => panelOrder[name].map(key => el('div', { class: 'cx-seg', 'data-tile': key }, tiles[key]));
     // The four types, two by two over the context row and the header (those step out of sight meanwhile)
@@ -1729,7 +1741,8 @@
     const list = el('ul', { class: 'cx-lines', 'aria-label': 'Items in this order' });
     if (!order.lines.length) list.append(el('li', { class: 'cx-empty' }, el('strong', {}, 'No items yet'), el('span', {}, 'Tap an item to add it.')));
     const lineRow = line => {
-      const item = itemOf(line), key = keyOf(line), sel = selected === key, open = order.split && sel, each = eachOf(line);
+      // (Modify: on an event's order or an online one, only a dish added here can be served as another type)
+      const item = itemOf(line), key = keyOf(line), sel = selected === key, open = order.split && sel && !(fixed && !line.here), each = eachOf(line);
       // (Update 7: a choice that sets the price, "Half", first and dark)
       const mods = (line.mods || []).map(m => {
         const o = optionOf.get(m), kind = `cx-mc ${o?.mode === 'set' ? 'por' : o?.kind === 'spice' ? 'sp' : 'nn'}`;
@@ -1761,7 +1774,7 @@
             ...TYPES.map(type => el('button', { type: 'button', role: 'radio', 'aria-checked': String(lineType(line) === type), class: lineType(line) === type ? 'on' : '', onclick: () => moveLine(key, type) }, mi(typeIcon[type], 18), typeLabel[type]))) : null));
     };
     // With Modify on, the lines go under their order types once more than one type is in use
-    const inUse = TYPES.filter(type => order.lines.some(l => lineType(l) === type));
+    const inUse = (order.type === 'event' ? ['event', ...TYPES] : TYPES).filter(type => order.lines.some(l => lineType(l) === type));
     if (order.split && inUse.length > 1) {
       for (const type of inUse) {
         const group = order.lines.filter(l => lineType(l) === type), count = group.reduce((n, l) => n + l.qty, 0);
@@ -2629,7 +2642,7 @@
     if (p.field) { customSet(); return; }
     const price = parseInt(p.price, 10);
     if (!(price > 0)) { customField('price'); return; }
-    const line = { id: newCustomId(), qty: p.qty, type: order.type, mods: [], note: cleanNote(p.note), custom: cleanCustom({ name: p.name, veg: p.veg, price, cat: p.cat }) };
+    const line = { id: newCustomId(), qty: p.qty, type: order.type, mods: [], note: cleanNote(p.note), custom: cleanCustom({ name: p.name, veg: p.veg, price, cat: p.cat }), ...(fixedType(order) ? { here: true } : {}) };
     order.lines.push(line);
     customPop = null; sheet = null; selected = null; render();
     showLine(keyOf(line));

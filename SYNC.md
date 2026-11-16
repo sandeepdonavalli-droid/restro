@@ -167,7 +167,8 @@ Every record that changed gets a new version and waits to be sent. The tablet re
 A merge starts from the version both sides started from:
 
 - **Fields.** A field changed on one side takes that side. A field changed on both takes the later version's.
-- **Order lines.** Lines merge item by item (the same item with other choices, such as Extra spicy, is a line of its own):
+- **Order lines.** Lines merge item by item (the same item with other choices, such as Extra spicy, is a line of its own,
+  and so is a dish added on the Counter to an event's order or an online one, `here: true`):
   - Quantities add up both sides' changes: mine + theirs − what both started from.
   - An item taken off on one side, and left alone on the other, goes.
 - **Kitchen tickets.** The tickets from both sides are kept. For what was sent to the kitchen, the larger count wins.

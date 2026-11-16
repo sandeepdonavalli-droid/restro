@@ -34,8 +34,9 @@
   // ---------- what syncs ----------
   // An order's line is known by its item, its order type and its choices (modifiers): the same item with other choices
   // is a line of its own (counter.js). A saved order keeps its choices as { id, label, ... }; the one on screen as ids.
-  // (Counter Update 7: a dish discount makes a line of its own too, "%10")
-  const lineKey = l => `${l.id}@${l.type || ''}${Array.isArray(l.mods) && l.mods.length ? `#${l.mods.map(m => (typeof m === 'string' ? m : m?.id)).join('+')}` : ''}${Number.isInteger(l.off) && l.off > 0 ? `%${l.off}` : ''}`;
+  // (Counter Update 7: a dish discount makes a line of its own too, "%10"; and a dish added on the Counter to an event's
+  // order or an online one, "~here": owner, 16 Nov 2026)
+  const lineKey = l => `${l.id}@${l.type || ''}${Array.isArray(l.mods) && l.mods.length ? `#${l.mods.map(m => (typeof m === 'string' ? m : m?.id)).join('+')}` : ''}${Number.isInteger(l.off) && l.off > 0 ? `%${l.off}` : ''}${l.here === true ? '~here' : ''}`;
   // Collections: a list of records under one key, `id` naming a record, with the rules for merging two versions.
   const COLLECTIONS = {
     orders: { key: 'restro.counter.orders.v1', id: o => (typeof o?.uid === 'string' ? o.uid : Number.isFinite(o?.number) ? `n${o.number}` : null),

@@ -197,8 +197,8 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-chips>[data-tile="modify"]>.cx-chip,.cx-chips>[data-tile="hold"]>.cx-chip{width:100%;justify-content:center}
 .cx-chip{height:calc(36 * var(--u));max-width:100%;box-sizing:border-box;margin:0;padding:0 calc(13 * var(--u));border:0;border-radius:999px;display:inline-flex;align-items:center;gap:calc(6 * var(--u));background:#F3F4F7;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10);font-size:calc(14 * var(--u));font-weight:600;line-height:normal;white-space:nowrap;cursor:pointer}
 .cx-chip.plum{background:#F5E9F8;color:#8A3F9A;box-shadow:inset 0 0 0 1px #E3C6EA} /* (Update Pack 4: a ready time; the pink one is gone) */
-.cx-chip.hold.off{background:#F3F4F6;color:#C4C0BC;box-shadow:inset 0 0 0 1.5px #E7E8EB;cursor:default} /* (once a KOT has printed) */
-.cx-chip.hold.off:active{transform:none}
+.cx-chip.hold.off,.cx-chip.cx-sched.off{background:#F3F4F6;color:#C4C0BC;box-shadow:inset 0 0 0 1.5px #E7E8EB;cursor:default} /* (once a KOT has printed; Schedule and Hold on an event's or online order) */
+.cx-chip.hold.off:active,.cx-chip.cx-sched.off:active{transform:none}
 .cx-chip.dark{background:#4B5058;color:#FFFFFF;box-shadow:none}
 .cx-chip.hold{background:#E2E5EA;box-shadow:inset 0 0 0 1.5px #C9CED6}
 /* The lines, edge to edge of the panel (the list scrolls when they don't fit) */
