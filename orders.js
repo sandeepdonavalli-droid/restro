@@ -60,7 +60,8 @@
   }
   // Icons: the pack's own (Update Pack 4, 05_html-reference) and Material Symbols Rounded (Apache 2.0) for the rest;
   // m: on the 960 grid, w: on the 24 grid, or a viewBox of its own. The order types' icons are the one set every app
-  // shares (order-type-icons.js, Update Pack 5 Icon Pack 1): dineIn, takeaway, delivery, online, phone.
+  // shares (order-type-icons.js, Update Pack 5 Icon Pack 1): dineIn, takeaway, delivery, online, phone; and event (Update
+  // Pack 6, Icon Pack 1.1).
   const ICON = {
     search: ['m', 'M380-320q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z'],
     calendar: ['m', 'M180-80q-24 0-42-18t-18-42v-620q0-24 18-42t42-18h65v-28q0-13.6 9.2-22.8 9.2-9.2 22.8-9.2 14.02 0 23.51 9.2Q310-861.6 310-848v28h340v-28q0-13.6 9.2-22.8 9.2-9.2 22.8-9.2 14.03 0 23.51 9.2Q715-861.6 715-848v28h65q24 0 42 18t18 42v620q0 24-18 42t-42 18H180Zm0-60h600v-430H180v430Z'],
@@ -120,8 +121,9 @@
   // ---------- words and numbers ----------
   // Our order types (the type tile: our own icon in its colour, Icon Pack 1: Online sky blue in Light, rose in Midnight)
   // in the order the Order type filter lists them, then the delivery apps (their logo, from the integration)
+  // (Update Pack 6, I: Event, teal, after Delivery)
   const TYPES = { 'dine-in': ['Dine-in', 'dineIn', '#9A6B1F'], takeaway: ['Takeaway', 'takeaway', '#2E7D4F'], online: ['Online', 'online', '#0284C7'],
-    phone: ['Phone call', 'phone', '#2F5FB3'], delivery: ['Delivery', 'delivery', '#6D4BC4'] };
+    phone: ['Phone call', 'phone', '#2F5FB3'], delivery: ['Delivery', 'delivery', '#6D4BC4'], event: ['Event', 'event', '#0F766E'] };
   const TYPE_ORDER = Object.keys(TYPES);
   const PLATFORMS = { swiggy: ['Swiggy', '#E8711F'], zomato: ['Zomato', '#C8303B'] };
   const PAID_BY = { cash: 'Cash', upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet', swiggy: 'Swiggy', zomato: 'Zomato' };
@@ -264,7 +266,12 @@
     // who: the table (dine-in) with the guests and the server, or the customer with their phone and who took it
     const phone = phoneOf(o.customer, Boolean(platform)), name = o.customer?.name || '', server = o.server || '';
     const dine = !platform && o.table && (o.type === 'dine-in' || o.split);
-    const who = dine
+    // (Update Pack 6, I) an event's order: "<event> · Dine-in" (or Takeaway), then the customer and their phone (one QR for
+    // the whole event) or "Event table 3" (a QR per event table)
+    const evo = !platform && o.type === 'event' && o.event && typeof o.event === 'object' ? o.event : null;
+    const ev = evo ? { name: String(evo.name || 'Event'), mode: evo.mode === 'takeaway' ? 'Takeaway' : 'Dine-in', where: evo.table ? `Event table ${evo.floor ? tableName(evo.table) : evo.table}` : '' } : null;
+    const who = ev ? { l1: `${ev.name} · ${ev.mode}`, l2: ev.where || [name, phone].filter(Boolean).join(' · ') }
+      : dine
       ? { l1: `Table ${tableName(o.table)}${o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : ''}`, l2: server ? `Server: ${server}` : '' }
       : { l1: name || (platform ? 'Customer' : 'Guest'), l2: platform ? phone : [phone, type.key === 'online' ? (o.source === 'App' ? 'App' : 'Website') : phone ? initialsOf(server) : server ? `Server: ${server}` : ''].filter(Boolean).join(' · ') };
     if (platform && (o.callCode || o.handover || (o.platformType !== 'pickup' && o.riderAt))) who.codes = { call: o.callCode || '', handover: o.handover || '', rider: o.platformType !== 'pickup' && o.riderAt ? timeOf(o.riderAt) : '' };
@@ -277,7 +284,7 @@
     const kot = pending ? { look: 'confirm', label: 'Confirm !' } : past ? { look: 'off', label: 'KOT' } : kots.some(k => k.failed) ? { look: 'err', label: 'KOT !' }
       : queued ? { look: 'q', at: kotAt, label: dayOf(kotAt) === (refDay || dayOf(now)) ? timeOf(kotAt) : weekday(kotAt) } : { look: kots.length ? 'on' : 'off', label: 'KOT' };
     const third = platform ? { kind: o.platformReadyAt || status.closed ? 'marked' : 'ready', on: !past }
-      : { kind: 'notify', on: !past && !pending && Boolean(phone), line: lastTry(o.notifiedAt, o.notifyFailedAt) };
+      : { kind: 'notify', on: !past && !pending && Boolean(phone) && !ev, line: lastTry(o.notifiedAt, o.notifyFailedAt) }; // (an event's: greyed, as OE1 draws it)
     const buzz = { no: o.pager ? String(o.pager) : '', on: !past && !pending && !status.closed && Boolean(o.pager) && Boolean(o.pagerOut), line: lastTry(o.buzzedAt, o.buzzFailedAt) };
     // can it be deleted (long-press): only Due orders, and never a delivery app's (it is cancelled on the app); a Pending
     // QR order never (H1: dimmed with its "Pending" chip), nor one whose payment failed (not a Due order: its own status)
@@ -285,7 +292,7 @@
     const failed = pay.key === 'fail';
     const lock = pending ? 'Pending' : platform ? `${type.name} · cancel on ${type.name}` : pay.key === 'np' ? '' : pay.key === 'part' ? 'Part paid' : failed ? 'Payment failed' : 'Paid';
     const forDay = o.readyAt ? dayOf(o.readyAt) : null, taken = dayOfOrder(o);
-    return { o, id, when, type, qr, numbers, who, status, pay, tags, kot, third, buzz, lock, pending, failed, phone, name, server, dine,
+    return { o, id, when, type, qr, numbers, who, status, pay, tags, kot, third, buzz, lock, pending, failed, phone, name, server, dine, ev,
       taken, forDay: forDay && forDay !== taken ? forDay : null, paidDay: pay.at ? dayOf(pay.at) : null,
       find: { name: name.toLowerCase(), l1: who.l1.toLowerCase(), phone: (o.customer?.mobile || '').replace(/\D/g, ''), number: o.number, platformNo: String(o.platformNo || ''),
         table: dine ? String(tableName(o.table)).toLowerCase() : '', pager: Number(o.pager) || 0, handover: String(o.handover || '') } };
@@ -735,11 +742,14 @@
     return out;
   }
   // "+91 90000 00000 · AB": the phone never breaks across lines
-  const whoLine = r => {
-    const l2 = r.who.l2; if (!l2) return null;
-    if (r.phone && l2.startsWith(r.phone)) return el('span', {}, el('span', { class: 'nb' }, hl(r.phone, 'phone')), l2.slice(r.phone.length));
-    return l2;
+  const whoParts = r => {
+    const l2 = r.who.l2; if (!l2) return [];
+    if (r.phone && l2.startsWith(r.phone)) return [el('span', { class: 'nb' }, hl(r.phone, 'phone')), l2.slice(r.phone.length)];
+    // (an event's "‹customer› · ‹phone›": the name first)
+    if (r.phone && l2.endsWith(r.phone)) return [hl(l2.slice(0, -r.phone.length), 'name'), el('span', { class: 'nb' }, hl(r.phone, 'phone'))];
+    return [l2];
   };
+  const whoLine = r => (r.who.l2 ? el('span', {}, ...whoParts(r)) : null);
   // (Update Pack 5, K) the small blue QR tag by the order type of an order placed by QR
   const qrTag = r => (r.qr ? el('span', { class: 'or-qr', title: 'Placed by QR' }, icon('qr'), 'QR') : null);
   const tagsOf = r => [r.tags.disc ? el('span', { class: 'or-mk', title: 'Discount', 'aria-label': 'Discount' }, icon('tag')) : null, r.tags.void ? el('span', { class: 'or-mk', title: 'Voided after KOT', 'aria-label': 'Voided after KOT' }, icon('void')) : null];
@@ -885,7 +895,7 @@
     const lines = [
       el('div', { class: 'l1' }, el('b', {}, r.type.label), qrTag(r), r.type.time ? el('span', { class: 'pt' }, r.type.time) : null),
       el('div', { class: 'l2' }, ...numbersOf(r), ` · ${timeOf(r.when)}${(range && range.from !== range.to) || (!range && r.taken !== todayKey()) ? ` · ${dateOf(r.when)}` : ''}`),
-      el('div', { class: 'l2' }, el('b', { class: 'cn' }, hl(r.who.l1, 'name')), ...(r.who.l2 ? [' · ', ...(r.phone && r.who.l2.startsWith(r.phone) ? [el('span', { class: 'nb' }, hl(r.phone, 'phone')), r.who.l2.slice(r.phone.length)] : [r.who.l2])] : [])),
+      el('div', { class: 'l2' }, el('b', { class: 'cn' }, hl(r.who.l1, 'name')), ...(r.who.l2 ? [' · ', ...whoParts(r)] : [])),
       el('div', { class: `lst ${r.status.cls}` }, el('b', {}, r.status.text), r.status.sub ? el('span', { class: `ss ${r.status.subCls || ''}`.trim() }, r.status.sub) : null),
       r.pending ? el('div', { class: 'kfl' }, icon('alert'), 'Payment pending · tap Confirm !')
         : r.failed ? el('div', { class: 'kfl' }, icon('alert'), 'Payment failed · tap Bill !')
@@ -912,8 +922,11 @@
   function detailEl(r) {
     const o = r.o, { items, sub, labels, b } = sumsOf(o), queued = r.kot.look === 'q';
     // (a word found in the name or table is marked in the list, not in this title; a number found is marked in both: F2, K4)
-    const title = r.type.platform ? numbersOf(r) : r.dine ? [r.who.l1.split(' · ')[0], ' · ', hl(`Order ${ticket(o.number)}`, 'number')] : [r.name || r.type.label, ' · ', hl(`Order ${ticket(o.number)}`, 'number')];
+    const title = r.type.platform ? numbersOf(r) : r.dine ? [r.who.l1.split(' · ')[0], ' · ', hl(`Order ${ticket(o.number)}`, 'number')]
+      : r.ev ? [r.ev.name, ' · ', hl(`Order ${ticket(o.number)}`, 'number')] : [r.name || r.type.label, ' · ', hl(`Order ${ticket(o.number)}`, 'number')];
+    // (an event's: "Event · Dine-in · QR · ‹customer› · ‹phone›" or "… · QR · Event table 3")
     const meta = r.type.platform ? [`${r.type.label} · ${r.name || 'Customer'}`, r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null]
+      : r.ev ? [`${r.type.label} · ${r.ev.mode}`, r.qr ? ' · QR' : '', r.ev.where ? ` · ${r.ev.where}` : r.name ? ` · ${r.name}` : '', !r.ev.where && r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null]
       : r.dine ? [r.type.label, r.qr ? ' · QR' : '', o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.server ? ` · Server: ${r.server}` : '']
         : [r.type.label, r.qr ? ' · QR' : '', r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null];
     // (OS4, OS7) "KOT prints at 8:00 pm" today; "KOT prints Tue 10 Nov, 12:20 pm" on another day
@@ -1233,7 +1246,7 @@
     renderLayer();
   }
   const WHY = { paper: 'Kitchen printer was out of paper', offline: 'Kitchen printer was offline', cover: 'Kitchen printer’s cover was open' };
-  const whoOf = r => (r.dine ? r.who.l1.split(' · ')[0] : r.name || r.type.label);
+  const whoOf = r => (r.dine ? r.who.l1.split(' · ')[0] : r.name || r.ev?.where || r.type.label);
   function kotCard(r) {
     const { k, picked } = pop, failed = k.kots.filter(x => x.failed), shown = [...failed, ...k.kots.filter(x => !x.failed)];
     const tick = x => el('button', { type: 'button', class: `or-kotc${picked.has(x.id) ? ' on' : ''}${x.failed ? ' failed' : ''}`, role: 'checkbox', 'aria-checked': String(picked.has(x.id)),
@@ -1331,7 +1344,7 @@
   // one made wins on every tablet (K: "Already confirmed by ‹name› · 7:28 pm").
   function openPaid(r) { pop = { kind: 'paid', id: r.id, choice: null }; renderLayer(); }
   // the words: "Order #1032 · Table 3 · QR · ₹1,260.00" (a Takeaway QR's: the customer's name)
-  const qrWho = r => (r.dine ? r.who.l1.split(' · ')[0] : r.name || r.type.label);
+  const qrWho = r => (r.dine ? r.who.l1.split(' · ')[0] : r.name || r.ev?.where || r.type.label);
   const qrSub = r => `Order ${ticket(r.o.number)} · ${qrWho(r)} · QR · ${money(Number(r.o.total) || 0)}`;
   // "paid today around 7:25 PM" (another day: "yesterday", "on Sun 8 Nov")
   function aroundOf(t) {
@@ -1539,7 +1552,7 @@
     } else if (menu === 'type') {
       // (Update Pack 5, K) Dine-in · Takeaway · Online · Phone call · Delivery · the delivery apps · QR: each order under
       // its own type (a mixed one under its first type only), and QR every order placed by QR, whatever its type
-      head = 'ORDER TYPES'; foot = 'Tick one or more · QR shows every order placed by QR, Dine-in or Takeaway';
+      head = 'ORDER TYPES'; foot = 'Tick one or more · QR shows every order placed by QR: Dine-in, Takeaway or Event';
       row(false, 'All order types', v.all.length, check(false), () => { typesF = new Set(); }); sep();
       const apps = Object.keys(PLATFORMS), tick = key => () => { if (typesF.has(key)) typesF.delete(key); else typesF.add(key); typesF = new Set(typesF); };
       [...Object.keys(TYPES), ...apps].forEach(key => {

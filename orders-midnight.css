@@ -369,6 +369,8 @@ html[data-app-theme="midnight"] .orders-app .or-tt[style*="2E7D4F"],html[data-ap
 html[data-app-theme="midnight"] .orders-app .or-tt[style*="2F5FB3"],html[data-app-theme="midnight"] .orders-app .or-it .ii[style*="2F5FB3"]{color:#8396BF!important}
 html[data-app-theme="midnight"] .orders-app .or-tt[style*="6D4BC4"],html[data-app-theme="midnight"] .orders-app .or-it .ii[style*="6D4BC4"]{color:#9890BE!important}
 html[data-app-theme="midnight"] .orders-app .or-tt[style*="0284C7"],html[data-app-theme="midnight"] .orders-app .or-it .ii[style*="0284C7"]{color:#C98BA5!important}
+/* (Update Pack 6, Icon Pack 1.1) Event: teal #6FB5A8 on the Midnight tile #18223A */
+html[data-app-theme="midnight"] .orders-app .or-tt[style*="0F766E"],html[data-app-theme="midnight"] .orders-app .or-it .ii[style*="0F766E"]{color:#6FB5A8!important}
 html[data-app-theme="midnight"] .orders-app .or-qr{background-color:#1B2A47!important;border-color:#34507F!important;color:#A9C2FF!important}
 html[data-app-theme="midnight"] .orders-app .or-it .ii.t.qr{color:#A9C2FF!important}
 html[data-app-theme="midnight"] .orders-app .or-offline .or-i{fill:#F5C870!important}

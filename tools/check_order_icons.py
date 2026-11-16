@@ -20,6 +20,8 @@ OLD = {
 }
 home = open(os.path.join(ROOT, HOME), encoding='utf-8').read()
 SET = {name: re.search(name + r": \{ box: [^,]+, d: '([^']{40})", home).group(1) for name in ('dineIn', 'table', 'takeaway', 'delivery', 'phone', 'online')}
+# (Update Pack 6: Event, the calendar with a star: its star is enough to know it)
+SET['event'] = re.search(r'event: \{ box: [^,]+, html: .*?<path d="(m12 11\.6[^"]{20})', home, re.S).group(1)
 problems = []
 for d, _, files in os.walk(ROOT):
     if any(part in d for part in ('.git', 'dist', 'tools', 'design-source')): continue

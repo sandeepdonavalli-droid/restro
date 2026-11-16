@@ -659,6 +659,7 @@
   // picking one sets it (every item moves to it) and closes them. Picking the type already chosen takes it off again:
   // the button shows Order type, and the order goes as Dine in. A tap on the dimmed screen closes them unchanged.
   function openTypeMenu(open) {
+    if (open && order.type === 'event') return; // (an event's order stays an event's)
     typeMenu = open; render();
     (open ? dialog.querySelector('.cx-seg.lift [aria-pressed="true"]') || dialog.querySelector('.cx-seg.lift .cx-b') : dialog.querySelector('.cx-type'))?.focus({ preventScroll: true });
   }
@@ -1290,6 +1291,8 @@
   // The RESTRO Android app prints it (RESTRODevice.printer.printKot) on the printers whose role is Kitchen or Both, in
   // each one's KOT language (anything but English as an image) and copies (Settings › Devices › Printers).
   const BAND = { 'dine-in': 'DINE-IN', takeaway: 'TAKEAWAY', delivery: 'DELIVERY', phone: 'PHONE ORDER' };
+  // (Update Pack 6, I: an event's order says EVENT · DINE-IN or EVENT · TAKEAWAY; the rest of its slip is still to be drawn)
+  const bandOf = o => (o.type === 'event' ? `EVENT · ${o.event?.mode === 'takeaway' ? 'TAKEAWAY' : 'DINE-IN'}` : BAND[o.type]);
   const labelOf = m => (typeof m === 'string' ? optionOf.get(m)?.label || m : m?.label || m?.id || '');
   // What changed on a dish (a CHANGED slip): "Medium spicy → Less spicy", "+ No onion", "− Less oil", "+ Note: …"
   function changesOf(l) {
@@ -1360,7 +1363,7 @@
       // (a pager shows in the first row; no pager, nothing is said of it: owner, 13 Nov 2026)
       : [round ? `Round ${round}` : '', printed, server];
     return {
-      kind, type, band: app ? app.toUpperCase() : BAND[type], boxes, priority, addOn: Boolean(round), round, kot: kind === 'time' ? null : kotNo, order: ticket(o.number),
+      kind, type, band: app ? app.toUpperCase() : bandOf({ ...o, type }), boxes, priority, addOn: Boolean(round), round, kot: kind === 'time' ? null : kotNo, order: ticket(o.number),
       first: firstRow(o, app), title: [kotPart, `Order ${ticket(o.number)}`].filter(Boolean).join(' · '), when, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(),
       note: (kind === 'kot' || kind === 'priority') && o.note ? o.note : '',
       lines: (k.lines || []).map(l => ({ qty: l.qty, name: l.name, names: items.get(l.id)?.names || null, mods: kind === 'changed' ? changesOf(l) : (l.mods || []).map(labelOf), note: l.note || '' })),
@@ -1531,7 +1534,8 @@
   window.addEventListener('restro:platform-cancelled', e => platformCancelled(e.detail));
 
   // ---------- rendering ----------
-  const typeLabel = { 'dine-in': 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call' };
+  // (Update Pack 6, I: Event, an event QR's order; never picked here, so not in the four types)
+  const typeLabel = { 'dine-in': 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call', event: 'Event' };
   const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
   function pickTable() {
     window.RestroFloor?.open({ pick: true, current: order.table, guests: order.guests, onPick: table => {
@@ -1653,7 +1657,7 @@
     s.setAttribute('viewBox', '0 -960 960 960'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', `cx-i s${size}`);
     s.innerHTML = MI[name].startsWith('<') ? MI[name] : `<path d="${MI[name]}"/>`; return s;
   };
-  const typeIcon = { 'dine-in': 'dineIn', takeaway: 'takeaway', delivery: 'delivery', phone: 'phone' };
+  const typeIcon = { 'dine-in': 'dineIn', takeaway: 'takeaway', delivery: 'delivery', phone: 'phone', event: 'event' };
   // ₹2,270 for whole rupees, ₹113.50 otherwise
   const amount = paise => `₹${(paise / 100).toLocaleString('en-IN', paise % 100 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;

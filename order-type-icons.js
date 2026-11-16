@@ -2,7 +2,8 @@
 // Order-type icons (Update Pack 5, Icon Pack 1): the one set for every app, kept only here, so no screen can pick its
 // own. Dine-in (and "Dine-in + Takeaway") is the fork & knife; the table is only ever the table number, never Dine-in;
 // Takeaway is the bag with the smile handle; Delivery (our own riders) the motorbike; Online the globe; Phone call the
-// handset (unchanged). Swiggy and Zomato show their own app marks. The Counter draws them plain in the label's colour;
+// handset (unchanged); Event (Update Pack 6, Icon Pack 1.1) the calendar with a star.
+// Swiggy and Zomato show their own app marks. The Counter draws them plain in the label's colour;
 // Orders on a tile in the type's colour (orders.js). tools/check_order_icons.py fails if an order type's icon is drawn
 // anywhere else, or if one of the old icons (round table, the Orders bag, the scooter, the old Online) comes back.
 (() => {
@@ -15,17 +16,21 @@
     delivery: { box: M, d: 'M160-200q-66 0-113-47T0-360q0-57 36.5-101t93.5-55l-28-24H30q-13 0-21.5-8.5T0-570q0-13 8.5-21.5T30-600h150l100 60 146-55q7-2 14-3.5t15-1.5h111l-62-80h-64q-17 0-28.5-11.5T400-720q0-17 11.5-28.5T440-760h63q19 0 35.5 8.5T566-729l60 77 105-53q10-5 19.5 1t9.5 17v67q0 8-6 14t-14 6h-72l70 92q15-6 30.5-9t31.5-3q66 0 113 47t47 113q0 66-47 113t-113 47q-66 0-113-47t-47-113q0-27 9.5-52.5T676-460l-20-24-124 186q-5 8-14 13t-19 5h-84q-8 0-14.5-2.5T389-290l-69-60q-5 63-51 106.5T160-200Zm0-80q33 0 56.5-23.5T240-360q0-33-23.5-56.5T160-440q-33 0-56.5 23.5T80-360q0 33 23.5 56.5T160-280Zm640 0q33 0 56.5-23.5T880-360q0-33-23.5-56.5T800-440q-33 0-56.5 23.5T720-360q0 33 23.5 56.5T800-280Z' },
     phone: { box: M, d: 'M798-120q-125 0-247-54.5T329-329Q229-429 174.5-551T120-798q0-18 12-30t30-12h162q14 0 25 9.5t13 22.5l26 140q2 16-1 27t-11 19l-97 98q20 37 47.5 71.5T387-386q31 31 65 57.5t72 48.5l94-94q9-9 23.5-13.5T670-390l138 28q14 4 23 14.5t9 23.5v162q0 18-12 30t-30 12Z' },
     // (the globe: a circle, an ellipse and two lines of latitude, as the pack's ic_order_online.svg)
-    online: { box: '0 0 24 24', d: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0ZM8 12a4 9 0 1 0 8 0a4 9 0 1 0 -8 0ZM3.6 8.5h16.8M3.6 15.5h16.8', stroke: 2 }
+    online: { box: '0 0 24 24', d: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0ZM8 12a4 9 0 1 0 8 0a4 9 0 1 0 -8 0ZM3.6 8.5h16.8M3.6 15.5h16.8', stroke: 2 },
+    // (the calendar with a star: the pack's ic_order_event.svg as it is, an outline with a filled star; Orders sizes it as
+    // OE1 and OE2 draw it, orders.css)
+    event: { box: '0 0 24 24', html: '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.4"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></g>'
+      + '<path d="m12 11.6 1.15 2.3 2.55.37-1.85 1.8.44 2.53L12 17.4l-2.29 1.2.44-2.53-1.85-1.8 2.55-.37z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>' }
   };
   // each order type's icon ("Dine-in + Takeaway": Dine-in's)
-  const TYPE = { 'dine-in': 'dineIn', 'dine-in+takeaway': 'dineIn', takeaway: 'takeaway', delivery: 'delivery', phone: 'phone', online: 'online' };
+  const TYPE = { 'dine-in': 'dineIn', 'dine-in+takeaway': 'dineIn', takeaway: 'takeaway', delivery: 'delivery', phone: 'phone', online: 'online', event: 'event' };
   const nameOf = key => (ICONS[key] ? key : TYPE[key] || null);
-  // The icon as an <svg> with the given class: filled in its colour, or (Online) outlined in it
+  // The icon as an <svg> with the given class and data-icon="<its name>": filled in its colour, or (Online) outlined in it
   function svg(key, cls = '') {
     const ic = ICONS[nameOf(key)]; if (!ic) return null;
     const s = document.createElementNS(NS, 'svg');
-    s.setAttribute('viewBox', ic.box); s.setAttribute('aria-hidden', 'true'); if (cls) s.setAttribute('class', cls);
-    s.innerHTML = ic.stroke ? `<path d="${ic.d}" fill="none" stroke="currentColor" stroke-width="${ic.stroke}"/>` : `<path d="${ic.d}"/>`;
+    s.setAttribute('viewBox', ic.box); s.setAttribute('aria-hidden', 'true'); s.setAttribute('data-icon', nameOf(key)); if (cls) s.setAttribute('class', cls);
+    s.innerHTML = ic.html || (ic.stroke ? `<path d="${ic.d}" fill="none" stroke="currentColor" stroke-width="${ic.stroke}"/>` : `<path d="${ic.d}"/>`);
     return s;
   }
   window.RestroOrderTypeIcons = Object.freeze({ svg, has: key => Boolean(nameOf(key)), keyOf: type => TYPE[type] || null });

@@ -473,6 +473,13 @@
 .or-it .ii.t .or-logo{width:calc(20 * var(--fu));height:calc(20 * var(--fu));border-radius:calc(5 * var(--fu));font-size:calc(12.5 * var(--fu))}
 .or-it .ii.t.qr{background:#1E4FB81A;color:#1E4FB8}
 .orders-app .or-it .ii.t.qr .or-i{width:calc(15 * var(--fu));height:calc(15 * var(--fu))}
+/* (Update Pack 6) Event's icon, as OE1 and OE2 draw it: 27 on an Orders tile where the others are 32 (the other
+   layouts' tiles in proportion), 22 in the Order type filter where the others are 20 */
+.orders-app .or-tt .or-i[data-icon="event"]{width:calc(27 * var(--fu));height:calc(27 * var(--fu))}
+.orders-app .or-tt.s52 .or-i[data-icon="event"]{width:calc(23.6 * var(--fu));height:calc(23.6 * var(--fu))}
+.orders-app .or-tt.s64 .or-i[data-icon="event"]{width:calc(28.7 * var(--fu));height:calc(28.7 * var(--fu))}
+.orders-app .or-tt.s48 .or-i[data-icon="event"]{width:calc(21.9 * var(--fu));height:calc(21.9 * var(--fu))}
+.orders-app .or-it .ii.t .or-i[data-icon="event"]{width:calc(22 * var(--fu));height:calc(22 * var(--fu))}
 .or-it-t{flex:1;min-width:0;display:flex;align-items:baseline;gap:calc(10 * var(--fu));overflow:hidden;white-space:nowrap}
 .or-menu.m-type{width:calc(400 * var(--fu))}
 .or-it-t small{font-size:calc(15 * var(--fu));font-weight:500;color:#78716C}

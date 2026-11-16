@@ -404,6 +404,7 @@ Where the names show and what staff can do:
 | Delivery (our own riders) | motorbike | `delivery` | `ic_order_delivery` |
 | Online (our website or app) | globe, outline (stroke 2 on a 24 grid) | `online` | `ic_order_online` |
 | Phone call | phone handset (unchanged) | `phone` | (unchanged) |
+| Event (Update Pack 6, Icon Pack 1.1) | calendar with a star, outline with a filled star | `event` | `ic_order_event` |
 | Swiggy, Zomato | their app marks (unchanged) | — | — |
 
 - **Rules:** the table icon only ever stands for a table number (the Counter's "Table 6" button), never for Dine-in.
@@ -421,9 +422,12 @@ Where the names show and what staff can do:
   | Delivery | `#6D4BC4` / `#6D4BC41A` | `#9890BE` / `#18223A` |
   | Phone call | `#2F5FB3` / `#2F5FB31A` | `#8396BF` / `#18223A` |
   | Online | sky blue `#0284C7` / `#0284C71A` | rose `#C98BA5` / `#18223A` |
+  | Event | teal `#0F766E` / `#0F766E1A` | `#6FB5A8` / `#18223A` |
 
   Online is sky blue in Light and rose in Midnight on purpose (the owner's choice): the only type whose colour changes
-  between themes.
+  between themes. Event's icon is a little smaller on a tile and a little bigger in the filter, as `OE1` and `OE2` draw
+  it: 27 where the others are 32 (the other layouts' tiles in proportion), and 22 in the Order type filter where the
+  others are 20. The Counter draws it the same size as the other types.
 - **In code, one place:** every order type's icon is drawn only by `order-type-icons.js`
   (`window.RestroOrderTypeIcons.svg(key, className)`, `.has(key)`, `.keyOf(orderType)`); the Counter and Orders both
   take theirs from it. `python3 tools/check_order_icons.py` fails if any file draws one itself or an old icon comes
@@ -449,13 +453,34 @@ Where the names show and what staff can do:
   withdrawn.)
 - **Its payment while the restaurant is offline:** QR payment Pending, below.
 
+### Event orders (Update Pack 6, I)
+
+- **On the order** (from the cloud, once event QR ordering is built; the customer pages aren't built yet): `type:
+  'event'`, `qr: true`, `event: { id, name, mode, table, floor }`: `name` the event's (`"Live music night"`), `mode`
+  `'dine-in'` or `'takeaway'` (one QR for the whole event: the customer's pick; a QR per event table: `'dine-in'`),
+  `table` the event table on a per-table QR (`"3"`, or a Floor table's permanent id with `floor: true`), `null`
+  otherwise; one QR for the whole event also has `customer: { name, mobile }` (always asked). Paid first, as every QR
+  order. Event orders are normal orders: in Orders and in every total.
+- **Orders** (`OE1`, Classic Light drawn; the same in all 12 layouts): the Event tile (above) and **Event** with the QR
+  tag; then **"Live music night · Dine-in"** (or Takeaway), and under it the customer and their phone ("‹customer› ·
+  ‹phone›") or "Event table 3". **Notify** is greyed on an event's order, as drawn (staff call the name). Split's
+  order header: "Live music night · Order #1033" and "Event · Dine-in · QR · ‹customer› · ‹phone›". The search
+  finds it by the event's name as well.
+- **Order type filter** (`OE2`): **Event** after Delivery, with its count; **QR** counts every order placed by QR,
+  events too; its foot reads "Tick one or more · QR shows every order placed by QR: Dine-in, Takeaway or Event".
+- **The Counter:** "Event" with the plain icon wherever the order's type is named; it isn't one of the four types to
+  pick, and an event's order can't be changed to another type there.
+- **KOT:** its band reads **EVENT · DINE-IN** or **EVENT · TAKEAWAY** (`band`); the rest of the event's slip (the
+  event's name, then the customer or the event table) is still to be drawn (Pack 6, K).
+
 ### The Order type filter (K)
 
-- In this order: Dine-in · Takeaway · Online · Phone call · Delivery · Swiggy · Zomato (other partners after them as
-  they are added) · **QR**. There is no "Dine-in + Takeaway" entry any more.
+- In this order: Dine-in · Takeaway · Online · Phone call · Delivery · Event (Update Pack 6) · Swiggy · Zomato (other
+  partners after them as they are added) · **QR**. There is no "Dine-in + Takeaway" entry any more.
 - Each order counts once, under its own type; **QR** counts every order placed by QR, whatever its type (so a Table
   QR order is in both Dine-in and QR). Tick one or more: an order shows when its type is ticked, or when QR is ticked
-  and it was placed by QR. The footnote: "Tick one or more · QR shows every order placed by QR, Dine-in or Takeaway".
+  and it was placed by QR. The footnote (Update Pack 6): "Tick one or more · QR shows every order placed by QR: Dine-in,
+  Takeaway or Event".
   The QR row's tile: the QR glyph in `#1E4FB8` on `#1E4FB81A` (Midnight `#A9C2FF` on `#18223A`).
 
 ### Mixed order types (K)
@@ -1123,7 +1148,7 @@ that sent it tries again by itself every 30 seconds until it prints.
 | Field | |
 | --- | --- |
 | `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"`, `"time"` (TIME CHANGED, Update Pack 4) or `"cancel-bulk"` (below) |
-| `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"`, or a delivery app's name in capitals, `"SWIGGY"`, `"ZOMATO"` (Update Pack 4) (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
+| `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"`, `"EVENT · DINE-IN"` / `"EVENT · TAKEAWAY"` (an event's order, Update Pack 6), or a delivery app's name in capitals, `"SWIGGY"`, `"ZOMATO"` (Update Pack 4) (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
 | `boxes` | Update Pack 5 (C1): the boxes under the band, in order (above): `["★★ PRIORITY ★★", "ADD-ON +", "SCHEDULED · READY 10:00 PM", "TIME CHANGED"]`, any of them, or `[]` |
 | `first` | Update Pack 5 (C2): the first row, black, the largest (above): `"Table 6"`, `"‹customer› · Swiggy #4521"`, `"‹customer› · Pager 18"`, `"‹customer› · ‹phone›"`; `""` for none. The customer's phone number is in full, every digit, never masked (Update Pack 4) |
 | `title`, `when` | the second row, bold (above): `"KOT #3 · Order #1015"` (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket), then `when`, `"Pickup 1:15 PM"` or `"Ready by 10:30 PM"`, or `""` |
