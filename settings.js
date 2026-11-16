@@ -571,9 +571,12 @@
   // printer for both shows in both. A tap opens its pop-up (ST1): its name, What this printer prints (KOTs only / Bills
   // and receipts only / KOTs, bills and receipts; kept as `role` 'kitchen' / 'bills' / 'both'), Use as backup printer
   // and, for Bluetooth, how it works; and, not drawn, one row with its KOT language, copies per KOT and copies per bill.
-  // Nothing changes until Save.
+  // Nothing changes until Save. (Owner, 16 Nov 2026) A printer has no job until someone picks one: connected to a device,
+  // it opens its pop-up there with nothing picked, and it prints nothing until Save; until then This device lists it as
+  // "Choose what it prints".
   let printers = [], ppop = null;
-  const printerSettings = id => Prefs.get('printers')[id] || { role: 'both', language: 'English', copies: 1, billCopies: 1 };
+  const printerSettings = id => Prefs.get('printers')[id] || { role: null, language: 'English', copies: 1, billCopies: 1 };
+  const takesKots = role => role === 'kitchen' || role === 'both', takesBills = role => role === 'bills' || role === 'both';
   const JOBS = [{ value: 'kitchen', label: 'KOTs only', text: 'Kitchen tickets. Never prints bills or receipts.' },
     { value: 'bills', label: 'Bills and receipts only', text: 'Never gets KOTs, so it never counts for QR ordering.' },
     { value: 'both', label: 'KOTs, bills and receipts', text: 'One printer for everything, for example at an outdoor event.' }];
@@ -596,15 +599,15 @@
   async function paintPrinters() {
     const bridged = await loadPrinters();
     const via = p => (p.connection ? ` · ${p.connection}` : '');
-    const kotOf = s => (s.role === 'bills' ? '' : ` · KOT in ${s.language} · ${copiesOf(s.copies)}`);
+    const kotOf = s => (takesKots(s.role) ? ` · KOT in ${s.language} · ${copiesOf(s.copies)}` : '');
     const row = (p, text) => el('button', { type: 'button', class: 'st-row st-link', onclick: () => openPrinter(p) },
       el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, nameOf(p)), el('span', {}, text)), ms('ms-chevron-right', 'ms st-chev'));
     const none = (title, text) => el('div', { class: 'st-row' }, el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, title), text ? el('span', {}, text) : null));
-    const mine = printers.filter(p => p.own && printerSettings(p.id).role !== 'kitchen'), kitchen = printers.filter(p => printerSettings(p.id).role !== 'bills');
+    const mine = printers.filter(p => p.own && (takesBills(printerSettings(p.id).role) || !printerSettings(p.id).role)), kitchen = printers.filter(p => takesKots(printerSettings(p.id).role));
     // (no receipt printer: a line only when this device has no printer at all)
     const noneHere = printers.some(p => p.own) ? '' : bridged ? 'This device hasn’t found a printer yet.' : 'Printers connect through the RESTRO Android app.';
     rebuild(printersHost, () => [
-      card('st-rowcard', lab('This device'), el('div', { class: 'st-rows' }, ...(mine.length ? mine.map(p => { const s = printerSettings(p.id); return row(p, `${jobName(s.role)} · ${copiesOf(s.billCopies)}${via(p)}`); })
+      card('st-rowcard', lab('This device'), el('div', { class: 'st-rows' }, ...(mine.length ? mine.map(p => { const s = printerSettings(p.id); return row(p, s.role ? `${jobName(s.role)} · ${copiesOf(s.billCopies)}${via(p)}` : `Choose what it prints${via(p)}`); })
         : [none('No receipt printer', noneHere)]))),
       card('st-rowcard', lab('Kitchen printers'), el('div', { class: 'st-rows' }, ...(kitchen.length ? kitchen.map(p => { const s = printerSettings(p.id); return row(p, `${jobName(s.role)}${backupOf(s)}${kotOf(s)}${via(p)}`); })
         : [none('No kitchen printers')])))
@@ -616,13 +619,14 @@
   // or a tap outside it
   function openPrinter(p) {
     const s = printerSettings(p.id);
-    ppop = { p, draft: { name: nameOf(p), role: s.role, language: s.language, copies: s.copies, billCopies: s.billCopies || 1, backup: Boolean(s.backup) && s.role !== 'bills' } };
+    ppop = { p, draft: { name: nameOf(p), role: s.role, language: s.language, copies: s.copies, billCopies: s.billCopies || 1, backup: Boolean(s.backup) && takesKots(s.role) } };
     paintPop(true);
   }
   function closePrinter() { if (!ppop) return false; ppop = null; dialog.querySelector('.st-pscrim')?.remove(); return true; }
   function savePrinter() {
     if (!ppop) return;
-    const { p, draft: d } = ppop, name = d.name.replace(/\s+/g, ' ').trim().slice(0, 40), backup = d.backup && d.role !== 'bills';
+    if (!ppop.draft.role) return; // (a new printer: what it prints first)
+    const { p, draft: d } = ppop, name = d.name.replace(/\s+/g, ' ').trim().slice(0, 40), backup = d.backup && takesKots(d.role);
     Prefs.update('printers', all => {
       const s = { ...printerSettings(p.id), role: d.role, language: d.language, copies: d.copies, billCopies: d.billCopies };
       if (name && name !== p.name) s.name = name; else delete s.name;
@@ -633,7 +637,7 @@
     closePrinter(); paintPrinters();
   }
   function paintPop(first = false) {
-    const { p, draft: d } = ppop, kots = d.role !== 'bills', bills = d.role !== 'kitchen', blue = /bluetooth/i.test(p.connection);
+    const { p, draft: d } = ppop, kots = takesKots(d.role), bills = takesBills(d.role), blue = /bluetooth/i.test(p.connection);
     const again = () => paintPop();
     const where = p.device ? ` · ${blue ? 'paired with' : 'on'} ${p.device}` : '';
     const state = p.connected === true ? [' · ', el('b', { class: 'ok' }, 'Connected')] : p.connected === false ? [' · ', el('b', { class: 'bad' }, 'Not connected')] : [];
@@ -660,13 +664,33 @@
         el('input', { id: 'st-pbackup', class: 'st-pswitch', type: 'checkbox', role: 'switch', checked: d.backup && kots, disabled: !kots, onchange: e => { d.backup = e.target.checked; } }),
         el('span', {}, el('b', {}, 'Use as backup printer'), el('span', {}, 'For the restaurant. Only printers that print KOTs can be the backup. Event printers back up each other by themselves.'))),
       blue ? el('p', { class: 'st-pnote' }, 'Bluetooth works like a cable: the printer belongs to the one device it’s paired with, and that device is its Printer device.') : null,
-      el('div', { class: 'st-pbar' }, el('button', { type: 'button', class: 'st-pcancel', onclick: closePrinter }, 'Cancel'), el('button', { type: 'button', class: 'st-psave', onclick: savePrinter }, 'Save')));
+      el('div', { class: 'st-pbar' }, el('button', { type: 'button', class: 'st-pcancel', onclick: closePrinter }, 'Cancel'), el('button', { type: 'button', class: 'st-psave', disabled: !d.role, onclick: savePrinter }, 'Save')));
     const scrim = el('div', { class: 'st-pscrim', onclick: e => { if (e.target === e.currentTarget) closePrinter(); } }, pop);
     const old = dialog.querySelector('.st-pscrim'), focused = old?.contains(document.activeElement) ? document.activeElement.id : null;
     if (old) old.replaceWith(scrim); else dialog.append(scrim);
     if (first) pop.focus({ preventScroll: true });
     else if (focused) document.getElementById(focused)?.focus({ preventScroll: true });
   }
+  // A printer connected to this device (the RESTRO Android app's restro:printer-connected, { id }): one not set up yet
+  // opens Settings › Printers and its pop-up, to pick what it prints (owner, 16 Nov 2026)
+  window.addEventListener('restro:printer-connected', async event => {
+    const id = event.detail?.id;
+    if (typeof id !== 'string' || Prefs.get('printers')[id]) return;
+    if (!dialog.open) { if (typeof window.openSettings === 'function') window.openSettings(); else return; }
+    show('printers'); await paintPrinters();
+    const p = printers.find(x => x.id === id);
+    if (p && dialog.open && !Prefs.get('printers')[id]) openPrinter(p);
+  });
+  // Settings › Devices › Printer device (owner, 16 Nov 2026: the device a printer is plugged into or paired with is its
+  // Printer device; any device can be one): this device's own printers, a tap away from Settings › Printers
+  async function paintPrinterDevice() {
+    const line = document.querySelector('#sync-printer-status');
+    if (!line) return;
+    const bridged = await loadPrinters(), own = printers.filter(p => p.own);
+    line.textContent = !bridged ? 'Printers connect through the RESTRO Android app.' : own.length ? `Yes · ${own.map(p => `${nameOf(p)}${p.connection ? ` (${p.connection})` : ''}`).join(', ')}` : 'No · no printer is connected to it';
+  }
+  builders.sync = () => { paintPrinterDevice(); };
+  document.querySelector('#sync-printer-row')?.addEventListener('click', () => show('printers', { focus: true }));
 
   // A setting changed (here, or on another tablet): the page on screen and the lines under the categories follow
   window.addEventListener('restro:prefs-changed', event => {

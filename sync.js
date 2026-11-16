@@ -12,7 +12,7 @@
 //   too; records a tablet only clears from itself (paid orders past the 4 business days it keeps, held tickets after their
 //   day) don't. Orders reads older days from the cloud when it needs them (RestroSync.olderOrders, Update Pack 5).
 // - Every tablet has one server at a time, which puts the changes in order and hands them out:
-//     · the main system (the tablet the printers are wired to) for the tablets paired with it, over the restaurant's own
+//     · the main system (the tablet the others pair with) for the tablets paired with it, over the restaurant's own
 //       Wi-Fi or Bluetooth through the Android app (RESTRODevice.localSync, see ANDROID-BRIDGE.md), so the restaurant
 //       keeps working together when the internet drops;
 //     · the cloud (once it is set up) for the main system, for a tablet without one, and for a paired tablet while it

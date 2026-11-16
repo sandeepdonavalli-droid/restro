@@ -34,7 +34,7 @@ Card data never exists in RESTRO, because payments go through the provider's hos
 ```
 tablet ─┐
 tablet ─┼── main system ── cloud
-tablet ─┘   (printers)
+tablet ─┘
 ```
 
 Each device has one server at a time:
@@ -47,7 +47,8 @@ Each device has one server at a time:
 The main system is a server for its tablets and a client of the cloud. A merge always starts from the version the
 change was made on, so a tablet can change servers safely.
 
-**Without the internet:** the tablets keep working together through the main system, and it prints for the kitchen.
+**Without the internet:** the tablets keep working together through the main system, and the printers keep printing
+through their printer devices: the device each one is plugged into or paired with, any device (owner, 16 Nov 2026).
 
 **The cloud through any device (owner, 14 Nov 2026):** the devices stay in sync with each other over the restaurant's
 Wi-Fi, and the cloud traffic goes out through whichever device reaches the internet: the main system, or a handheld on
@@ -58,8 +59,8 @@ while its data can't reach the cloud by any route, even while it syncs with the 
 shows the device's own internet.
 
 **If the main system is off:** a paired tablet signed in to the cloud carries on with the cloud on its own, once the
-main system has been gone for 5 seconds. It goes back to the main system when it is on again. The kitchen printer is
-wired to the main system, so it can't print until then.
+main system has been gone for 5 seconds. It goes back to the main system when it is on again. A printer plugged into
+or paired with the main system (its printer device) can't print until then; the others keep printing.
 
 **To replace the main system:** turn on Main system on another paired tablet. It keeps the same pairing code, so the
 other tablets follow it.

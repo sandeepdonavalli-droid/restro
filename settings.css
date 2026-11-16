@@ -575,6 +575,7 @@ label.st-row,.st-link{cursor:pointer}
    copies per bill in one row, Use as backup printer, the Bluetooth note, Cancel and Save ---------- */
 .st-pscrim{position:absolute;inset:0;z-index:40;display:flex;justify-content:center;align-items:flex-start;overflow:auto;background:rgba(28,25,23,.28)}
 .st-ppop{position:relative;flex:none;width:calc(800 * var(--su));margin:calc(42 * var(--su)) 0 calc(24 * var(--su));padding:calc(23 * var(--su)) calc(26 * var(--su)) calc(26 * var(--su));border-radius:calc(28 * var(--su));background:#FFFFFF;box-shadow:0 calc(24 * var(--su)) calc(64 * var(--su)) rgba(17,24,39,.22);outline:none}
+.settings-app .st-ppop:focus,.settings-app .st-ppop:focus-visible{outline:none}
 .st-ppop-h{display:flex;align-items:flex-start;justify-content:space-between;gap:calc(16 * var(--su))}
 .st-ppop-h h3{font-size:calc(26 * var(--su));font-weight:800;line-height:calc(32 * var(--su));color:#1C1917}
 .st-ppop-h p{margin-top:calc(3.2 * var(--su));font-size:calc(16 * var(--su));line-height:calc(22 * var(--su));color:#57534E}
@@ -626,6 +627,7 @@ label.st-row,.st-link{cursor:pointer}
 .settings-app .st-pbar button{height:calc(64 * var(--su));min-height:0;margin:0;padding:0;border:0;border-radius:calc(16 * var(--su));font-size:calc(18 * var(--su));cursor:pointer}
 .settings-app .st-pcancel{background:#FFFFFF;box-shadow:inset 0 0 0 1.5px #DDDEE1;color:#1C1917;font-weight:700}
 .settings-app .st-psave{background:#292524;color:#FFFFFF;font-weight:700}
+.settings-app .st-psave:disabled{opacity:.4;cursor:default}
 .st-pbar button:focus-visible,.st-ppop-x:focus-visible{outline:2px solid #0F766E;outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.st-pswitch,.st-pswitch::before{transition:none}}
 /* <<< printer pop-up */

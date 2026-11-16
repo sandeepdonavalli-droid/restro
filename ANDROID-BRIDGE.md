@@ -230,9 +230,12 @@ seals every message itself; the app only finds the other tablets and carries tex
 - `onPeers([{ id, name, main }])`: call it with the connected tablets whenever that list changes (`[]` for none).
 
 The page calls `start` when it loads, and again when this tablet's name, its Main system switch or its pairing changes
-(Settings › Devices). Accept connections automatically: the page drops anything not sealed with the restaurant's key.
-Keep the session running while the app is open (a foreground service) and reconnect after network changes. A LAN
-version (NSD discovery and a WebSocket) can sit behind the same two methods.
+(Settings › Devices). Settings › Devices also shows **Printer device** (owner, 16 Nov 2026): "Yes · Counter (USB)" for
+this device's own printers (`printer.list()`, `own`), "No · no printer is connected to it" without; a tap opens Settings
+› Printers. The Main system switch is only about syncing: "The other tablets sync through it, with or without the
+internet." Accept connections automatically: the page drops anything not sealed with the restaurant's key. Keep the
+session running while the app is open (a foreground service) and reconnect after network changes. A LAN version (NSD
+discovery and a WebSocket) can sit behind the same two methods.
 
 Permissions: `NEARBY_WIFI_DEVICES` (Android 13+); `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`
 (Android 12+); `ACCESS_FINE_LOCATION` (older); `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`.
@@ -1182,14 +1185,25 @@ whose job includes KOTs, bills and receipts only to printers whose job includes 
 KOTs count for the QR ordering path and can be the backup printer. With the KOT language, copies per KOT (`copies`),
 copies per bill (`billCopies`), the backup printer (`backup`) and a name given to it (`name`, shown instead of the
 app's), it's kept in `restro.printers.v1` (`{ <id>: { role, language, copies, billCopies, backup, name } }`, the same on
-every device), which the page passes with each slip and each bill. A printer not set yet is KOTs, bills and receipts,
-English, 1 copy of each.
+every device), which the page passes with each slip and each bill.
+
+**A new printer** (owner, 16 Nov 2026): it has no job until someone picks one, so it prints nothing: no KOTs, no bills
+(it isn't in any slip's or bill's `printers`). When a printer is connected to a device (plugged in, paired over
+Bluetooth or added over Wi-Fi), dispatch on that device:
+
+```js
+window.dispatchEvent(new CustomEvent('restro:printer-connected', { detail: { id: 'printer-id' } }));
+```
+
+The page opens Settings › Printers and that printer's pop-up, with no job picked and **Save** greyed until one is.
+Cancel leaves it not set up: This device lists it as "Choose what it prints", and a tap opens the pop-up again. Once
+saved it takes English and 1 copy of each, as picked in the pop-up.
 
 The page has two sections, with no line at the top (owner, 16 Nov 2026):
 - **This device:** this device's own printers whose job includes bills and receipts (its receipt printers), on this
-  device only. A row reads "Bills and receipts only · 1 copy · USB" (the copies of each bill). None: "No receipt
-  printer", with "This device hasn’t found a printer yet." when it has no printer at all ("Printers connect through
-  the RESTRO Android app." in a web browser).
+  device only, and its printers not set up yet ("Choose what it prints · USB"). A row reads "Bills and receipts only · 1
+  copy · USB" (the copies of each bill). None: "No receipt printer", with "This device hasn’t found a printer yet." when
+  it has no printer at all ("Printers connect through the RESTRO Android app." in a web browser).
 - **Kitchen printers:** every printer whose job includes KOTs, from any device, the same list on every device. A row
   reads "KOTs only · Backup printer · KOT in Telugu · 1 copy · Wi-Fi". None: "No kitchen printers".
 

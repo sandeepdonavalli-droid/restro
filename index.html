@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="system-navigation.css?v=19">
   <link rel="stylesheet" href="themes.css?v=3">
   <link rel="stylesheet" href="sync-button.css?v=1">
-  <link rel="stylesheet" href="settings.css?v=24">
+  <link rel="stylesheet" href="settings.css?v=25">
   <link rel="stylesheet" href="counter.css?v=137">
   <link rel="stylesheet" href="counter-midnight.css?v=5">
   <link rel="stylesheet" href="floor.css?v=19">
@@ -55,7 +55,7 @@
   <script src="orders.js?v=33" defer></script>
   <script src="vendor/qrcode-generator.js?v=1" defer></script>
   <script src="qr-studio.js?v=3" defer></script>
-  <script src="settings.js?v=29" defer></script>
+  <script src="settings.js?v=30" defer></script>
   <script src="battery-status.js?v=2" defer></script>
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=22" defer></script>
@@ -215,7 +215,7 @@
         <div class="settings-nav-top"><button class="settings-back-round" type="button" data-close aria-label="Back" title="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><h2 id="settings-title" tabindex="-1" autofocus>Settings</h2></div>
         <ul class="settings-list">
           <li><button class="settings-row" type="button" data-page="business" data-keywords="business details restaurant name banner title shop address gstin gst number fssai licence license food bill footer printed bill number tax invoice receipt business hours opening closing time open closed day cut-off last order time break hours break last order before break qr swiggy zomato online delivery"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-storefront"/></svg></span><span class="settings-row-copy"><strong>Business details</strong><span id="settings-business-summary" hidden>Printed on the bill</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="sync" data-keywords="devices sync tablets main system printers printer kot language copies role kitchen bills pairing pair code cloud offline share other tablets"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-devices"/></svg></span><span class="settings-row-copy"><strong>Devices</strong><span id="settings-sync-summary" hidden>This tablet only</span></span></button></li>
+          <li><button class="settings-row" type="button" data-page="sync" data-keywords="devices sync tablets main system printer device printers printer pairing pair code cloud offline share other tablets"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-devices"/></svg></span><span class="settings-row-copy"><strong>Devices</strong><span id="settings-sync-summary" hidden>This tablet only</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-wifi"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary" hidden>Managed by this device</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-language"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary" hidden>Checking connection…</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="bluetooth" data-keywords="bluetooth connected devices pair scan printer scanner headset"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-bluetooth"/></svg></span><span class="settings-row-copy"><strong>Bluetooth</strong><span id="settings-bluetooth-summary" hidden>Not connected</span></span></button></li>
@@ -273,10 +273,11 @@
           </section>
           <section class="settings-page" data-page="sync" data-title="Devices" hidden>
             <div class="st-card">
-              <p class="st-lab">This tablet</p><p class="st-sub">Its name, and whether the printers are connected to it.</p>
+              <p class="st-lab">This tablet</p><p class="st-sub">Its name, whether it’s a printer device, and whether it’s the main system.</p>
               <div class="st-field"><label for="sync-name">This tablet’s name</label><input id="sync-name" maxlength="30" autocomplete="off"></div>
               <div class="st-rows">
-                <label class="st-row" for="sync-main"><span class="st-row-copy"><strong>Main system</strong><span>The printers are connected to this tablet. The other tablets sync through it, with or without the internet.</span></span><input id="sync-main" class="st-switch" type="checkbox" role="switch"></label>
+                <button id="sync-printer-row" class="st-row st-link" type="button"><span class="st-row-copy"><strong>Printer device</strong><span id="sync-printer-status">Printers connect through the RESTRO Android app.</span></span><svg class="ms st-chev" aria-hidden="true"><use href="#ms-chevron-right"/></svg></button>
+                <label class="st-row" for="sync-main"><span class="st-row-copy"><strong>Main system</strong><span>The other tablets sync through it, with or without the internet.</span></span><input id="sync-main" class="st-switch" type="checkbox" role="switch"></label>
                 <div id="sync-code-row" class="st-row" hidden><span class="st-row-copy"><strong>Pairing code</strong><span>Enter it once on each of the restaurant’s other tablets.</span></span><output id="sync-code" class="sync-code"></output></div>
               </div>
               <form id="sync-pair-row" class="st-field" hidden><label for="sync-pair-code">Pairing code from the main system</label><div class="sync-pair"><input id="sync-pair-code" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC-234"><button class="st-primary" type="submit">Pair</button></div><p id="sync-pair-note" class="field-note" role="status"></p></form>
