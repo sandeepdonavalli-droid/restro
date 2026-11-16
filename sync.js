@@ -52,7 +52,9 @@
     customers: { key: 'restro.customers.v1', id: c => (typeof c?.id === 'string' ? c.id : null) },
     staff: { key: 'restro.staff.v1', id: p => (typeof p?.id === 'string' ? p.id : null) },
     // (Update Pack 5: QR Studio's Table, Takeaway and Menu QRs)
-    qr: { key: 'restro.qr.v1', id: q => (typeof q?.id === 'string' ? q.id : null) }
+    qr: { key: 'restro.qr.v1', id: q => (typeof q?.id === 'string' ? q.id : null) },
+    // (Update Pack 6: QR Studio's events, each with its QRs and menu)
+    events: { key: 'restro.events.v1', id: e => (typeof e?.id === 'string' ? e.id : null) }
   };
   // Settings: one value per key, synced as the records { value } of 'settings'. The name's placeholder is no name, so it
   // never travels (a new tablet takes the restaurant's name from the others).

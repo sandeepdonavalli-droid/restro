@@ -1805,6 +1805,8 @@
 
   window.RestroOrders = Object.freeze({
     preview,
+    // (Update Pack 6: what of an order counts as taken, as Total has it: QR Studio's Event QRs add up an event's takings)
+    kept: o => (o && typeof o === 'object' ? payOf(o).kept : 0),
     // open() from the home screen (or Back from an order opened here: the filters as they were); open({ from: 'counter' })
     // from Counter's Orders button; open({ find: id }) for one order (a pager tapped on the NFC spot: its order number
     // searched, on its day).

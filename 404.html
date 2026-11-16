@@ -10,8 +10,10 @@
   RESTRO's QR links until the domain is decided (owner, 14 Nov 2026). A QR from QR Studio holds
   https://sandeepdonavalli-droid.github.io/restro/<restaurant>/<T7 | TK | MN>-<code>; GitHub Pages has no page there, so
   it serves this one, which reads the link and shows the restaurant, the table (or Takeaway, Menu) and "QR ordering is
-  coming soon. Please order with staff." Everything shown comes from the link itself: there is no data here and nothing
-  is sent anywhere. The menu, ordering and the menu designs come with the cloud and the next set of designs.
+  coming soon. Please order with staff." An event's QR (Update Pack 6) holds <restaurant>/EV-<code>, or an event table's
+  <restaurant>/E3-<code>: "Event" or "Event table 3", with the Event order type's icon (order-type-icons.js).
+  Everything shown comes from the link itself: there is no data here and nothing is sent anywhere. The menu, ordering
+  and the menu designs come with the cloud and the next set of designs.
 -->
 <style>
 :root{color-scheme:light;--ink:#1C1917;--muted:#57534E;--line:#E7E5E3}
@@ -23,7 +25,7 @@ main{width:100%;max-width:420px;display:flex;flex-direction:column;align-items:c
 .logo{flex:none;width:36px;height:36px;display:grid;place-items:center;border-radius:9px;background:var(--ink);color:#FFFFFF;font-size:20px;font-weight:800}
 .name{min-width:0;font-size:20px;font-weight:800;letter-spacing:.06em;line-height:1.25;overflow-wrap:anywhere;text-align:left}
 .kind{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:44px;color:var(--accent);font-size:44px;font-weight:800;line-height:1.1}
-.kind svg{flex:none;width:40px;height:40px}
+.kind svg,.kind .mark{flex:none;width:40px;height:40px}
 .kind .line{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .kind .fill{fill:currentColor}
 .note{width:100%;margin-top:36px;padding:22px 20px;border:1px solid var(--line);border-radius:20px;background:#F7F4EE}
@@ -62,28 +64,35 @@ main{width:100%;max-width:420px;display:flex;flex-direction:column;align-items:c
     return s;
   };
 
-  // <restaurant>/<T7 | TK | MN>-<code>: the restaurant's name in small letters with "-" between words, a table's name
-  // (letters and numbers), and the QR's 6-character code
+  // <restaurant>/<T7 | TK | MN | EV | E3>-<code>: the restaurant's name in small letters with "-" between words, a
+  // table's or an event table's name (letters and numbers), and the QR's 6-character code
   let path = '';
   try { path = decodeURIComponent(location.pathname.slice(base.length)).replace(/\/+$/, ''); } catch {}
-  const m = /^([a-z0-9]+(?:-[a-z0-9]+)*)\/(?:(TK|MN)|T([A-Za-z0-9]{1,12}))-([A-Z0-9]{6})$/.exec(path);
+  const m = /^([a-z0-9]+(?:-[a-z0-9]+)*)\/(?:(TK|MN|EV)|T([A-Za-z0-9]{1,12})|E([A-Za-z0-9]{1,12}))-([A-Z0-9]{6})$/.exec(path);
   if (!m) {
     document.title = 'Page not found';
     const box = el('div', 'missing'); box.append(el('b', null, 'Page not found'), el('span', null, 'Check the link and try again.'));
     page.append(box);
     return;
   }
-  const [, slug, kindCode, table] = m;
+  const [, slug, kindCode, table, eventTable] = m;
   const restaurant = slug.split('-').join(' ').toUpperCase();
-  const kind = kindCode === 'TK' ? 'takeaway' : kindCode === 'MN' ? 'menu' : 'table';
-  const title = kind === 'table' ? `Table ${table}` : kind === 'takeaway' ? 'Takeaway' : 'Menu';
-  const accent = { table: '#9A6B1F', takeaway: '#2E7D4F', menu: '#8E1E3C' }[kind];
+  const kind = kindCode === 'TK' ? 'takeaway' : kindCode === 'MN' ? 'menu' : kindCode === 'EV' || eventTable ? 'event' : 'table';
+  const title = kind === 'table' ? `Table ${table}` : kind === 'takeaway' ? 'Takeaway' : kind === 'menu' ? 'Menu' : eventTable ? `Event table ${eventTable}` : 'Event';
+  const accent = { table: '#9A6B1F', takeaway: '#2E7D4F', menu: '#8E1E3C', event: '#0F766E' }[kind];
   document.title = `${restaurant} · ${title}`;
 
   const brand = el('div', 'brand');
   brand.append(el('span', 'logo', restaurant.charAt(0)), el('span', 'name', restaurant));
   const head = el('h1', 'kind'); head.style.setProperty('--accent', accent);
-  head.append(icon(kind), el('span', null, title));
+  // (an event's: the Event order type's calendar with a star, from order-type-icons.js, the one place it's drawn)
+  if (kind === 'event') {
+    const mark = el('span', 'mark'); head.append(mark, el('span', null, title));
+    const js = document.createElement('script'); js.src = `${base}order-type-icons.js`;
+    js.onload = () => { const s = window.RestroOrderTypeIcons?.svg('event'); if (s) mark.replaceWith(s); else mark.remove(); };
+    js.onerror = () => mark.remove();
+    document.head.append(js);
+  } else head.append(icon(kind), el('span', null, title));
   const note = el('div', 'note');
   note.append(el('b', null, 'QR ordering is coming soon.'), el('span', null, 'Please order with staff.'));
   page.append(brand, head, note);

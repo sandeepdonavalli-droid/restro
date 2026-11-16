@@ -259,6 +259,69 @@
 .qrs-create b{margin-top:calc(7 * var(--fu));font-size:calc(24 * var(--fu));font-weight:800}
 .qrs-create small{font-size:calc(15 * var(--fu));color:#78716C}
 
+/* ---------- Event QRs (Update Pack 6, D: EV1, EV2, EV7): New event and the events on the left (520 wide), the one picked
+   on the right: its card (344 grey box) and facts, or its event tables' QRs. Teal #0F766E on a #E6F4F1 tint ---------- */
+.qrs-pill-i .qi-event{width:calc(22 * var(--fu));height:calc(22 * var(--fu))}
+.qrs-ev{flex:1;min-height:0;display:flex;align-items:flex-start;gap:calc(28 * var(--fu));margin:calc(16 * var(--fu)) calc(-1 * var(--fu)) 0 calc(1 * var(--fu))}
+.qrs-evlist{flex:none;align-self:stretch;width:calc(520 * var(--fu));min-height:0;display:flex;flex-direction:column}
+.qrs-evnew{flex:none;display:flex;align-items:center;height:calc(72 * var(--fu));box-sizing:border-box;padding:0 calc(17 * var(--fu)) 0 calc(16 * var(--fu))!important;border:calc(2 * var(--fu)) solid #9ED3C8!important;border-radius:calc(22 * var(--fu));background:#E6F4F1!important;color:#0F766E;text-align:left}
+.qrs-evnew.first{height:calc(96 * var(--fu));border-radius:calc(24 * var(--fu))}
+.qrs-evnew-i{flex:none;width:calc(40 * var(--fu));height:calc(40 * var(--fu));display:grid;place-items:center;border-radius:50%;background:#FFFFFF}
+.qrs-evnew-i .qi{width:calc(20 * var(--fu));height:calc(20 * var(--fu));stroke-width:2.2}
+.qrs-evnew b{flex:1;margin-left:calc(13 * var(--fu));font-size:calc(18 * var(--fu));font-weight:800;line-height:1}
+.qrs-evnew small{flex:none;font-size:calc(14 * var(--fu));font-weight:600;line-height:1;color:#115E59}
+/* (EV1) none yet: the empty card under New event, the three cards on the right */
+.qrs-evnone{flex:none;height:calc(199 * var(--fu));margin-top:calc(11 * var(--fu));box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:calc(1 * var(--fu));border:1px solid #E2E4E8;border-radius:calc(20 * var(--fu));background:#FFFFFF;text-align:center}
+.qrs-evnone .qi{width:calc(56 * var(--fu));height:calc(56 * var(--fu));color:#A8A29E}
+.qrs-evnone b{margin-top:calc(11.6 * var(--fu));font-size:calc(19.5 * var(--fu));font-weight:800;line-height:calc(24 * var(--fu));color:#1C1917}
+.qrs-evnone span{margin-top:calc(5 * var(--fu));font-size:calc(15.5 * var(--fu));line-height:calc(22 * var(--fu));color:#57534E}
+.qrs-facts.ev{gap:calc(12 * var(--fu))}
+.qrs-facts.ev.wide{gap:calc(15 * var(--fu))}
+.qrs-facts.ev.wide .qrs-info{padding-bottom:calc(16 * var(--fu))}
+/* The list: LIVE NOW · UPCOMING · ENDED, each event a card; the one picked in teal */
+.qrs-evscroll{flex:1;min-height:0;margin:0 calc(-20 * var(--fu));padding:0 calc(20 * var(--fu)) calc(24 * var(--fu));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.qrs-evscroll::-webkit-scrollbar{display:none}
+.qrs-evlab{margin:calc(17.2 * var(--fu)) 0 0 calc(4 * var(--fu))!important;font-size:calc(13 * var(--fu));font-weight:800;line-height:calc(16 * var(--fu));letter-spacing:.06em;color:#57534E}
+.qrs-evcard{display:flex;align-items:flex-start;width:100%;box-sizing:border-box;margin-top:calc(10 * var(--fu))!important;padding:calc(14 * var(--fu)) calc(17 * var(--fu)) calc(14 * var(--fu)) calc(17 * var(--fu))!important;border:1px solid #E2E4E8!important;border-radius:calc(20 * var(--fu));background:#FFFFFF!important;color:#1C1917;text-align:left}
+.qrs-evcard+.qrs-evlab{margin-top:calc(17.2 * var(--fu))!important}
+.qrs-evcard.on{border-color:#0F766E!important;box-shadow:inset 0 0 0 1px #0F766E,0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(15,118,110,.14)}
+.qrs-evcard-i{flex:none;width:calc(52 * var(--fu));height:calc(52 * var(--fu));margin-top:calc(2 * var(--fu));display:grid;place-items:center;border-radius:calc(14 * var(--fu));background:#E6F4F1;color:#0F766E}
+.qrs-evcard.ended .qrs-evcard-i{background:#F4F3F2;color:#78716C}
+.qrs-evcard-i .qi{width:calc(28 * var(--fu));height:calc(28 * var(--fu))}
+.qrs-evcard-t{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:calc(14.5 * var(--fu))}
+.qrs-evcard-t b{font-size:calc(19 * var(--fu));font-weight:800;line-height:calc(28 * var(--fu));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qrs-evcard-d{margin-top:calc(1 * var(--fu));font-size:calc(15 * var(--fu));line-height:calc(20 * var(--fu));color:#44403C}
+.qrs-evcard-t small{margin-top:calc(3 * var(--fu));font-size:calc(14 * var(--fu));line-height:calc(19.5 * var(--fu));color:#57534E}
+.qrs-evchip{flex:none;display:inline-flex;align-items:center;gap:calc(7 * var(--fu));height:calc(28 * var(--fu));box-sizing:border-box;margin:calc(1.5 * var(--fu)) 0 0 calc(16 * var(--fu));padding:0 calc(11 * var(--fu));border-radius:calc(14 * var(--fu));font-size:calc(13.5 * var(--fu));font-weight:700;line-height:1;white-space:nowrap}
+.qrs-evchip i{width:calc(8 * var(--fu));height:calc(8 * var(--fu));border-radius:50%;background:#16A34A}
+.qrs-evchip.live{background:#DCFCE7;color:#166534}
+.qrs-evchip.soon{background:#E3ECFC;color:#1E4FB8}
+.qrs-evchip.ended{background:#F1F0EE;color:#57534E}
+/* (EV2) one QR for the whole event: its card in the grey box (300 wide), This event and When it ends */
+.qrs-evbox{flex:none;width:calc(344 * var(--fu));height:calc(530 * var(--fu));box-sizing:border-box;display:grid;place-items:center;border-radius:calc(26 * var(--fu));background:#F1EFEB}
+.qrs-evbox .qrs-card{--cu:calc(.70423 * var(--fu))}
+.qrs-ev .qrs-facts{margin-left:calc(-6 * var(--fu))}
+.qrs-ev .qrs-facts.wide{margin-left:0}
+.qrs-info dd b.soon{color:#1E4FB8}
+/* (EV7) one QR per event table: what it is, then the event tables' QRs, four across */
+.qrs-evtables{flex:1;min-width:0;align-self:stretch;min-height:0;display:flex;flex-direction:column}
+.qrs-evhead{flex:none;display:flex;align-items:center;gap:calc(16 * var(--fu));height:calc(72 * var(--fu));box-sizing:border-box;padding:0 calc(19 * var(--fu)) 0 calc(20 * var(--fu));border:1px solid #E2E4E8;border-radius:calc(16 * var(--fu));background:#FFFFFF}
+.qrs-evhead>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.qrs-evhead b{font-size:calc(18.5 * var(--fu));font-weight:800;line-height:calc(22 * var(--fu));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrs-evhead span{margin-top:calc(4 * var(--fu));font-size:calc(15 * var(--fu));line-height:calc(20 * var(--fu));color:#57534E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrs-evhead .qrs-evhead-chip{flex:none;margin:0;display:inline-flex;align-items:center;height:calc(28 * var(--fu));padding:0 calc(11 * var(--fu));border-radius:calc(14 * var(--fu));background:#E3ECFC;color:#1E4FB8;font-size:calc(13.5 * var(--fu));font-weight:700;line-height:1}
+.qrs-evgrid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:calc(211 * var(--fu));gap:calc(10 * var(--fu)) calc(12 * var(--fu));margin:calc(11.5 * var(--fu)) calc(-16 * var(--fu)) 0 0;padding:0 calc(16 * var(--fu)) calc(24 * var(--fu)) 0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.qrs-evgrid::-webkit-scrollbar{display:none}
+.qrs-etcard{display:flex;flex-direction:column;align-items:center;box-sizing:border-box;padding-top:calc(25 * var(--fu));border:1px solid #E2E4E8;border-radius:calc(18 * var(--fu));background:#FFFFFF}
+.qrs-etqr .qrs-qr{display:block;width:calc(109 * var(--fu));height:calc(109 * var(--fu))}
+.qrs-etcard b{margin-top:calc(16.7 * var(--fu));font-size:calc(18.5 * var(--fu));font-weight:800;line-height:calc(24 * var(--fu));white-space:nowrap}
+.qrs-etcard>span:last-child{display:inline-flex;align-items:center;gap:calc(6 * var(--fu));margin-top:calc(4 * var(--fu));font-size:calc(13 * var(--fu));font-weight:500;line-height:calc(18 * var(--fu));color:#44403C}
+.qrs-etcard>span.live{color:#166534;font-weight:700}
+.qrs-etcard>span.live i{width:calc(8 * var(--fu));height:calc(8 * var(--fu));border-radius:50%;background:#16A34A}
+.qrs-etcard>span.muted{color:#78716C}
+/* (End now and Delete event: asked where Delete QR asks) */
+.qrs-scrim:is(.k-end,.k-delete-event) .qrs-pop{margin-top:calc(202 * var(--fu))}
+
 /* ---------- the printed card: the 426-wide Takeaway card of QS2 in card units (--cu), scaled to its place ---------- */
 .qrs-card{--cu:calc(.676 * var(--fu));position:relative;width:calc(426 * var(--cu));box-sizing:border-box;display:flex;flex-direction:column;align-items:center;padding:calc(25.5 * var(--cu)) calc(31 * var(--cu)) calc(35 * var(--cu));border-radius:calc(24 * var(--cu));background:#FFFFFF;box-shadow:0 calc(12 * var(--cu)) calc(36 * var(--cu)) rgba(28,25,23,.16);color:#1C1917;text-align:center}
 .qrs-card-brand{display:flex;align-items:center;gap:calc(12 * var(--cu));height:calc(34 * var(--cu))}
@@ -286,6 +349,14 @@
 /* (the typed link: one 20-unit line as the designs; a long one, the GitHub address, goes on after a "/" on a second line) */
 .qrs-card-link{max-width:100%;margin-top:0;font-size:calc(15.8 * var(--cu));font-weight:700;line-height:calc(20 * var(--cu));color:var(--accent);text-align:center;overflow-wrap:anywhere}
 .qrs-card-link .qi{display:inline-block;width:calc(17 * var(--cu));height:calc(17 * var(--cu));margin-right:calc(8 * var(--cu));vertical-align:calc(-2.7 * var(--cu));stroke-width:2.4}
+/* (Update Pack 6, EV2: an event's card, teal: its name smaller and free to take two lines, its dates, its line) */
+.qrs-card.k-event .qrs-card-title{height:auto;max-width:100%;margin-top:calc(37.6 * var(--cu));gap:calc(15.6 * var(--cu));font-size:calc(34.5 * var(--cu));white-space:normal;text-align:left}
+.qrs-card.k-event .qrs-card-title .qi{flex:none;width:calc(34 * var(--cu));height:calc(34 * var(--cu))}
+.qrs-card-date{margin-top:calc(10.4 * var(--cu));font-size:calc(18.6 * var(--cu));font-weight:700;line-height:calc(26 * var(--cu));color:var(--accent);white-space:nowrap}
+.qrs-card-text{margin-top:calc(5.2 * var(--cu));font-size:calc(17.75 * var(--cu));line-height:calc(24.15 * var(--cu));color:#57534E}
+.qrs-card.k-event .qrs-card-rule{margin-top:calc(19.6 * var(--cu))}
+.qrs-card.k-event .qrs-card-type{margin-top:calc(8.6 * var(--cu))}
+.qrs-card.k-event{padding-bottom:calc(37 * var(--cu))}
 
 /* ---------- pop-ups: centred on the screen, each kind at its design's height ---------- */
 .qrs-scrim{position:absolute;inset:0;z-index:30;display:flex;justify-content:center;align-items:flex-start;background:rgba(28,25,23,.28)}

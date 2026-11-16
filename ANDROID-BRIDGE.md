@@ -39,7 +39,7 @@ Run it after any change to how the page talks to the app.
 | `setScreenDark` | method | Going dark |
 | `restro:device-ready` | event | The WebView |
 | (nothing to add in the app) | what staff see | Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability, QR payment Pending, home-screen badges |
-| `printer.printQr`, `qr.send`, `restro:qr-path`, `restro:qr-scan`, `RestroQrStudio.path`, `RestroQrStudio.scanned` | methods, events, page calls | QR Studio (Update Pack 5) |
+| `printer.printQr`, `qr.send`, `restro:qr-path`, `restro:qr-scan`, `RestroQrStudio.path`, `RestroQrStudio.scanned` | methods, events, page calls | QR Studio (Update Pack 5; Event QRs, Update Pack 6) |
 
 ## The WebView
 
@@ -785,6 +785,28 @@ the middle still scans. Every method here is optional, as noted.
   to see our menu"); the QR, with a table's number on a rounded tile in the middle; the title ("Table 7", "Takeaway",
   "Menu"); two lines; a table card's "Need a waiter or the bill? Tap the bell on the menu"; then "QR not scanning? Type
   this link" and the link. Colours (the PDF): Table `#9A6B1F`, Takeaway `#2E7D4F`, Menu `#8E1E3C`.
+- **Event QRs** (Update Pack 6, D–E; the screens EV1, EV2 and EV7): the 4th pill, before Menu design, with the
+  Event order type's calendar and star and the count of events live now and coming up. Kept in `restro.events.v1`
+  (synced, SYNC.md): `{ id, name, start, end, daily, qrs, mode, code, path, tablesFrom, tables, menu, endedAt, endedBy,
+  hadOrders, createdAt, createdBy, printedAt, printedBy, sentAt, sentBy }`.
+  - `start`, `end` (ms): it works only between them, even outside business hours, and stops by itself. `daily: true`
+    ("Open only these hours each day"): open from the start's time to the end's time on each day.
+  - `qrs: 'whole'`: one QR for the whole event, `code` and `path` `<restaurant>/EV-<code>`; `mode` what customers can
+    do with it: `'both'` (Dine-in + Takeaway), `'takeaway'` (Takeaway only) or `'menu'` (Menu only).
+  - `qrs: 'tables'`: one QR per event table, `tables: [{ id, name, floor, code, path }]`, `path` `<restaurant>/E3-<code>`;
+    `tablesFrom: 'event'` (event table numbers) or `'floor'` (the restaurant's tables: `floor` is the Floor table's id).
+  - `menu: { items, own }`: the dishes from the menu and the event-only dishes.
+  - `endedAt`, `endedBy`: End now. `hadOrders`: set once it has an order (never cleared), so Delete stays off after its
+    orders leave this device.
+  - The page lists them under **LIVE NOW**, **UPCOMING** and **ENDED** (an event between its days stays live: "Opens
+    6:00 PM"). Picked: one QR for the whole event shows its card and **This event** (status, dates and times, QRs, order
+    type, menu, where KOTs go, orders so far and their takings as Orders' Total counts them, created) and **When it
+    ends**; one QR per event table shows its tables' QRs with their numbers. **New event** and **Edit** open the steps
+    still to be built (they say "Coming soon" until then).
+  - Buttons: Test scan · Reprint (Print all) · Send (Send all) · Edit · End now · Delete. End now is greyed before the
+    event starts and after it ends; Delete is greyed once it has had an order, so takings never disappear. Greyed
+    buttons are never hidden. Test scan, Send, End now and Delete need the cloud ("Needs internet"), as Delete QR.
+  - Event QRs and the restaurant's QRs never pause each other (H1), so the restaurant's banners aren't shown there.
 - **What needs looking at** (the home badge, J: `RestroQrStudio.attention()`). Each clears by itself once fixed.
   - Each table renamed in Floor since its card was printed or sent: "Now Table 11 · reprint the card". QR Studio
     compares the names. Floor notes the change on the table as `renamed: { at, by }` for "Renamed today by ‹name›".
@@ -887,7 +909,8 @@ Dispatch every scan of the restaurant's QRs that the cloud reports, on every tab
 
 Each device keeps the latest per code in `restro.qrScans.v1` (not synced: each tablet gets them from the cloud).
 **Test scan** waits 1 minute for a scan of that QR's code (from 2 s before the button was tapped) and shows "Table 7
-QR works" when one comes, "Didn’t get a scan" when none does. A scan clears a quiet warning by itself.
+QR works" when one comes, "Didn’t get a scan" when none does. A scan clears a quiet warning by itself. An event's Test
+scan takes its QR's code, or any of its event tables' codes ("Event table 3 QR works").
 
 ### Printing a card: `RESTRODevice.printer.printQr({ cards })`
 
@@ -912,7 +935,14 @@ Each card is `{ kind, restaurant, heading, qr, mark, title, lines, note, linkLab
 - `linkLabel` ("QR not scanning? Type this link") then `link`
   (`sandeepdonavalli-droid.github.io/restro/<restaurant>/T7-<code>` for now), small, at the bottom. A link too long for
   one line goes on after a "/" on the next (the screens' card puts it on two lines, after `github.io/restro/`).
-- `kind` (`'table'`, `'takeaway'` or `'menu'`) and `url` (the full link the QR holds) are for the app.
+- `kind` (`'table'`, `'takeaway'`, `'menu'` or `'event'`) and `url` (the full link the QR holds) are for the app.
+- An event's card (Update Pack 6, `kind: 'event'`; teal `#0F766E` in the PDF, with the Event order type's icon,
+  `ic_order_event`, before the title): one QR for the whole event has `heading` "Scan · Order · Pay" (Menu only: "Scan to
+  see the menu"), `title` the event's name, `mark: null` and `lines` its dates and times, then what customers can do
+  ("Eat here or take it away. We call your name when it’s ready."; Takeaway only: "Order, pay and pick it up. We call
+  your name when it’s ready."; Menu only: "See our dishes and prices. Order with our staff."). Each event table's card
+  has `title` "Event table 3", `mark` "3" and `lines` the event's name and its dates. Print all prints every event
+  table's card.
 
 ### Our website for now: `404.html` on GitHub Pages
 
@@ -920,7 +950,9 @@ Until the domain is decided, the QRs hold `https://sandeepdonavalli-droid.github
 MN>-<code>` (owner, 14 Nov 2026). There is no page at that address, so GitHub Pages serves the repository's `404.html`
 (with status 404, which browsers and phone cameras show as usual). It reads the link and shows the restaurant's name
 (from the link, in capitals: hotel-sri-sai shows "HOTEL SRI SAI"), the QR's "Table 7", "Takeaway" or "Menu" in the
-card's colour, and "QR ordering is coming soon. Please order with staff." Anything else shows "Page not found". It
+card's colour, and "QR ordering is coming soon. Please order with staff." An event's QR (`EV-<code>`) shows "Event", an
+event table's (`E3-<code>`) "Event table 3", in teal with the Event order type's icon (Update Pack 6; the event's own
+customer pages come later, K). Anything else shows "Page not found". It
 holds no data and sends nothing; it loads only Inter from the site. The menu, ordering, payment and the menu designs
 replace it with the cloud and the next set of designs; when the domain is chosen, `HOST` in `qr-studio.js` changes,
 and this page can send the cards already printed on to the new address.
