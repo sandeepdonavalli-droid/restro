@@ -144,7 +144,14 @@
     servicePct: null, priority: false, note: '', guests: 0, server: null, serverId: null, merged: [], events: [], lines: [] });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
+  // A customer who came with the order (by QR, or online) isn't in Customers: no id, their name and phone as sent
+  const guestOf = c => c && typeof c === 'object' && !c.id && typeof c.name === 'string' && c.name.trim()
+    ? { name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), ...(c.code ? { code: String(c.code).replace(/\D/g, '').slice(0, 4) } : {}) } : null;
   const TYPES = ['dine-in', 'takeaway', 'delivery', 'phone'];
+  // (owner, 16 Nov 2026) An event's order (Update Pack 6, I) and an online one (the restaurant's own website or app) keep
+  // their type here: the type tile at the top shows Event or Online, and a tap on it changes nothing. Neither is one of
+  // the four types to pick.
+  const fixedType = o => (o?.type === 'event' ? 'event' : o?.online === true ? 'online' : null);
   const cleanPager = n => Number.isInteger(n) && n >= 1 && n <= 99 ? n : 0;
   // A pager's life on an order: handed out (pagerAt; an order from before this kept its creation time) and back
   // (pagerBackAt: docked in its docking station, or handed back and given to another order). pagerShared (Update Pack
@@ -203,8 +210,8 @@
   const EVENT_KINDS = ['open', 'disc', 'disc-off', 'dish', 'dish-off', 'svc', 'svc-off', 'move', 'merge', 'server', 'priority', 'priority-off'];
   const cleanEvents = list => (Array.isArray(list) ? list : []).filter(e => e && typeof e === 'object' && EVENT_KINDS.includes(e.kind) && Number.isFinite(e.at)).slice(-200);
   const restoreOrder = o => {
-    const type = TYPES.includes(o.type) ? o.type : null;
-    return { type, split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer),
+    const type = TYPES.includes(o.type) || o.type === 'event' ? o.type : null;
+    return { type, ...(o.online === true ? { online: true } : {}), split: o.split === true, table: typeof o.table === 'string' ? o.table : '', customer: cleanCustomer(o.customer) || guestOf(o.customer),
       pager: cleanPager(o.pager), pagerAt: cleanTime(o.pagerAt), pagerShared: o.pagerShared === true && cleanPager(o.pager) > 0, readyAt: cleanTime(o.readyAt), kotMode: ['queue', 'now', 'ask'].includes(o.kotMode) ? o.kotMode : null, prepMin: prepOf(o.prepMin), holdUntil: cleanTime(o.holdUntil),
       heldId: typeof o.heldId === 'string' ? o.heldId : null, number: Number.isInteger(o.number) ? o.number : null, uid: typeof o.uid === 'string' ? o.uid : null,
       discountPct: window.RestroBill.pct(o.discountPct), servicePct: window.RestroBill.rate(o.servicePct), priority: o.priority === true, note: cleanNote(o.note), guests: cleanGuests(o.guests),
@@ -659,7 +666,7 @@
   // picking one sets it (every item moves to it) and closes them. Picking the type already chosen takes it off again:
   // the button shows Order type, and the order goes as Dine in. A tap on the dimmed screen closes them unchanged.
   function openTypeMenu(open) {
-    if (open && order.type === 'event') return; // (an event's order stays an event's)
+    if (open && fixedType(order)) return; // (an event's order, or an online one, keeps its type)
     typeMenu = open; render();
     (open ? dialog.querySelector('.cx-seg.lift [aria-pressed="true"]') || dialog.querySelector('.cx-seg.lift .cx-b') : dialog.querySelector('.cx-type'))?.focus({ preventScroll: true });
   }
@@ -893,9 +900,10 @@
     return { entry, kot, printed, sentNow: kot ? kot.lines.reduce((n, l) => n + l.qty, 0) : 0, isNew: !prev };
   }
   // (Update Pack 5: a QR order's own fields; a QR order whose payment failed, owner 13 Nov 2026, opens here to be paid:
-  // it stays a QR order, with who confirmed it and when)
+  // it stays a QR order, with who confirmed it and when. An event's order keeps its event, an online one online and
+  // source: owner, 16 Nov 2026)
   const KEPT = ['bills', 'receipts', 'refundSlips', 'billNo', 'billYear', 'platform', 'platformNo', 'platformType', 'platformLogo', 'pickupAt', 'readyBy', 'callCode', 'handover', 'riderAt', 'platformReadyAt', 'payRef',
-    'qr', 'qrPayAt', 'qrChoice', 'qrFailedAt', 'qrFailSeen'];
+    'qr', 'qrPayAt', 'qrChoice', 'qrFailedAt', 'qrFailSeen', 'event', 'online', 'source'];
   // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
   // main system or the cloud, as a new order takes its number from them, so no two orders share one. Otherwise it says
   // so and the order stays on screen. Returns what upsertOrder does, or null. A dish that sold out before its KOT went
@@ -1534,8 +1542,8 @@
   window.addEventListener('restro:platform-cancelled', e => platformCancelled(e.detail));
 
   // ---------- rendering ----------
-  // (Update Pack 6, I: Event, an event QR's order; never picked here, so not in the four types)
-  const typeLabel = { 'dine-in': 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call', event: 'Event' };
+  // (Event and Online: an event's order and an online one, never picked here, so not in the four types: fixedType)
+  const typeLabel = { 'dine-in': 'Dine-in', takeaway: 'Takeaway', delivery: 'Delivery', phone: 'Phone call', event: 'Event', online: 'Online' };
   const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
   function pickTable() {
     window.RestroFloor?.open({ pick: true, current: order.table, guests: order.guests, onPick: table => {
@@ -1657,7 +1665,7 @@
     s.setAttribute('viewBox', '0 -960 960 960'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', `cx-i s${size}`);
     s.innerHTML = MI[name].startsWith('<') ? MI[name] : `<path d="${MI[name]}"/>`; return s;
   };
-  const typeIcon = { 'dine-in': 'dineIn', takeaway: 'takeaway', delivery: 'delivery', phone: 'phone', event: 'event' };
+  const typeIcon = { 'dine-in': 'dineIn', takeaway: 'takeaway', delivery: 'delivery', phone: 'phone', event: 'event', online: 'online' };
   // ₹2,270 for whole rupees, ₹113.50 otherwise
   const amount = paise => `₹${(paise / 100).toLocaleString('en-IN', paise % 100 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -1675,8 +1683,11 @@
     // bill (an icon); then the order header (Update 4): Order #1015 with "24 items" under it · Schedule · Modify · Hold,
     // the row ending under Print's right edge, Modify and Hold sharing what Schedule leaves. Hold any of them to
     // rearrange its group (below). Order type opens the four types, two by two, over both, over the dimmed screen.
-    const typeBtn = ctxButton(order.type ? 'amber' : 'grey unset', order.type ? typeIcon[order.type] : 'receipt_long', 20, typeLabel[order.type] || 'Order type',
-      { class: `cx-b ${order.type ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': 'true', 'aria-expanded': String(typeMenu), 'aria-label': order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
+    // (an event's order or an online one: Event or Online, and a tap changes nothing: fixedType)
+    const fixed = fixedType(order), shown = fixed || order.type;
+    const typeBtn = ctxButton(shown ? 'amber' : 'grey unset', shown ? typeIcon[shown] : 'receipt_long', 20, typeLabel[shown] || 'Order type',
+      { class: `cx-b ${shown ? 'amber' : 'grey unset'} cx-type`, 'aria-haspopup': fixed ? null : 'true', 'aria-expanded': fixed ? null : String(typeMenu),
+        'aria-label': fixed ? `Order type ${typeLabel[fixed]}` : order.type ? `Order type ${typeLabel[order.type]}. Tap to change` : 'Choose the order type', onclick: () => openTypeMenu(true) }, true);
     const who = order.type === 'dine-in'
       ? ctxButton('grey', 'table', 19, table ? `Table ${table}` : 'Choose table', { class: `cx-b grey cx-who${table ? ' set' : ''}`, 'aria-label': table ? `Table ${table}${order.guests ? `, ${plural(order.guests, 'guest')}` : ''}. Tap to change the table` : 'Choose table', onclick: pickTable },
         false, table && order.guests ? el('span', { class: 'cx-gchip', 'aria-hidden': 'true' }, mi('group', 18), String(order.guests)) : null)

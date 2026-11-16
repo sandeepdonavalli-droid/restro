@@ -468,8 +468,11 @@ Where the names show and what staff can do:
   finds it by the event's name as well.
 - **Order type filter** (`OE2`): **Event** after Delivery, with its count; **QR** counts every order placed by QR,
   events too; its foot reads "Tick one or more · QR shows every order placed by QR: Dine-in, Takeaway or Event".
-- **The Counter:** "Event" with the plain icon wherever the order's type is named; it isn't one of the four types to
-  pick, and an event's order can't be changed to another type there.
+- **The Counter** (owner, 16 Nov 2026): an event's order that isn't paid (its QR payment failed) opens there to be
+  paid like any other. The type tile at the top reads **Event** with the plain icon, and a tap on it changes nothing.
+  Event isn't one of the four types to pick. An online order (the restaurant's own website or app: `online: true`)
+  works the same way, with **Online** on the tile. Saved or paid there, the order keeps its type, `event`, `online`
+  and `source`, and its customer as sent (`{ name, mobile }`, with no Customers id).
 - **KOT:** its band reads **EVENT · DINE-IN** or **EVENT · TAKEAWAY** (`band`); the rest of the event's slip (the
   event's name, then the customer or the event table) is still to be drawn (Pack 6, K).
 
