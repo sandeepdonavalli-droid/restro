@@ -21,10 +21,13 @@
 //       each day), qrs: 'whole' (one QR for the whole event: code, path '<restaurant>/EV-<code>', mode 'both' (Dine-in +
 //       Takeaway) | 'takeaway' | 'menu') | 'tables' (one QR per event table: tablesFrom 'event' | 'floor', tables
 //       [{ id, name (its number, or the Floor table's name), floor (a Floor table's id), code, path
-//       '<restaurant>/E<name>-<code>' }]), menu { items (dishes from the menu), own (event-only dishes) }, endedAt,
-//       endedBy (End now), hadOrders (set once it has an order, never cleared: Delete stays off), createdAt, createdBy,
-//       printedAt, printedBy, sentAt, sentBy }.
-//   An event works only from its start to its end, even outside business hours, and stops by itself.
+//       '<restaurant>/E<name>-<code>', replacedAt, replacedBy, printedAt, printedBy, sentAt, sentBy }]), menu { items
+//       (dishes from the menu), own (event-only dishes) }, endedAt, endedBy (End now), hadOrders (set once it has an
+//       order, never cleared: Delete stays off), createdAt, createdBy, replacedAt, replacedBy (the whole event's QR
+//       replaced), printedAt, printedBy, sentAt, sentBy }.
+//   An event works only from its start to its end, even outside business hours, and stops by itself; then it shows under
+//   History (owner, 16 Nov 2026). Like a table QR, each event table's QR and the whole event's QR can be reprinted, sent
+//   or replaced (a new code: the old one stops working), and an event table's QR deleted (that table leaves the event).
 // - Scans come from the cloud (RestroQrStudio.scanned, ANDROID-BRIDGE.md); each device keeps them: restro.qrScans.v1.
 // - The path for QR orders (internet → printer device → kitchen printer) comes from the Android app:
 //   RestroQrStudio.path(status) or a restro:qr-path event (ANDROID-BRIDGE.md).
@@ -464,9 +467,10 @@
   }
 
   // ---------- what the screen shows ----------
-  // page: 'table' | 'takeaway' | 'menu'; area: 'all' or an area's id; picked: the QR ids ticked after a long-press (Set),
-  // or null; selected: the table QR the panel shows
-  const view = { page: 'table', area: 'all', search: '', picked: null, selected: null };
+  // page: 'table' | 'takeaway' | 'menu' | 'event'; area: 'all' or an area's id; picked: the QR ids ticked after a
+  // long-press (Set), or null; selected: the table QR the panel shows; evTab: Event QRs' tab, 'events' (live and
+  // upcoming) | 'history' (ended); evPick: the event picked on each tab
+  const view = { page: 'table', area: 'all', search: '', picked: null, selected: null, evTab: 'events', evPick: { events: null, history: null } };
   let root = null, pop = null, toastTimer = 0, tick = 0;
   const greyed = (label, why) => ({ disabled: true, 'aria-disabled': 'true', title: why || null, 'aria-label': why ? `${label} · ${why}` : null });
   const online = () => internetHere();
@@ -649,49 +653,64 @@
   }
 
   // Event QRs (Update Pack 6, D: EV1 none yet, EV2 one QR for the whole event picked, EV7 one per event table picked).
-  // New event and the events under LIVE NOW, UPCOMING and ENDED on the left; the one picked on the right. Restaurant QRs
-  // and event QRs never pause each other (H1), so the restaurant's banners aren't shown here.
+  // Two tabs right of the title (owner, 16 Nov 2026): Events, with New event and the events under LIVE NOW and UPCOMING,
+  // and History, every event that has ended, newest first, by month; the one picked on the right. Before the first
+  // event, EV1 as drawn (no tabs). Restaurant QRs and event QRs never pause each other (H1), so the restaurant's banners
+  // aren't shown here.
   const info = (title, items) => el('section', { class: 'qrs-info' }, el('h3', {}, title), el('ul', {}, items.map(x => el('li', {}, x))));
+  const noneEl = (title, text) => el('div', { class: 'qrs-evnone' }, icon('event'), el('b', {}, title), el('span', {}, text));
+  const MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
   function eventPage() {
-    const now = Date.now(), all = events.map(e => ({ e, s: evState(e, now) }));
+    const now = Date.now(), all = events.map(e => ({ e, s: evState(e, now) })), history = view.evTab === 'history';
     const by = { live: all.filter(x => x.s.state === 'live').sort((a, b) => a.e.start - b.e.start), upcoming: all.filter(x => x.s.state === 'upcoming').sort((a, b) => a.e.start - b.e.start),
       ended: all.filter(x => x.s.state === 'ended').sort((a, b) => b.s.at - a.s.at) };
-    const listed = [...by.live, ...by.upcoming, ...by.ended], sel = listed.find(x => x.e.id === view.event) || listed[0] || null;
-    view.event = sel ? sel.e.id : null;
+    const listed = history ? by.ended : [...by.live, ...by.upcoming], sel = listed.find(x => x.e.id === view.evPick[view.evTab]) || listed[0] || null;
+    view.evPick[view.evTab] = sel ? sel.e.id : null;
     const line = el('p', { class: 'qrs-line' }, 'A QR for one event, with its own menu, prices, dates and times. It stops working by itself when the event ends.');
     // (New event and Edit: the steps come in the next parts)
     const newBtn = el('button', { type: 'button', class: `qrs-evnew${sel ? '' : ' first'}`, onclick: () => toast('Coming soon', null, null) },
       el('span', { class: 'qrs-evnew-i' }, icon('plus')), el('b', {}, 'New event'), el('small', {}, 'Name, dates, tables, menu'));
-    if (!sel) return [headEl('Event QRs', null, null), line,
-      el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist' }, newBtn,
-        el('div', { class: 'qrs-evnone' }, icon('event'), el('b', {}, 'No events yet'), el('span', {}, 'Create one for a festival, a brunch, a party or a wedding.'))),
-        el('div', { class: 'qrs-facts ev wide' },
-          info('What an event QR does', ['Customers scan, order from the event menu and pay', 'Works only on the dates and times you set, even outside business hours; it can run over several days', 'Several events can run at once']),
-          info('Tables and QRs', ['One QR per event table: use Floor tables or give event table numbers', 'Or one QR for the whole event: Dine-in + Takeaway, Takeaway only, or Menu only. Customers give name and phone']),
-          info('The event menu', ['Add whole categories or single dishes, with their photos; change price, photo or printer for this event', 'Add event-only dishes; they end with the event', 'KOTs print as EVENT; orders show in Orders and every total'])))];
-    const groups = [['live', 'LIVE NOW'], ['upcoming', 'UPCOMING'], ['ended', 'ENDED']].filter(([k]) => by[k].length);
-    const list = el('div', { class: 'qrs-evlist' }, newBtn,
-      el('div', { class: 'qrs-evscroll' }, groups.map(([k, label]) => [el('p', { class: 'qrs-evlab' }, label), by[k].map(x => eventCard(x.e, x.s, x === sel))])));
-    return [headEl('Event QRs', null, eventTools(sel.e, sel.s)), line, el('div', { class: 'qrs-ev' }, list, sel.e.qrs === 'tables' ? tablesPanel(sel.e, sel.s) : wholePanel(sel.e, sel.s))];
+    const facts = () => el('div', { class: 'qrs-facts ev wide' },
+      info('What an event QR does', ['Customers scan, order from the event menu and pay', 'Works only on the dates and times you set, even outside business hours; it can run over several days', 'Several events can run at once']),
+      info('Tables and QRs', ['One QR per event table: use Floor tables or give event table numbers', 'Or one QR for the whole event: Dine-in + Takeaway, Takeaway only, or Menu only. Customers give name and phone']),
+      info('The event menu', ['Add whole categories or single dishes, with their photos; change price, photo or printer for this event', 'Add event-only dishes; they end with the event', 'KOTs print as EVENT; orders show in Orders and every total']));
+    if (!all.length) return [headEl('Event QRs', null, null), line,
+      el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist' }, newBtn, noneEl('No events yet', 'Create one for a festival, a brunch, a party or a wedding.')), facts())];
+    const tab = (id, label, n) => el('button', { type: 'button', role: 'tab', class: `qrs-chip qrs-evtab${view.evTab === id ? ' on' : ''}`, 'aria-selected': String(view.evTab === id),
+      onclick: () => { if (view.evTab !== id) { view.evTab = id; render(); } } }, el('span', {}, label), el('small', {}, String(n)));
+    const tabs = el('div', { class: 'qrs-evtabs', role: 'tablist', 'aria-label': 'Events or history' }, tab('events', 'Events', by.live.length + by.upcoming.length), tab('history', 'History', by.ended.length));
+    if (!sel) return [headEl('Event QRs', tabs, null), line, history
+      ? el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist history' }, noneEl('No past events yet', 'Events move here by themselves when they end.')))
+      : el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist' }, newBtn, noneEl('No live or upcoming events', 'Create one for a festival, a brunch, a party or a wedding.')), facts())];
+    // (History: one label a month, "NOVEMBER 2026", by when each event ended)
+    const groups = history ? by.ended.reduce((out, x) => { const d = new Date(x.s.at), label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+      if (out.at(-1)?.[0] !== label) out.push([label, []]); out.at(-1)[1].push(x); return out; }, [])
+      : [['LIVE NOW', by.live], ['UPCOMING', by.upcoming]].filter(([, l]) => l.length);
+    const list = el('div', { class: `qrs-evlist${history ? ' history' : ''}` }, history ? null : newBtn,
+      el('div', { class: 'qrs-evscroll' }, groups.map(([label, l]) => [el('p', { class: 'qrs-evlab' }, label), l.map(x => eventCard(x.e, x.s, x === sel))])));
+    return [headEl('Event QRs', tabs, eventTools(sel.e, sel.s)), line, el('div', { class: 'qrs-ev' }, list, sel.e.qrs === 'tables' ? tablesPanel(sel.e, sel.s) : wholePanel(sel.e, sel.s))];
   }
   // An event in the list: its tile, name, dates, QRs and orders, and where it stands (Live, Starts Fri, Ended)
   function eventCard(e, s, on) {
     const chip = s.state === 'ended' ? el('span', { class: 'qrs-evchip ended' }, 'Ended') : s.state === 'upcoming' ? el('span', { class: 'qrs-evchip soon' }, `Starts ${dayWords(e.start)}`)
       : s.open ? el('span', { class: 'qrs-evchip live' }, el('i'), 'Live') : el('span', { class: 'qrs-evchip soon' }, `Opens ${daysApart(Date.now(), s.next) === 0 ? clock(s.next) : dayWords(s.next)}`);
     // (the chip keeps its own column on the right: the lines wrap before it, as EV2)
-    return el('button', { type: 'button', class: `qrs-evcard${on ? ' on' : ''}${s.state === 'ended' ? ' ended' : ''}`, 'aria-pressed': String(on), onclick: () => { view.event = e.id; render(); } },
+    return el('button', { type: 'button', class: `qrs-evcard${on ? ' on' : ''}${s.state === 'ended' ? ' ended' : ''}`, 'aria-pressed': String(on), onclick: () => { view.evPick[view.evTab] = e.id; render(); } },
       el('span', { class: 'qrs-evcard-i' }, icon('event')),
       el('span', { class: 'qrs-evcard-t' }, el('b', {}, e.name), el('span', { class: 'qrs-evcard-d' }, datesText(e)), el('small', {}, infoLine(e))), chip);
   }
   // The buttons for the event picked (EV2, EV7): End now is off before it starts and after it ends; Delete is off once
   // it has had an order, so takings never disappear (greyed, never hidden). End now and Delete need the internet, as
-  // Delete QR: the cloud keeps which codes work.
+  // Delete QR: the cloud keeps which codes work. One QR for the whole event can be replaced as the Takeaway QR (owner,
+  // 16 Nov 2026: between Send and Edit); an event table's QR, from its card. Once it has ended (History), only Delete
+  // can be used.
   function eventTools(e, s) {
-    const why = !online() ? 'Needs internet' : '', tables = e.qrs === 'tables', had = hasOrders(e), live = s.state === 'live';
-    return [btn('', 'Test scan', () => openPop('test', { event: e.id }), 'scan', { off: !online(), why }),
-      btn('tint', tables ? 'Print all' : 'Reprint', () => printEvent(e), 'print'),
-      btn('', tables ? 'Send all' : 'Send', () => openPop('send', { event: e.id }), 'send', { off: !online(), why }),
-      btn('', 'Edit', () => toast('Coming soon', null, null), 'edit'),
+    const why = !online() ? 'Needs internet' : '', tables = e.qrs === 'tables', had = hasOrders(e), live = s.state === 'live', ended = s.state === 'ended';
+    return [btn('', 'Test scan', () => openPop('test', { event: e.id }), 'scan', { off: ended || !online(), why: ended ? '' : why }),
+      btn('tint', tables ? 'Print all' : 'Reprint', () => printEvent(e), 'print', { off: ended }),
+      btn('', tables ? 'Send all' : 'Send', () => openPop('send', { event: e.id }), 'send', { off: ended || !online(), why: ended ? '' : why }),
+      tables ? null : btn('', 'Replace QR', () => openPop('replace-event', { event: e.id }), 'replace', { off: ended }),
+      btn('', 'Edit', () => toast('Coming soon', null, null), 'edit', { off: ended }),
       btn('del', 'End now', () => openPop('end', { event: e.id }), 'stop', { off: !live || !online(), why: live ? why : '', showWhy: true }),
       btn('del', 'Delete', () => openPop('delete-event', { event: e.id }), 'trash', { off: had || !online(), why: had ? '' : why, showWhy: true })];
   }
@@ -723,31 +742,39 @@
     return [el('div', { class: 'qrs-evbox' }, eventCardEl(e)),
       el('div', { class: 'qrs-facts ev' }, factsEl('This event', rows), info('When it ends', [first, 'Customers who scan later see “This event has ended.”', 'Delete is off once an event has orders, so takings never disappear']))];
   }
-  // One QR per event table picked (EV7): what it is, then its tables' QRs with their numbers
+  // One QR per event table picked (EV7): what it is, then its tables' QRs with their numbers. Tapping a table's card
+  // opens its own Reprint · Send · Replace QR · Delete, as a table QR's (owner, 16 Nov 2026); not once the event has ended.
   function tablesPanel(e, s) {
-    const tables = eventTables(e), now = Date.now();
+    const tables = eventTables(e), now = Date.now(), ended = s.state === 'ended';
     const hour = t => { const d = new Date(t); return d.getMinutes() ? clock(t) : `${d.getHours() % 12 || 12} ${d.getHours() < 12 ? 'AM' : 'PM'}`; };
-    const sub = s.state === 'upcoming' ? el('span', {}, `Starts ${dayWords(e.start)} ${hour(e.start)}`) : s.state === 'ended' ? el('span', { class: 'muted' }, 'Ended')
+    const sub = s.state === 'upcoming' ? el('span', {}, `Starts ${dayWords(e.start)} ${hour(e.start)}`) : ended ? el('span', { class: 'muted' }, 'Ended')
       : s.open ? el('span', { class: 'live' }, el('i'), 'Live') : el('span', {}, `Opens ${daysApart(now, s.next) === 0 ? '' : `${dayWords(s.next)} `}${hour(s.next)}`);
+    const opens = t => (ended ? {} : { tabindex: '0', 'aria-label': eventTableLabel(t), onclick: () => openPop('etable', { event: e.id, table: t.id }),
+      onkeydown: ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openPop('etable', { event: e.id, table: t.id }); } } });
     return el('div', { class: 'qrs-evtables' },
       el('div', { class: 'qrs-evhead' }, el('div', {}, el('b', {}, e.name), el('span', {}, `${datesText(e, true)} · Order type: Event`)),
         el('span', { class: 'qrs-evhead-chip' }, `${tablesWords(e)} · ${plural(tables.length, 'QR')}`)),
-      el('div', { class: 'qrs-evgrid', role: 'list' }, tables.map(t => el('div', { class: 'qrs-etcard', role: 'listitem' },
+      el('div', { class: 'qrs-evgrid', role: 'list' }, tables.map(t => el('div', { class: `qrs-etcard${ended ? '' : ' tap'}`, role: 'listitem', ...opens(t) },
         el('span', { class: 'qrs-etqr' }, qrSvg(`https://${HOST}/${t.path}`, tableMark(t), KINDS.event.accent)), el('b', {}, eventTableLabel(t)), sub.cloneNode(true)))));
   }
   // (an event table's number on its QR: a Floor table's name as Floor has it now)
   const tableMark = t => String(t.floor ? floor().tables.find(x => x.id === t.floor)?.name ?? t.name : t.name);
   const brandEl = () => { const restaurant = window.RestroRestaurantName?.value || '', logo = (Array.from(restaurant.trim())[0] || 'R').toLocaleUpperCase('en-IN');
     return el('div', { class: 'qrs-card-brand' }, el('span', { class: 'qrs-card-logo' }, logo), el('span', { class: 'qrs-card-name' }, restaurant)); };
-  // One QR for the whole event: its card (EV2), drawn as the Takeaway card, in teal, with the event's dates and line
-  function eventCardEl(e) {
-    const mode = MODES[e.mode] || MODES.both, link = `${HOST}/${e.path}`;
-    return el('div', { class: 'qrs-card k-event', style: `--accent:${KINDS.event.accent}`, role: 'img', 'aria-label': `${e.name} card: ${link}` },
-      brandEl(), el('div', { class: 'qrs-card-head' }, mode.heading), qrSvg(`https://${link}`, null, KINDS.event.accent, 'qrs-card-qr'),
-      el('div', { class: 'qrs-card-title' }, icon('event', 'qrs-card-ti'), el('span', {}, e.name)), el('div', { class: 'qrs-card-date' }, datesText(e)),
-      el('div', { class: 'qrs-card-text' }, mode.line), el('div', { class: 'qrs-card-rule' }), el('div', { class: 'qrs-card-type' }, 'QR not scanning? Type this link'),
+  // One QR for the whole event: its card (EV2), drawn as the Takeaway card, in teal, with the event's dates and line. An
+  // event table's (t): as it prints, "Event table 3" with its number on the QR, the event's name and dates under it.
+  function eventCardEl(e, t = null) {
+    const mode = MODES[e.mode] || MODES.both, link = `${HOST}/${t ? t.path : e.path}`, title = t ? eventTableLabel(t) : e.name;
+    return el('div', { class: `qrs-card k-event${t ? ' k-etable' : ''}`, style: `--accent:${KINDS.event.accent}`, role: 'img', 'aria-label': `${title} card: ${link}` },
+      brandEl(), el('div', { class: 'qrs-card-head' }, t ? 'Scan · Order · Pay' : mode.heading), qrSvg(`https://${link}`, t ? tableMark(t) : null, KINDS.event.accent, 'qrs-card-qr'),
+      el('div', { class: 'qrs-card-title' }, icon('event', 'qrs-card-ti'), el('span', {}, title)), el('div', { class: 'qrs-card-date' }, t ? e.name : datesText(e)),
+      el('div', { class: 'qrs-card-text' }, t ? datesText(e) : mode.line), el('div', { class: 'qrs-card-rule' }), el('div', { class: 'qrs-card-type' }, 'QR not scanning? Type this link'),
       el('div', { class: 'qrs-card-link' }, icon('link'), linkWords(link)));
   }
+  // An event table's history, as a table QR's ("Created 6 Nov by ‹name› · last printed today by ‹name›"): made with its
+  // event
+  const tableHistory = (e, t) => historyLine({ createdAt: t.createdAt || e.createdAt, createdBy: t.createdAt ? t.createdBy : e.createdBy, replacedAt: t.replacedAt, replacedBy: t.replacedBy,
+    printedAt: t.printedAt, printedBy: t.printedBy, sentAt: t.sentAt, sentBy: t.sentBy });
 
   // ---------- the panel on the right (Table QRs) ----------
   // A box that tells what a table's QR needs (QS25, QS28, QS35, QS36)
@@ -804,7 +831,9 @@
   }
 
   // ---------- pop-ups ----------
-  // kind: help | create | send | delete | delete-many | replace | test | pause | devices
+  // kind: help | create | send | delete | delete-many | replace | test | pause | devices; an event's: end | delete-event |
+  // replace-event | etable (one event table's QR) | delete-etable. One opened from an event table's own (Send, Replace QR,
+  // Delete: table) goes back to it when closed without doing it; done, all close and the toast says so.
   function openPop(kind, data = {}) {
     if (kind === 'help' && pop?.kind === 'help') { closePop(); return; }
     pop = { kind, ...data };
@@ -814,7 +843,8 @@
     if (kind === 'test') startTest();
     render();
   }
-  function closePop() { if (!pop) return false; pop = null; clearInterval(testTimer); render(); return true; }
+  const backTo = p => (p && p.kind !== 'etable' && p.event && p.table ? { kind: 'etable', event: p.event, table: p.table } : null);
+  function closePop() { if (!pop) return false; pop = backTo(pop); clearInterval(testTimer); render(); return true; }
   const popHead = (title, sub) => el('div', { class: 'qrs-pop-h' }, el('div', {}, el('h3', {}, title), sub ? el('p', {}, sub) : null), el('button', { type: 'button', class: 'qrs-x', 'aria-label': 'Close', onclick: closePop }, icon('close')));
   const label = text => el('p', { class: 'qrs-plabel' }, text);
   const pick = (on, text, onclick, extra, before) => el('button', { type: 'button', class: `qrs-pick${on ? ' on' : ''}`, 'aria-pressed': String(on), onclick }, before || null, el('span', {}, text), extra || null);
@@ -846,19 +876,41 @@
         cls = 'create';
       }
     } else if (pop.kind === 'send' && pop.event) {
-      // (Update Pack 6: an event's QR, or all its event tables' QRs, in one colour PDF)
-      const e = events.find(x => x.id === pop.event); if (!e) { pop = null; return null; }
+      // (Update Pack 6: an event's QR, all its event tables' QRs, or one event table's, in one colour PDF)
+      const e = events.find(x => x.id === pop.event), one = e && pop.table ? eventTables(e).find(x => x.id === pop.table) : null;
+      if (!e || (pop.table && !one)) { pop = null; return null; }
       const tables = e.qrs === 'tables', b = window.RestroPrefs?.get?.('business') || {}, email = maskEmail(b.email), phone = maskPhone(b.phone, b.phoneCountry);
-      body = [popHead(tables ? 'Send all event table QRs' : `Send ${e.name} QR`, ['Colour PDF', tables ? tablesWords(e) : (MODES[e.mode] || MODES.both).label, e.name].join(' · ')), label('PRINT SIZE'),
+      body = [popHead(one ? `Send ${eventTableLabel(one)} QR` : tables ? 'Send all event table QRs' : `Send ${e.name} QR`, ['Colour PDF', one ? eventTableLabel(one) : tables ? tablesWords(e) : (MODES[e.mode] || MODES.both).label, e.name].join(' · ')), label('PRINT SIZE'),
         el('div', { class: 'qrs-picks' }, [['a6', 'Table card', 'A6'], ['sticker', 'Sticker', '10 × 10 cm'], ['a4', 'A4 sheet', '4 per page']].map(([id, t, x]) => pick(pop.size === id, t, () => { pop.size = id; render(); }, el('small', {}, x)))),
         label('CARD LANGUAGE'),
         el('div', { class: 'qrs-picks' }, [['en', 'English'], ['te', 'తెలుగు'], ['hi', 'हिन्दी'], ['en+te', 'English + తెలుగు']].map(([id, t]) => pick(pop.language === id, t, () => { pop.language = id; render(); }))),
         label('SENDS TO THE BUSINESS’S REGISTERED CONTACTS'),
         el('dl', { class: 'qrs-contacts' }, el('div', {}, el('dt', {}, 'Email'), el('dd', {}, icon('mail'), email || 'Not added yet')), el('div', {}, el('dt', {}, 'WhatsApp'), el('dd', {}, icon('chat'), phone || 'Not added yet'))),
         el('p', { class: 'qrs-pnote' }, 'Colour, print-ready PDF: print, laminate or make stickers. To change these contacts: Settings › Business details. Download comes with the web dashboard.'),
-        el('div', { class: 'qrs-pbar' }, btn('wa', 'WhatsApp', () => sendEvent(e, 'whatsapp', phone), 'chat', { off: !phone || !online(), why: !online() ? 'Needs internet' : '' }),
-          btn('blue', 'Email', () => sendEvent(e, 'email', email), 'mail', { off: !email || !online(), why: !online() ? 'Needs internet' : '' }))];
+        el('div', { class: 'qrs-pbar' }, btn('wa', 'WhatsApp', () => sendEvent(e, 'whatsapp', phone, one), 'chat', { off: !phone || !online(), why: !online() ? 'Needs internet' : '' }),
+          btn('blue', 'Email', () => sendEvent(e, 'email', email, one), 'mail', { off: !email || !online(), why: !online() ? 'Needs internet' : '' }))];
       cls = 'send';
+    } else if (pop.kind === 'etable' || pop.kind === 'delete-etable' || pop.kind === 'replace-event') {
+      // (owner, 16 Nov 2026) One event table's QR, as a table QR in its panel: its card, Reprint · Send · Replace QR ·
+      // Delete; and Replace QR for the whole event's QR (as the Takeaway QR's). Not once the event has ended.
+      const e = events.find(x => x.id === pop.event), t = e && pop.table ? eventTables(e).find(x => x.id === pop.table) : null;
+      if (!e || (pop.table && !t) || (pop.kind !== 'replace-event' && !t) || evState(e).state === 'ended') { pop = null; return null; }
+      const name = t ? eventTableLabel(t) : e.name, hist = (t ? tableHistory(e, t) : historyLine(e)), why = !online() ? 'Needs internet' : '', only = eventTables(e).length < 2;
+      if (pop.kind === 'etable') body = [popHead(name, hist), el('div', { class: 'qrs-evbox' }, eventCardEl(e, t)),
+        el('div', { class: 'qrs-pbtns' }, btn('tint', 'Reprint', () => { pop = null; render(); printEvent(e, t); }, 'print'), btn('', 'Send', () => openPop('send', { event: e.id, table: t.id }), 'send', { off: !online(), why }),
+          btn('', 'Replace QR', () => openPop('replace-event', { event: e.id, table: t.id }), 'replace'),
+          btn('del', 'Delete', () => openPop('delete-etable', { event: e.id, table: t.id }), 'trash', { off: only || !online(), why: only ? 'Only table left' : why, showWhy: true })),
+        el('p', { class: 'qrs-note' }, el('b', {}, 'Reprint'), ' prints the same QR in black and white on the receipt printer; for colour, use ', el('b', {}, 'Send'), '. ', el('b', {}, 'Replace'), ' makes a new QR; the old one stops working.')];
+      else if (pop.kind === 'delete-etable') body = [popHead(`Delete the ${name} QR?`, hist.replace(' · not printed or sent yet', '')),
+        el('div', { class: 'qrs-warnbox' }, `The printed QR and link on ${name} `, el('b', {}, 'stop working'), '. Customers at that table can’t order by QR.'),
+        el('p', { class: 'qrs-pnote dark' }, 'Only want a fresh copy? Use ', el('b', {}, 'Reprint'), '. Card damaged or copied? Use ', el('b', {}, 'Replace QR'), '.'),
+        el('div', { class: 'qrs-pbar' }, btn('', 'Keep QR', closePop), btn('red', 'Delete QR', () => deleteEventTable(e, t), 'trash', { off: only || !online(), why: only ? 'Only table left' : 'Needs internet', showWhy: true }))];
+      else body = [popHead(`Replace the ${name} QR?`, hist.replace(' · not printed or sent yet', '')),
+        el('div', { class: 'qrs-greybox' }, t ? ['You’ll get a ', el('b', {}, 'new QR'), ` for ${name}. The QR printed on the table now will `, el('b', {}, 'stop working'), ', so print the new one and put it on the table.']
+          : ['You’ll get a ', el('b', {}, 'new QR'), `. The ${name} QR printed now will `, el('b', {}, 'stop working'), '. Links you posted online stop working too. Print the new one and put it up.']),
+        el('p', { class: 'qrs-pnote dark' }, 'Only need a fresh copy of the same QR? Use ', el('b', {}, 'Reprint'), ' instead.'),
+        el('div', { class: 'qrs-pbar' }, btn('', 'Cancel', closePop), btn('blue', 'Replace QR', () => replaceEventQr(e, t), 'replace'))];
+      cls = pop.kind === 'etable' ? 'etable' : pop.kind === 'delete-etable' ? 'delete' : 'replace';
     } else if (pop.kind === 'end' || pop.kind === 'delete-event') {
       // (Update Pack 6, D: End now and Delete, asked first as Delete QR is)
       const e = events.find(x => x.id === pop.event); if (!e) { pop = null; return null; }
@@ -993,7 +1045,8 @@
 
   // ---------- doing things ----------
   const pickedRecords = () => (view.picked ? [...view.picked].map(id => records.find(r => r.id === id)).filter(Boolean) : []);
-  function go(page) { view.page = page; view.picked = null; pop = null; render(); }
+  // (the Event QRs pill opens on its Events tab)
+  function go(page) { view.page = page; view.picked = null; pop = null; if (page === 'event') view.evTab = 'events'; render(); }
   function goHome() { document.querySelector('#system-home')?.click(); if (dialog.open) dialog.close(); }
   function tapCard(r) {
     if (view.picked) { view.picked.has(r.id) ? view.picked.delete(r.id) : view.picked.add(r.id); if (!view.picked.size) view.picked = null; }
@@ -1077,33 +1130,57 @@
     else { printPage(cards); done(true); }
   }
   // (Update Pack 6) An event's cards for printing and sending: one QR for the whole event (its name, dates and line), or
-  // each event table's (its number on the QR, the event's name and dates under it)
-  function eventPrintCards(e) {
+  // each event table's (its number on the QR, the event's name and dates under it); one: only that event table's
+  function eventPrintCards(e, one = null) {
     const restaurant = window.RestroRestaurantName?.value || '', linkLabel = 'QR not scanning? Type this link';
     const card = (path, title, mark, heading, lines) => ({ kind: 'event', restaurant, heading, title, mark, lines, note: null, linkLabel, link: `${HOST}/${path}`, url: `https://${HOST}/${path}`, qr: qrOfCard(`https://${HOST}/${path}`, mark) });
-    if (e.qrs === 'tables') return eventTables(e).map(t => card(t.path, eventTableLabel(t), tableMark(t), 'Scan · Order · Pay', [e.name, datesText(e)]));
+    if (e.qrs === 'tables') return (one ? [one] : eventTables(e)).map(t => card(t.path, eventTableLabel(t), tableMark(t), 'Scan · Order · Pay', [e.name, datesText(e)]));
     const mode = MODES[e.mode] || MODES.both;
     return e.path ? [card(e.path, e.name, null, mode.heading, [datesText(e), mode.line])] : [];
   }
-  const eventWords = (e, n) => (e.qrs === 'tables' ? `${n} event table ${n === 1 ? 'QR' : 'QRs'}` : `${e.name} QR`);
-  function printEvent(e) {
-    const cards = eventPrintCards(e); if (!cards.length) return;
+  const eventWords = (e, n, one = null) => (one ? `${eventTableLabel(one)} QR` : e.qrs === 'tables' ? `${n} event table ${n === 1 ? 'QR' : 'QRs'}` : `${e.name} QR`);
+  // (printed or sent: when and by whom, on the event and on each of its event tables printed or sent; found again by id,
+  // as a change from another device may have loaded the events again meanwhile)
+  function stampEvent(e, one, at, by, kind) {
+    const ev = events.find(x => x.id === e.id); if (!ev) return;
+    if (!one) { ev[`${kind}At`] = at; ev[`${kind}By`] = by; }
+    for (const t of eventTables(ev)) if (!one || t.id === one.id) { t[`${kind}At`] = at; t[`${kind}By`] = by; }
+    storeEvents();
+  }
+  function printEvent(e, one = null) {
+    const cards = eventPrintCards(e, one), words = eventWords(e, cards.length, one); if (!cards.length) return;
     printCards(cards, ok => {
-      if (!ok) { toast(`${eventWords(e, cards.length)} didn’t print · check the receipt printer`); return; }
-      e.printedAt = Date.now(); e.printedBy = who(); storeEvents(); toast(`${eventWords(e, cards.length)} printed`);
+      if (!ok) { toast(`${words} didn’t print · check the receipt printer`); return; }
+      stampEvent(e, one, Date.now(), who(), 'printed'); toast(`${words} printed`);
     });
   }
-  function sendEvent(e, to, masked) {
-    const send = window.RESTRODevice?.qr?.send, cards = eventPrintCards(e);
+  function sendEvent(e, to, masked, one = null) {
+    const send = window.RESTRODevice?.qr?.send, cards = eventPrintCards(e, one), words = eventWords(e, cards.length, one);
     if (typeof send !== 'function') { toast('Sending starts with the RESTRO Android app'); return; }
     const job = { to, size: pop?.size || 'a6', language: pop?.language || 'en', cards };
     pop = null; render();
     Promise.resolve(send(job)).then(res => {
-      if (res === false || res?.ok === false) { toast(`${eventWords(e, cards.length)} not sent · try again`); return; }
-      e.sentAt = Date.now(); e.sentBy = who(); storeEvents(); toast(`${eventWords(e, cards.length)} sent to ${to === 'email' ? 'email' : 'WhatsApp'} ${masked}`);
-    }, () => toast(`${eventWords(e, cards.length)} not sent · try again`));
+      if (res === false || res?.ok === false) { toast(`${words} not sent · try again`); return; }
+      stampEvent(e, one, Date.now(), who(), 'sent'); toast(`${words} sent to ${to === 'email' ? 'email' : 'WhatsApp'} ${masked}`);
+    }, () => toast(`${words} not sent · try again`));
   }
-  // End now: it stops now, as at its end; Delete: only an event with no orders (the cloud stops its codes)
+  // Replace QR (owner, 16 Nov 2026): the whole event's QR, or one event table's (one), gets a new code; the old one stops
+  // working (the cloud keeps which codes work), and the card shows "not printed yet" until it's printed or sent again
+  function replaceEventQr(e, one = null) {
+    const at = Date.now(), code = newCode(), x = one || e;
+    Object.assign(x, { code, path: one ? `${slug()}/E${tableMark(one).replace(/[^A-Za-z0-9]+/g, '')}-${code}` : `${slug()}/${KINDS.event.prefix}-${code}`, replacedAt: at, replacedBy: who() });
+    for (const k of ['printedAt', 'printedBy', 'sentAt', 'sentBy']) delete x[k];
+    pop = null; storeEvents();
+    toast(`${one ? eventTableLabel(one) : e.name} has a new QR · the old one no longer works`, ['Print now', () => { const ev = events.find(v => v.id === e.id); if (ev) printEvent(ev, one ? eventTables(ev).find(t => t.id === one.id) || null : null); }]);
+  }
+  // Delete an event table's QR: that table leaves the event, and its QR stops working (needs the internet, as Delete
+  // QR); the event keeps at least one table
+  function deleteEventTable(e, one) {
+    if (!online() || eventTables(e).length < 2) return;
+    e.tables = e.tables.filter(t => t !== one); pop = null; storeEvents(); toast(`${eventTableLabel(one)} QR deleted`);
+  }
+  // End now: it stops now, as at its end (then it shows under History); Delete: only an event with no orders (the cloud
+  // stops its codes)
   function endEvent(e) {
     if (!online() || evState(e).state !== 'live') return;
     e.endedAt = Date.now(); e.endedBy = who(); pop = null; storeEvents(); toast(`${e.name} ended`);
@@ -1111,7 +1188,7 @@
   function deleteEvent(e) {
     if (!online() || hasOrders(e)) return;
     events = events.filter(x => x !== e); window.RestroSync?.removed('events', e.id);
-    if (view.event === e.id) view.event = null;
+    for (const k of ['events', 'history']) if (view.evPick[k] === e.id) view.evPick[k] = null;
     pop = null; storeEvents(); toast(`${e.name} deleted`);
   }
   function printPage(cards) {
@@ -1256,7 +1333,7 @@
 
   // ---------- opening, closing, Back ----------
   function open(page) {
-    load(); loadScans(); loadEvents(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; pop = null;
+    load(); loadScans(); loadEvents(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; pop = null;
     noteOrders();
     if (!dialog.open) dialog.showModal();
     render(); dialog.querySelector('#qr-studio-title')?.focus({ preventScroll: true });

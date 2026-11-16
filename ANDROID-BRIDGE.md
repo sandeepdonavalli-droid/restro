@@ -788,24 +788,46 @@ the middle still scans. Every method here is optional, as noted.
 - **Event QRs** (Update Pack 6, D–E; the screens EV1, EV2 and EV7): the 4th pill, before Menu design, with the
   Event order type's calendar and star and the count of events live now and coming up. Kept in `restro.events.v1`
   (synced, SYNC.md): `{ id, name, start, end, daily, qrs, mode, code, path, tablesFrom, tables, menu, endedAt, endedBy,
-  hadOrders, createdAt, createdBy, printedAt, printedBy, sentAt, sentBy }`.
+  hadOrders, createdAt, createdBy, replacedAt, replacedBy, printedAt, printedBy, sentAt, sentBy }`.
   - `start`, `end` (ms): it works only between them, even outside business hours, and stops by itself. `daily: true`
     ("Open only these hours each day"): open from the start's time to the end's time on each day.
   - `qrs: 'whole'`: one QR for the whole event, `code` and `path` `<restaurant>/EV-<code>`; `mode` what customers can
-    do with it: `'both'` (Dine-in + Takeaway), `'takeaway'` (Takeaway only) or `'menu'` (Menu only).
-  - `qrs: 'tables'`: one QR per event table, `tables: [{ id, name, floor, code, path }]`, `path` `<restaurant>/E3-<code>`;
-    `tablesFrom: 'event'` (event table numbers) or `'floor'` (the restaurant's tables: `floor` is the Floor table's id).
+    do with it: `'both'` (Dine-in + Takeaway), `'takeaway'` (Takeaway only) or `'menu'` (Menu only). `replacedAt`,
+    `replacedBy`: its QR replaced (a new `code` and `path`).
+  - `qrs: 'tables'`: one QR per event table, `tables: [{ id, name, floor, code, path, replacedAt, replacedBy, printedAt,
+    printedBy, sentAt, sentBy }]`, `path` `<restaurant>/E3-<code>`; `tablesFrom: 'event'` (event table numbers) or
+    `'floor'` (the restaurant's tables: `floor` is the Floor table's id). Each table keeps when its own card was last
+    printed or sent (Print all and Send all set them on every table) and when its QR was replaced.
   - `menu: { items, own }`: the dishes from the menu and the event-only dishes.
   - `endedAt`, `endedBy`: End now. `hadOrders`: set once it has an order (never cleared), so Delete stays off after its
     orders leave this device.
-  - The page lists them under **LIVE NOW**, **UPCOMING** and **ENDED** (an event between its days stays live: "Opens
-    6:00 PM"). Picked: one QR for the whole event shows its card and **This event** (status, dates and times, QRs, order
-    type, menu, where KOTs go, orders so far and their takings as Orders' Total counts them, created) and **When it
-    ends**; one QR per event table shows its tables' QRs with their numbers. **New event** and **Edit** open the steps
-    still to be built (they say "Coming soon" until then).
-  - Buttons: Test scan · Reprint (Print all) · Send (Send all) · Edit · End now · Delete. End now is greyed before the
-    event starts and after it ends; Delete is greyed once it has had an order, so takings never disappear. Greyed
-    buttons are never hidden. Test scan, Send, End now and Delete need the cloud ("Needs internet"), as Delete QR.
+  - Two tabs right of the title (owner, 16 Nov 2026), as the area chips, with their counts: **Events** lists **New
+    event** and the events under **LIVE NOW** and **UPCOMING** (an event between its days stays live: "Opens 6:00 PM");
+    **History** lists every event that has ended, newest first, under one label a month ("NOVEMBER 2026"). An event
+    moves to History by itself when it ends or is ended. The Event QRs pill opens on Events; each tab keeps its pick.
+    Before the first event the page is EV1 as drawn, without the tabs; with none live or coming up, Events shows New
+    event, "No live or upcoming events" and EV1's three cards; History with none: "No past events yet".
+  - Picked: one QR for the whole event shows its card and **This event** (status, dates and times, QRs, order type,
+    menu, where KOTs go, orders so far and their takings as Orders' Total counts them, created) and **When it ends**;
+    one QR per event table shows its tables' QRs with their numbers. **New event** and **Edit** open the steps still to
+    be built (they say "Coming soon" until then).
+  - Buttons: Test scan · Reprint · Send · Replace QR · Edit · End now · Delete for one QR for the whole event; Test scan
+    · Print all · Send all · Edit · End now · Delete for one per event table. End now is greyed before the event starts
+    and after it ends; Delete is greyed once it has had an order, so takings never disappear. Once the event has ended
+    (History) every other button is greyed too. Greyed buttons are never hidden. Test scan, Send, End now and Delete need
+    the cloud ("Needs internet"), as Delete QR.
+  - **Replace QR** (owner, 16 Nov 2026) works as the Takeaway QR's: it asks first ("You'll get a new QR. The ‹event› QR
+    printed now will stop working. Links you posted online stop working too."), then gives the QR a new code (the old
+    one stops working; the cloud keeps which codes work) and says "‹event› has a new QR · the old one no longer works"
+    with Print now. Its card is then not printed or sent until printed or sent again.
+  - **An event table's card** (owner, 16 Nov 2026), until the event ends: a tap opens "Event table 3" with its history
+    ("Created 8 Nov by ‹name› · last printed today by ‹name›"), its card as it prints, and **Reprint · Send · Replace QR
+    · Delete**, as a table QR's panel, with the same note. Reprint and Send print or send that table's card only;
+    Replace QR gives that table a new code (`E3-<new code>`), the others keep theirs; Delete asks first ("The printed QR
+    and link on Event table 3 stop working. Customers at that table can't order by QR.") and takes the table off the
+    event (needs the internet; greyed for the event's only table: "Only table left"). Send, Replace QR's question and
+    Delete's question go back to the table when closed without doing it; once done, all close and the toast says so
+    ("Event table 3 QR printed", "Event table 3 has a new QR · the old one no longer works" with Print now).
   - Event QRs and the restaurant's QRs never pause each other (H1), so the restaurant's banners aren't shown there.
 - **What needs looking at** (the home badge, J: `RestroQrStudio.attention()`). Each clears by itself once fixed.
   - Each table renamed in Floor since its card was printed or sent: "Now Table 11 · reprint the card". QR Studio
@@ -942,7 +964,7 @@ Each card is `{ kind, restaurant, heading, qr, mark, title, lines, note, linkLab
   ("Eat here or take it away. We call your name when it’s ready."; Takeaway only: "Order, pay and pick it up. We call
   your name when it’s ready."; Menu only: "See our dishes and prices. Order with our staff."). Each event table's card
   has `title` "Event table 3", `mark` "3" and `lines` the event's name and its dates. Print all prints every event
-  table's card.
+  table's card; an event table's own Reprint, only its card.
 
 ### Our website for now: `404.html` on GitHub Pages
 

@@ -319,8 +319,20 @@
 .qrs-etcard>span.live{color:#166534;font-weight:700}
 .qrs-etcard>span.live i{width:calc(8 * var(--fu));height:calc(8 * var(--fu));border-radius:50%;background:#16A34A}
 .qrs-etcard>span.muted{color:#78716C}
-/* (End now and Delete event: asked where Delete QR asks) */
-.qrs-scrim:is(.k-end,.k-delete-event) .qrs-pop{margin-top:calc(202 * var(--fu))}
+/* (owner, 16 Nov 2026) Events · History: two tabs right of the title, as the area chips; History lists the events that
+   have ended, newest first, one label a month, without New event */
+.qrs-evtabs{display:flex;align-items:center;gap:calc(8 * var(--fu));margin-left:calc(8 * var(--fu))}
+.qrs-evlist.history .qrs-evscroll>.qrs-evlab:first-child{margin-top:0!important}
+.qrs-evlist.history .qrs-evnone{margin-top:0}
+/* An event table's card opens its own Reprint · Send · Replace QR · Delete, as a table QR's panel: the card in its grey
+   box (300 wide, as EV2's), the four buttons two by two, the note */
+.qrs-etcard.tap{cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.qrs-etcard:focus-visible{outline:2px solid #2F6FE4;outline-offset:2px}
+.qrs-scrim.k-etable .qrs-pop{width:calc(600 * var(--fu));margin-top:calc(80 * var(--fu))}
+.k-etable .qrs-evbox{width:100%;height:calc(500 * var(--fu));margin-top:calc(16 * var(--fu))}
+.qrs-card.k-etable .qrs-card-date{white-space:normal}
+/* (End now, Delete event, Replace QR and an event table's Delete: asked where Delete QR asks) */
+.qrs-scrim:is(.k-end,.k-delete-event,.k-replace-event,.k-delete-etable) .qrs-pop{margin-top:calc(202 * var(--fu))}
 
 /* ---------- the printed card: the 426-wide Takeaway card of QS2 in card units (--cu), scaled to its place ---------- */
 .qrs-card{--cu:calc(.676 * var(--fu));position:relative;width:calc(426 * var(--cu));box-sizing:border-box;display:flex;flex-direction:column;align-items:center;padding:calc(25.5 * var(--cu)) calc(31 * var(--cu)) calc(35 * var(--cu));border-radius:calc(24 * var(--cu));background:#FFFFFF;box-shadow:0 calc(12 * var(--cu)) calc(36 * var(--cu)) rgba(28,25,23,.16);color:#1C1917;text-align:center}
