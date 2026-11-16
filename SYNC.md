@@ -200,6 +200,13 @@ Orders reads them from the cloud when its Today list scrolls back past the kept 
 picked (`RestroSync.olderOrders({ from, to })`, below), and keeps them in memory only. Printing a receipt for one
 brings that order back onto the device with the print noted, until it has gone up.
 
+**One-time clean-up of orders left in the kitchen (owner, 16 Nov 2026; to be removed).** There is no kitchen screen
+yet, so no order gets a Done mark and paid orders stayed Open (In kitchen). Once on each device (the mark
+`restro.cleanup.kitchenOpen.v1` stays on the device), the Counter marks every paid order taken before 16 Nov 2026, 6:50 pm
+UTC, whose KOT went to the kitchen, as done (`kitchenDoneAt`, with `readyAutoFor` the same, so no order-ready text or
+buzz goes out) and docks its pager if it is still out (`pagerBackAt`). The changed orders sync as any change. Unpaid,
+cancelled and scheduled orders, and orders taken after it, are left alone.
+
 ## Ticket numbers
 
 **One sequence a day for the whole restaurant, kept in one place.** The cloud keeps the count. While the restaurant's

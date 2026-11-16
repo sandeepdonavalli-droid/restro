@@ -170,6 +170,27 @@
   const pagerHolders = list => pagerState(list).holders;
   const pagersBack = list => pagerState(list).back;
   const holdsPager = (o, holders = pagerHolders(loadOrders())) => (holders.get(cleanPager(o.pager)) || []).some(h => idOf(h) === idOf(o));
+  // ---------- one-time clean-up (owner, 16 Nov 2026; to be removed once every device has run it) ----------
+  // There is no kitchen screen yet, so no order is ever marked done and paid orders stay Open (In kitchen) for good.
+  // Once on each device: every paid order taken before 16 Nov 2026, 6:50 pm UTC, whose KOT went to the kitchen is marked
+  // done (kitchenDoneAt, its Done mark already handled: readyAutoFor, so no order-ready text or buzz goes out), and its
+  // pager, still out, docked (pagerBackAt), so it shows Closed. Unpaid, cancelled and scheduled orders, and every order
+  // taken after it, stay as they are.
+  (() => {
+    const FLAG = 'restro.cleanup.kitchenOpen.v1', BEFORE = Date.UTC(2026, 10, 16, 18, 50);
+    try { if (localStorage.getItem(FLAG)) return; } catch { return; }
+    const list = loadOrders(), now = Date.now(), holders = pagerHolders(list);
+    let changed = 0;
+    for (const o of list) {
+      if (!o.paidAt || o.cancelledBy || createdOf(o) >= BEFORE) continue;
+      let touched = false;
+      if (o.sentAt && !o.kitchenDoneAt) { o.kitchenDoneAt = now; o.readyAutoFor = now; o.readyAutoAt = now; touched = true; }
+      if ((holders.get(cleanPager(o.pager)) || []).some(h => idOf(h) === idOf(o))) { o.pagerBackAt = now; touched = true; }
+      if (touched) changed++;
+    }
+    if (changed) storeOrders(list);
+    try { localStorage.setItem(FLAG, String(now)); } catch {}
+  })();
   const cleanTime = t => Number.isFinite(t) && t > 0 ? t : null;
   const cleanGuests = n => (Number.isInteger(n) && n >= 1 && n <= 99 ? n : 0);
   const cleanReason = r => (typeof r === 'string' ? r.replace(/\s+/g, ' ').trim().slice(0, 80) : '');
