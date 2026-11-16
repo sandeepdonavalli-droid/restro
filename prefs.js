@@ -1,8 +1,8 @@
 'use strict';
 // Settings added by the Update Pack of 9 Nov 2026 (Counter Update 7, Navigation & Lock Update 1), kept in one place:
 // - The restaurant's own (shared by all its tablets through sync.js): Billing & charges, Business details (with its
-//   Business hours and Bill number, Update Pack 4), the printers' settings, Staff & security and Orders' order-ready
-//   message.
+//   Business hours and Bill number, Update Pack 4), the printers' settings (role, KOT language, copies per KOT, copies
+//   per bill, the backup printer), Staff & security and Orders' order-ready message.
 // - This tablet's own: Display › Navigation (swipe gestures or the navigation bar, and its button order) and Go dark.
 // Every value is checked as it is read, so a missing, old or bad value falls back to its default. Changes are announced
 // with `restro:prefs-changed` ({ name }), here or from another tablet.
@@ -89,7 +89,8 @@
         if (typeof id !== 'string' || id.length > 80 || !isObj(p)) continue;
         const role = ROLES.includes(p.role) ? p.role : 'both';
         // (Update Pack 5, I2) Use as backup printer: one kitchen printer at most (a bills-only printer never is one)
-        out[id] = { role, language: LANGUAGES.includes(p.language) ? p.language : 'English', copies: Math.round(num(p.copies, 1, 3, 1)),
+        // (owner, 16 Nov 2026) Copies per bill: a receipt printer's copies of each bill and receipt (`copies` is per KOT)
+        out[id] = { role, language: LANGUAGES.includes(p.language) ? p.language : 'English', copies: Math.round(num(p.copies, 1, 3, 1)), billCopies: Math.round(num(p.billCopies, 1, 3, 1)),
           ...(p.backup === true && role !== 'bills' && !Object.values(out).some(x => x.backup) ? { backup: true } : {}) };
       }
       return out;

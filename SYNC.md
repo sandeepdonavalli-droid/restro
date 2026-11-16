@@ -20,7 +20,7 @@ number (`RestroSync.takeBillNumber()`, Bill numbers below).
 | Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | The order being rung up |
 | The restaurant's name, profile and Business details (`restro.business.v1`), with its Business hours (`restro.hours.v1`, with the last order time, Update Pack 5, and the break hours and last order before break, owner 14 Nov 2026) and Bill number (`restro.billNumber.v1`; Update Pack 4) | |
 | Billing & charges (`restro.billing.v1`), Staff & security (`restro.security.v1`) | Who is signed in |
-| The printers' settings: role, KOT language, copies, the backup printer (`restro.printers.v1`) | The pairing code and the cloud sign-in |
+| The printers' settings: role, KOT language, copies per KOT and per bill, the backup printer (`restro.printers.v1`) | The pairing code and the cloud sign-in |
 | Kitchen prep time (`restro.kitchen.prep.v1`, and the older `restro.counter.prepMinutes.v1`) | |
 | Settings › Orders, the order-ready message sent by itself: SMS, WhatsApp or off (`restro.readyMessage.v1`; Update Pack 4) | |
 | What is sold out (`restro.menu.availability.v1`) | |

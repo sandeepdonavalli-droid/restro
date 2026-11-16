@@ -2717,11 +2717,15 @@
     if (kind === 'refund' && rec) bill.refunded = { method: rec.refundedAt ? PAID_AS[rec.refundMethod] || PAID_AS[rec.method] || '' : '', amount: bill.total, at: Number(rec.qrChoice?.at) || Date.parse(rec.refundedAt) || now };
     return bill;
   }
+  // The receipt printers (Settings › Printers: role Bills or Both), each with its copies of each bill (owner, 16 Nov
+  // 2026: Copies per bill); the app prints on this device's own
+  const billPrinters = () => Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'bills' || p.role === 'both'))
+    .map(([id, p]) => ({ id, copies: p.billCopies || 1 }));
   // To the bill printer (RESTRODevice.printer.printBill), or the browser's printing; resolves whether it printed
   function deliverBill(bill) {
     const printer = window.RESTRODevice?.printer;
     if (typeof printer?.printBill === 'function') {
-      try { return Promise.resolve(printer.printBill(bill)).then(ok => ok !== false, () => false).finally(readPaper); } catch { return Promise.resolve(false); }
+      try { return Promise.resolve(printer.printBill({ ...bill, printers: billPrinters() })).then(ok => ok !== false, () => false).finally(readPaper); } catch { return Promise.resolve(false); }
     }
     printPage(bill); return Promise.resolve(true);
   }

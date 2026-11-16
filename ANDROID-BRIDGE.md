@@ -661,7 +661,7 @@ they are built as the other Settings cards.
   KOT, "When another kitchen printer stops working for 30 seconds, its KOTs print here with this printer’s own. One
   printer can be the backup.", with the note "With no backup printer, or the backup down too, they print on the first
   kitchen printer that works." One printer at most: turning it on turns it off on any other; a Bills printer never is
-  one (its card greyed, as KOT language and Copies). The Printers list says "· Backup printer" after its role. Kept in
+  one (its card greyed, as KOT language and Copies). Kitchen printers says "· Backup printer" after its role. Kept in
   `restro.printers.v1` as `backup: true` (shared by every tablet) and sent with every slip in `printers` (above).
   **What the app does with it:** a kitchen printer is down only after **30 s** without printing (a grace); its dishes
   then print on the backup printer, with the backup's own, and nothing says they moved; with no backup, or the backup
@@ -851,10 +851,10 @@ QR works" when one comes, "Didn’t get a scan" when none does. A scan clears a 
 
 ### Printing a card: `RESTRODevice.printer.printQr({ cards })`
 
-Print, Print all, Reprint and the toast's Print now print the cards on this device's **bill printer** (role Bills or
-Both), black only, one card after another, cut between them. Return `true` (or nothing) once printed; `false`, or
-throwing, keeps them not printed and says "Table 7 didn’t print · check the receipt printer". Without it the browser's
-printing opens, one 72 mm card a page.
+Print, Print all, Reprint and the toast's Print now print the cards on this device's **receipt printer** (Settings ›
+Printers › This device: its own, role Bills or Both), black only, one card after another, cut between them. Return
+`true` (or nothing) once printed; `false`, or throwing, keeps them not printed and says "Table 7 didn’t print · check
+the receipt printer". Without it the browser's printing opens, one 72 mm card a page.
 
 Each card is `{ kind, restaurant, heading, qr, mark, title, lines, note, linkLabel, link, url }`, printed in this order:
 - `restaurant`: the restaurant's name, large and bold.
@@ -968,9 +968,13 @@ window.dispatchEvent(new CustomEvent('restro:keyboard', { detail: { height: 386 
 
 Counter's **Print bill** button (the printer, at the end of the order panel's top row) prints the bill; Orders' Bill /
 Receipt button prints a saved order's bill (not paid yet) or receipt (paid). With this method present, the bill goes to
-it, to print on the printer whose role is **Bills** or **Both** (Settings › Printers); without it, the browser's own
-printing opens. Return `false` (or throw) if it didn't print: Counter says "The bill didn’t print", Orders offers
-Retry. After each bill the page reads the paper level again (below).
+it, to print on this device's receipt printer (its own printer whose role is **Bills** or **Both**: Settings › Printers
+› This device); without it, the browser's own printing opens. Return `false` (or throw) if it didn't print: Counter says
+"The bill didn’t print", Orders offers Retry. After each bill the page reads the paper level again (below).
+
+**Copies** (owner, 16 Nov 2026): `printers` is `[{ id, copies }]`, every receipt printer's **Copies per bill** (1–3,
+Settings › Printers › This device › a printer). Print that many of the bill, receipt or refund slip on this device's
+receipt printer, cut between them; 1 when it isn't listed.
 
 Print it as `25_printed-bill` (Counter Update 7, the customer's copy, the same for every kind of order), 80 mm,
 **black only**:
@@ -1147,11 +1151,29 @@ CANCELLED slip as before; none prints when none of the orders reached the kitche
 
 ## The printers: `RESTRODevice.printer.list()`
 
-Settings › Printers lists the printers the app knows (the main system's): return `[{ id, name, connection }]` (or a
-Promise of it), `connection` e.g. `"Bluetooth"`, `"Wi-Fi"`, `"USB"`. Each printer's role (`"bills"`, `"kitchen"` or
-`"both"`: Bills, Kitchen (KOT) or Both), KOT language and copies are set there and kept in `restro.printers.v1`
-(`{ <id>: { role, language, copies } }`, the same on every tablet), which the page passes with each slip. A printer not
-set yet is Both, English, 1 copy.
+Settings › Printers lists the printers the app knows: this device's own and the rest of the restaurant's (the other
+devices' printers, through the restaurant's network or the cloud). Return `[{ id, name, connection, own }]` (or a
+Promise of it):
+- `connection`: as it should read, e.g. `"Bluetooth"`, `"Wi-Fi"`, `"USB"`, `"Built in"`.
+- `own`: `true` for this device's own printers: built in, or set up on this device (USB, Bluetooth or Wi-Fi). Left
+  out or `false` for the rest.
+
+Each printer's role (`"bills"`, `"kitchen"` or `"both"`: Bills, Kitchen (KOT) or Both), KOT language, copies per KOT
+(`copies`) and copies per bill (`billCopies`) are set there and kept in `restro.printers.v1` (`{ <id>: { role, language,
+copies, billCopies, backup } }`, the same on every device), which the page passes with each slip and each bill. A
+printer not set yet is Both, English, 1 copy of each.
+
+The page has two sections, with no line at the top (owner, 16 Nov 2026):
+- **This device:** this device's own printers whose role is Bills or Both (its receipt printers), on this device only.
+  A row reads "Bills · 1 copy · USB" (the copies of each bill). Its page: Role, and **Copies per bill** (1, 2 or 3:
+  "How many of each bill and receipt it prints."). None: "No receipt printer", with "This device hasn’t found a
+  printer yet." when it has no printer at all ("Printers connect through the RESTRO Android app." in a web browser).
+- **Kitchen printers:** every printer whose role is Kitchen or Both, from any device, the same list on every device.
+  A row reads "Kitchen · Backup printer · KOT in Telugu · 1 copy · Wi-Fi". Its page: Role, KOT language, Copies per
+  KOT and Use as backup printer, as before. None: "No kitchen printers".
+
+A Both printer shows in both. Another device's receipt printer (role Bills) shows on that device only. A role changed on
+a printer's page moves it between the sections; the settings that no longer apply to it grey out on that page.
 
 ## Messages: `RESTRODevice.recommendedTimeout(ms, hasControls)`
 
@@ -1170,9 +1192,9 @@ open) the button turns red with a "!"; with the printer offline it is grey, cros
 doesn't, Orders says why from this status: "Bill printer offline · check its power and cable" with RETRY (C5), or
 "Bill printer is out of paper" (C6).
 
-Report it for the printer whose role is **Bills** or **Both** (Settings › Printers); a kitchen-only printer is never
-shown. Each status is plain data, `{ level, state }`: `level` the paper left, 0–100 (%); `state` one of `"ok"`,
-`"low"`, `"out"`, `"offline"`.
+Report it for this device's receipt printer (its own printer whose role is **Bills** or **Both**: Settings › Printers ›
+This device); a kitchen-only printer is never shown. Each status is plain data, `{ level, state }`: `level` the paper
+left, 0–100 (%); `state` one of `"ok"`, `"low"`, `"out"`, `"offline"`.
 
 | Member | Returns | Notes |
 | --- | --- | --- |
