@@ -90,8 +90,11 @@
         const role = ROLES.includes(p.role) ? p.role : 'both';
         // (Update Pack 5, I2) Use as backup printer: one kitchen printer at most (a bills-only printer never is one)
         // (owner, 16 Nov 2026) Copies per bill: a receipt printer's copies of each bill and receipt (`copies` is per KOT)
+        // (Update Pack 6, B) `role` is What this printer prints: 'kitchen' KOTs only, 'bills' Bills and receipts only,
+        // 'both' KOTs, bills and receipts; `name`, a name given in its pop-up (the app's own name otherwise)
+        const name = text(p.name, 40, '');
         out[id] = { role, language: LANGUAGES.includes(p.language) ? p.language : 'English', copies: Math.round(num(p.copies, 1, 3, 1)), billCopies: Math.round(num(p.billCopies, 1, 3, 1)),
-          ...(p.backup === true && role !== 'bills' && !Object.values(out).some(x => x.backup) ? { backup: true } : {}) };
+          ...(name ? { name } : {}), ...(p.backup === true && role !== 'bills' && !Object.values(out).some(x => x.backup) ? { backup: true } : {}) };
       }
       return out;
     },

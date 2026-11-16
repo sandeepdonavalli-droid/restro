@@ -204,8 +204,12 @@
 
   // ---------- the path for QR orders (I1) ----------
   // From the Android app (ANDROID-BRIDGE.md): { internet, wifiInternet, mobileVia, printers: [{ id, name, link: 'wired' |
-  // 'wifi', state: 'ok' | 'down', paper: 'ok' | null, device: { name, on, lastSeen } (a wired printer's), backup }] }.
-  // Without it the page knows only its own internet, and takes the kitchen printers as working.
+  // 'bluetooth' | 'wifi', state: 'ok' | 'down', paper: 'ok' | null, device: { name, on, lastSeen } (a wired or Bluetooth
+  // printer's), backup }] }. A Bluetooth printer works like a wired one, through the device it's paired with (Update
+  // Pack 6, C). Without it the page knows only its own internet, and takes the kitchen printers as working.
+  const cable = k => k.link !== 'wifi';
+  // (a name given in Settings › Printers is the restaurant's for that printer)
+  const kName = k => window.RestroPrefs?.get?.('printers')?.[k.id]?.name || k.name;
   let path = null, pathOkSince = 0, autoSince = 0, offlineSince = 0;
   // (the cloud from this device: by itself, or through another device over the restaurant Wi-Fi; owner, 14 Nov 2026)
   const internetHere = () => window.RestroConnectivity?.getStatus?.().cloudAvailable !== false;
@@ -221,10 +225,10 @@
   function brokenStep(p = pathNow()) {
     if (!p.internet) return 'internet';
     const kitchen = p.printers || [];
-    if (!kitchen.length || kitchen.some(k => k.state === 'ok' && (k.link !== 'wired' || k.device?.on !== false))) return null;
+    if (!kitchen.length || kitchen.some(k => k.state === 'ok' && (!cable(k) || k.device?.on !== false))) return null;
     if (kitchen.length > 1) return 'printers';
     const k = kitchen[0];
-    return k.link === 'wired' ? (k.device?.on === false ? 'device' : 'wired') : 'wifi';
+    return cable(k) ? (k.device?.on === false ? 'device' : 'wired') : 'wifi';
   }
   const REASONS = {
     internet: { banner: 'no internet in the restaurant', card: 'no internet', devices: 'QR orders can’t come in · no internet' },
@@ -700,20 +704,23 @@
   }
   // The path check (QS44–QS47): Internet → Printer device → Kitchen printer, as far as each step is known
   function devicesBody() {
-    const p = pathNow(), broken = brokenStep(p), kitchen = p.printers || [];
+    const p = pathNow(), broken = brokenStep(p), kitchen = (p.printers || []).map(k => ({ ...k, name: kName(k) }));
+    const linkName = k => (k.link === 'wifi' ? 'Wi-Fi' : k.link === 'bluetooth' ? 'Bluetooth' : 'Wired');
     const box = (state, ic, title, chip, lines) => el('section', { class: `qrs-dev ${state}` }, el('h4', {}, icon(ic), title), el('span', { class: 'qrs-dev-chip' }, chip), lines.filter(Boolean).map(l => el('p', {}, l)));
     const arrow = () => el('span', { class: 'qrs-dev-arrow', 'aria-hidden': 'true' }, icon('arrow'));
     const internet = box(p.internet ? 'ok' : 'bad', 'wifi', 'Internet', p.internet ? 'Connected' : 'No internet',
       p.internet ? [p.wifiInternet === false ? 'Wi-Fi internet: not connected' : 'Wi-Fi internet', p.mobileVia ? `Mobile data: ${p.mobileVia}` : null] : ['Wi-Fi internet: not connected', 'Mobile data: no device is on it']);
     const printerBox = (k, many) => {
-      const name = many ? k.name || 'Kitchen printer' : 'Kitchen printer', deviceOff = k.link === 'wired' && k.device?.on === false;
-      if (deviceOff) return box('off', 'print', name, 'Can’t check', ['Wired', 'The device it’s plugged into is off']);
-      if (k.state === 'ok') return box('ok', 'print', name, 'Connected', [k.link === 'wifi' ? 'Wi-Fi' : 'Wired', k.paper === 'ok' ? 'Paper OK' : null, k.backup && kitchen.some(x => x !== k && x.state !== 'ok') ? 'Backup printer · printing all KOTs' : null]);
-      return k.link === 'wifi' ? box('bad', 'print', name, 'Not reachable', ['Wi-Fi', 'No device can reach it', many ? null : 'Check power, paper and Wi-Fi']) : box('bad', 'print', name, 'Not connected', ['Wired', 'Check power, cable and paper']);
+      const name = many ? k.name || 'Kitchen printer' : 'Kitchen printer', deviceOff = cable(k) && k.device?.on === false;
+      if (deviceOff) return box('off', 'print', name, 'Can’t check', [linkName(k), k.link === 'bluetooth' ? 'The device it’s paired with is off' : 'The device it’s plugged into is off']);
+      if (k.state === 'ok') return box('ok', 'print', name, 'Connected', [linkName(k), k.paper === 'ok' ? 'Paper OK' : null, k.backup && kitchen.some(x => x !== k && x.state !== 'ok') ? 'Backup printer · printing all KOTs' : null]);
+      if (k.link === 'wifi') return box('bad', 'print', name, 'Not reachable', ['Wi-Fi', 'No device can reach it', many ? null : 'Check power, paper and Wi-Fi']);
+      // (Bluetooth, Update Pack 6 EV10: "Check power, paper and that it’s near Handheld 2")
+      return box('bad', 'print', name, 'Not connected', k.link === 'bluetooth' ? ['Bluetooth', `Check power, paper and that it’s near ${k.device?.name || 'its printer device'}`] : ['Wired', 'Check power, cable and paper']);
     };
     const deviceBox = (k, many) => k.device?.on === false ? box('bad', 'monitor', 'Printer device', 'Off', [k.device.lastSeen ? `Last seen ${clock(k.device.lastSeen)}` : null])
-      : box('ok', 'monitor', 'Printer device', 'On', [`${many ? k.name || 'Kitchen printer' : 'Kitchen printer'} plugged in here`]);
-    const many = kitchen.length > 1, working = kitchen.filter(k => k.state === 'ok' && (k.link !== 'wired' || k.device?.on !== false));
+      : box('ok', 'monitor', 'Printer device', 'On', [`${many ? k.name || 'Kitchen printer' : 'Kitchen printer'} ${k.link === 'bluetooth' ? 'paired here' : 'plugged in here'}`]);
+    const many = kitchen.length > 1, working = kitchen.filter(k => k.state === 'ok' && (!cable(k) || k.device?.on !== false));
     let sub, text;
     if (broken) sub = REASONS[broken].devices;
     else if (many && working.length < kitchen.length) sub = `QR ordering is on · ${working.map(k => k.name).join(' and ')} ${working.length === 1 ? 'is' : 'are'} printing`;
@@ -722,6 +729,7 @@
     const tries = { internet: 'restart the internet router, or turn on mobile data on any one device. QR ordering turns back on by itself.', device: 'turn on the printer device, or plug the kitchen printer into another device. QR ordering turns back on by itself.',
       wired: 'check the printer is on, the cable is in and it has paper. QR ordering turns back on by itself.', wifi: 'check the printer is on, has paper and is on the restaurant Wi-Fi. QR ordering turns back on by itself.',
       printers: 'get either kitchen printer working. QR ordering turns back on by itself as soon as one prints.' };
+    if (broken === 'wired' && kitchen[0]?.link === 'bluetooth') tries.wired = `check the printer is on, has paper and is near ${kitchen[0].device?.name || 'its printer device'}. QR ordering turns back on by itself.`;
     if (broken) text = el('p', { class: 'qrs-pnote dark' }, el('b', {}, 'Try:'), ` ${tries[broken]}`);
     else if (many && working.length < kitchen.length) { const backup = working.find(k => k.backup) || working[0], down = kitchen.filter(k => !working.includes(k));
       text = el('p', { class: 'qrs-pnote dark' }, `${backup.name} is ${backup.backup ? 'your backup printer' : 'the first kitchen printer that works'}, so it prints ${down.map(k => `${k.name}’s`).join(' and ')} dishes along with its own until ${down.length === 1 ? `printer ${down[0].name.replace(/^Kitchen printer\s*/i, '') || down[0].name}` : 'they'} ${down.length === 1 ? 'is' : 'are'} back. Bill and receipt printers don’t count.`); }
@@ -730,8 +738,8 @@
     else text = el('p', { class: 'qrs-pnote dark' }, path ? 'Nothing to do.' : 'Nothing to do. The printer device and the kitchen printers show here in the RESTRO Android app.');
     let flow, cls = 'one';
     if (!kitchen.length) flow = el('div', { class: 'qrs-flow' }, internet);
-    else if (!many) { const k = kitchen[0]; flow = el('div', { class: 'qrs-flow' }, internet, arrow(), k.link === 'wired' ? [deviceBox(k), arrow()] : null, printerBox(k)); cls = k.link === 'wired' ? 'three' : 'two'; }
-    else { flow = el('div', { class: 'qrs-flow many' }, internet, arrow(), el('div', { class: 'qrs-flow-rows' }, kitchen.map(k => el('div', { class: `qrs-flow-row${k.link === 'wired' ? '' : ' solo'}` }, k.link === 'wired' ? [deviceBox(k, true), arrow()] : null, printerBox(k, true))))); cls = 'many'; }
+    else if (!many) { const k = kitchen[0]; flow = el('div', { class: 'qrs-flow' }, internet, arrow(), cable(k) ? [deviceBox(k), arrow()] : null, printerBox(k)); cls = cable(k) ? 'three' : 'two'; }
+    else { flow = el('div', { class: 'qrs-flow many' }, internet, arrow(), el('div', { class: 'qrs-flow-rows' }, kitchen.map(k => el('div', { class: `qrs-flow-row${cable(k) ? '' : ' solo'}` }, cable(k) ? [deviceBox(k, true), arrow()] : null, printerBox(k, true))))); cls = 'many'; }
     return { cls, kids: [popHead(many ? 'Devices and kitchen printers' : 'Devices and kitchen printer', sub), flow, text, el('div', { class: 'qrs-pbar one' }, btn('', 'Close', closePop))] };
   }
   // ak••••••@gmail.com, +91 98••• ••210
@@ -949,7 +957,7 @@
     let s = status; if (typeof s === 'string') { try { s = JSON.parse(s); } catch { return; } }
     if (!s || typeof s !== 'object') return;
     path = { internet: s.internet !== false, wifiInternet: s.wifiInternet !== false, mobileVia: typeof s.mobileVia === 'string' && s.mobileVia ? s.mobileVia : null, since: Number(s.since) || 0,
-      printers: (Array.isArray(s.printers) ? s.printers : []).filter(k => k && typeof k === 'object').map((k, i) => ({ id: String(k.id ?? i), name: String(k.name || `Kitchen printer ${i + 1}`), link: k.link === 'wifi' ? 'wifi' : 'wired',
+      printers: (Array.isArray(s.printers) ? s.printers : []).filter(k => k && typeof k === 'object').map((k, i) => ({ id: String(k.id ?? i), name: String(k.name || `Kitchen printer ${i + 1}`), link: k.link === 'wifi' ? 'wifi' : k.link === 'bluetooth' ? 'bluetooth' : 'wired',
         state: k.state === 'ok' ? 'ok' : 'down', paper: k.paper === 'ok' ? 'ok' : null, backup: k.backup === true,
         device: k.device && typeof k.device === 'object' ? { name: String(k.device.name || ''), on: k.device.on !== false, lastSeen: Number(k.device.lastSeen) || 0 } : null })) };
     changed();

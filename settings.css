@@ -568,3 +568,64 @@ label.st-row,.st-link{cursor:pointer}
 .quick-volume{margin-top:8px!important}
 .quick-volume .icon{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .field-error{margin:0;font-size:14px;line-height:1.45;color:#b42318;font-weight:600}
+
+/* >>> printer pop-up */
+/* ---------- Settings › Printers › a printer: its pop-up (Update Pack 6, ST1), in the event teal. ~N is a design pixel on
+   the 1920 x 1080 screen. Its name, What this printer prints, then (not drawn) its KOT language, copies per KOT and
+   copies per bill in one row, Use as backup printer, the Bluetooth note, Cancel and Save ---------- */
+.st-pscrim{position:absolute;inset:0;z-index:40;display:flex;justify-content:center;align-items:flex-start;overflow:auto;background:rgba(28,25,23,.28)}
+.st-ppop{position:relative;flex:none;width:calc(800 * var(--su));margin:calc(42 * var(--su)) 0 calc(24 * var(--su));padding:calc(23 * var(--su)) calc(26 * var(--su)) calc(26 * var(--su));border-radius:calc(28 * var(--su));background:#FFFFFF;box-shadow:0 calc(24 * var(--su)) calc(64 * var(--su)) rgba(17,24,39,.22);outline:none}
+.st-ppop-h{display:flex;align-items:flex-start;justify-content:space-between;gap:calc(16 * var(--su))}
+.st-ppop-h h3{font-size:calc(26 * var(--su));font-weight:800;line-height:calc(32 * var(--su));color:#1C1917}
+.st-ppop-h p{margin-top:calc(3.2 * var(--su));font-size:calc(16 * var(--su));line-height:calc(22 * var(--su));color:#57534E}
+.st-ppop-h p b{font-weight:600}
+.st-ppop-h p b.ok{color:#15803D}
+.st-ppop-h p b.bad{color:#B91C1C}
+.settings-app .st-ppop-x{flex:none;width:calc(48 * var(--su));height:calc(48 * var(--su));min-height:0;display:grid;place-items:center;margin:calc(1 * var(--su)) 0 0;padding:0;border:0;border-radius:50%;background:#F3F1EE;color:#44403C;cursor:pointer}
+.settings-shell~.st-pscrim .st-ppop-x svg,.st-ppop-x svg{width:calc(27.5 * var(--su));height:calc(27.5 * var(--su));fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.settings-app .st-plab{display:block;margin-top:calc(18.2 * var(--su));font-size:calc(15 * var(--su));font-weight:700;line-height:calc(18 * var(--su));color:#44403C}
+.settings-app .st-pinput{display:block;width:100%;height:calc(56 * var(--su));margin-top:calc(7.1 * var(--su));padding:0 calc(16 * var(--su));border:0;border-radius:calc(14 * var(--su));background:#FFFFFF;box-shadow:inset 0 0 0 1.5px #D6D3D1;
+  font-size:calc(18 * var(--su));font-weight:600;color:#1C1917;outline:none}
+.settings-app .st-pinput:focus{box-shadow:inset 0 0 0 2px #0F766E}
+.settings-app #st-pjob-lab{margin-top:calc(17.5 * var(--su))}
+.st-pjobs{display:flex;flex-direction:column;gap:calc(10.5 * var(--su));margin-top:calc(8 * var(--su))}
+.settings-app .st-pjob{display:flex;align-items:center;gap:calc(14.5 * var(--su));width:100%;height:calc(68.5 * var(--su));min-height:0;margin:0;padding:0 calc(18 * var(--su));border:0;border-radius:calc(16 * var(--su));background:#FFFFFF;box-shadow:inset 0 0 0 1.5px #D6D3D1;
+  color:#1C1917;text-align:left;font:inherit;cursor:pointer}
+.settings-app .st-pjob[aria-checked="true"]{background:#F3FAF8;box-shadow:inset 0 0 0 2px #0F766E}
+.st-pjob:focus-visible{outline:2px solid #0F766E;outline-offset:2px}
+.st-prd{flex:none;position:relative;width:calc(28 * var(--su));height:calc(28 * var(--su));margin-top:calc(1.5 * var(--su));border-radius:50%;box-shadow:inset 0 0 0 2px #A8A29E}
+.st-pjob[aria-checked="true"] .st-prd{background:#0F766E;box-shadow:none}
+.st-pjob[aria-checked="true"] .st-prd::after{content:"";position:absolute;left:50%;top:50%;width:calc(12 * var(--su));height:calc(12 * var(--su));border-radius:50%;background:#FFFFFF;transform:translate(-50%,-50%)}
+.st-pjob-t{display:flex;flex-direction:column;min-width:0}
+.st-pjob-t b{font-size:calc(17.5 * var(--su));font-weight:700;line-height:calc(22 * var(--su));color:#1C1917}
+.st-pjob-t span{margin-top:calc(1 * var(--su));font-size:calc(14.5 * var(--su));font-weight:400;line-height:calc(20 * var(--su));color:#57534E}
+/* (not drawn) the row of what each printer already had: the pack's field and segmented styles (EV5) */
+.st-pmore{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:calc(16 * var(--su));margin-top:calc(2 * var(--su))}
+.st-pmore>div.off{opacity:.4}
+.settings-app .st-pmore .st-plab{margin-top:calc(14 * var(--su))}
+.settings-app .st-pselect{display:block;width:100%;height:calc(56 * var(--su));margin-top:calc(8.6 * var(--su));padding:0 calc(44 * var(--su)) 0 calc(18 * var(--su));border:0;border-radius:calc(14 * var(--su));box-shadow:inset 0 0 0 1.5px #D6D3D1;font-size:calc(18 * var(--su));font-weight:500;color:#1C1917;cursor:pointer;
+  appearance:none;-webkit-appearance:none;background:#FFFFFF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2357534E' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right calc(16 * var(--su)) center/calc(20 * var(--su))}
+.settings-app .st-pselect:focus{box-shadow:inset 0 0 0 2px #0F766E;outline:none}
+.st-pseg{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(4 * var(--su));height:calc(56 * var(--su));margin-top:calc(8.6 * var(--su));padding:calc(4 * var(--su));border-radius:calc(14 * var(--su));background:#F1F0EE}
+.settings-app .st-pseg button{min-height:0;height:100%;margin:0;padding:0;border:0;border-radius:calc(11 * var(--su));background:transparent;color:#44403C;font-size:calc(18 * var(--su));font-weight:600;cursor:pointer}
+.settings-app .st-pseg button[aria-checked="true"]{background:#FFFFFF;color:#0F766E;font-weight:700;box-shadow:0 1px 3px rgba(28,25,23,.14)}
+.settings-app .st-pseg button:disabled{cursor:default}
+.st-pbackup{display:flex;align-items:center;gap:calc(14.5 * var(--su));margin-top:calc(15.5 * var(--su));padding:calc(15.5 * var(--su)) calc(22 * var(--su)) calc(16 * var(--su)) calc(18 * var(--su));border-radius:calc(18 * var(--su));box-shadow:inset 0 0 0 1px #EEEFF0;cursor:pointer}
+.st-pbackup.off{opacity:.4;cursor:default}
+.st-pbackup>span{display:flex;flex-direction:column;min-width:0}
+.st-pbackup b{font-size:calc(16.5 * var(--su));font-weight:700;line-height:calc(20 * var(--su));color:#1C1917}
+.st-pbackup>span>span{margin-top:calc(-1 * var(--su));font-size:calc(14 * var(--su));line-height:calc(20 * var(--su));color:#57534E}
+.st-pswitch{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:calc(52 * var(--su));height:calc(30 * var(--su));margin:0;border:0;border-radius:999px;background:#D6D3D1;cursor:pointer;transition:background .2s}
+.st-pswitch::before{content:"";position:absolute;top:calc(3 * var(--su));left:calc(3 * var(--su));width:calc(24 * var(--su));height:calc(24 * var(--su));border-radius:50%;background:#FFFFFF;transition:left .2s}
+.st-pswitch:checked{background:#0F766E}
+.st-pswitch:checked::before{left:calc(25 * var(--su))}
+.st-pswitch:disabled{cursor:default}
+.st-pswitch:focus-visible{outline:2px solid #0F766E;outline-offset:3px}
+.settings-app .st-pnote{margin-top:calc(14.25 * var(--su));font-size:calc(14 * var(--su));line-height:calc(20 * var(--su));color:#57534E}
+.st-pbar{display:grid;grid-template-columns:1fr 1fr;gap:calc(12 * var(--su));margin-top:calc(21.25 * var(--su))}
+.settings-app .st-pbar button{height:calc(64 * var(--su));min-height:0;margin:0;padding:0;border:0;border-radius:calc(16 * var(--su));font-size:calc(18 * var(--su));cursor:pointer}
+.settings-app .st-pcancel{background:#FFFFFF;box-shadow:inset 0 0 0 1.5px #DDDEE1;color:#1C1917;font-weight:700}
+.settings-app .st-psave{background:#292524;color:#FFFFFF;font-weight:700}
+.st-pbar button:focus-visible,.st-ppop-x:focus-visible{outline:2px solid #0F766E;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.st-pswitch,.st-pswitch::before{transition:none}}
+/* <<< printer pop-up */

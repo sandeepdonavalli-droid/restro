@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="system-navigation.css?v=19">
   <link rel="stylesheet" href="themes.css?v=3">
   <link rel="stylesheet" href="sync-button.css?v=1">
-  <link rel="stylesheet" href="settings.css?v=23">
+  <link rel="stylesheet" href="settings.css?v=24">
   <link rel="stylesheet" href="counter.css?v=137">
   <link rel="stylesheet" href="counter-midnight.css?v=5">
   <link rel="stylesheet" href="floor.css?v=19">
@@ -54,8 +54,8 @@
   <script src="customers.js?v=4" defer></script>
   <script src="orders.js?v=33" defer></script>
   <script src="vendor/qrcode-generator.js?v=1" defer></script>
-  <script src="qr-studio.js?v=2" defer></script>
-  <script src="settings.js?v=28" defer></script>
+  <script src="qr-studio.js?v=3" defer></script>
+  <script src="settings.js?v=29" defer></script>
   <script src="battery-status.js?v=2" defer></script>
   <script src="notifications.js?v=1" defer></script>
   <script src="system-navigation.js?v=22" defer></script>
@@ -219,7 +219,7 @@
           <li><button class="settings-row" type="button" data-page="wifi" data-keywords="wi-fi wifi wireless network ssid password join signal hotspot"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-wifi"/></svg></span><span class="settings-row-copy"><strong>Wi-Fi</strong><span id="settings-wifi-summary" hidden>Managed by this device</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="network" data-keywords="network internet online offline connection mobile data cellular check"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-language"/></svg></span><span class="settings-row-copy"><strong>Network &amp; internet</strong><span id="settings-network-summary" hidden>Checking connection…</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="bluetooth" data-keywords="bluetooth connected devices pair scan printer scanner headset"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-bluetooth"/></svg></span><span class="settings-row-copy"><strong>Bluetooth</strong><span id="settings-bluetooth-summary" hidden>Not connected</span></span></button></li>
-          <li><button class="settings-row" type="button" data-page="printers" data-keywords="printers printer bill bills receipt this device kitchen kot language copies role backup printer"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-print"/></svg></span><span class="settings-row-copy"><strong>Printers</strong></span></button></li>
+          <li><button class="settings-row" type="button" data-page="printers" data-keywords="printers printer bill bills receipt receipts this device kitchen kot kots what this printer prints job language copies role backup printer bluetooth name"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-print"/></svg></span><span class="settings-row-copy"><strong>Printers</strong></span></button></li>
           <li><button class="settings-row" type="button" data-page="sound" data-keywords="sound volume audio mute speaker touch sounds beep"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-volume-up"/></svg></span><span class="settings-row-copy"><strong>Sound</strong><span id="settings-sound-summary" hidden>Volume 70%</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="display" data-keywords="display brightness screen dim light theme themes appearance style colour color look battery percentage navigation bar swipe gestures buttons back home recent apps go dark sleep screen off"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-tune"/></svg></span><span class="settings-row-copy"><strong>Display</strong><span id="settings-display-summary" hidden>Brightness 100%</span></span></button></li>
           <li><button class="settings-row" type="button" data-page="billing" data-keywords="billing charges discount dish discount service charge packaging parcel delivery rounding round off gst cgst sgst tax quick picks"><span class="settings-row-icon"><svg class="ms" aria-hidden="true"><use href="#ms-payments"/></svg></span><span class="settings-row-copy"><strong>Billing &amp; charges</strong><span id="settings-billing-summary" hidden>Packaging off · Delivery off</span></span></button></li>
@@ -289,7 +289,6 @@
             </div>
           </section>
           <section class="settings-page" data-page="printers" data-title="Printers" hidden><div id="settings-printers" class="st-built"></div></section>
-          <section class="settings-page" data-page="printer" data-title="Printer" data-parent="printers" hidden><div id="settings-printer" class="st-built"></div></section>
           <section class="settings-page" data-page="display" data-title="Display" hidden>
             <div class="st-card st-slidecard">
               <div class="st-sec-head"><div><p id="settings-brightness-label" class="st-lab">Brightness</p><p class="st-sub">Also in quick controls. Pull down from the top banner.</p></div><span id="settings-brightness-value" class="st-head-value">100%</span></div>

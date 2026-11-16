@@ -117,7 +117,7 @@
     current = id;
     const parent = parentOf(id), top = parent || id;
     for (const [pageId, page] of pages) page.hidden = pageId !== id;
-    pageTitle.textContent = id === 'printer' ? printerName(printerId) : pages.get(id).dataset.title;
+    pageTitle.textContent = pages.get(id).dataset.title;
     // The breadcrumb: "Settings", or "Settings › Display" (the page it is in, a tap away)
     crumb.replaceChildren('Settings', ...(parent ? [' › ', el('button', { type: 'button', onclick: () => show(parent, { focus: true }) }, pages.get(parent).dataset.title)] : pages.get(id).dataset.crumb ? [' › ', pages.get(id).dataset.crumb] : []));
     for (const entry of entries) {
@@ -146,6 +146,7 @@
   }
   function goBack() {
     if (!dialog.open) return false;
+    if (closePrinter()) return true; // (the printer pop-up first)
     if (parentOf(current)) { show(parentOf(current), { focus: true }); return true; }
     if (!twoPane.matches && isDetailView()) { showList(); return true; }
     return false;
@@ -562,24 +563,33 @@
     ];
   });
 
-  // ---------- Settings › Printers (Counter Update 7; Update Pack 3: its own page; owner, 16 Nov 2026: two sections) ----------
+  // ---------- Settings › Printers (Counter Update 7; Update Pack 3: its own page; owner, 16 Nov 2026: two sections;
+  // Update Pack 6, B and C: what each printer prints, Bluetooth) ----------
   // The printers the RESTRO Android app knows (RESTRODevice.printer.list()): this device's own (`own`) and the rest of
-  // the restaurant's. Each has a role (bills, kitchen tickets or both), the language its kitchen tickets print in, how
-  // many copies of each KOT and how many of each bill. Two sections, with no line at the top: This device, its own
-  // receipt printers (role Bills or Both), on this device only; Kitchen printers, every printer whose role is Kitchen or
-  // Both, the same on every device. A Both printer shows in both. A printer's page has its Role and the settings of the
-  // section it was opened from: Copies per bill (This device), or KOT language, Copies per KOT and Use as backup printer.
-  let printers = [], printerId = null, printerFor = 'kitchen';
+  // the restaurant's. Two sections, with no line at the top: This device, its own printers whose job includes bills and
+  // receipts, on this device only; Kitchen printers, every printer whose job includes KOTs, the same on every device. A
+  // printer for both shows in both. A tap opens its pop-up (ST1): its name, What this printer prints (KOTs only / Bills
+  // and receipts only / KOTs, bills and receipts; kept as `role` 'kitchen' / 'bills' / 'both'), Use as backup printer
+  // and, for Bluetooth, how it works; and, not drawn, one row with its KOT language, copies per KOT and copies per bill.
+  // Nothing changes until Save.
+  let printers = [], ppop = null;
   const printerSettings = id => Prefs.get('printers')[id] || { role: 'both', language: 'English', copies: 1, billCopies: 1 };
-  const printerName = id => printers.find(p => p.id === id)?.name || 'Printer';
-  const roleName = { bills: 'Bills', kitchen: 'Kitchen', both: 'Bills and kitchen' };
+  const JOBS = [{ value: 'kitchen', label: 'KOTs only', text: 'Kitchen tickets. Never prints bills or receipts.' },
+    { value: 'bills', label: 'Bills and receipts only', text: 'Never gets KOTs, so it never counts for QR ordering.' },
+    { value: 'both', label: 'KOTs, bills and receipts', text: 'One printer for everything, for example at an outdoor event.' }];
+  const jobName = role => JOBS.find(j => j.value === role)?.label || JOBS[2].label;
+  // (a name given in the pop-up is the restaurant's for that printer, on every device; otherwise the app's)
+  const nameOf = p => printerSettings(p.id).name || p.name;
   const backupOf = s => (s.backup && s.role !== 'bills' ? ' · Backup printer' : '');
   const copiesOf = n => `${n} ${n === 1 ? 'copy' : 'copies'}`;
   async function loadPrinters() {
     const host = window.RESTRODevice?.printer;
     if (typeof host?.list !== 'function') { printers = []; return false; }
-    try { const list = await host.list(); printers = (Array.isArray(list) ? list : []).filter(p => p && typeof p.id === 'string').map(p => ({ id: p.id.slice(0, 80), name: String(p.name || 'Printer').slice(0, 40), connection: String(p.connection || ''), own: p.own === true })); }
-    catch { printers = []; }
+    try {
+      const list = await host.list();
+      printers = (Array.isArray(list) ? list : []).filter(p => p && typeof p.id === 'string').map(p => ({ id: p.id.slice(0, 80), name: String(p.name || 'Printer').slice(0, 40), connection: String(p.connection || ''), own: p.own === true,
+        device: typeof p.device === 'string' && p.device.trim() ? p.device.trim().slice(0, 40) : '', connected: typeof p.connected === 'boolean' ? p.connected : null }));
+    } catch { printers = []; }
     return true;
   }
   const printersHost = document.querySelector('#settings-printers');
@@ -587,51 +597,83 @@
     const bridged = await loadPrinters();
     const via = p => (p.connection ? ` · ${p.connection}` : '');
     const kotOf = s => (s.role === 'bills' ? '' : ` · KOT in ${s.language} · ${copiesOf(s.copies)}`);
-    const row = (p, part, text) => el('button', { type: 'button', class: 'st-row st-link', onclick: () => { printerId = p.id; printerFor = part; show('printer', { focus: true }); } },
-      el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, p.name), el('span', {}, text)), ms('ms-chevron-right', 'ms st-chev'));
+    const row = (p, text) => el('button', { type: 'button', class: 'st-row st-link', onclick: () => openPrinter(p) },
+      el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, nameOf(p)), el('span', {}, text)), ms('ms-chevron-right', 'ms st-chev'));
     const none = (title, text) => el('div', { class: 'st-row' }, el('span', { class: 'settings-row-icon' }, ms('ms-print')), el('span', { class: 'st-row-copy' }, el('strong', {}, title), text ? el('span', {}, text) : null));
     const mine = printers.filter(p => p.own && printerSettings(p.id).role !== 'kitchen'), kitchen = printers.filter(p => printerSettings(p.id).role !== 'bills');
     // (no receipt printer: a line only when this device has no printer at all)
     const noneHere = printers.some(p => p.own) ? '' : bridged ? 'This device hasn’t found a printer yet.' : 'Printers connect through the RESTRO Android app.';
     rebuild(printersHost, () => [
-      card('st-rowcard', lab('This device'), el('div', { class: 'st-rows' }, ...(mine.length ? mine.map(p => row(p, 'bills', `${roleName[printerSettings(p.id).role]} · ${copiesOf(printerSettings(p.id).billCopies)}${via(p)}`))
+      card('st-rowcard', lab('This device'), el('div', { class: 'st-rows' }, ...(mine.length ? mine.map(p => { const s = printerSettings(p.id); return row(p, `${jobName(s.role)} · ${copiesOf(s.billCopies)}${via(p)}`); })
         : [none('No receipt printer', noneHere)]))),
-      card('st-rowcard', lab('Kitchen printers'), el('div', { class: 'st-rows' }, ...(kitchen.length ? kitchen.map(p => { const s = printerSettings(p.id); return row(p, 'kitchen', `${roleName[s.role]}${backupOf(s)}${kotOf(s)}${via(p)}`); })
+      card('st-rowcard', lab('Kitchen printers'), el('div', { class: 'st-rows' }, ...(kitchen.length ? kitchen.map(p => { const s = printerSettings(p.id); return row(p, `${jobName(s.role)}${backupOf(s)}${kotOf(s)}${via(p)}`); })
         : [none('No kitchen printers')])))
     ]);
   }
-  const printerHost = document.querySelector('#settings-printer');
-  const setPrinter = change => Prefs.update('printers', all => { const s = { ...printerSettings(printerId) }; change(s); all[printerId] = s; });
-  const copyTiles = (label, value, disabled, pick) => tiles(label, [1, 2, 3].map(n => ({ value: n, label: String(n) })), value, pick, { disabled });
-  builders.printer = () => rebuild(printerHost, () => {
-    const s = printerSettings(printerId), kitchen = s.role !== 'bills', bills = s.role !== 'kitchen';
-    const again = () => { builders.printer(); };
-    const role = card('', lab('Role'), sub('What this printer prints.'),
-      tiles('Printer role', [{ value: 'bills', label: 'Bills' }, { value: 'kitchen', label: 'Kitchen (KOT)' }, { value: 'both', label: 'Both' }], s.role, r => { setPrinter(x => { x.role = r; }); again(); }));
-    // (This device: the receipt printer's copies of each bill and receipt; owner, 16 Nov 2026)
-    if (printerFor === 'bills') return [role,
-      card(bills ? '' : 'dis', lab('Copies per bill'), sub('How many of each bill and receipt it prints.'),
-        copyTiles('Copies per bill', s.billCopies, !bills, n => { setPrinter(x => { x.billCopies = n; }); again(); }))];
-    return [
-      role,
-      card(kitchen ? '' : 'dis', lab('KOT language'), sub('Kitchen tickets print in this language. Other than English, a ticket prints as a picture, as thermal printers have no Indian-language fonts. Dish names come from Inventory; a dish without a name in this language prints in English.'),
-        el('div', { class: 'st-langs' }, tiles('KOT language', Prefs.languages.map(l => ({ value: l, label: l })), s.language, l => { setPrinter(x => { x.language = l; }); again(); }, { disabled: !kitchen }))),
-      card(kitchen ? '' : 'dis', lab('Copies per KOT'), sub('How many of each kitchen ticket it prints.'),
-        copyTiles('Copies per KOT', s.copies, !kitchen, n => { setPrinter(x => { x.copies = n; }); again(); })),
-      // (Update Pack 5, I2) one kitchen printer is the backup: turning it on here turns it off on any other
-      card(kitchen ? '' : 'dis', switchHead('printer-backup', 'Use as backup printer', 'When another kitchen printer stops working for 30 seconds, its KOTs print here with this printer’s own. One printer can be the backup.',
-        Boolean(s.backup) && kitchen, on => { Prefs.update('printers', all => { for (const id of Object.keys(all)) delete all[id].backup; all[printerId] = { ...printerSettings(printerId), ...(on ? { backup: true } : {}) }; if (!on) delete all[printerId].backup; }); again(); }),
-        note('With no backup printer, or the backup down too, they print on the first kitchen printer that works.'))
-    ];
-  });
   builders.printers = () => { paintPrinters(); };
+
+  // The printer pop-up (Update Pack 6, ST1): a draft of the printer's settings, kept on Save, dropped on Cancel, ✕, Back
+  // or a tap outside it
+  function openPrinter(p) {
+    const s = printerSettings(p.id);
+    ppop = { p, draft: { name: nameOf(p), role: s.role, language: s.language, copies: s.copies, billCopies: s.billCopies || 1, backup: Boolean(s.backup) && s.role !== 'bills' } };
+    paintPop(true);
+  }
+  function closePrinter() { if (!ppop) return false; ppop = null; dialog.querySelector('.st-pscrim')?.remove(); return true; }
+  function savePrinter() {
+    if (!ppop) return;
+    const { p, draft: d } = ppop, name = d.name.replace(/\s+/g, ' ').trim().slice(0, 40), backup = d.backup && d.role !== 'bills';
+    Prefs.update('printers', all => {
+      const s = { ...printerSettings(p.id), role: d.role, language: d.language, copies: d.copies, billCopies: d.billCopies };
+      if (name && name !== p.name) s.name = name; else delete s.name;
+      // (Update Pack 5, I2) one backup printer at most: this one on turns it off on any other
+      if (backup) { for (const id of Object.keys(all)) delete all[id].backup; s.backup = true; } else delete s.backup;
+      all[p.id] = s;
+    });
+    closePrinter(); paintPrinters();
+  }
+  function paintPop(first = false) {
+    const { p, draft: d } = ppop, kots = d.role !== 'bills', bills = d.role !== 'kitchen', blue = /bluetooth/i.test(p.connection);
+    const again = () => paintPop();
+    const where = p.device ? ` · ${blue ? 'paired with' : 'on'} ${p.device}` : '';
+    const state = p.connected === true ? [' · ', el('b', { class: 'ok' }, 'Connected')] : p.connected === false ? [' · ', el('b', { class: 'bad' }, 'Not connected')] : [];
+    const seg = (label, value, off, pick) => el('div', { class: `st-pseg${off ? ' off' : ''}`, role: 'radiogroup', 'aria-label': label },
+      [1, 2, 3].map(n => el('button', { type: 'button', role: 'radio', 'aria-checked': String(n === value), disabled: off, onclick: () => { pick(n); again(); } }, String(n))));
+    const pop = el('div', { class: 'st-ppop', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'st-ppop-title', tabindex: '-1' },
+      el('div', { class: 'st-ppop-h' },
+        el('div', {}, el('h3', { id: 'st-ppop-title' }, nameOf(p)), el('p', {}, `Settings › Printers${p.connection ? ` · ${p.connection}` : ''}${where}`, ...state)),
+        el('button', { type: 'button', class: 'st-ppop-x', 'aria-label': 'Close', onclick: closePrinter }, line(X))),
+      el('label', { class: 'st-plab', for: 'st-pname' }, 'Printer name'),
+      el('input', { id: 'st-pname', class: 'st-pinput', type: 'text', maxlength: '40', autocomplete: 'off', value: d.name, oninput: e => { d.name = e.target.value; } }),
+      el('p', { class: 'st-plab', id: 'st-pjob-lab' }, 'What this printer prints'),
+      el('div', { class: 'st-pjobs', role: 'radiogroup', 'aria-labelledby': 'st-pjob-lab' }, JOBS.map(j =>
+        el('button', { type: 'button', class: 'st-pjob', role: 'radio', 'aria-checked': String(d.role === j.value), id: `st-pjob-${j.value}`, onclick: () => { d.role = j.value; if (j.value === 'bills') d.backup = false; again(); } },
+          el('span', { class: 'st-prd' }), el('span', { class: 'st-pjob-t' }, el('b', {}, j.label), el('span', {}, j.text))))),
+      // (not drawn: the settings each printer already had, one row, greyed when its job leaves them out)
+      el('div', { class: 'st-pmore' },
+        el('div', { class: kots ? '' : 'off' }, el('label', { class: 'st-plab', for: 'st-plang' }, 'KOT language'),
+          el('select', { id: 'st-plang', class: 'st-pselect', disabled: !kots, onchange: e => { d.language = e.target.value; } },
+            Prefs.languages.map(l => el('option', { value: l, selected: l === d.language }, l)))),
+        el('div', { class: kots ? '' : 'off' }, el('p', { class: 'st-plab' }, 'Copies per KOT'), seg('Copies per KOT', d.copies, !kots, n => { d.copies = n; })),
+        el('div', { class: bills ? '' : 'off' }, el('p', { class: 'st-plab' }, 'Copies per bill'), seg('Copies per bill', d.billCopies, !bills, n => { d.billCopies = n; }))),
+      el('label', { class: `st-pbackup${kots ? '' : ' off'}`, for: 'st-pbackup' },
+        el('input', { id: 'st-pbackup', class: 'st-pswitch', type: 'checkbox', role: 'switch', checked: d.backup && kots, disabled: !kots, onchange: e => { d.backup = e.target.checked; } }),
+        el('span', {}, el('b', {}, 'Use as backup printer'), el('span', {}, 'For the restaurant. Only printers that print KOTs can be the backup. Event printers back up each other by themselves.'))),
+      blue ? el('p', { class: 'st-pnote' }, 'Bluetooth works like a cable: the printer belongs to the one device it’s paired with, and that device is its Printer device.') : null,
+      el('div', { class: 'st-pbar' }, el('button', { type: 'button', class: 'st-pcancel', onclick: closePrinter }, 'Cancel'), el('button', { type: 'button', class: 'st-psave', onclick: savePrinter }, 'Save')));
+    const scrim = el('div', { class: 'st-pscrim', onclick: e => { if (e.target === e.currentTarget) closePrinter(); } }, pop);
+    const old = dialog.querySelector('.st-pscrim'), focused = old?.contains(document.activeElement) ? document.activeElement.id : null;
+    if (old) old.replaceWith(scrim); else dialog.append(scrim);
+    if (first) pop.focus({ preventScroll: true });
+    else if (focused) document.getElementById(focused)?.focus({ preventScroll: true });
+  }
 
   // A setting changed (here, or on another tablet): the page on screen and the lines under the categories follow
   window.addEventListener('restro:prefs-changed', event => {
     syncSummaries();
     if (!dialog.open) return;
     const name = event.detail?.name;
-    const page = { billing: 'billing', security: 'security', navigation: 'navigation', screen: 'navigation', printers: current === 'printer' ? 'printer' : 'printers', business: 'business', orders: 'orders', readyMessage: 'orders', counter: 'counter' }[name];
+    const page = { billing: 'billing', security: 'security', navigation: 'navigation', screen: 'navigation', printers: 'printers', business: 'business', orders: 'orders', readyMessage: 'orders', counter: 'counter' }[name];
     if (page === current && page !== 'business') builders[page]?.();
     if (page === 'business' && current === 'business' && !document.querySelector('#business-form').contains(document.activeElement)) fillBusiness();
   });
@@ -648,6 +690,7 @@
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
   dialog.addEventListener('close', () => {
     window.RestroThemePicker?.reset();
+    closePrinter();
     for (const host of [ordersHost, counterHost, navHost]) host?.replaceChildren(); // (the pictures go with the page)
     if (toastNode.parentElement === dialog) toastHome.append(toastNode);
   });
