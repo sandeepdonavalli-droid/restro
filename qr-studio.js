@@ -23,7 +23,8 @@
 //       [{ id, name (its number, or the Floor table's name), floor (a Floor table's id), code, path
 //       '<restaurant>/E<name>-<code>', replacedAt, replacedBy, printedAt, printedBy, sentAt, sentBy }]), menu { items
 //       (dishes from the menu: [{ id, price, printers }], price and printers only when changed for the event), own
-//       (event-only dishes) }, endedAt, endedBy (End now), hadOrders (set once it has an
+//       (event-only dishes) }, soldOut { ‹dish id›: { at, by } } (Update Pack 7, EV12: the dishes turned off for
+//       this event only), endedAt, endedBy (End now), hadOrders (set once it has an
 //       order, never cleared: Delete stays off), createdAt, createdBy, replacedAt, replacedBy (the whole event's QR
 //       replaced), printedAt, printedBy, sentAt, sentBy }.
 //   An event works only from its start to its end, even outside business hours, and stops by itself; then it shows under
@@ -55,10 +56,11 @@
     // (Update Pack 6: an event's QR, teal; its heading and line go by what customers can do with it, MODES)
     event: { prefix: 'EV', accent: '#0F766E', icon: 'event' }
   };
-  // (Update Pack 6, E2) What customers can do with one QR for the whole event, and its card's two lines
+  // (Update Pack 6, E2) What customers can do with one QR for the whole event, and its card's two lines (Update Pack 7,
+  // K4: collected at the counter, no "we call your name" anywhere)
   const MODES = {
-    both: { label: 'Dine-in + Takeaway', heading: 'Scan · Order · Pay', line: 'Eat here or take it away. We call your name when it’s ready.' },
-    takeaway: { label: 'Takeaway only', heading: 'Scan · Order · Pay', line: 'Order, pay and pick it up. We call your name when it’s ready.' },
+    both: { label: 'Dine-in + Takeaway', heading: 'Scan · Order · Pay', line: 'Eat here or take it away. Collect at the counter when it’s ready.' },
+    takeaway: { label: 'Takeaway only', heading: 'Scan · Order · Pay', line: 'Order, pay and collect at the counter when it’s ready.' },
     menu: { label: 'Menu only', heading: 'Scan to see the menu', line: 'See our dishes and prices. Order with our staff.' }
   };
 
@@ -546,8 +548,9 @@
   // ---------- what the screen shows ----------
   // page: 'table' | 'takeaway' | 'menu' | 'event'; area: 'all' or an area's id; picked: the QR ids ticked after a
   // long-press (Set), or null; selected: the table QR the panel shows; evTab: Event QRs' tab, 'events' (live and
-  // upcoming) | 'history' (ended); evPick: the event picked on each tab
-  const view = { page: 'table', area: 'all', search: '', picked: null, selected: null, evTab: 'events', evPick: { events: null, history: null } };
+  // upcoming) | 'history' (ended); evPick: the event picked on each tab; evAvail: the event whose dish availability
+  // shows (Update Pack 7, EV12), or null
+  const view = { page: 'table', area: 'all', search: '', picked: null, selected: null, evTab: 'events', evPick: { events: null, history: null }, evAvail: null };
   let root = null, pop = null, toastTimer = 0, tick = 0;
   const greyed = (label, why) => ({ disabled: true, 'aria-disabled': 'true', title: why || null, 'aria-label': why ? `${label} · ${why}` : null });
   const online = () => internetHere();
@@ -756,18 +759,21 @@
     if (!all.length) return [headEl('Event QRs', null, null), line,
       el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist' }, newBtn, noneEl('No events yet', 'Create one for a festival, a brunch, a party or a wedding.')), facts())];
     const tab = (id, label, n) => el('button', { type: 'button', role: 'tab', class: `qrs-chip qrs-evtab${view.evTab === id ? ' on' : ''}`, 'aria-selected': String(view.evTab === id),
-      onclick: () => { if (view.evTab !== id) { view.evTab = id; render(); } } }, el('span', {}, label), el('small', {}, String(n)));
+      onclick: () => { if (view.evTab !== id) { view.evTab = id; view.evAvail = null; render(); } } }, el('span', {}, label), el('small', {}, String(n)));
     const tabs = el('div', { class: 'qrs-evtabs', role: 'tablist', 'aria-label': 'Events or history' }, tab('events', 'Events', by.live.length + by.upcoming.length), tab('history', 'History', by.ended.length));
-    if (!sel) return [headEl('Event QRs', tabs, null), line, history
-      ? el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist history' }, noneEl('No past events yet', 'Events move here by themselves when they end.')))
-      : el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist' }, newBtn, noneEl('No live or upcoming events', 'Create one for a festival, a brunch, a party or a wedding.')), facts())];
+    // (Update Pack 7: the buttons take the whole header, Availability being one more, so the tabs head the list)
+    if (!sel) return [headEl('Event QRs', null, null), line, history
+      ? el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist history' }, tabs, noneEl('No past events yet', 'Events move here by themselves when they end.')))
+      : el('div', { class: 'qrs-ev' }, el('div', { class: 'qrs-evlist' }, tabs, newBtn, noneEl('No live or upcoming events', 'Create one for a festival, a brunch, a party or a wedding.')), facts())];
     // (History: one label a month, "NOVEMBER 2026", by when each event ended)
     const groups = history ? by.ended.reduce((out, x) => { const d = new Date(x.s.at), label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
       if (out.at(-1)?.[0] !== label) out.push([label, []]); out.at(-1)[1].push(x); return out; }, [])
       : [['LIVE NOW', by.live], ['UPCOMING', by.upcoming]].filter(([, l]) => l.length);
-    const list = el('div', { class: `qrs-evlist${history ? ' history' : ''}` }, history ? null : newBtn,
+    const list = el('div', { class: `qrs-evlist${history ? ' history' : ''}` }, tabs, history ? null : newBtn,
       el('div', { class: 'qrs-evscroll' }, groups.map(([label, l]) => [el('p', { class: 'qrs-evlab' }, label), l.map(x => eventCard(x.e, x.s, x === sel))])));
-    return [headEl('Event QRs', tabs, eventTools(sel.e, sel.s)), line, el('div', { class: 'qrs-ev' }, list, sel.e.qrs === 'tables' ? tablesPanel(sel.e, sel.s) : wholePanel(sel.e, sel.s))];
+    const avail = view.evAvail === sel.e.id && sel.s.state === 'live';
+    return [headEl('Event QRs', null, eventTools(sel.e, sel.s)), line,
+      el('div', { class: 'qrs-ev' }, list, avail ? availPanel(sel.e) : sel.e.qrs === 'tables' ? tablesPanel(sel.e, sel.s) : wholePanel(sel.e, sel.s))];
   }
   // An event paused by itself (EV9): why, since when, what its customers see; See devices
   function evBanner(e, s) {
@@ -782,7 +788,7 @@
     const chip = s.state === 'ended' ? el('span', { class: 'qrs-evchip ended' }, 'Ended') : s.state === 'upcoming' ? el('span', { class: 'qrs-evchip soon' }, `Starts ${dayWords(e.start)}`)
       : evPause(e, s) ? el('span', { class: 'qrs-evchip bad' }, 'Paused') : s.open ? el('span', { class: 'qrs-evchip live' }, el('i'), 'Live') : el('span', { class: 'qrs-evchip soon' }, `Opens ${daysApart(Date.now(), s.next) === 0 ? clock(s.next) : dayWords(s.next)}`);
     // (the chip keeps its own column on the right: the lines wrap before it, as EV2)
-    return el('button', { type: 'button', class: `qrs-evcard${on ? ' on' : ''}${s.state === 'ended' ? ' ended' : ''}`, 'aria-pressed': String(on), onclick: () => { view.evPick[view.evTab] = e.id; render(); } },
+    return el('button', { type: 'button', class: `qrs-evcard${on ? ' on' : ''}${s.state === 'ended' ? ' ended' : ''}`, 'aria-pressed': String(on), onclick: () => { view.evPick[view.evTab] = e.id; if (view.evAvail !== e.id) view.evAvail = null; render(); } },
       el('span', { class: 'qrs-evcard-i' }, icon('event')),
       el('span', { class: 'qrs-evcard-t' }, el('b', {}, e.name), el('span', { class: 'qrs-evcard-d' }, datesText(e)), el('small', {}, infoLine(e))), chip);
   }
@@ -792,7 +798,8 @@
   // 16 Nov 2026: between Send and Edit); an event table's QR, from its card. Once it has ended (History), only Delete
   // can be used. See devices (owner, 17 Nov 2026: its own button, on Event QRs only, as the QR ordering card's) shows the
   // event's own path (EV10, EV11) while it takes orders; before it starts, between its days, after it ends and for Menu
-  // only, greyed.
+  // only, greyed. Availability (Update Pack 7, EV12) opens the event's dish availability in place of its panel, and
+  // closes it; greyed but there before the event starts, and once it has ended.
   function eventTools(e, s) {
     const why = !online() ? 'Needs internet' : '', tables = e.qrs === 'tables', had = hasOrders(e), live = s.state === 'live', ended = s.state === 'ended';
     const ordering = live && s.open && (tables || e.mode !== 'menu');
@@ -801,6 +808,7 @@
       btn('tint', tables ? 'Print all' : 'Reprint', () => printEvent(e), 'print', { off: ended }),
       btn('', tables ? 'Send all' : 'Send', () => openPop('send', { event: e.id }), 'send', { off: ended || !online(), why: ended ? '' : why }),
       tables ? null : btn('', 'Replace QR', () => openPop('replace-event', { event: e.id }), 'replace', { off: ended }),
+      btn(view.evAvail === e.id && live ? 'tint' : '', 'Availability', () => { view.evAvail = view.evAvail === e.id ? null : e.id; render(); }, 'check', { off: !live, pressed: live ? String(view.evAvail === e.id) : null }),
       btn('', 'Edit', () => toast('Coming soon', null, null), 'edit', { off: ended }),
       btn('del', 'End now', () => openPop('end', { event: e.id }), 'stop', { off: !live || !online(), why: live ? why : '', showWhy: true }),
       btn('del', 'Delete', () => openPop('delete-event', { event: e.id }), 'trash', { off: had || !online(), why: had ? '' : why, showWhy: true })];
@@ -834,6 +842,45 @@
       : s.state === 'ended' ? `The QR stopped taking orders at ${when}` : `The QR stops taking orders at ${when} by itself`;
     return [el('div', { class: 'qrs-evbox' }, eventCardEl(e)),
       el('div', { class: 'qrs-facts ev' }, factsEl('This event', rows), info('When it ends', [first, 'Customers who scan later see “This event has ended.”', 'Delete is off once an event has orders, so takings never disappear']))];
+  }
+  // ---------- A live event's dish availability (Update Pack 7, K1: EV12) ----------
+  // One switch per dish on the event's menu, Available or Sold out. Only this event changes: the regular menu and the
+  // Availability app are untouched. Customers see "Sold out" on that dish and can't add it. Kept on the event as
+  // soldOut { ‹dish id›: { at, by } } (a dish from the menu by its id, an event-only dish by its own), synced with it:
+  // each dish merges on its own, so two tablets switching different dishes keep both.
+  // The event's dishes as its menu has them (EV4): category by category in the menu's order, the dishes from the menu
+  // then the event-only ones; an event-only dish whose category is gone comes last.
+  function evDishes(e) {
+    const picked = new Set((Array.isArray(e.menu?.items) ? e.menu.items : []).map(i => (typeof i === 'string' ? i : i?.id)).filter(id => typeof id === 'string'));
+    const own = (Array.isArray(e.menu?.own) ? e.menu.own : []).filter(d => d && typeof d.id === 'string'), cats = menuCats(), out = [];
+    for (const c of cats) {
+      for (const i of c.items) if (picked.has(i.id)) out.push({ key: i.id, name: i.name, cat: c.name, own: false });
+      for (const d of own) if (d.cat === c.id) out.push({ key: d.id, name: d.name, cat: c.name, own: true });
+    }
+    for (const d of own) if (!cats.some(c => c.id === d.cat)) out.push({ key: d.id, name: d.name, cat: '', own: true });
+    return out;
+  }
+  const soldOutOf = e => (e.soldOut && typeof e.soldOut === 'object' && !Array.isArray(e.soldOut) ? e.soldOut : {});
+  function setSoldOut(e, key, out) {
+    const map = { ...soldOutOf(e) };
+    if (out) map[key] = { at: Date.now(), by: who() }; else delete map[key];
+    e.soldOut = map; storeEvents();
+  }
+  function availPanel(e) {
+    const dishes = evDishes(e), out = soldOutOf(e), n = dishes.filter(d => out[d.key]).length;
+    const row = d => {
+      const off = Boolean(out[d.key]);
+      return el('div', { class: `qrs-avrow${off ? ' out' : ''}`, role: 'listitem' }, dishThumb('av'),
+        el('div', { class: 'qrs-avt' }, el('b', {}, el('span', {}, d.name), off ? el('em', {}, 'Sold out') : null), el('span', {}, d.own ? (d.cat ? `Event-only · ${d.cat}` : 'Event-only') : d.cat)),
+        el('span', { class: 'qrs-avw' }, off ? 'Sold out' : 'Available'),
+        el('button', { type: 'button', class: `qrs-switch teal${off ? '' : ' on'}`, role: 'switch', 'aria-checked': String(!off), 'aria-label': `${d.name} available`, onclick: () => setSoldOut(e, d.key, !off) }, el('span')));
+    };
+    const can = e.qrs === 'tables' || e.mode !== 'menu';
+    return el('div', { class: 'qrs-avail' },
+      el('div', { class: 'qrs-avhead' }, el('div', {}, el('b', {}, `${e.name} · dish availability`), el('span', {}, 'Turn a dish off when it runs out. Only this event changes; your regular menu and Availability stay as they are.')),
+        n ? el('span', { class: 'qrs-avn' }, `${n} sold out`) : null),
+      dishes.length ? el('div', { class: 'qrs-avlist', role: 'list', 'aria-label': 'Dishes on this event' }, dishes.map(row)) : noneEl('No dishes on this event', 'Its menu has none.'),
+      el('p', { class: 'qrs-avnote' }, `Customers see “Sold out” on that dish${can ? ' and can’t add it' : ''}. Turn it back on any time. ${plural(dishes.length, 'dish', 'dishes')} on this event.`));
   }
   // One QR per event table picked (EV7): what it is, then its tables' QRs with their numbers. Tapping a table's card
   // opens its own Reprint · Send · Replace QR · Delete, as a table QR's (owner, 16 Nov 2026); not once the event has ended.
@@ -1615,7 +1662,7 @@
   // ---------- doing things ----------
   const pickedRecords = () => (view.picked ? [...view.picked].map(id => records.find(r => r.id === id)).filter(Boolean) : []);
   // (the Event QRs pill opens on its Events tab)
-  function go(page) { view.page = page; view.picked = null; pop = null; form = null; if (page === 'event') view.evTab = 'events'; render(); }
+  function go(page) { view.page = page; view.picked = null; pop = null; form = null; view.evAvail = null; if (page === 'event') view.evTab = 'events'; render(); }
   function goHome() { document.querySelector('#system-home')?.click(); if (dialog.open) dialog.close(); }
   function tapCard(r) {
     if (view.picked) { view.picked.has(r.id) ? view.picked.delete(r.id) : view.picked.add(r.id); if (!view.picked.size) view.picked = null; }
@@ -1909,7 +1956,7 @@
 
   // ---------- opening, closing, Back ----------
   function open(page) {
-    load(); loadScans(); loadEvents(); loadKitchen(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; pop = null; form = null;
+    load(); loadScans(); loadEvents(); loadKitchen(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; view.evAvail = null; pop = null; form = null;
     noteOrders();
     if (!dialog.open) dialog.showModal();
     render(); dialog.querySelector('#qr-studio-title')?.focus({ preventScroll: true });

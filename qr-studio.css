@@ -351,7 +351,33 @@
 .qrs-etcard>span.muted{color:#78716C}
 /* (owner, 16 Nov 2026) Events · History: two tabs right of the title, as the area chips; History lists the events that
    have ended, newest first, one label a month, without New event */
-.qrs-evtabs{display:flex;align-items:center;gap:calc(8 * var(--fu));margin-left:calc(8 * var(--fu))}
+.qrs-evtabs{flex:none;display:flex;align-items:center;gap:calc(8 * var(--fu));margin:0 0 calc(12 * var(--fu))}
+/* (Update Pack 7, EV12) A live event's dish availability, in place of its panel: what it is with how many are sold out,
+   a switch per dish (a sold-out row tinted), and what customers see */
+.qrs-avail{flex:1;min-width:0;align-self:stretch;min-height:0;display:flex;flex-direction:column;margin:calc(-1 * var(--fu)) 0 0 calc(-1 * var(--fu));padding-bottom:calc(24 * var(--fu))}
+.qrs-avhead{flex:none;display:flex;align-items:center;gap:calc(16 * var(--fu));height:calc(73 * var(--fu));box-sizing:border-box;padding:0 calc(18 * var(--fu));border:1px solid #E2E4E8;border-radius:calc(22 * var(--fu));background:#FFFFFF}
+.qrs-avhead>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.qrs-avhead b{position:relative;top:calc(.5 * var(--fu));font-size:calc(18.7 * var(--fu));font-weight:800;line-height:calc(22 * var(--fu));color:#1C1917;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrs-avhead div span{position:relative;top:calc(-1 * var(--fu));margin-top:calc(3 * var(--fu));font-size:calc(14.5 * var(--fu));line-height:calc(19 * var(--fu));color:#44403C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrs-avn{flex:none;display:inline-flex;align-items:center;height:calc(28 * var(--fu));padding:0 calc(11 * var(--fu));border-radius:calc(14 * var(--fu));background:#FEE2E2;color:#991B1B;font-size:calc(13.5 * var(--fu));font-weight:700;line-height:1}
+.qrs-avlist{flex:0 1 auto;min-height:0;margin-top:calc(10 * var(--fu));border:1px solid #E2E4E8;border-radius:calc(22 * var(--fu));background:#FFFFFF;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.qrs-avlist::-webkit-scrollbar{display:none}
+.qrs-avrow{position:relative;display:flex;align-items:center;height:calc(66 * var(--fu));box-sizing:border-box;padding:0 calc(18 * var(--fu))}
+.qrs-avrow::after{content:"";position:absolute;left:calc(18 * var(--fu));right:calc(18 * var(--fu));bottom:0;height:1px;background:#F0EFED}
+.qrs-avrow:last-child::after{content:none}
+.qrs-avrow.out{background:#FEF2F2}
+.qrs-avrow.out::after{left:0;right:0}
+.qrs-dthumb.av{width:calc(46 * var(--fu));height:calc(46 * var(--fu));margin:0;gap:calc(1 * var(--fu));border-radius:calc(13 * var(--fu))}
+.qrs-dthumb.av .qi{width:calc(14 * var(--fu));height:calc(14 * var(--fu))}
+.qrs-dthumb.av small{max-width:calc(38 * var(--fu));font-size:calc(9 * var(--fu));line-height:calc(10 * var(--fu));white-space:normal}
+.qrs-avt{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:calc(14 * var(--fu));position:relative;top:calc(-.5 * var(--fu))}
+.qrs-avt b{position:relative;top:calc(-1 * var(--fu));display:flex;align-items:baseline;gap:calc(18 * var(--fu));min-width:0;font-size:calc(17.75 * var(--fu));font-weight:600;line-height:calc(22 * var(--fu));color:#1C1917}
+.qrs-avt b span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrs-avt em{flex:none;position:relative;top:calc(-1 * var(--fu));font-style:normal;font-size:calc(13 * var(--fu));font-weight:700;color:#B91C1C}
+.qrs-avt>span{margin-top:calc(1 * var(--fu));font-size:calc(14 * var(--fu));line-height:calc(18 * var(--fu));color:#57534E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrs-avw{flex:none;position:relative;top:calc(-2 * var(--fu));margin:0 calc(14 * var(--fu)) 0 calc(16 * var(--fu));font-size:calc(14 * var(--fu));font-weight:700;color:#166534}
+.qrs-avrow.out .qrs-avw{color:#B91C1C}
+.qrs-avnote{flex:none;margin-top:calc(10 * var(--fu));font-size:calc(14 * var(--fu));line-height:calc(20 * var(--fu));color:#57534E}
 .qrs-evlist.history .qrs-evscroll>.qrs-evlab:first-child{margin-top:0!important}
 .qrs-evlist.history .qrs-evnone{margin-top:0}
 /* An event table's card opens its own Reprint · Send · Replace QR · Delete, as a table QR's panel: the card in its grey

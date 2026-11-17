@@ -25,7 +25,7 @@ number (`RestroSync.takeBillNumber()`, Bill numbers below).
 | Settings › Orders, the order-ready message sent by itself: SMS, WhatsApp or off (`restro.readyMessage.v1`; Update Pack 4) | |
 | What is sold out (`restro.menu.availability.v1`) | |
 | The Orders display and the Counter's look (`restro.ordersLook.shared.v1`, `restro.counterLook.shared.v1`): branch-wide since Update Pack 4, so one for every tablet. A tablet's own value from before (`restro.ordersLook.v1`, `restro.counterLook.v1`, Use on · This tablet only) becomes the restaurant's once, when it is newer, and is then removed | |
-| QR Studio's QRs (`restro.qr.v1`) and QR ordering paused, turned off or kept open late by hand (`restro.qrOrdering.v1`; Update Pack 5); its events with their QRs and menus (`restro.events.v1`, the collection `events`; Update Pack 6) | The QR scans the cloud reports (`restro.qrScans.v1`): each tablet gets them from the cloud. QR ordering or an event paused by itself: each tablet works it out from the path its Android app sends (ANDROID-BRIDGE.md) |
+| QR Studio's QRs (`restro.qr.v1`) and QR ordering paused, turned off or kept open late by hand (`restro.qrOrdering.v1`; Update Pack 5); its events with their QRs and menus (`restro.events.v1`, the collection `events`; Update Pack 6), and each event's dishes turned off with Availability (`soldOut`, Update Pack 7: one entry per dish, so two tablets switching different dishes keep both) | The QR scans the cloud reports (`restro.qrScans.v1`): each tablet gets them from the cloud. QR ordering or an event paused by itself: each tablet works it out from the path its Android app sends (ANDROID-BRIDGE.md) |
 
 Card data never exists in RESTRO, because payments go through the provider's hosted checkout. So it never syncs.
 

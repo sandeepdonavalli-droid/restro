@@ -787,8 +787,8 @@ the middle still scans. Every method here is optional, as noted.
   this link" and the link. Colours (the PDF): Table `#9A6B1F`, Takeaway `#2E7D4F`, Menu `#8E1E3C`.
 - **Event QRs** (Update Pack 6, D–E; the screens EV1, EV2 and EV7): the 4th pill, before Menu design, with the
   Event order type's calendar and star and the count of events live now and coming up. Kept in `restro.events.v1`
-  (synced, SYNC.md): `{ id, name, start, end, daily, qrs, mode, code, path, tablesFrom, tables, menu, endedAt, endedBy,
-  hadOrders, createdAt, createdBy, replacedAt, replacedBy, printedAt, printedBy, sentAt, sentBy }`.
+  (synced, SYNC.md): `{ id, name, start, end, daily, qrs, mode, code, path, tablesFrom, tables, menu, soldOut, endedAt,
+  endedBy, hadOrders, createdAt, createdBy, replacedAt, replacedBy, printedAt, printedBy, sentAt, sentBy }`.
   - `start`, `end` (ms): it works only between them, even outside business hours, and stops by itself. `daily: true`
     ("Open only these hours each day"): open from the start's time to the end's time on each day.
   - `qrs: 'whole'`: one QR for the whole event, `code` and `path` `<restaurant>/EV-<code>`; `mode` what customers can
@@ -803,9 +803,15 @@ the middle still scans. Every method here is optional, as noted.
     for the event: the kitchen printers' ids, `RESTRODevice.printer.list()`; without it the dish's KOT prints where
     KOTs print now, every kitchen printer), and `own: [{ id, cat, name, price, gst, veg, printers }]`, the event-only
     dishes. A whole category is kept as its dishes (dishes added to the category later don't join).
+  - `soldOut: { ‹dish id›: { at, by } }` (Update Pack 7, K1): the event's dishes turned off with **Availability**, a dish
+    from the menu by its `id`, an event-only dish by its own; a dish turned back on leaves it. Only this event: the
+    regular menu's sold-out dishes (`restro.menu.availability.v1`, the Availability app) are a separate list. The
+    customer pages (with the cloud) show these dishes greyed with "Sold out" where + / Add is, on every QR of the event
+    (a Menu only QR shows the "Sold out" tag), and they can't be added.
   - `endedAt`, `endedBy`: End now. `hadOrders`: set once it has an order (never cleared), so Delete stays off after its
     orders leave this device.
-  - Two tabs right of the title (owner, 16 Nov 2026), as the area chips, with their counts: **Events** lists **New
+  - Two tabs at the top of the event list, above New event (owner, 16 Nov 2026; at the top of the list since Update
+    Pack 7, as the header's buttons need its whole width), as the area chips, with their counts: **Events** lists **New
     event** and the events under **LIVE NOW** and **UPCOMING** (an event between its days stays live: "Opens 6:00 PM");
     **History** lists every event that has ended, newest first, under one label a month ("NOVEMBER 2026"). An event
     moves to History by itself when it ends or is ended. The Event QRs pill opens on Events; each tab keeps its pick.
@@ -891,11 +897,22 @@ the middle still scans. Every method here is optional, as noted.
       `restro.events.v1` (synced) with its QRs as the card preview showed them (one per event table, or one for the
       whole event with its mode) and its menu (above), `createdAt` and `createdBy`; then Event QRs shows it picked,
       with "‹event› created". Nothing is kept before this.
-  - Buttons: Test scan · Reprint · Send · Replace QR · Edit · End now · Delete for one QR for the whole event; Test scan
-    · Print all · Send all · Edit · End now · Delete for one per event table. End now is greyed before the event starts
-    and after it ends; Delete is greyed once it has had an order, so takings never disappear. Once the event has ended
-    (History) every other button is greyed too. Greyed buttons are never hidden. Test scan, Send, End now and Delete need
-    the cloud ("Needs internet"), as Delete QR.
+  - Buttons: Test scan · See devices · Reprint · Send · Replace QR · Availability · Edit · End now · Delete for one QR
+    for the whole event; Test scan · See devices · Print all · Send all · Availability · Edit · End now · Delete for one
+    per event table. End now is greyed before the event starts and after it ends; Delete is greyed once it has had an
+    order, so takings never disappear; Availability is greyed before the event starts. Once the event has ended (History)
+    every button is greyed. Greyed buttons are never hidden. Test scan, Send, End now and Delete need the cloud ("Needs
+    internet"), as Delete QR.
+  - **Availability** (Update Pack 7, K1, the screen EV12): while the event is live, it shows in place of the event's
+    card and This event (or its tables), pressed until tapped again (or another event, the other tab or another page is
+    picked): "‹event› · dish availability" · "Turn a dish off when it runs out. Only this event changes; your regular
+    menu and Availability stay as they are.", with "2 sold out" (red) while any is; then every dish on the event's menu,
+    category by category in the menu's order (the menu's dishes, then the event-only ones), each with its photo ("Add
+    photo" while dishes have none), its name, its category ("Event-only · Starters" for an event-only dish), and
+    **Available** (green) with its switch on, or **Sold out** (red, by its name too, the row tinted red) with it off.
+    A tap on the switch keeps it at once in `soldOut` (synced; works offline, as it is only this event's record). Under
+    the list: "Customers see “Sold out” on that dish and can’t add it. Turn it back on any time. 12 dishes on this
+    event." (Menu only: "Customers see “Sold out” on that dish. …"). The list scrolls when it is longer than the page.
   - **Replace QR** (owner, 16 Nov 2026) works as the Takeaway QR's: it asks first ("You'll get a new QR. The ‹event› QR
     printed now will stop working. Links you posted online stop working too."), then gives the QR a new code (the old
     one stops working; the cloud keeps which codes work) and says "‹event› has a new QR · the old one no longer works"
@@ -1110,8 +1127,9 @@ Each card is `{ kind, restaurant, heading, qr, mark, title, lines, note, linkLab
 - An event's card (Update Pack 6, `kind: 'event'`; teal `#0F766E` in the PDF, with the Event order type's icon,
   `ic_order_event`, before the title): one QR for the whole event has `heading` "Scan · Order · Pay" (Menu only: "Scan to
   see the menu"), `title` the event's name, `mark: null` and `lines` its dates and times, then what customers can do
-  ("Eat here or take it away. We call your name when it’s ready."; Takeaway only: "Order, pay and pick it up. We call
-  your name when it’s ready."; Menu only: "See our dishes and prices. Order with our staff."). Each event table's card,
+  ("Eat here or take it away. Collect at the counter when it’s ready."; Takeaway only: "Order, pay and collect at the
+  counter when it’s ready."; Menu only: "See our dishes and prices. Order with our staff."; Update Pack 7, K4: never
+  "we call your name"). Each event table's card,
   as EV3's card preview: `heading` its hours ("6:00 PM – 11:00 PM daily"; one day "4:00 PM – 10:00 PM"; straight
   through several days "Fri 6:00 PM – Sun 11:00 PM"), `title` "Event table 3", `mark` "3" and `lines` the event and its
   days ("‹event› · Fri 13 – Sun 15 Nov"), then "Scan, order and pay. Your food comes to your table." Print
