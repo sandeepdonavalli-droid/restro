@@ -102,6 +102,8 @@
     wifi: ['s', '<path d="M2.6 9.2a13.6 13.6 0 0 1 18.8 0M5.8 12.6a9 9 0 0 1 12.4 0M9 16a4.4 4.4 0 0 1 6 0"/><circle cx="12" cy="19.2" r="1.2" fill="currentColor" stroke="none"/>'],
     monitor: ['s', '<rect x="3" y="4" width="18" height="12.4" rx="2"/><path d="M12 16.4V20M8 20h8"/>'],
     clock: ['s', '<circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 2"/>'],
+    // (Update Pack 6, EV3: a date field's calendar)
+    cal: ['s', '<rect x="3.6" y="5" width="16.8" height="15.4" rx="2.4"/><path d="M3.6 9.8h16.8M8.2 3.2v3.6M15.8 3.2v3.6"/>'],
     fork: ['f', '<path d="M5.6 2.8h1.5v5.6h1V2.8h1.5v5.6h1V2.8h1.5v6.3a3 3 0 0 1-2.1 2.9v9.2H7.8V12a3 3 0 0 1-2.2-2.9z"/><path d="M17.9 2.8c-2.2 1.3-3.3 4.1-3.3 7.6v3.3h2.4v7.5h2.2V2.8z"/>'],
     bell: ['f', '<path d="M12 3.2a1.4 1.4 0 0 1 1.4 1.4v.6a5.7 5.7 0 0 1 4.3 5.5v3.8l1.8 2.2v1.1H4.5v-1.1l1.8-2.2v-3.8a5.7 5.7 0 0 1 4.3-5.5v-.6A1.4 1.4 0 0 1 12 3.2zM9.8 19.2h4.4a2.2 2.2 0 0 1-4.4 0z"/>'],
     link: ['s', '<path d="M10.2 13.8a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.1 1.1"/><path d="M13.8 10.2a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.1-1.1"/>'],
@@ -170,7 +172,7 @@
   function newCode() {
     const bytes = new Uint8Array(6); (window.crypto || {}).getRandomValues?.(bytes);
     let code = ''; for (const b of bytes) code += CODE_CHARS[(b || Math.floor(Math.random() * 256)) % CODE_CHARS.length];
-    return records.some(r => r.code === code) || eventCodes().includes(code) ? newCode() : code;
+    return records.some(r => r.code === code) || eventCodes().includes(code) || formCodes().includes(code) ? newCode() : code;
   }
   // (the restaurant in the link: its name in small letters, words joined by "-", so the page can show it: "Hotel Sri Sai"
   // is hotel-sri-sai)
@@ -229,9 +231,22 @@
     const hours = `${clock(e.start)} – ${clock(e.end)}`;
     if (oneDay) return `${weekdayDate(e.start)} · ${hours}`;
     if (!e.daily) return `${weekdayDate(e.start)}, ${clock(e.start)} – ${weekdayDate(e.end)}, ${clock(e.end)}`;
-    const a = new Date(e.start), b = new Date(days.at(-1).from), sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
-    const range = `${sameMonth ? `${WEEKDAYS[a.getDay()].slice(0, 3)} ${a.getDate()}` : weekdayDate(e.start)} – ${weekdayDate(b.getTime())}`;
+    const range = daysRange(e.start, days.at(-1).from);
     return eachDay ? `${range} · open ${hours} each day` : `${range} · ${hours} daily`;
+  }
+  // "Fri 13 – Sun 15 Nov"; over two months "Fri 30 Oct – Sun 1 Nov"
+  function daysRange(from, to) {
+    const a = new Date(from), b = new Date(to), sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+    return `${sameMonth ? `${WEEKDAYS[a.getDay()].slice(0, 3)} ${a.getDate()}` : weekdayDate(from)} – ${weekdayDate(to)}`;
+  }
+  // An event table's card (EV3's card preview): its hours on top ("6:00 PM – 11:00 PM daily"; one day "4:00 PM –
+  // 10:00 PM"; straight through several days "Fri 6:00 PM – Sun 11:00 PM"), then the event and its days ("‹event› · Fri
+  // 13 – Sun 15 Nov"), then what customers do
+  function tableWords(e) {
+    const one = e.daily ? sessions(e).length <= 1 : e.end - e.start <= DAY && daysApart(e.start, e.end) <= 1, day3 = t => WEEKDAYS[new Date(t).getDay()].slice(0, 3);
+    const heading = one ? `${clock(e.start)} – ${clock(e.end)}` : e.daily ? `${clock(e.start)} – ${clock(e.end)} daily` : `${day3(e.start)} ${clock(e.start)} – ${day3(e.end)} ${clock(e.end)}`;
+    const days = one ? weekdayDate(e.start) : daysRange(e.start, e.daily ? sessions(e).at(-1).from : e.end);
+    return { heading, date: e.name ? `${e.name} · ${days}` : days, text: 'Scan, order and pay. Your food comes to your table.' };
   }
   // "₹21,460" (whole rupees), "₹113.50"
   const rupees = paise => `₹${(paise / 100).toLocaleString('en-IN', paise % 100 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
@@ -661,14 +676,15 @@
   const noneEl = (title, text) => el('div', { class: 'qrs-evnone' }, icon('event'), el('b', {}, title), el('span', {}, text));
   const MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
   function eventPage() {
+    if (form) return formPage();
     const now = Date.now(), all = events.map(e => ({ e, s: evState(e, now) })), history = view.evTab === 'history';
     const by = { live: all.filter(x => x.s.state === 'live').sort((a, b) => a.e.start - b.e.start), upcoming: all.filter(x => x.s.state === 'upcoming').sort((a, b) => a.e.start - b.e.start),
       ended: all.filter(x => x.s.state === 'ended').sort((a, b) => b.s.at - a.s.at) };
     const listed = history ? by.ended : [...by.live, ...by.upcoming], sel = listed.find(x => x.e.id === view.evPick[view.evTab]) || listed[0] || null;
     view.evPick[view.evTab] = sel ? sel.e.id : null;
     const line = el('p', { class: 'qrs-line' }, 'A QR for one event, with its own menu, prices, dates and times. It stops working by itself when the event ends.');
-    // (New event and Edit: the steps come in the next parts)
-    const newBtn = el('button', { type: 'button', class: `qrs-evnew${sel ? '' : ' first'}`, onclick: () => toast('Coming soon', null, null) },
+    // (New event: step 1, details and tables or QR (EV3–EV3d); Edit: in the next parts)
+    const newBtn = el('button', { type: 'button', class: `qrs-evnew${sel ? '' : ' first'}`, onclick: openForm },
       el('span', { class: 'qrs-evnew-i' }, icon('plus')), el('b', {}, 'New event'), el('small', {}, 'Name, dates, tables, menu'));
     const facts = () => el('div', { class: 'qrs-facts ev wide' },
       info('What an event QR does', ['Customers scan, order from the event menu and pay', 'Works only on the dates and times you set, even outside business hours; it can run over several days', 'Several events can run at once']),
@@ -762,14 +778,193 @@
   const brandEl = () => { const restaurant = window.RestroRestaurantName?.value || '', logo = (Array.from(restaurant.trim())[0] || 'R').toLocaleUpperCase('en-IN');
     return el('div', { class: 'qrs-card-brand' }, el('span', { class: 'qrs-card-logo' }, logo), el('span', { class: 'qrs-card-name' }, restaurant)); };
   // One QR for the whole event: its card (EV2), drawn as the Takeaway card, in teal, with the event's dates and line. An
-  // event table's (t): as it prints, "Event table 3" with its number on the QR, the event's name and dates under it.
+  // event table's (t): as EV3's card preview, its hours on top, "Event table 3" with its number on the QR, the event and
+  // its days, "Scan, order and pay. Your food comes to your table." (printed the same way)
   function eventCardEl(e, t = null) {
-    const mode = MODES[e.mode] || MODES.both, link = `${HOST}/${t ? t.path : e.path}`, title = t ? eventTableLabel(t) : e.name;
+    const mode = MODES[e.mode] || MODES.both, link = `${HOST}/${t ? t.path : e.path}`, title = t ? eventTableLabel(t) : e.name || 'Event name', w = t ? tableWords(e) : null;
     return el('div', { class: `qrs-card k-event${t ? ' k-etable' : ''}`, style: `--accent:${KINDS.event.accent}`, role: 'img', 'aria-label': `${title} card: ${link}` },
-      brandEl(), el('div', { class: 'qrs-card-head' }, t ? 'Scan · Order · Pay' : mode.heading), qrSvg(`https://${link}`, t ? tableMark(t) : null, KINDS.event.accent, 'qrs-card-qr'),
-      el('div', { class: 'qrs-card-title' }, icon('event', 'qrs-card-ti'), el('span', {}, title)), el('div', { class: 'qrs-card-date' }, t ? e.name : datesText(e)),
-      el('div', { class: 'qrs-card-text' }, t ? datesText(e) : mode.line), el('div', { class: 'qrs-card-rule' }), el('div', { class: 'qrs-card-type' }, 'QR not scanning? Type this link'),
+      brandEl(), el('div', { class: 'qrs-card-head' }, t ? w.heading : mode.heading), qrSvg(`https://${link}`, t ? tableMark(t) : null, KINDS.event.accent, 'qrs-card-qr'),
+      el('div', { class: 'qrs-card-title' }, icon('event', 'qrs-card-ti'), el('span', {}, title)), el('div', { class: 'qrs-card-date' }, t ? w.date : datesText(e)),
+      el('div', { class: 'qrs-card-text' }, t ? w.text : mode.line), el('div', { class: 'qrs-card-rule' }), el('div', { class: 'qrs-card-type' }, 'QR not scanning? Type this link'),
       el('div', { class: 'qrs-card-link' }, icon('link'), linkWords(link)));
+  }
+  // ---------- New event, step 1 (Update Pack 6, E: EV3, EV3b, EV3c, EV3d): details, and its tables or its one QR ----------
+  // The draft while the form is open: name; start and end (ms); daily ("Open only these hours each day", shown once it
+  // runs over more than a day, on as EV3; its two times are the start's and the end's); qrs 'tables' | 'whole'; tables
+  // from 'event' (numbers [{ n, on }]: Table 1–12, + Add; a tap leaves one out or puts it back) or 'floor' (off: the
+  // Floor tables left out); mode 'both' | 'takeaway' | 'menu'; the codes its QRs will get (on the card preview); pick:
+  // the field whose picker is open; cal: the month its calendar shows. The menu (EV4–EV6) and the printers (EV8) come
+  // next; until then Next says "Coming soon".
+  let form = null;
+  const HOUR = 36e5;
+  function openForm() {
+    const now = new Date(), start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1).getTime();
+    form = { name: '', start, end: start + 4 * HOUR, daily: true, qrs: 'tables', from: 'event', numbers: Array.from({ length: 12 }, (_, i) => ({ n: i + 1, on: true })),
+      off: new Set(), mode: 'both', code: null, codes: new Map(), pick: null, cal: null };
+    form.code = newCode(); pop = null; render();
+  }
+  function closeForm() { form = null; render(); }
+  const multiDay = () => form.end - form.start > DAY;
+  const formCodes = () => (form ? [form.code, ...form.codes.values()].filter(Boolean) : []);
+  const codeFor = key => { if (!form.codes.has(key)) form.codes.set(key, newCode()); return form.codes.get(key); };
+  // Its tables as they will be: the event table numbers ticked, or the Floor tables not left out
+  function formTables() {
+    const path = (name, code) => `${slug()}/E${String(name).replace(/[^A-Za-z0-9]+/g, '')}-${code}`;
+    if (form.from === 'floor') return floor().tables.filter(t => !form.off.has(t.id)).map(t => { const code = codeFor(t.id); return { id: t.id, name: t.name, floor: t.id, code, path: path(t.name, code) }; });
+    return form.numbers.filter(x => x.on).map(x => { const code = codeFor(`n${x.n}`); return { id: `n${x.n}`, name: String(x.n), code, path: path(x.n, code) }; });
+  }
+  const formEvent = () => ({ name: form.name.trim(), start: form.start, end: form.end, daily: multiDay() && form.daily, qrs: form.qrs, mode: form.mode, path: `${slug()}/${KINDS.event.prefix}-${form.code}` });
+  // What stops Next: no name; it ends before it starts, or its end has passed; no table
+  function formProblem() {
+    if (!form.name.trim()) return { what: 'name' };
+    if (form.end <= form.start) return { what: 'time', text: 'It ends before it starts' };
+    if (form.end <= Date.now()) return { what: 'time', text: 'That end time has passed' };
+    if (form.qrs === 'tables' && !formTables().length) return { what: 'tables', text: 'Pick at least one table' };
+    return null;
+  }
+  // "Fri 13, Sat 14, Sun 15 Nov · closed in between"; over 4 days "Fri 13 – Tue 24 Nov · 12 days · closed in between";
+  // off: "Open the whole time, Fri 6:00 PM to Sun 11:00 PM"
+  function dailyWords() {
+    const day3 = t => WEEKDAYS[new Date(t).getDay()].slice(0, 3);
+    if (!form.daily) return `Open the whole time, ${day3(form.start)} ${clock(form.start)} to ${day3(form.end)} ${clock(form.end)}`;
+    const days = sessions({ ...formEvent(), daily: true }).map(s => s.from);
+    const words = days.length > 4 ? `${daysRange(days[0], days.at(-1))} · ${days.length} days`
+      : days.map((t, i) => { const d = new Date(t), next = days[i + 1] ? new Date(days[i + 1]) : null; return `${day3(t)} ${d.getDate()}${!next || next.getMonth() !== d.getMonth() ? ` ${MONTHS[d.getMonth()]}` : ''}`; }).join(', ');
+    return `${words} · closed in between`;
+  }
+  function formPage() {
+    const f = form, multi = multiDay(), tables = f.qrs === 'tables', menuOnly = !tables && f.mode === 'menu', problem = formProblem();
+    const next = btn('teal', 'Next: choose the menu', nextStep); next.disabled = Boolean(problem);
+    const line = el('p', { class: 'qrs-line' }, tables ? 'Step 1 of 3 · details and tables. Then the menu and the printers.' : menuOnly ? 'Step 1 of 2 · details and QR. Then the menu.' : 'Step 1 of 3 · details and QR. Then the menu and the printers.');
+    const step = (n, label, on) => el('li', { class: `qrs-step${on ? ' on' : ''}`, 'aria-current': on ? 'step' : null }, el('span', {}, String(n)), el('b', {}, label));
+    const joint = () => el('li', { class: 'qrs-step-line', 'aria-hidden': 'true' });
+    const steps = el('ol', { class: 'qrs-steps', 'aria-label': 'Steps' }, step(1, 'Details', true), joint(), step(2, 'Menu'), menuOnly ? null : [joint(), step(3, 'Printers')]);
+    const lab = text => el('p', { class: 'qrs-flab' }, text);
+    // a date or time field; a tap opens its calendar or its wheels under it
+    const field = (key, ic, text, off = false) => el('div', { class: 'qrs-fwrap' },
+      el('button', { type: 'button', class: `qrs-field${f.pick === key ? ' on' : ''}`, disabled: off, 'aria-expanded': String(f.pick === key),
+        onclick: () => { f.pick = f.pick === key ? null : key; if (f.pick?.endsWith('Day')) { const d = new Date(key === 'startDay' ? f.start : f.end); f.cal = `${d.getFullYear()}-${d.getMonth() + 1}`; } render(); } },
+        icon(ic), el('span', {}, text)),
+      f.pick === key ? (key.endsWith('Day') ? calendarEl(key) : wheelsEl(key)) : null);
+    const name = el('input', { type: 'text', class: `qrs-input${f.name.trim() ? ' filled' : ''}`, value: f.name, maxlength: '60', placeholder: 'Name of the event', 'aria-label': 'Event name',
+      autocapitalize: 'words', autocomplete: 'off', spellcheck: 'false', oninput: ev => { f.name = ev.target.value; ev.target.classList.toggle('filled', Boolean(f.name.trim())); paintForm(); } });
+    const seg = (cls, opts, cur, set) => el('div', { class: `qrs-seg ${cls}`, role: 'radiogroup' }, opts.map(([id, label]) =>
+      el('button', { type: 'button', role: 'radio', class: `qrs-seg-o${cur === id ? ' on' : ''}`, 'aria-checked': String(cur === id), onclick: () => { if (cur !== id) { set(id); f.pick = null; render(); } } }, label)));
+    const left = [steps,
+      lab('Event name'), name,
+      el('div', { class: 'qrs-when' }, el('div', {}, lab('Starts'), el('div', { class: 'qrs-frow' }, field('startDay', 'cal', weekdayDate(f.start)), field('startTime', 'clock', clock(f.start)))),
+        el('div', {}, lab('Ends'), el('div', { class: 'qrs-frow' }, field('endDay', 'cal', weekdayDate(f.end)), field('endTime', 'clock', clock(f.end))))),
+      problem?.what === 'time' ? el('p', { class: 'qrs-ferr', role: 'alert' }, problem.text) : null,
+      multi ? el('div', { class: `qrs-daily${f.daily ? '' : ' off'}` },
+        el('button', { type: 'button', role: 'switch', class: `qrs-switch teal${f.daily ? ' on' : ''}`, 'aria-checked': String(f.daily), 'aria-label': 'Open only these hours each day', onclick: () => { f.daily = !f.daily; f.pick = null; render(); } }, el('span')),
+        el('div', { class: 'qrs-daily-t' }, el('b', {}, 'Open only these hours each day'), el('span', {}, dailyWords())),
+        field('dailyFrom', 'clock', clock(f.start), !f.daily), el('span', { class: 'qrs-to' }, 'to'), field('dailyTo', 'clock', clock(f.end), !f.daily)) : null,
+      lab('QRs'), seg('qrs', [['tables', 'One QR per event table'], ['whole', 'One QR for the whole event']], f.qrs, id => { f.qrs = id; })];
+    if (tables) {
+      const list = formTables(), n = list.length;
+      const chip = (text, on, tap) => el('button', { type: 'button', class: `qrs-tchip${on ? '' : ' off'}`, 'aria-pressed': String(on), onclick: () => { tap(); f.pick = null; render(); } }, text);
+      const chips = f.from === 'floor' ? floor().tables.map(t => chip(tableLabel(t.name), !f.off.has(t.id), () => { f.off.has(t.id) ? f.off.delete(t.id) : f.off.add(t.id); }))
+        : [...f.numbers.map(x => chip(tableLabel(x.n), x.on, () => { x.on = !x.on; })),
+          el('button', { type: 'button', class: 'qrs-tchip add', onclick: () => { f.numbers.push({ n: Math.max(0, ...f.numbers.map(x => x.n)) + 1, on: true }); f.pick = null; render(); } }, '+ Add')];
+      left.push(el('p', { class: 'qrs-fdesc' }, 'Per table: the table is set by the QR, nobody types it. Whole event: no tables; customers give name and phone, and the KOT shows the name.'),
+        el('p', { class: 'qrs-flab tables' }, 'Event tables'), seg('from', [['event', 'Event table numbers'], ['floor', 'From Floor']], f.from, id => { f.from = id; }),
+        el('div', { class: 'qrs-tchips' }, chips),
+        el('p', { class: 'qrs-fsum' }, f.from === 'floor' ? `${plural(n, 'Floor table')} · ${plural(n, 'QR')}. These QRs are only for this event; your table QRs keep working.`
+          : `${n} event ${n === 1 ? 'table' : 'tables'} · ${plural(n, 'QR')}. These numbers are only for this event; they don’t change your Floor.`));
+    } else {
+      const radio = (id, title, text) => el('button', { type: 'button', role: 'radio', class: `qrs-rcard${f.mode === id ? ' on' : ''}`, 'aria-checked': String(f.mode === id), onclick: () => { f.mode = id; f.pick = null; render(); } },
+        el('span', { class: 'qrs-radio', 'aria-hidden': 'true' }), el('span', { class: 'qrs-rcard-t' }, el('b', {}, title), el('span', {}, text)));
+      const [it, ix] = menuOnly ? ['No orders, no printers', 'Menu only skips the Printers step. The menu step is the same: whole categories, single dishes, event prices, photos and event-only dishes.']
+        : ['Customers give name and phone', 'Always asked with one QR for the whole event. The name prints on the KOT so staff can call it; the phone is there if someone doesn’t come.'];
+      left.push(el('p', { class: 'qrs-fdesc' }, 'For outdoor or open venues with no table numbers. One QR, put up anywhere.'),
+        el('p', { class: 'qrs-flab what' }, 'What customers can do with this QR'), el('div', { class: 'qrs-rcards', role: 'radiogroup' },
+          radio('both', 'Dine-in + Takeaway', 'Customers pick Dine-in or Takeaway when they order. Staff call them by name: plates for Dine-in, packed for Takeaway.'),
+          radio('takeaway', 'Takeaway only', 'Every order is packed. Staff call the name to hand it over.'),
+          radio('menu', 'Menu only', 'Customers see the event menu and prices. No ordering, no name or phone. Staff take the order.')),
+        el('section', { class: 'qrs-fnote' }, el('b', {}, it), el('p', {}, ix)));
+    }
+    // (a tap outside an open calendar or wheels closes them)
+    return [headEl('New event', null, [btn('', 'Cancel', closeForm), next]), line,
+      el('div', { class: 'qrs-nev', onclick: ev => { if (f.pick && !ev.target.closest?.('.qrs-fpop, .qrs-field')) { f.pick = null; render(); } } },
+        el('div', { class: 'qrs-nev-l' }, left), previewEl())];
+  }
+  // The card preview (EV3: "CARD PREVIEW · EVENT TABLE 3", its third table, or its first while it has fewer)
+  function previewEl() {
+    const list = form.qrs === 'tables' ? formTables() : null, t = list ? list[2] || list[0] || null : null;
+    return el('div', { class: 'qrs-nev-r' }, el('p', { class: 'qrs-plab' }, t ? `CARD PREVIEW · ${eventTableLabel(t).toUpperCase()}` : 'CARD PREVIEW'),
+      el('div', { class: 'qrs-evbox prev' }, list && !t ? null : eventCardEl(formEvent(), t)));
+  }
+  // (typing the name: only the card preview and Next change, so the field keeps its letters and the keyboard stays)
+  function paintForm() {
+    const old = root?.querySelector('.qrs-nev-r'); if (!old || !form) return;
+    old.replaceWith(previewEl()); fitPreview();
+    const next = root.querySelector('.qrs-tools .qrs-btn.teal'); if (next) next.disabled = Boolean(formProblem());
+  }
+  function nextStep() { if (!form || formProblem()) return; toast('Coming soon', null, null); }
+  // A date: the month's calendar (as the Counter's Schedule picker, CS1, in teal); days before today, or before the
+  // start for the end, can't be picked. A new start day keeps the event's length.
+  const MONTH_LONG = MONTH_NAMES.map(m => m.charAt(0) + m.slice(1).toLowerCase());
+  function calendarEl(key) {
+    const f = form, isStart = key === 'startDay', [y, mo] = f.cal.split('-').map(Number), first = new Date(y, mo - 1, 1), from = new Date(y, mo - 1, 1 - (first.getDay() + 6) % 7);
+    const today = midnight(Date.now()), min = isStart ? today : midnight(f.start), sel = midnight(isStart ? f.start : f.end);
+    const cells = Array.from({ length: 42 }, (_, i) => new Date(from.getFullYear(), from.getMonth(), from.getDate() + i));
+    const shift = n => { const t = new Date(y, mo - 1 + n, 1); f.cal = `${t.getFullYear()}-${t.getMonth() + 1}`; render(); };
+    const pickDay = c => {
+      const d = new Date(isStart ? f.start : f.end), at = new Date(c.getFullYear(), c.getMonth(), c.getDate(), d.getHours(), d.getMinutes()).getTime();
+      if (isStart) { const len = f.end - f.start; f.start = at; f.end = at + len; } else f.end = at;
+      f.pick = null; render();
+    };
+    return el('div', { class: 'qrs-fpop cal', role: 'dialog', 'aria-label': isStart ? 'Start date' : 'End date' },
+      el('div', { class: 'qrs-cal-h' }, el('b', {}, `${MONTH_LONG[mo - 1]} ${y}`),
+        el('button', { type: 'button', class: 'qrs-cal-nav', 'aria-label': 'Previous month', disabled: first.getTime() <= new Date(new Date(min).getFullYear(), new Date(min).getMonth(), 1).getTime(), onclick: () => shift(-1) }, icon('chevron', 'back')),
+        el('button', { type: 'button', class: 'qrs-cal-nav', 'aria-label': 'Next month', onclick: () => shift(1) }, icon('chevron'))),
+      el('div', { class: 'qrs-cal-w', 'aria-hidden': 'true' }, ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(w => el('span', {}, w))),
+      el('div', { class: 'qrs-cal-g' }, cells.map(c => {
+        const t = c.getTime(), out = c.getMonth() !== mo - 1, past = t < min;
+        return el('button', { type: 'button', class: `qrs-cal-d${out || past ? ' off' : ''}${t === today ? ' today' : ''}${t === sel && !out ? ' on' : ''}`, disabled: out || past,
+          'aria-pressed': String(t === sel), 'aria-label': `${WEEKDAYS[c.getDay()]} ${c.getDate()} ${MONTH_LONG[c.getMonth()]}`, onclick: () => pickDay(c) }, String(c.getDate()));
+      })));
+  }
+  // A time: hour · minutes (in 5s) · AM / PM on wheels (as the Counter's Schedule picker, CS1). The Starts time keeps the
+  // event's length; the daily row's times change only their own.
+  function wheelsEl(key) {
+    const f = form, isStart = key === 'startTime' || key === 'dailyFrom', at = isStart ? f.start : f.end, d = new Date(at), h = d.getHours(), m = d.getMinutes() - (d.getMinutes() % 5);
+    const set = (H, M) => {
+      const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), H, M).getTime();
+      if (key === 'startTime') { const len = f.end - f.start; f.start = t; f.end = t + len; } else if (isStart) f.start = t; else f.end = t;
+      render();
+    };
+    return el('div', { class: 'qrs-fpop wheels', role: 'dialog', 'aria-label': isStart ? 'Start time' : 'End time' },
+      drum('Hour', Array.from({ length: 12 }, (_, i) => String(i + 1)), (h + 11) % 12, true, i => set((i + 1) % 12 + (h >= 12 ? 12 : 0), m)),
+      drum('Minutes', Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')), m / 5, true, i => set(h, i * 5)),
+      drum('AM or PM', ['AM', 'PM'], h >= 12 ? 1 : 0, false, i => set(h % 12 + (i ? 12 : 0), m)));
+  }
+  // A wheel (the Counter's, CS1): five rows, the one picked in the band; drag it, tap a row, turn the mouse wheel or use
+  // the arrow keys; hours and minutes go round, AM / PM doesn't
+  function drum(label, values, index, loop, pick) {
+    const n = values.length, box = el('div', { class: 'qrs-wh', role: 'listbox', tabindex: '0', 'aria-label': label }), band = el('div', { class: 'qrs-wh-band', 'aria-hidden': 'true' }), rows = [];
+    let cur = index, drag = 0, startY = null, moved = false;
+    const rowH = () => band.offsetHeight || 46, at = i => (loop ? ((i % n) + n) % n : i);
+    const paint = () => {
+      rows.splice(0).forEach(r => r.remove());
+      for (let i = -3; i <= 3; i++) {
+        const v = cur + i; if (!loop && (v < 0 || v >= n)) continue;
+        const dist = Math.abs(i + drag / rowH());
+        const row = el('div', { class: `qrs-wh-row${dist < 0.5 ? ' sel' : dist < 1.5 ? ' near' : ''}`, role: 'option', 'aria-selected': String(i === 0) }, values[at(v)]);
+        row.style.setProperty('--i', String(i)); row.style.transform = drag ? `translateY(${drag}px)` : '';
+        rows.push(row); box.append(row);
+      }
+    };
+    const go = step => { const v = step ? (loop ? at(cur + step) : Math.max(0, Math.min(n - 1, cur + step))) : cur; drag = 0; if (v !== cur) { cur = v; pick(cur); return; } paint(); };
+    box.append(band);
+    box.addEventListener('pointerdown', e => { startY = e.clientY; moved = false; drag = 0; box.setPointerCapture?.(e.pointerId); });
+    box.addEventListener('pointermove', e => { if (startY == null) return; drag = e.clientY - startY; if (Math.abs(drag) > 6) moved = true; if (!loop) drag = Math.max(-(n - 1 - cur) * rowH(), Math.min(cur * rowH(), drag)); paint(); });
+    box.addEventListener('pointerup', e => { if (startY == null) return; const r = box.getBoundingClientRect(), step = moved ? Math.round(-drag / rowH()) : Math.round((e.clientY - r.top - r.height / 2) / rowH()); startY = null; go(step); });
+    box.addEventListener('pointercancel', () => { startY = null; go(0); });
+    box.addEventListener('wheel', e => { e.preventDefault(); go(Math.sign(e.deltaY)); }, { passive: false });
+    box.addEventListener('keydown', e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); go(e.key === 'ArrowDown' ? 1 : -1); } });
+    paint();
+    return box;
   }
   // An event table's history, as a table QR's ("Created 6 Nov by ‹name› · last printed today by ‹name›"): made with its
   // event
@@ -1046,7 +1241,7 @@
   // ---------- doing things ----------
   const pickedRecords = () => (view.picked ? [...view.picked].map(id => records.find(r => r.id === id)).filter(Boolean) : []);
   // (the Event QRs pill opens on its Events tab)
-  function go(page) { view.page = page; view.picked = null; pop = null; if (page === 'event') view.evTab = 'events'; render(); }
+  function go(page) { view.page = page; view.picked = null; pop = null; form = null; if (page === 'event') view.evTab = 'events'; render(); }
   function goHome() { document.querySelector('#system-home')?.click(); if (dialog.open) dialog.close(); }
   function tapCard(r) {
     if (view.picked) { view.picked.has(r.id) ? view.picked.delete(r.id) : view.picked.add(r.id); if (!view.picked.size) view.picked = null; }
@@ -1134,7 +1329,7 @@
   function eventPrintCards(e, one = null) {
     const restaurant = window.RestroRestaurantName?.value || '', linkLabel = 'QR not scanning? Type this link';
     const card = (path, title, mark, heading, lines) => ({ kind: 'event', restaurant, heading, title, mark, lines, note: null, linkLabel, link: `${HOST}/${path}`, url: `https://${HOST}/${path}`, qr: qrOfCard(`https://${HOST}/${path}`, mark) });
-    if (e.qrs === 'tables') return (one ? [one] : eventTables(e)).map(t => card(t.path, eventTableLabel(t), tableMark(t), 'Scan · Order · Pay', [e.name, datesText(e)]));
+    if (e.qrs === 'tables') { const w = tableWords(e); return (one ? [one] : eventTables(e)).map(t => card(t.path, eventTableLabel(t), tableMark(t), w.heading, [w.date, w.text])); }
     const mode = MODES[e.mode] || MODES.both;
     return e.path ? [card(e.path, e.name, null, mode.heading, [datesText(e), mode.line])] : [];
   }
@@ -1267,16 +1462,17 @@
   // ---------- drawing it all ----------
   function render() {
     if (!dialog.open) return;
-    const st = ordering(), scroll = root?.querySelector('.qrs-scroll')?.scrollTop || 0, typing = document.activeElement?.matches?.('.qrs-search input');
+    // (a field being typed in keeps the typing: Search table, New event's name)
+    const st = ordering(), scroll = root?.querySelector('.qrs-scroll')?.scrollTop || 0, typing = ['.qrs-search input', '.qrs-nev .qrs-input'].find(q => document.activeElement?.matches?.(q));
     const { tables } = floor();
     if (view.page === 'table' && !records.some(r => r.id === view.selected && r.kind === 'table' && tables.some(t => t.id === r.table))) view.selected = tables.map(t => qrOfTable(t.id)).find(Boolean)?.id || null;
     tally = null;
-    const main = el('main', { class: `qrs-main p-${view.page}` }, view.page === 'table' ? tablePage(st) : view.page === 'event' ? eventPage() : onePage(st, view.page));
+    const main = el('main', { class: `qrs-main p-${view.page}${view.page === 'event' && form ? ' f-new' : ''}` }, view.page === 'table' ? tablePage(st) : view.page === 'event' ? eventPage() : onePage(st, view.page));
     const fresh = el('div', { class: `qrs-root${view.page === 'table' ? '' : ' wide'}` }, el('span', { class: 'qrs-unit', 'aria-hidden': 'true' }), sideEl(st), main, view.page === 'table' ? panelEl() : null, popEl(), toastEl);
     if (root) root.replaceWith(fresh); else dialog.append(fresh);
     root = fresh;
     const sc = root.querySelector('.qrs-scroll'); if (sc) sc.scrollTop = scroll;
-    if (typing) { const input = root.querySelector('.qrs-search input'); input?.focus(); input?.setSelectionRange?.(input.value.length, input.value.length); }
+    if (typing) { const input = root.querySelector(typing); input?.focus(); input?.setSelectionRange?.(input.value.length, input.value.length); }
     fitPreview();
   }
   // The card in the panel fills the grey box's height (QS1); a taller box above it makes it smaller (QS25, QS35)
@@ -1333,20 +1529,22 @@
 
   // ---------- opening, closing, Back ----------
   function open(page) {
-    load(); loadScans(); loadEvents(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; pop = null;
+    load(); loadScans(); loadEvents(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; pop = null; form = null;
     noteOrders();
     if (!dialog.open) dialog.showModal();
     render(); dialog.querySelector('#qr-studio-title')?.focus({ preventScroll: true });
-    clearInterval(tick); tick = setInterval(() => { if (dialog.open && !pop) { if (view.page === 'event') noteOrders(); render(); } }, 15000);
+    clearInterval(tick); tick = setInterval(() => { if (dialog.open && !pop && !form) { if (view.page === 'event') noteOrders(); render(); } }, 15000);
   }
   function goBack() {
     if (!dialog.open) return false;
     if (pop) { if (pop.kind !== 'test' || pop.result) { closePop(); return true; } closePop(); return true; }
     if (view.picked) { stopPicking(); return true; }
+    // (New event: Back closes an open calendar or wheels, then the form, as Cancel)
+    if (form) { if (form.pick) { form.pick = null; render(); } else closeForm(); return true; }
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
-  dialog.addEventListener('close', () => { pop = null; view.picked = null; clearInterval(tick); clearInterval(testTimer); });
+  dialog.addEventListener('close', () => { pop = null; view.picked = null; form = null; clearInterval(tick); clearInterval(testTimer); });
   window.addEventListener('restro:data-changed', e => {
     const c = e.detail?.collections || [];
     if (c.includes('events')) loadEvents();

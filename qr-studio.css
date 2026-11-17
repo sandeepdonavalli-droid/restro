@@ -331,6 +331,103 @@
 .qrs-scrim.k-etable .qrs-pop{width:calc(600 * var(--fu));margin-top:calc(80 * var(--fu))}
 .k-etable .qrs-evbox{width:100%;height:calc(500 * var(--fu));margin-top:calc(16 * var(--fu))}
 .qrs-card.k-etable .qrs-card-date{white-space:normal}
+.qrs-card.k-event.k-etable .qrs-card-title{font-size:calc(33.85 * var(--cu))}
+/* ---------- New event, step 1 (Update Pack 6, E: EV3, EV3b, EV3c, EV3d): the steps and the form (820 wide) on the left,
+   the card preview (344) on the right; Cancel and Next: choose the menu (teal) at the top ---------- */
+.qrs-btn.teal{border-color:#0F766E!important;background:#0F766E!important;color:#FFFFFF}
+.qrs-btn.teal:disabled{border-color:#E7E5E4!important;background:#F5F5F4!important;color:#A8A29E!important}
+.qrs-nev{flex:1;min-height:0;display:flex;align-items:flex-start;gap:calc(36 * var(--fu));margin:calc(22 * var(--fu)) calc(-1 * var(--fu)) 0 calc(1 * var(--fu))}
+.qrs-nev-l{flex:none;align-self:stretch;width:calc(820 * var(--fu));box-sizing:content-box;min-height:0;margin:0 calc(-20 * var(--fu));padding:0 calc(20 * var(--fu)) calc(40 * var(--fu));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.qrs-nev-l::-webkit-scrollbar{display:none}
+.qrs-steps{display:flex;align-items:center;height:calc(28 * var(--fu));margin:0;padding:0;list-style:none}
+.qrs-step{display:flex;align-items:center;gap:calc(6 * var(--fu))}
+.qrs-step span{width:calc(28 * var(--fu));height:calc(28 * var(--fu));display:grid;place-items:center;border-radius:50%;background:#E7E5E4;color:#44403C;font-size:calc(14 * var(--fu));font-weight:800;line-height:1}
+.qrs-step.on span{background:#0F766E;color:#FFFFFF}
+.qrs-step b{position:relative;top:calc(-1 * var(--fu));font-size:calc(14.5 * var(--fu));font-weight:700;line-height:1;color:#57534E}
+.qrs-step.on b{color:#1C1917}
+.qrs-step-line{width:calc(28.5 * var(--fu));height:0;margin:0 calc(10.5 * var(--fu)) 0 calc(11 * var(--fu));border-top:calc(1.5 * var(--fu)) solid #D6D3D1}
+.qrs-flab{margin-top:calc(18.5 * var(--fu))!important;font-size:calc(15 * var(--fu));font-weight:600;line-height:calc(18 * var(--fu));color:#44403C}
+.qrs-steps+.qrs-flab{margin-top:calc(19 * var(--fu))!important}
+.qrs-daily+.qrs-flab{margin-top:calc(17.5 * var(--fu))!important}
+.qrs-flab.tables{margin-top:calc(21.5 * var(--fu))!important}
+.qrs-flab.what{margin-top:calc(20 * var(--fu))!important}
+.qrs-input{display:block;width:100%;height:calc(56 * var(--fu));box-sizing:border-box;margin-top:calc(8 * var(--fu));padding:0 calc(14.5 * var(--fu));border:calc(1.5 * var(--fu)) solid #D6D3D1;border-radius:calc(14 * var(--fu));background:#FFFFFF;font:inherit;font-size:calc(18 * var(--fu));font-weight:600;color:#1C1917;outline:none}
+.qrs-input::placeholder{color:#A8A29E;font-weight:500}
+.qrs-input:focus,.qrs-input.filled{border:calc(2 * var(--fu)) solid #0F766E;padding:0 calc(14 * var(--fu))}
+.qrs-when{display:grid;grid-template-columns:1fr 1fr;gap:calc(16 * var(--fu))}
+.qrs-frow{display:flex;gap:calc(10 * var(--fu));margin-top:calc(8.5 * var(--fu))}
+.qrs-fwrap{position:relative;flex:none}
+.qrs-frow>.qrs-fwrap:first-child{width:calc(217 * var(--fu))}
+.qrs-frow>.qrs-fwrap:last-child{width:calc(175 * var(--fu))}
+.qrs-field{width:100%;height:calc(56 * var(--fu));box-sizing:border-box;display:flex;align-items:center;gap:calc(9.5 * var(--fu));padding:0 calc(10 * var(--fu)) 0 calc(13.5 * var(--fu))!important;border:calc(1.5 * var(--fu)) solid #D6D3D1!important;border-radius:calc(14 * var(--fu));background:#FFFFFF!important;color:#1C1917;font-size:calc(18 * var(--fu))!important;font-weight:600!important;white-space:nowrap;text-align:left}
+.qrs-field .qi{width:calc(20 * var(--fu));height:calc(20 * var(--fu));color:#57534E;stroke-width:2}
+.qrs-field.on{border:calc(2 * var(--fu)) solid #0F766E!important;padding-left:calc(13 * var(--fu))!important}
+.qrs-field:disabled{color:#A8A29E;background:#F5F5F4!important}
+.qrs-field:disabled .qi{color:#A8A29E}
+.qrs-ferr{margin-top:calc(8 * var(--fu))!important;font-size:calc(14 * var(--fu));font-weight:600;line-height:calc(18 * var(--fu));color:#B91C1C}
+/* "Open only these hours each day" (EV3): only once it runs over more than a day */
+.qrs-daily{display:flex;align-items:center;height:calc(80 * var(--fu));box-sizing:border-box;margin:calc(17 * var(--fu)) calc(-1 * var(--fu)) 0;padding:0 calc(18 * var(--fu));border:1px solid #E2E4E8;border-radius:calc(18 * var(--fu));background:#FFFFFF}
+.qrs-switch.teal.on{background:#0F766E!important}
+.qrs-daily .qrs-switch{flex:none}
+.qrs-daily-t{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:calc(15 * var(--fu))}
+.qrs-daily-t b{position:relative;top:calc(-2 * var(--fu));font-size:calc(16.5 * var(--fu));font-weight:700;line-height:calc(20 * var(--fu));color:#1C1917}
+.qrs-daily-t span{margin-top:calc(-1.5 * var(--fu));font-size:calc(14 * var(--fu));line-height:calc(18 * var(--fu));color:#57534E}
+.qrs-daily .qrs-fwrap{width:calc(150 * var(--fu))}
+.qrs-daily .qrs-field{height:calc(50 * var(--fu))}
+.qrs-to{flex:none;width:calc(44 * var(--fu));box-sizing:border-box;padding-left:calc(2 * var(--fu));text-align:center;font-size:calc(15 * var(--fu));font-weight:600;color:#44403C}
+.qrs-daily.off .qrs-to{color:#A8A29E}
+/* QRs and Event tables: two choices in a grey track, the one on white with teal words */
+.qrs-seg{display:flex;gap:calc(5 * var(--fu));height:calc(60 * var(--fu));box-sizing:border-box;margin-top:calc(8 * var(--fu));padding:calc(5 * var(--fu));border-radius:calc(16 * var(--fu));background:#F1F0EE}
+.qrs-seg.from{width:calc(520 * var(--fu))}
+.qrs-seg-o{flex:1;height:100%;border-radius:calc(12 * var(--fu))!important;color:#1C1917;font-size:calc(17 * var(--fu))!important;font-weight:600!important}
+.qrs-seg-o.on{background:#FFFFFF!important;color:#0F766E;box-shadow:0 1px calc(3 * var(--fu)) rgba(28,25,23,.10)}
+.qrs-fdesc{margin-top:calc(7 * var(--fu))!important;font-size:calc(14 * var(--fu));line-height:calc(20 * var(--fu));color:#57534E}
+/* The event tables: a chip each (a tap leaves one out or puts it back), + Add; what they come to */
+.qrs-tchips{display:flex;flex-wrap:wrap;gap:calc(8 * var(--fu));margin-top:calc(8 * var(--fu))}
+.qrs-tchip{height:calc(44 * var(--fu));box-sizing:border-box;padding:0 calc(13.5 * var(--fu))!important;border:calc(1.5 * var(--fu)) solid #9ED3C8!important;border-radius:calc(12 * var(--fu));background:#FFFFFF!important;color:#0F766E;font-size:calc(15.5 * var(--fu))!important;font-weight:600!important;white-space:nowrap}
+.qrs-tchip.off{border-color:#E2E3E5!important;color:#A8A29E;text-decoration:line-through}
+.qrs-tchip.add{padding:0 calc(14.25 * var(--fu))!important;border-color:#9DBCF2!important;color:#1E4FB8}
+.qrs-fsum{margin-top:calc(7 * var(--fu))!important;font-size:calc(14 * var(--fu));line-height:calc(20 * var(--fu));color:#57534E}
+/* One QR for the whole event: what customers can do (one of three), and a note */
+.qrs-rcards{display:flex;flex-direction:column;gap:calc(10 * var(--fu));margin-top:calc(8.5 * var(--fu))}
+.qrs-rcard{display:flex;align-items:center;box-sizing:border-box;padding:calc(11.5 * var(--fu)) calc(20 * var(--fu)) calc(15 * var(--fu)) calc(16.5 * var(--fu))!important;border:calc(1.5 * var(--fu)) solid #D6D3D1!important;border-radius:calc(16 * var(--fu));background:#FFFFFF!important;color:#1C1917;text-align:left}
+.qrs-rcard.on{border:calc(2.5 * var(--fu)) solid #0F766E!important;padding:calc(10.5 * var(--fu)) calc(19 * var(--fu)) calc(13 * var(--fu)) calc(15.5 * var(--fu))!important;background:#F3FAF8!important}
+.qrs-radio{flex:none;width:calc(28 * var(--fu));height:calc(28 * var(--fu));box-sizing:border-box;margin-top:calc(3.5 * var(--fu));border:calc(2 * var(--fu)) solid #A8A29E;border-radius:50%}
+.qrs-rcard.on .qrs-radio{margin-top:0;border:calc(8 * var(--fu)) solid #0F766E}
+.qrs-rcard-t{flex:1;min-width:0;display:flex;flex-direction:column;margin-left:calc(14 * var(--fu))}
+.qrs-rcard-t b{font-size:calc(17.5 * var(--fu));font-weight:600;line-height:calc(22 * var(--fu))}
+.qrs-rcard-t span{margin-top:calc(2 * var(--fu));font-size:calc(14.5 * var(--fu));line-height:calc(17 * var(--fu));color:#44403C}
+.qrs-fnote{margin:calc(16 * var(--fu)) calc(-1 * var(--fu)) 0;padding:calc(13 * var(--fu)) calc(19 * var(--fu)) calc(15 * var(--fu));border:1px solid #E2E4E8;border-radius:calc(16 * var(--fu));background:#FFFFFF}
+.qrs-fnote b{display:block;font-size:calc(16.5 * var(--fu));font-weight:600;line-height:calc(22 * var(--fu));color:#1C1917}
+.qrs-fnote p{margin-top:0!important;font-size:calc(14 * var(--fu));line-height:calc(21 * var(--fu));color:#57534E}
+/* The card preview: a table's card, or the event's one QR, as it prints */
+.qrs-nev-r{flex:none;width:calc(344 * var(--fu));margin-top:calc(50.5 * var(--fu))}
+.qrs-plab{margin-left:calc(6 * var(--fu))!important;font-size:calc(13 * var(--fu));font-weight:800;line-height:calc(16 * var(--fu));letter-spacing:.08em;color:#57534E}
+.qrs-evbox.prev{height:calc(522 * var(--fu));margin-top:calc(11.5 * var(--fu))}
+/* The pickers under a date or time field (as the Counter's Schedule picker, CS1, in teal): a month, or three wheels */
+.qrs-fpop{position:absolute;top:calc(100% + 8 * var(--fu));left:0;z-index:20;box-sizing:border-box;border-radius:calc(20 * var(--fu));background:#FFFFFF;box-shadow:0 0 0 1px rgba(17,24,39,.06),0 calc(18 * var(--fu)) calc(44 * var(--fu)) rgba(15,23,42,.18)}
+.qrs-fpop.cal{width:calc(380 * var(--fu));padding:calc(14 * var(--fu)) calc(14 * var(--fu)) calc(10 * var(--fu))}
+.qrs-cal-h{display:flex;align-items:center;gap:calc(8 * var(--fu));height:calc(48 * var(--fu));padding-left:calc(4 * var(--fu))}
+.qrs-cal-h b{flex:1;font-size:calc(17 * var(--fu));font-weight:800}
+.qrs-cal-nav{width:calc(48 * var(--fu));height:calc(48 * var(--fu));display:grid;place-items:center;border-radius:50%!important;background:#F3F4F6!important;color:#1C1917}
+.qrs-cal-nav:disabled{color:#C4C0BC}
+.qrs-cal-nav .qi{width:calc(20 * var(--fu));height:calc(20 * var(--fu));stroke-width:2.4}
+.qrs-cal-nav .back{transform:rotate(180deg)}
+.qrs-cal-w,.qrs-cal-g{display:grid;grid-template-columns:repeat(7,1fr)}
+.qrs-cal-w{margin-top:calc(8 * var(--fu))}
+.qrs-cal-w span{text-align:center;font-size:calc(12 * var(--fu));font-weight:600;line-height:calc(17 * var(--fu));color:#9A9895}
+.qrs-cal-g{margin-top:calc(4 * var(--fu))}
+.qrs-cal-d{justify-self:center;width:calc(48 * var(--fu));height:calc(48 * var(--fu));border-radius:50%!important;color:#1C1917;font-size:calc(15.5 * var(--fu))!important;font-weight:500!important}
+.qrs-cal-d.off{color:#D1D0CE}
+.qrs-cal-d.today{box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) #0F766E;color:#0F766E}
+.qrs-cal-d.on{background:#0F766E!important;color:#FFFFFF;box-shadow:none}
+.qrs-fpop.wheels{display:grid;grid-template-columns:repeat(3,calc(96 * var(--fu)));gap:calc(8 * var(--fu));padding:calc(10 * var(--fu))}
+.qrs-wh{position:relative;height:calc(230 * var(--fu));overflow:hidden;border-radius:calc(14 * var(--fu));background:#FFFFFF;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;outline:none}
+.qrs-wh:focus-visible{box-shadow:0 0 0 2px #0F766E}
+.qrs-wh-band{position:absolute;left:calc(6 * var(--fu));right:calc(6 * var(--fu));top:50%;height:calc(46 * var(--fu));margin-top:calc(-23 * var(--fu));border-radius:calc(12 * var(--fu));background:#E6F4F1;pointer-events:none}
+.qrs-wh-row{position:absolute;left:0;right:0;top:calc(50% - 23 * var(--fu) + var(--i) * 46 * var(--fu));height:calc(46 * var(--fu));display:flex;align-items:center;justify-content:center;font-size:calc(22 * var(--fu));font-weight:500;line-height:1;color:#D1D0CE;pointer-events:none}
+.qrs-wh-row.near{color:#44403C}
+.qrs-wh-row.sel{font-size:calc(26 * var(--fu));font-weight:800;color:#0F766E}
 /* (End now, Delete event, Replace QR and an event table's Delete: asked where Delete QR asks) */
 .qrs-scrim:is(.k-end,.k-delete-event,.k-replace-event,.k-delete-etable) .qrs-pop{margin-top:calc(202 * var(--fu))}
 

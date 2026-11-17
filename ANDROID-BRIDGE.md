@@ -809,8 +809,28 @@ the middle still scans. Every method here is optional, as noted.
     event, "No live or upcoming events" and EV1's three cards; History with none: "No past events yet".
   - Picked: one QR for the whole event shows its card and **This event** (status, dates and times, QRs, order type,
     menu, where KOTs go, orders so far and their takings as Orders' Total counts them, created) and **When it ends**;
-    one QR per event table shows its tables' QRs with their numbers. **New event** and **Edit** open the steps still to
-    be built (they say "Coming soon" until then).
+    one QR per event table shows its tables' QRs with their numbers. **Edit** opens the steps still to be built (it says
+    "Coming soon" until then).
+  - **New event**, step 1 (Pack 6 E, the screens EV3–EV3d): "Step 1 of 3 · details and tables. Then the menu and the
+    printers." (one QR for the whole event: "details and QR"; Menu only: "Step 1 of 2 · details and QR. Then the
+    menu.", without the Printers step), the steps 1 Details · 2 Menu · 3 Printers, then:
+    - **Event name** (up to 60 letters); **Starts** and **Ends**, each a date and a time. A date opens a month's
+      calendar (days before today, or before the start for the end, greyed); a time opens three wheels, hour · minutes
+      in 5s · AM / PM, as the Counter's Schedule picker, in teal. A new start keeps the event's length. It starts at the
+      next whole hour and runs 4 hours until changed.
+    - Once it runs over more than a day: **Open only these hours each day** (on), the days ("Fri 13, Sat 14, Sun 15 Nov ·
+      closed in between"; more than 4: "Fri 13 – Tue 24 Nov · 12 days") and its two times, which are the start's and
+      the end's (`daily`). Off: "Open the whole time, Fri 6:00 PM to Sun 11:00 PM".
+    - **QRs**: One QR per event table (event table numbers, Table 1–12 with + Add, a tap leaving one out or putting it
+      back; or From Floor, the Floor's tables, a tap the same) or One QR for the whole event (what customers can do:
+      Dine-in + Takeaway, Takeaway only or Menu only; then "Customers give name and phone", or for Menu only "No orders,
+      no printers").
+    - **Card preview**: the card as it will print, with the code its QR will get: an event table's ("CARD PREVIEW ·
+      EVENT TABLE 3": its third table, or its first while it has fewer), or the whole event's.
+    - Next is greyed without a name or a table, and while it ends before it starts or has already ended ("It ends
+      before it starts"). **Next: choose the menu** says "Coming soon" until the menu step (EV4–EV6) is built; nothing
+      is kept yet. **Cancel**, Back, another pill or closing QR Studio leave the form (Back first closes an open
+      calendar or wheels).
   - Buttons: Test scan · Reprint · Send · Replace QR · Edit · End now · Delete for one QR for the whole event; Test scan
     · Print all · Send all · Edit · End now · Delete for one per event table. End now is greyed before the event starts
     and after it ends; Delete is greyed once it has had an order, so takings never disappear. Once the event has ended
@@ -962,9 +982,11 @@ Each card is `{ kind, restaurant, heading, qr, mark, title, lines, note, linkLab
   `ic_order_event`, before the title): one QR for the whole event has `heading` "Scan · Order · Pay" (Menu only: "Scan to
   see the menu"), `title` the event's name, `mark: null` and `lines` its dates and times, then what customers can do
   ("Eat here or take it away. We call your name when it’s ready."; Takeaway only: "Order, pay and pick it up. We call
-  your name when it’s ready."; Menu only: "See our dishes and prices. Order with our staff."). Each event table's card
-  has `title` "Event table 3", `mark` "3" and `lines` the event's name and its dates. Print all prints every event
-  table's card; an event table's own Reprint, only its card.
+  your name when it’s ready."; Menu only: "See our dishes and prices. Order with our staff."). Each event table's card,
+  as EV3's card preview: `heading` its hours ("6:00 PM – 11:00 PM daily"; one day "4:00 PM – 10:00 PM"; straight
+  through several days "Fri 6:00 PM – Sun 11:00 PM"), `title` "Event table 3", `mark` "3" and `lines` the event and its
+  days ("‹event› · Fri 13 – Sun 15 Nov"), then "Scan, order and pay. Your food comes to your table." Print
+  all prints every event table's card; an event table's own Reprint, only its card.
 
 ### Our website for now: `404.html` on GitHub Pages
 
