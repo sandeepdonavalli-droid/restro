@@ -1049,15 +1049,18 @@ The page works out each event's state by itself (`RestroQrStudio.attention()` co
   Upcoming, ended and Menu only events, and an event between its days, never pause.
 - **Event KOTs never print at the restaurant, and restaurant KOTs never print on an event's printer** (the app's job):
   the restaurant's backup printer never takes an event's KOTs, and an event's printers back up only each other.
-- **See devices** (EV10, EV11): from the banner, or a tap on This event's "KOTs go to" row (one QR for the whole event).
-  Internet ("Mobile data on Handheld 2", one line per printer device) → each printer device ("At the event" while
-  `away`) → each printer. With one printer it is "Event printer" with what it prints (Settings › Printers: "Prints KOTs,
-  bills and receipts"); down: "Check power, paper and that it’s near Handheld 2". Paused: "**Only this event is paused.**
-  Your restaurant’s QRs keep working. **Try:** turn the printer on, check the paper and keep it near Handheld 2. The
-  event turns back on by itself." Backing up: "Event printer 1’s dishes print on Event printer 2 along with its own
-  until printer 1 is back. An event’s printers only back up each other: event KOTs never print at the restaurant, and
-  restaurant KOTs never print at the event." In a web browser, with no path: the internet only and "Nothing to do. The
-  event’s printer devices and printers show here in the RESTRO Android app."
+- **See devices** (EV10, EV11): the event's own **See devices** button, right after Test scan with its other buttons
+  on Event QRs (owner, 17 Nov 2026), and the paused banner's. The button can be tapped while the event takes orders
+  (live, within its hours, and not Menu only); before it starts, between its days, once it ends and for Menu only it
+  is greyed. "KOTs go to" is plain words. Internet ("Mobile data on Handheld 2", one line per printer device) → each
+  printer device ("At the event" while `away`) → each printer. With one printer it is "Event printer" with what it
+  prints (Settings › Printers: "Prints KOTs, bills and receipts"); down: "Check power, paper and that it’s near
+  Handheld 2". Paused: "**Only this event is paused.** Your restaurant’s QRs keep working. **Try:** turn the printer
+  on, check the paper and keep it near Handheld 2. The event turns back on by itself." Backing up: "Event printer 1’s
+  dishes print on Event printer 2 along with its own until printer 1 is back. An event’s printers only back up each
+  other: event KOTs never print at the restaurant, and restaurant KOTs never print at the event." In a web browser,
+  with no path: the internet only and "Nothing to do. The event’s printer devices and printers show here in the RESTRO
+  Android app."
 - **KOTs go to** (This event): "Each dish’s own printer" while no dish has printers picked for the event; else its
   printers, "Event printer 1 + Event printer 2" (one: "Event printer · its only printer").
 - **The cloud (Phase 2)** must refuse a paused event's QR orders (customers see "QR ordering is paused. Please reach out

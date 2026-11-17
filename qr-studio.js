@@ -98,6 +98,10 @@
     addphoto: ['s', '<path d="M13.6 4.6H6.4a2.2 2.2 0 0 0-2.2 2.2v11a2.2 2.2 0 0 0 2.2 2.2h11a2.2 2.2 0 0 0 2.2-2.2v-7.2"/><path d="m4.6 16.4 3.9-3.9 3 3 2.1-2.1 5.4 5.2M18.4 2.8v5.6M15.6 5.6h5.6"/>'],
     grid: ['s', '<rect x="4.2" y="4.2" width="6.4" height="6.4" rx="1.8"/><rect x="13.4" y="4.2" width="6.4" height="6.4" rx="1.8"/><rect x="4.2" y="13.4" width="6.4" height="6.4" rx="1.8"/><path d="M13.6 13.4h1.6v2.2M19.8 13.4v6.4h-6.2"/>'],
     check: ['s', '<path d="m5 12.6 4.6 4.6L19.2 7.6"/>'],
+    // (the test scan's big tick, as drawn in QS23: a little larger and finer)
+    bigtick: ['s', '<path d="M4.6 12.2 9.2 16.9 19.3 6.9"/>'],
+    // (a KOT printer picked, as drawn in EV5 and EV6: a little narrower than the check)
+    kotick: ['s', '<path d="M5.46 12.6 9.6 17.2l8.64-9.6"/>'],
     // (the Menu QR's green banner: a small, thin tick)
     tick: ['s', '<path d="M6.9 11.7 9.3 15.3 17.1 8.7"/>'],
     close: ['s', '<path d="M6.2 6.2 17.8 17.8M17.8 6.2 6.2 17.8"/>'],
@@ -786,10 +790,14 @@
   // it has had an order, so takings never disappear (greyed, never hidden). End now and Delete need the internet, as
   // Delete QR: the cloud keeps which codes work. One QR for the whole event can be replaced as the Takeaway QR (owner,
   // 16 Nov 2026: between Send and Edit); an event table's QR, from its card. Once it has ended (History), only Delete
-  // can be used.
+  // can be used. See devices (owner, 17 Nov 2026: its own button, on Event QRs only, as the QR ordering card's) shows the
+  // event's own path (EV10, EV11) while it takes orders; before it starts, between its days, after it ends and for Menu
+  // only, greyed.
   function eventTools(e, s) {
     const why = !online() ? 'Needs internet' : '', tables = e.qrs === 'tables', had = hasOrders(e), live = s.state === 'live', ended = s.state === 'ended';
+    const ordering = live && s.open && (tables || e.mode !== 'menu');
     return [btn('', 'Test scan', () => openPop('test', { event: e.id }), 'scan', { off: ended || !online(), why: ended ? '' : why }),
+      btn('', 'See devices', () => openPop('devices', { event: e.id }), 'monitor', { off: !ordering }),
       btn('tint', tables ? 'Print all' : 'Reprint', () => printEvent(e), 'print', { off: ended }),
       btn('', tables ? 'Send all' : 'Send', () => openPop('send', { event: e.id }), 'send', { off: ended || !online(), why: ended ? '' : why }),
       tables ? null : btn('', 'Replace QR', () => openPop('replace-event', { event: e.id }), 'replace', { off: ended }),
@@ -818,8 +826,7 @@
     const o = ordersOf(e), mode = MODES[e.mode] || MODES.both, menuOnly = e.mode === 'menu';
     const rows = [['Status', statusEl(e, s)], ['Dates and times', datesText(e)], ['QRs', 'One QR for the whole event'],
       ['Order type', menuOnly ? 'Menu only · no ordering' : `${mode.label} · name and phone`], ['Menu', menuWords(e)]];
-    // (EV11's See devices: the event is on, so no banner; a tap on KOTs go to opens it)
-    if (!menuOnly) rows.push(['KOTs go to', el('button', { type: 'button', class: 'qrs-ddbtn', 'aria-label': `KOTs go to ${kotsWords(e)}. See devices`, onclick: () => openPop('devices', { event: e.id }) }, kotsWords(e))],
+    if (!menuOnly) rows.push(['KOTs go to', kotsWords(e)],
       ['Orders so far', o.n ? `${o.n} · ${rupees(o.kept)}` : 'None yet']);
     rows.push(['Created', `${dayMonth(e.createdAt)}${byWho(e.createdBy)}`]);
     const at = s.state === 'ended' ? s.at : e.end, when = daysApart(Date.now(), at) === 0 ? clock(at) : `${clock(at)} on ${weekdayDate(at)}`;
@@ -1185,7 +1192,7 @@
   function kotPick(set, usual) {
     return [el('p', { class: 'qrs-plab2' }, el('b', {}, 'KOT goes to'), usual ? ` · usually ${usual}` : '', ' · pick one or more'),
       kitchen.length ? el('div', { class: 'qrs-kots' }, kitchen.map(k => el('button', { type: 'button', class: `qrs-kot${set.has(k.id) ? ' on' : ''}`, 'aria-pressed': String(set.has(k.id)),
-        onclick: () => { set.has(k.id) ? set.delete(k.id) : set.add(k.id); render(); } }, set.has(k.id) ? icon('check') : null, k.name)))
+        onclick: () => { set.has(k.id) ? set.delete(k.id) : set.add(k.id); render(); } }, set.has(k.id) ? icon('kotick') : null, k.name)))
         : el('p', { class: 'qrs-pnote' }, 'No kitchen printers yet. Settings › Printers lists them once the RESTRO Android app finds them.')];
   }
   // (adding a photo waits for the photo checks in the cloud: Pack 5's photo security spec)
@@ -1396,7 +1403,7 @@
       body = [popHead(one ? `Send ${eventTableLabel(one)} QR` : tables ? 'Send all event table QRs' : `Send ${e.name} QR`, ['Colour PDF', one ? eventTableLabel(one) : tables ? tablesWords(e) : (MODES[e.mode] || MODES.both).label, e.name].join(' · ')), label('PRINT SIZE'),
         el('div', { class: 'qrs-picks' }, [['a6', 'Table card', 'A6'], ['sticker', 'Sticker', '10 × 10 cm'], ['a4', 'A4 sheet', '4 per page']].map(([id, t, x]) => pick(pop.size === id, t, () => { pop.size = id; render(); }, el('small', {}, x)))),
         label('CARD LANGUAGE'),
-        el('div', { class: 'qrs-picks' }, [['en', 'English'], ['te', 'తెలుగు'], ['hi', 'हिन्दी'], ['en+te', 'English + తెలుగు']].map(([id, t]) => pick(pop.language === id, t, () => { pop.language = id; render(); }))),
+        el('div', { class: 'qrs-picks' }, [['en', 'English'], ['te', 'తెలుగు'], ['hi', 'हिन्दी'], ['en+te', 'English +\u00a0 తెలుగు']].map(([id, t]) => pick(pop.language === id, t, () => { pop.language = id; render(); }))),
         label('SENDS TO THE BUSINESS’S REGISTERED CONTACTS'),
         el('dl', { class: 'qrs-contacts' }, el('div', {}, el('dt', {}, 'Email'), el('dd', {}, icon('mail'), email || 'Not added yet')), el('div', {}, el('dt', {}, 'WhatsApp'), el('dd', {}, icon('chat'), phone || 'Not added yet'))),
         el('p', { class: 'qrs-pnote' }, 'Colour, print-ready PDF: print, laminate or make stickers. To change these contacts: Settings › Business details. Download comes with the web dashboard.'),
@@ -1450,7 +1457,7 @@
       body = [popHead(title, sub), label('PRINT SIZE'),
         el('div', { class: 'qrs-picks' }, [['a6', 'Table card', 'A6'], ['sticker', 'Sticker', '10 × 10 cm'], ['a4', 'A4 sheet', '4 per page']].map(([id, t, x]) => pick(pop.size === id, t, () => { pop.size = id; render(); }, el('small', {}, x)))),
         label('CARD LANGUAGE'),
-        el('div', { class: 'qrs-picks' }, [['en', 'English'], ['te', 'తెలుగు'], ['hi', 'हिन्दी'], ['en+te', 'English + తెలుగు']].map(([id, t]) => pick(pop.language === id, t, () => { pop.language = id; render(); }))),
+        el('div', { class: 'qrs-picks' }, [['en', 'English'], ['te', 'తెలుగు'], ['hi', 'हिन्दी'], ['en+te', 'English +\u00a0 తెలుగు']].map(([id, t]) => pick(pop.language === id, t, () => { pop.language = id; render(); }))),
         label('SENDS TO THE BUSINESS’S REGISTERED CONTACTS'),
         el('dl', { class: 'qrs-contacts' }, el('div', {}, el('dt', {}, 'Email'), el('dd', {}, icon('mail'), email || 'Not added yet')), el('div', {}, el('dt', {}, 'WhatsApp'), el('dd', {}, icon('chat'), phone || 'Not added yet'))),
         el('p', { class: 'qrs-pnote' }, 'Colour, print-ready PDF: print, laminate or make stickers. To change these contacts: Settings › Business details. Download comes with the web dashboard.'),
@@ -1480,7 +1487,7 @@
       // (Update Pack 6: an event's QR, or any of its event tables' QRs)
       const e = events.find(x => x.id === pop.event); if (!e) { pop = null; return null; }
       const tables = e.qrs === 'tables', hit = tables ? eventTables(e).find(t => t.code === pop.hit) : null;
-      if (pop.result === 'ok') body = [el('span', { class: 'qrs-big-i ok' }, icon('check')), el('h3', { class: 'ok' }, `${hit ? eventTableLabel(hit) : e.name} QR works`),
+      if (pop.result === 'ok') body = [el('span', { class: 'qrs-big-i ok' }, icon('bigtick')), el('h3', { class: 'ok' }, `${hit ? eventTableLabel(hit) : e.name} QR works`),
         el('p', {}, hit ? `Scanned just now from a phone. The event menu opened with ${eventTableLabel(hit)} set.` : 'Scanned just now from a phone. The event menu opened.'), el('div', { class: 'qrs-pbar one' }, btn('blue', 'Done', closePop))];
       else if (pop.result === 'fail') body = [el('span', { class: 'qrs-big-i bad' }, '!'), el('h3', { class: 'bad' }, 'Didn’t get a scan'),
         el('p', {}, 'No scan arrived in 1 minute. If the phone couldn’t read the card, it may be damaged, faded or wet.'),
@@ -1492,7 +1499,7 @@
     } else if (pop.kind === 'test') {
       const r = records.find(x => x.id === pop.id); if (!r) { pop = null; return null; }
       const name = r.kind === 'table' ? tableLabel(r.name) : r.kind === 'takeaway' ? 'Takeaway' : 'Menu';
-      if (pop.result === 'ok') body = [el('span', { class: 'qrs-big-i ok' }, icon('check')), el('h3', { class: 'ok' }, `${name} QR works`),
+      if (pop.result === 'ok') body = [el('span', { class: 'qrs-big-i ok' }, icon('bigtick')), el('h3', { class: 'ok' }, `${name} QR works`),
         el('p', {}, r.kind === 'table' ? `Scanned just now from a phone. The menu opened with ${name} set.` : 'Scanned just now from a phone. The menu opened.'), el('div', { class: 'qrs-pbar one' }, btn('blue', 'Done', closePop))];
       else if (pop.result === 'fail') body = [el('span', { class: 'qrs-big-i bad' }, '!'), el('h3', { class: 'bad' }, 'Didn’t get a scan'),
         el('p', {}, 'No scan arrived in 1 minute. If the phone couldn’t read the card, it may be damaged, faded or wet.'),
@@ -1544,7 +1551,7 @@
     if (broken === 'wired' && kitchen[0]?.link === 'bluetooth') tries.wired = `check the printer is on, has paper and is near ${kitchen[0].device?.name || 'its printer device'}. QR ordering turns back on by itself.`;
     if (broken) text = el('p', { class: 'qrs-pnote dark' }, el('b', {}, 'Try:'), ` ${tries[broken]}`);
     else if (many && working.length < kitchen.length) { const backup = working.find(k => k.backup) || working[0], down = kitchen.filter(k => !working.includes(k));
-      text = el('p', { class: 'qrs-pnote dark' }, `${backup.name} is ${backup.backup ? 'your backup printer' : 'the first kitchen printer that works'}, so it prints ${down.map(k => `${k.name}’s`).join(' and ')} dishes along with its own until ${down.length === 1 ? `printer ${down[0].name.replace(/^Kitchen printer\s*/i, '') || down[0].name}` : 'they'} ${down.length === 1 ? 'is' : 'are'} back. Bill and receipt printers don’t count.`); }
+      text = el('p', { class: 'qrs-pnote dark backup' }, `${backup.name} is ${backup.backup ? 'your backup printer' : 'the first kitchen printer that works'}, so it prints ${down.map(k => `${k.name}’s`).join(' and ')} dishes along with its own until ${down.length === 1 ? `printer ${down[0].name.replace(/^Kitchen printer\s*/i, '') || down[0].name}` : 'they'} ${down.length === 1 ? 'is' : 'are'} back. Bill and receipt printers don’t count.`); }
     else if (p.mobileVia && p.wifiInternet === false) text = el('p', { class: 'qrs-pnote dark' }, `${p.mobileVia} takes in QR orders and sends them over the Wi-Fi to the printer device. Nothing to do.`);
     // (a web browser can't see the printers: only the RESTRO Android app reports them, ANDROID-BRIDGE.md)
     else text = el('p', { class: 'qrs-pnote dark' }, path ? 'Nothing to do.' : 'Nothing to do. The printer device and the kitchen printers show here in the RESTRO Android app.');
