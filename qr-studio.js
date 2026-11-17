@@ -91,6 +91,8 @@
     // (the banners' own: narrow bars close together, as the designs)
     pausebn: ['f', '<path d="M7.9 6.3h3.5v11.4H7.9zM12.6 6.3h3.5v11.4h-3.5z"/>'],
     plus: ['s', '<path d="M12 5v14M5 12h14"/>'],
+    // (Update Pack 6, owner 16 Nov 2026: where a dish has no photo, "Add photo")
+    addphoto: ['s', '<path d="M13.6 4.6H6.4a2.2 2.2 0 0 0-2.2 2.2v11a2.2 2.2 0 0 0 2.2 2.2h11a2.2 2.2 0 0 0 2.2-2.2v-7.2"/><path d="m4.6 16.4 3.9-3.9 3 3 2.1-2.1 5.4 5.2M18.4 2.8v5.6M15.6 5.6h5.6"/>'],
     grid: ['s', '<rect x="4.2" y="4.2" width="6.4" height="6.4" rx="1.8"/><rect x="13.4" y="4.2" width="6.4" height="6.4" rx="1.8"/><rect x="4.2" y="13.4" width="6.4" height="6.4" rx="1.8"/><path d="M13.6 13.4h1.6v2.2M19.8 13.4v6.4h-6.2"/>'],
     check: ['s', '<path d="m5 12.6 4.6 4.6L19.2 7.6"/>'],
     // (the Menu QR's green banner: a small, thin tick)
@@ -911,7 +913,7 @@
   // the category (EV5). On the right the event-only dishes, a note on sold-out dishes and what the menu comes to.
   // The draft: menu { picked (dish ids), changes (id → { price, printers }), own ([{ id, cat, name, price, gst, veg,
   // printers }]), cat (the category on show) }. Prices in rupees, as the menu. Dishes have no photos or printers of their
-  // own yet (the Menu app): each shows its category's picture, and prints where KOTs print now, every kitchen printer;
+  // own yet (the Menu app): each shows "Add photo", and prints where KOTs print now, every kitchen printer;
   // adding a photo waits for the photo checks (the cloud), so it says "Coming soon".
   const menuCats = () => (Array.isArray(window.RestroMenu?.categories) ? window.RestroMenu.categories.filter(c => c && typeof c.id === 'string' && Array.isArray(c.items)) : []);
   const gstOf = () => Math.round((Number(window.RestroMenu?.taxRate) || 0) * 1000) / 10;
@@ -928,7 +930,8 @@
   const printerWords = ids => { const names = (ids || []).map(id => kitchen.find(k => k.id === id)?.name).filter(Boolean); return names.length ? names.join(' + ') : null; };
   // where a dish's KOT prints now (no printers of its own yet): every kitchen printer
   const usualPrinters = () => (kitchen.length === 1 ? kitchen[0].name : kitchen.length ? 'All kitchen printers' : 'No kitchen printer yet');
-  const dishThumb = (cat, cls = '') => el('span', { class: `qrs-dthumb ${cls}`.trim(), style: `--tint:${cat?.color || '#A8A29E'}` }, cat?.icon ? el('img', { src: cat.icon, alt: '', draggable: 'false' }) : null);
+  // Dishes have no photos yet (owner, 16 Nov 2026): "Add photo" where the photo goes
+  const dishThumb = (cls = '') => el('span', { class: `qrs-dthumb add ${cls}`.trim(), role: 'img', 'aria-label': 'No photo yet' }, icon('addphoto'), el('small', {}, 'Add photo'));
   const vegMark = veg => el('span', { class: `qrs-veg${veg ? '' : ' non'}`, role: 'img', 'aria-label': veg ? 'Veg' : 'Non-veg' });
   // what the menu comes to (EV4's dark card): "29 dishes on this menu" · "27 from your menu (7 of 14 categories) · 2
   // event-only · 1 price and 1 printer changed"
@@ -959,13 +962,13 @@
         const sub = out ? 'Sold out in Availability · still on this event while ticked' : `Menu price ${inr(i.price)} · ${gst}${ch.price != null ? ` · event price ${inr(ch.price)}` : ''}`;
         return el('div', { class: `qrs-drow${on ? '' : ' off'}`, role: 'button', tabindex: '0', 'aria-label': `${i.name} for this event`, onclick: () => openPop('dish', { id: i.id }),
           onkeydown: ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openPop('dish', { id: i.id }); } } },
-          tick(on, i.name, () => { on ? m.picked.delete(i.id) : m.picked.add(i.id); render(); }), dishThumb(cat),
+          tick(on, i.name, () => { on ? m.picked.delete(i.id) : m.picked.add(i.id); render(); }), dishThumb(),
           el('span', { class: 'qrs-dtext' }, el('span', { class: 'qrs-dname' }, vegMark(i.veg !== false), el('b', {}, i.name), out ? el('em', { class: 'qrs-dtag out' }, 'Sold out today') : null), el('span', { class: 'qrs-dsub' }, sub)),
           el('span', { class: `qrs-dchip${pr ? ' on' : ''}` }, icon('print'), pr || usualPrinters()), el('span', { class: `qrs-dprice${ch.price != null ? ' on' : ''}` }, inr(price)));
       };
       const ownRow = d => el('div', { class: 'qrs-drow', role: 'button', tabindex: '0', 'aria-label': `${d.name}, event-only`, onclick: () => openPop('own', { cat: d.cat, id: d.id }),
         onkeydown: ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openPop('own', { cat: d.cat, id: d.id }); } } },
-        tick(true, d.name, () => openPop('own', { cat: d.cat, id: d.id })), dishThumb(cat),
+        tick(true, d.name, () => openPop('own', { cat: d.cat, id: d.id })), dishThumb(),
         el('span', { class: 'qrs-dtext' }, el('span', { class: 'qrs-dname' }, vegMark(d.veg), el('b', {}, d.name), el('em', { class: 'qrs-dtag own' }, 'Event-only')), el('span', { class: 'qrs-dsub' }, `GST ${d.gst}% · added for this event`)),
         el('span', { class: 'qrs-dchip' }, icon('print'), printerWords(d.printers) || usualPrinters()), el('span', { class: 'qrs-dprice' }, inr(d.price)));
       panel = el('section', { class: 'qrs-mpanel', 'aria-label': cat.name },
@@ -978,7 +981,7 @@
     const right = el('div', { class: 'qrs-mside' },
       el('section', { class: 'qrs-mcard' }, el('h3', {}, `Event-only dishes · ${own.length}`), el('p', {}, 'Added inside a category. They end with the event and never show in Availability or Inventory.'),
         own.length ? el('div', { class: 'qrs-eolist' }, own.map(d => { const c = cats.find(x => x.id === d.cat);
-          return el('button', { type: 'button', class: 'qrs-eo', onclick: () => { m.cat = d.cat; openPop('own', { cat: d.cat, id: d.id }); } }, dishThumb(c, 'sm'),
+          return el('button', { type: 'button', class: 'qrs-eo', onclick: () => { m.cat = d.cat; openPop('own', { cat: d.cat, id: d.id }); } }, dishThumb('sm'),
             el('span', { class: 'qrs-eo-t' }, el('b', {}, d.name), el('span', {}, [c?.name, d.veg ? 'Veg' : 'Non-veg', `GST ${d.gst}%`, printerWords(d.printers) || usualPrinters()].filter(Boolean).join(' · '))), el('b', { class: 'qrs-eo-p' }, inr(d.price))); })) : null),
       el('section', { class: 'qrs-mcard' }, el('h3', {}, 'Sold out today'), el('p', {}, 'Sold-out dishes can still be ticked, for example stock kept aside for the event. They stay sold out for regular orders.')),
       el('section', { class: 'qrs-msum', role: 'status' }, el('b', {}, `${plural(sum.total, 'dish', 'dishes')} on this menu`), el('span', {}, sum.line)));
@@ -991,20 +994,22 @@
   const AVAIL_KEY = 'restro.menu.availability.v1';
   const soldOutNow = id => { try { return JSON.parse(localStorage.getItem(AVAIL_KEY) || 'null')?.soldOut?.[id] === true; } catch { return false; } };
   // EV5: an event-only dish (to add, or one added, to change or take off); EV6: a dish from the menu for this event
-  const GSTS = [0, 5, 12, 18];
+  // digits and one point (a price, a GST percent)
+  const numIn = v => v.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+  const gstOk = v => v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 100;
   function ownPopBody() {
     const m = form.menu, cat = menuCats().find(c => c.id === pop.cat), d = pop.id ? m.own.find(x => x.id === pop.id) : null;
     if (!cat || (pop.id && !d)) { pop = null; return null; }
-    if (!pop.draft) pop.draft = d ? { name: d.name, price: String(d.price), gst: d.gst, veg: d.veg, printers: new Set(d.printers) } : { name: '', price: '', gst: gstOf(), veg: true, printers: new Set(kitchen.length === 1 ? [kitchen[0].id] : []) };
-    const x = pop.draft, ready = () => Boolean(x.name.trim() && Number(x.price) > 0 && (x.printers.size > 0 || !kitchen.length)), okAll = ready();
+    if (!pop.draft) pop.draft = d ? { name: d.name, price: String(d.price), gst: String(d.gst), veg: d.veg, printers: new Set(d.printers) } : { name: '', price: '', gst: String(gstOf()), veg: true, printers: new Set(kitchen.length === 1 ? [kitchen[0].id] : []) };
+    const x = pop.draft, ready = () => Boolean(x.name.trim() && Number(x.price) > 0 && gstOk(x.gst) && (x.printers.size > 0 || !kitchen.length)), okAll = ready();
     const paint = () => { const b = root?.querySelector('.qrs-pop .qrs-pbar .qrs-btn.teal'); if (b) b.disabled = !ready(); };
     return [popHead(d ? `${d.name} · event-only` : `Add event-only dish to ${cat.name}`, `Only for ${form.name.trim()} · ends with the event`),
       label2('Dish name'), el('input', { type: 'text', class: `qrs-input${x.name.trim() ? ' filled' : ''}`, value: x.name, maxlength: '60', placeholder: 'Name of the dish', 'aria-label': 'Dish name', autocapitalize: 'words', autocomplete: 'off', spellcheck: 'false',
         oninput: ev => { x.name = ev.target.value; ev.target.classList.toggle('filled', Boolean(x.name.trim())); paint(); } }),
       el('div', { class: 'qrs-prow' }, el('div', {}, label2('Price'), el('label', { class: 'qrs-money' }, el('span', {}, '₹'), el('input', { type: 'text', inputmode: 'decimal', value: x.price, maxlength: '7', 'aria-label': 'Price', autocomplete: 'off',
           oninput: ev => { ev.target.value = ev.target.value.replace(/[^\d.]/g, ''); x.price = ev.target.value; paint(); } }))),
-        el('div', { class: 'qrs-fwrap' }, label2('GST'), el('button', { type: 'button', class: `qrs-select${pop.gstOpen ? ' on' : ''}`, 'aria-expanded': String(Boolean(pop.gstOpen)), onclick: () => { pop.gstOpen = !pop.gstOpen; render(); } }, el('span', {}, `${x.gst}%`), icon('chevron', 'down')),
-          pop.gstOpen ? el('div', { class: 'qrs-fpop list', role: 'listbox' }, GSTS.map(g => el('button', { type: 'button', role: 'option', class: `qrs-opt${g === x.gst ? ' on' : ''}`, 'aria-selected': String(g === x.gst), onclick: () => { x.gst = g; pop.gstOpen = false; render(); } }, `${g}%`))) : null)),
+        el('div', {}, label2('GST'), el('label', { class: 'qrs-money pct' }, el('input', { type: 'text', inputmode: 'decimal', value: x.gst, maxlength: '5', 'aria-label': 'GST percent', autocomplete: 'off',
+          oninput: ev => { ev.target.value = numIn(ev.target.value); x.gst = ev.target.value; paint(); } }), el('span', {}, '%')))),
       label2('Veg or non-veg'), el('div', { class: 'qrs-seg veg', role: 'radiogroup' }, [[true, 'Veg'], [false, 'Non-veg']].map(([v, t]) =>
         el('button', { type: 'button', role: 'radio', class: `qrs-seg-o${x.veg === v ? ' on' : ''}`, 'aria-checked': String(x.veg === v), onclick: () => { x.veg = v; render(); } }, vegMark(v), el('span', { class: 'qrs-segt' }, t)))),
       kotPick(x.printers, null),
@@ -1023,8 +1028,8 @@
   // (adding a photo waits for the photo checks in the cloud: Pack 5's photo security spec)
   const photoBtns = () => el('div', { class: 'qrs-photos' }, [['grid', 'Scan to add'], ['plus', 'Device camera'], ['plus', 'Device gallery']].map(([ic, t]) => btn('', t, () => toast('Coming soon', null, null), ic)));
   function saveOwn(cat, d) {
-    const x = pop.draft, price = Math.round(Number(x.price) * 100) / 100; if (!x.name.trim() || !(price > 0) || (kitchen.length && !x.printers.size)) return;
-    const dish = { id: d?.id || `own_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, cat: cat.id, name: x.name.trim().replace(/\s+/g, ' '), price, gst: x.gst, veg: x.veg, printers: [...x.printers] };
+    const x = pop.draft, price = Math.round(Number(x.price) * 100) / 100; if (!x.name.trim() || !(price > 0) || !gstOk(x.gst) || (kitchen.length && !x.printers.size)) return;
+    const dish = { id: d?.id || `own_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, cat: cat.id, name: x.name.trim().replace(/\s+/g, ' '), price, gst: Math.round(Number(x.gst) * 100) / 100, veg: x.veg, printers: [...x.printers] };
     if (d) Object.assign(d, dish); else form.menu.own.push(dish);
     pop = null; render();
   }
@@ -1037,8 +1042,8 @@
     const ready = () => Number(x.price) > 0 && (x.printers.size > 0 || !kitchen.length);
     const paint = () => { const b = root?.querySelector('.qrs-pop .qrs-pbar .qrs-btn.teal'); if (b) b.disabled = !ready(); root?.querySelector('.qrs-money')?.classList.toggle('changed', Number(x.price) !== item.price); };
     return [popHead(`${item.name} · for this event`, `Changes apply to ${form.name.trim()} only. Your regular menu stays the same.`),
-      el('div', { class: 'qrs-dphoto' }, el('div', { class: 'qrs-dphoto-i' }, dishThumb(cat, 'lg')),
-        el('div', {}, el('p', { class: 'qrs-plab2' }, el('b', {}, 'Replace photo for this event')), photoBtns())),
+      el('div', { class: 'qrs-dphoto' }, el('button', { type: 'button', class: 'qrs-dphoto-i', onclick: () => toast('Coming soon', null, null) }, dishThumb('lg')),
+        el('div', {}, el('p', { class: 'qrs-plab2' }, el('b', {}, 'Add photo for this event')), photoBtns())),
       el('div', { class: 'qrs-prow' }, el('div', {}, label2('Event price'), el('label', { class: `qrs-money${changedPrice ? ' changed' : ''}` }, el('span', {}, '₹'), el('input', { type: 'text', inputmode: 'decimal', value: x.price, maxlength: '7', 'aria-label': 'Event price', autocomplete: 'off',
           oninput: ev => { ev.target.value = ev.target.value.replace(/[^\d.]/g, ''); x.price = ev.target.value; paint(); } })), el('p', { class: 'qrs-pnote' }, `Menu price ${inr(item.price)}`)),
         el('div', {}, label2('GST'), el('div', { class: 'qrs-ro' }, `${gstOf()}% · from your menu`))),

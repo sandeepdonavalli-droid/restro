@@ -150,7 +150,7 @@ PURE = {'bg': '#ffffff', 'bg-top': '#ffffff', 'bg-end': '#ffffff', 'text': '#1f2
   'side-bottom': '#e5e7eb', 'side-edge': '#cbcfd5', 'edge-glow': '#cbcfd544', 'highlight': '#ffffffbb', 'shadow': '#0000001a',
   'soft-shadow': '#00000012', 'accent-wash': '#f3f4f6', 'backdrop': '#11182770'}   # the pages' colours (themes.js PURE)
 PROPS = ('color', 'background', 'background-color', 'background-image', 'border', 'border-top', 'border-right', 'border-bottom', 'border-left',
-  'border-color', 'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color', 'box-shadow', 'fill', 'caret-color')
+  'border-color', 'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color', 'box-shadow', 'fill', 'caret-color', '--bt')
 def resolve(v):
     v = re.sub(r'var\(--palette-([a-z-]+)\)', lambda m: PURE[m.group(1)], v)
     def mix(m):
@@ -253,6 +253,8 @@ def twin(sel, decls):
             out.append((p, ' '.join(fmt(map_border(c)) if (c := parse(x)) else x
                                     for x in re.findall(r'#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|\b[a-zA-Z]+\b', v)) + imp))
         elif p == 'box-shadow': out.append(('box-shadow', map_shadow(v) + imp))
+        # (--bt: a line's colour for the inset shadow that draws the half pixel Chrome leaves off a 1.5 line: as its border)
+        elif p == '--bt' and (c := parse(v)): out.append(('--bt', fmt(map_border(c)) + imp))
         elif p == 'caret-color': out.append(('caret-color', v + imp))     # (the Counter's own cursors hide the browser's)
         elif p == 'fill' and parse(v): out.append(('fill', fmt(text_of(parse(v), ctx)) + imp))
     return out
@@ -430,10 +432,11 @@ def orders_tokens():
     R('.or-b.sent::after', ('background-color', READY)); R('.or-b.failed::after', ('background-color', REF))  # (the last one didn't go: red)
     # the ring round a button at work (buzzing, its pop-up open) and the keyboard's focus ring: the brighter blue
     R('.or-b.busy,.or-b.opener,:is(.or-root,.or-scrim) button:focus-visible,.or-r:focus-visible,.or-li:focus-visible,.or-cd:focus-visible', ('outline-color', '#5B8EF0'))
+    R('.or-b', ('--ring', '#5B8EF0'))   # (the ring's outer half pixel, orders.css .or-b.busy::before)
     T('.or-open', ACT, '#FFFFFF', None)
     # the Sync button in its states (normal raised navy; syncing blue, synced green, waiting amber, offline grey)
     T('.sync-btn.normal', S2, T1, E08); T('.sync-btn.syncing', '#16336B', '#BFD5FF', '#3E6CC9'); T('.sync-btn.synced', '#123D24', '#8CF0B4', '#2E7D4F')
-    T('.sync-btn.pending', '#3A2A08', '#FFD27A', '#7A5A1C'); R('.sync-btn-n', ('border-color', B))
+    T('.sync-btn.pending', '#3A2A08', '#FFD27A', '#7A5A1C'); R('.sync-btn-n', ('--bt', B), ('border-color', B))
     # search, Clear filters, the menus' buttons, sort
     T('.or-search', S2, T3, E08); R('.or-search-in', ('color', T1)); R('.or-search-in::placeholder', ('color', T3)); R('.or-search-i', ('fill', T3))
     T('.or-search.typed', None, None, 'inset 0 0 0 2px #5B8EF0'); R('.or-search.typed .or-search-in', ('color', '#FFFFFF'))

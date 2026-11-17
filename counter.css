@@ -305,7 +305,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-sync.synced{background:#DCFCE7;color:#15803D;box-shadow:inset 0 0 0 1px #A7E3BC,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
 .cx-sync.pending{background:#FEF3C7;color:#92400E;box-shadow:inset 0 0 0 1px #F5D58A,0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
 .cx-sync.offline{background:#EEF0F3;color:#78716C;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(15,23,42,.05)}
-.cx-sync-n{position:absolute;top:calc(-5 * var(--u));right:calc(-5 * var(--u));min-width:calc(18 * var(--u));height:calc(18 * var(--u));box-sizing:border-box;padding:0 calc(5 * var(--u));border:calc(2 * var(--u)) solid #F3F4F7;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#D97706;color:#FFFFFF;font-size:calc(10.5 * var(--u));font-weight:800;line-height:1}
+.cx-sync-n{position:absolute;top:calc(-5 * var(--u));right:calc(-5 * var(--u));min-width:calc(18 * var(--u));height:calc(18 * var(--u));box-sizing:border-box;padding:0 calc(5 * var(--u));--bt:#F3F4F7;border:calc(2 * var(--u)) solid #F3F4F7;box-shadow:inset 0 0 0 calc(.4 * var(--fu)) var(--bt);border-radius:999px;display:flex;align-items:center;justify-content:center;background:#D97706;color:#FFFFFF;font-size:calc(10.5 * var(--u));font-weight:800;line-height:1}
 .cx-mb:active,.cx-tc:active,.cx-sync:active{transform:scale(.97)}
 /* The three-line menu: 340 wide, 14 below the button; options 64 tall (Print bill, Highlight order, Delete order) */
 .cx-pop{position:absolute;left:0;top:calc(66 * var(--u));z-index:50;width:calc(340 * var(--u));box-sizing:border-box;padding:calc(10 * var(--u));border-radius:calc(24 * var(--u));display:flex;flex-direction:column;background:#FFFFFF;box-shadow:0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(0,0,0,.08),0 calc(18 * var(--u)) calc(40 * var(--u)) rgba(0,0,0,.28);animation:cx-pop .16s ease-out;transform-origin:calc(26 * var(--u)) 0}
@@ -379,10 +379,10 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-card:not(.cx-addt) b{flex:none;white-space:normal;overflow-wrap:anywhere;line-height:1.15;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .cx-card:not(.cx-addt)>b:first-child{margin-top:auto}
 .cx-card:not(.cx-addt) span{flex:none;margin-top:calc(3 * var(--u));white-space:nowrap}
-.cx-card em{position:relative;flex:none;width:calc(14 * var(--u));height:calc(14 * var(--u));box-sizing:border-box;margin:calc(2 * var(--u)) 0 auto;border:calc(2 * var(--u)) solid currentColor;border-radius:calc(3 * var(--u))}
+.cx-card em{position:relative;flex:none;width:calc(14 * var(--u));height:calc(14 * var(--u));box-sizing:border-box;margin:calc(2 * var(--u)) 0 auto;border:calc(2 * var(--u)) solid currentColor;box-shadow:inset 0 0 0 calc(.4 * var(--fu)) var(--bt,currentColor);border-radius:calc(3 * var(--u))}
 .cx-card em::after{content:"";position:absolute;inset:calc(2 * var(--u));border-radius:99px;background:currentColor}
-.cx-card em.veg{color:#16A34A}
-.cx-card em.non{color:#B91C1C}
+.cx-card em.veg{color:#16A34A;--bt:#16A34A}
+.cx-card em.non{color:#B91C1C;--bt:#B91C1C}
 /* How many of the dish the order has (Update 6): a light blue badge 31 round (wider for more digits) 11 from the tile's
    top right, 16 heavy dark blue; a 40 square around it takes the tap */
 .cx-qb{position:absolute;top:calc(6.5 * var(--u));right:calc(6.5 * var(--u));z-index:1;min-width:calc(40 * var(--u));height:calc(40 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(4.5 * var(--u));border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:transparent;font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -468,10 +468,10 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-x{flex:none;width:calc(52 * var(--u));height:calc(52 * var(--u));margin:0;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(6 * var(--u)) calc(14 * var(--u)) rgba(15,23,42,.08);cursor:pointer}
 .cx-x:active{background:#EEF0F4}
 .cx-pu-dish{display:flex;align-items:center;gap:calc(10 * var(--u));min-width:0}
-.cx-pu-dish em{flex:none;width:calc(20 * var(--u));height:calc(20 * var(--u));box-sizing:border-box;border:calc(2 * var(--u)) solid currentColor;border-radius:calc(3 * var(--u));display:flex;align-items:center;justify-content:center}
+.cx-pu-dish em{flex:none;width:calc(20 * var(--u));height:calc(20 * var(--u));box-sizing:border-box;border:calc(2 * var(--u)) solid currentColor;box-shadow:inset 0 0 0 calc(.4 * var(--fu)) var(--bt,currentColor);border-radius:calc(3 * var(--u));display:flex;align-items:center;justify-content:center}
 .cx-pu-dish em::after{content:"";width:calc(9 * var(--u));height:calc(9 * var(--u));border-radius:50%;background:currentColor}
-.cx-pu-dish em.veg{color:#16A34A}
-.cx-pu-dish em.non{color:#B91C1C}
+.cx-pu-dish em.veg{color:#16A34A;--bt:#16A34A}
+.cx-pu-dish em.non{color:#B91C1C;--bt:#B91C1C}
 .cx-pu-dish b{min-width:0;font-size:calc(24 * var(--u));font-weight:800;line-height:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cx-done{flex:none;width:calc(220 * var(--u));height:calc(64 * var(--u));box-sizing:border-box;margin:0;padding:0 calc(26 * var(--u));border:0;border-radius:calc(18 * var(--u));display:flex;align-items:center;justify-content:center;background:#2F6FDE;color:#FFFFFF;font-size:calc(19 * var(--u));font-weight:800;line-height:normal;cursor:pointer}
 .cx-done:active{background:#2A63C7}
@@ -510,17 +510,19 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-pu-foot{flex:none;display:flex;align-items:center;gap:calc(20 * var(--u));padding:calc(8 * var(--u)) calc(26 * var(--u)) calc(22 * var(--u))}
 .cx-nl{flex:1;min-width:0;margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .cx-nl-label{display:block;margin:0 0 calc(4 * var(--u)) calc(2 * var(--u));font-size:calc(13 * var(--u));font-weight:600;line-height:normal;color:#615C57}
-.cx-nl-line{display:flex;align-items:center;gap:calc(8 * var(--u));padding:calc(6 * var(--u)) calc(2 * var(--u)) calc(10 * var(--u));border-bottom:calc(1.5 * var(--u)) solid #C9CED6;font-size:calc(17 * var(--u));line-height:normal;color:#1C1917}
+/* The Counter's unit is 1.2 px: a 1.5 line is 1.8 px, a 2 line 2.4 px. Chrome (and Android's WebView) draws a border's
+   width in whole pixels; the inset shadow in the line's colour (--bt; --bx how much) adds the rest (owner, 16 Nov 2026). */
+.cx-nl-line{display:flex;align-items:center;gap:calc(8 * var(--u));padding:calc(6 * var(--u)) calc(2 * var(--u)) calc(10 * var(--u));--bt:#C9CED6;--bx:.8;border-bottom:calc(1.5 * var(--u)) solid #C9CED6;box-shadow:inset 0 calc(-1 * var(--bx) * var(--fu)) 0 0 var(--bt);font-size:calc(17 * var(--u));line-height:normal;color:#1C1917}
 .cx-nl-line .cx-i{color:#615C57}
 .cx-nl-line>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Update 5: with no note the line is soft red #F0A8A8 and 2.16 (a hint only: a note is never needed) and "Type
    special instructions here" grey #9A948F. A custom item's note line: 2.16 grey with a note, 2.88 blue #2F6FDE while it
    has the keyboard (the line widths as drawn) */
 .cx-nl-line>.cx-tf{overflow:visible}
-.cx-nl-line.empty{border-bottom:calc(1.8 * var(--u)) solid #F0A8A8}
+.cx-nl-line.empty{--bt:#F0A8A8;--bx:.16;border-bottom:calc(1.8 * var(--u)) solid #F0A8A8}
 .cx-nl-line.empty>span{color:#9A948F}
-.cx-cu-foot .cx-nl-line{border-bottom-width:calc(1.8 * var(--u))}
-.cx-cu-foot .cx-nl-line.on{border-bottom:calc(2.4 * var(--u)) solid #2F6FDE}
+.cx-cu-foot .cx-nl-line{--bx:.16;border-bottom-width:calc(1.8 * var(--u))}
+.cx-cu-foot .cx-nl-line.on{--bt:#2F6FDE;--bx:.88;border-bottom:calc(2.4 * var(--u)) solid #2F6FDE}
 .cx-rs{flex:none;display:flex;align-items:center;gap:calc(10 * var(--u))}
 .cx-rb{flex:none;width:calc(52 * var(--u));height:calc(52 * var(--u));margin:0;padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#1C1917;box-shadow:inset 0 0 0 1px rgba(17,24,39,.10),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(6 * var(--u)) calc(14 * var(--u)) rgba(15,23,42,.08);cursor:pointer}
 .cx-rb:active{background:#EEF0F4}
@@ -551,10 +553,10 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-pu.note>.cx-pu-head{margin-bottom:calc(18 * var(--u))}
 .cx-nf{display:block;cursor:text}
 .cx-nf-label{display:block;margin:0 0 calc(6 * var(--u)) calc(2 * var(--u));font-size:calc(13 * var(--u));font-weight:600;line-height:normal;color:#615C57}
-.cx-nf-line{display:flex;align-items:flex-start;gap:calc(10 * var(--u));padding:calc(4 * var(--u)) calc(2 * var(--u)) calc(10 * var(--u));border-bottom:calc(1.8 * var(--u)) solid #C9CED6;font-size:calc(18 * var(--u));line-height:1.45}
+.cx-nf-line{display:flex;align-items:flex-start;gap:calc(10 * var(--u));padding:calc(4 * var(--u)) calc(2 * var(--u)) calc(10 * var(--u));--bt:#C9CED6;--bx:.16;border-bottom:calc(1.8 * var(--u)) solid #C9CED6;box-shadow:inset 0 calc(-1 * var(--bx) * var(--fu)) 0 0 var(--bt);font-size:calc(18 * var(--u));line-height:1.45}
 /* Update 5: 2.16 grey with words on it, soft red while empty; blue and 2.4 while it has the keyboard */
-.cx-nf-line.empty{border-bottom-color:#F0A8A8}
-.cx-nf-line.on{border-bottom:calc(2 * var(--u)) solid #2F6FDE}
+.cx-nf-line.empty{--bt:#F0A8A8;border-bottom-color:#F0A8A8}
+.cx-nf-line.on{--bt:#2F6FDE;--bx:.4;border-bottom:calc(2 * var(--u)) solid #2F6FDE}
 .cx-nf-line .cx-i{color:#615C57}
 /* A line typed on (Update 5): the words; the grey hint #9A948F while it is empty (after the cursor while it has the
    keyboard); our cursor: 2.4 wide, 26.4 tall, blue #2F6FDE, blinking, after the words (1.2 on) or at the start */
@@ -609,7 +611,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-vn-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(12 * var(--u))}
 .cx-vn,.cx-pf{height:calc(76 * var(--u));box-sizing:border-box;margin:0;border:0;border-radius:calc(22 * var(--u));display:flex;align-items:center;background:#FFFFFF;color:#1C1917;font-family:inherit;line-height:normal;box-shadow:inset 0 0 0 1px rgba(17,24,39,.08),0 calc(1 * var(--u)) calc(2 * var(--u)) rgba(15,23,42,.08),0 calc(8 * var(--u)) calc(20 * var(--u)) rgba(15,23,42,.08);cursor:pointer}
 .cx-vn{min-width:0;padding:0 calc(10 * var(--u));justify-content:center;gap:calc(12 * var(--u));font-size:calc(17 * var(--u));font-weight:700;white-space:nowrap}
-.cx-vn em{flex:none;width:calc(18 * var(--u));height:calc(18 * var(--u));box-sizing:border-box;border:calc(2 * var(--u)) solid currentColor;border-radius:calc(3 * var(--u));display:flex;align-items:center;justify-content:center}
+.cx-vn em{flex:none;width:calc(18 * var(--u));height:calc(18 * var(--u));box-sizing:border-box;border:calc(2 * var(--u)) solid currentColor;box-shadow:inset 0 0 0 calc(.4 * var(--fu)) currentColor;border-radius:calc(3 * var(--u));display:flex;align-items:center;justify-content:center}
 .cx-vn em::after{content:"";width:calc(8 * var(--u));height:calc(8 * var(--u));border-radius:50%;background:currentColor}
 .cx-vn.veg em{color:#16A34A}
 .cx-vn.non em{color:#B91C1C}
@@ -667,7 +669,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .ctr-root svg.cx-i.s12{width:calc(12 * var(--u));height:calc(12 * var(--u))}
 .ctr-root svg.cx-i.s16{width:calc(16 * var(--u));height:calc(16 * var(--u))}
 /* The table and its guest count: "Table 12 | 👥 4" (a 1.5 #D6D3D1 rule, 10 before the people, 15/700 #57534E) */
-.cx-gchip{flex:none;display:inline-flex;align-items:center;gap:calc(4 * var(--u));margin-left:calc(8 * var(--u));padding-left:calc(10 * var(--u));border-left:calc(1.5 * var(--u)) solid #D6D3D1;color:#57534E;font-weight:700}
+.cx-gchip{flex:none;display:inline-flex;align-items:center;gap:calc(4 * var(--u));margin-left:calc(8 * var(--u));padding-left:calc(10 * var(--u));--bt:#D6D3D1;border-left:calc(1.5 * var(--u)) solid #D6D3D1;box-shadow:inset calc(.8 * var(--fu)) 0 0 0 var(--bt);color:#57534E;font-weight:700}
 /* (its words are centred, so less padding shows only when they would not fit: two-digit guests on a 1280 tablet) */
 .cx-b.cx-who:has(.cx-gchip){padding:0 calc(4 * var(--u))}
 /* A priority order: "⚑ PRIORITY" after its count, 13/800 red, 6 after it */
@@ -852,8 +854,8 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-vinfo{flex:none;display:flex;align-items:center;gap:calc(12 * var(--u));margin:0 0 calc(16 * var(--u));padding:calc(12 * var(--u)) calc(16 * var(--u));border-radius:calc(16 * var(--u));background:#FEF2F2;color:#991B1B;font-size:calc(15.5 * var(--u));font-weight:600;line-height:normal}
 .cx-vinfo svg{flex:none;color:#DC2626}
 .cx-pu.void.typing .cx-vinfo{display:none}
-.cx-pu:is(.void,.dish) .cx-nf-line{border-bottom:calc(2 * var(--u)) solid #2F6FDE}
-.cx-pu:is(.void,.dish) .cx-nf-line.empty:not(:focus-within){border-bottom:calc(1.8 * var(--u)) solid #F0A8A8}
+.cx-pu:is(.void,.dish) .cx-nf-line{--bt:#2F6FDE;--bx:.4;border-bottom:calc(2 * var(--u)) solid #2F6FDE}
+.cx-pu:is(.void,.dish) .cx-nf-line.empty:not(:focus-within){--bt:#F0A8A8;--bx:.16;border-bottom:calc(1.8 * var(--u)) solid #F0A8A8}
 .cx-vr{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:calc(10 * var(--u))}
 .cx-vr .cx-qn-chip{justify-content:center;text-align:center}
 .cx-pu:is(.void,.dish).typing .cx-vr{display:flex;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}

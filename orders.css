@@ -194,6 +194,8 @@
 /* Sent: a short green bar under Notify once a message went, under Buzz once the dock confirmed */
 .or-b.hit{box-shadow:inset 0 0 0 2px #E2A93B!important}
 .or-b.busy,.or-b.opener{outline:calc(2.5 * var(--fu)) solid #2F6FDE;outline-offset:calc(2 * var(--fu))}
+/* (the ring is 2.5: Chrome draws an outline's width in whole pixels, 2; this adds the half on its outside — owner, 16 Nov 2026) */
+.or-b.busy::before,.or-b.opener::before{content:"";position:absolute;inset:calc(-4.5 * var(--fu));border-radius:calc(22.5 * var(--fu));box-shadow:inset 0 0 0 calc(.5 * var(--fu)) var(--ring,#2F6FDE);pointer-events:none}
 .or-b.sent::after,.or-b.failed::after{content:"";position:absolute;left:50%;top:calc(100% + 4.5 * var(--fu));width:44%;height:calc(4 * var(--fu));border-radius:99px;background:#2F7D4F;transform:translateX(-50%)}
 /* (the last message or buzz didn't go: red, owner 12 Nov 2026) */
 .or-b.failed::after{background:#D92D20}

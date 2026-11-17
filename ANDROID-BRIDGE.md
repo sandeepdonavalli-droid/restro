@@ -838,32 +838,33 @@ the middle still scans. Every method here is optional, as noted.
     - Left: **YOUR MENU · N CATEGORIES**, every category of the menu (`RestroMenu`, as the Menu app has it) with how
       many of its dishes are on the event ("0 of 17", "6 of 17 + 1" with event-only dishes, "All 17"; teal once any).
     - Middle, the category on show: **‹category› · whole category** ticks all its dishes ("New dishes added to
-      ‹category› later don't join by themselves": the event keeps the dishes, not the category), then each dish:
-      tick, picture, veg mark, name, "Menu price ₹260 · GST 5%" (and "· event price ₹280" once changed), where its KOT
-      prints and its price for the event. A dish sold out in Availability (`restro.menu.availability.v1`) says "Sold
-      out today" and "Sold out in Availability · still on this event while ticked": it can be ticked (stock kept aside
-      for the event) and stays sold out for regular orders. Unticked dishes are dimmed. Last: **Add event-only dish to
-      ‹category›**.
+      ‹category› later don't join by themselves": the event keeps the dishes, not the category), then each dish: tick,
+      its photo (none yet: "Add photo"), veg mark, name, "Menu price ₹260 · GST 5%" (and "· event price ₹280" once
+      changed), where its KOT prints and its price for the event. A dish sold out in Availability
+      (`restro.menu.availability.v1`) says "Sold out today" and "Sold out in Availability · still on this event while
+      ticked": it can be ticked (stock kept aside for the event) and stays sold out for regular orders. Unticked
+      dishes are dimmed. Last: **Add event-only dish to ‹category›**.
     - A tap on a dish (EV6): "‹dish› · for this event · Changes apply to ‹event› only. Your regular menu stays the
-      same.": its picture with Replace photo for this event (Scan to add · Device camera · Device gallery), **Event
-      price** ("Menu price ₹230"), GST "5% · from your menu", **KOT goes to** · usually ‹where› · pick one or more (the
-      kitchen printers, all ticked at first), Cancel · **Save for this event** (greyed without a price, or with no
-      printer ticked while there are kitchen printers). Saving ticks the dish; the same price and every printer is no
-      change. The regular menu, its prices and its dishes' printers never change here.
+      same.": its photo (none yet: "Add photo") with Add photo for this event (Scan to add · Device camera · Device
+      gallery), **Event price** ("Menu price ₹230"), GST "5% · from your menu", **KOT goes to** · usually ‹where› ·
+      pick one or more (the kitchen printers, all ticked at first), Cancel · **Save for this event** (greyed without a
+      price, or with no printer ticked while there are kitchen printers). Saving ticks the dish; the same price and
+      every printer is no change. The regular menu, its prices and its dishes' printers never change here.
     - **Add event-only dish to ‹category›** (EV5): "Only for ‹event› · ends with the event": Dish name, Price (₹,
-      digits and a point), GST (0 · 5 · 12 · 18%, the menu's to start), Veg or non-veg, KOT goes to (pick one or more;
-      the only kitchen printer is ticked at first), Photos, Cancel · **Add dish** (greyed until a name, a price and a
-      printer, while there are kitchen printers). It shows after the category's dishes with an Event-only tag; a tap
-      opens it again with **Take it off** · Save dish. Event-only dishes never show in Availability or Inventory.
+      digits and a point), GST (a percent, typed: 0–100, the menu's to start; owner, 16 Nov 2026), Veg or non-veg, KOT
+      goes to (pick one or more; the only kitchen printer is ticked at first), Photos, Cancel · **Add dish** (greyed
+      until a name, a price and a printer and a GST, while there are kitchen printers). It shows after the category's
+      dishes with an Event-only tag; a tap opens it again with **Take it off** · Save dish. Event-only dishes never
+      show in Availability or Inventory.
     - Right: **Event-only dishes · N** (each with its category, veg, GST, printers and price; a tap opens it), **Sold out
       today** (a note) and what the menu comes to: "29 dishes on this menu · 27 from your menu (7 of 14 categories) · 2
       event-only · 1 price and 1 printer changed".
-    - Dishes have no photos or printers of their own yet (the Menu app): each shows its category's picture, and its KOT
-      prints where KOTs print now, every kitchen printer ("All kitchen printers"; with one, its name; with none, "No
-      kitchen printer yet", and a dish can be added without a printer). The kitchen printers are those
-      `RESTRODevice.printer.list()` gives whose job (Settings › Printers, `restro.printers.v1`) is KOTs or both.
-      Adding a photo waits for the photo checks in the cloud (Update Pack 5's photo upload rules), so the photo
-      buttons say "Coming soon".
+    - Dishes have no photos or printers of their own yet (the Menu app): each shows "Add photo" where its photo goes
+      (owner, 16 Nov 2026: never another picture in its place), and its KOT prints where KOTs print now, every kitchen
+      printer ("All kitchen printers"; with one, its name; with none, "No kitchen printer yet", and a dish can be
+      added without a printer). The kitchen printers are those `RESTRODevice.printer.list()` gives whose job (Settings
+      › Printers, `restro.printers.v1`) is KOTs or both. Adding a photo waits for the photo checks in the cloud
+      (Update Pack 5's photo upload rules), so the photo buttons say "Coming soon".
     - The draft, kept on the form only: `menu: { picked: Set(dish id), changes: Map(dish id → { price?, printers? }),
       own: [{ id, cat, name, price, gst, veg, printers }] }`, prices in rupees as the menu; it becomes the event's
       `menu` when the event is created (the Printers step).
