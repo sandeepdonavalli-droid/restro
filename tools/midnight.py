@@ -555,8 +555,9 @@ HEAD = '''/* Midnight: the Counter's dark theme (Update Pack 2, 01_Dark-Theme-Mi
 {P} .counter-app :is(.cx-key.fn,.cx-nl-line.empty) svg *{{color:inherit}}
 /* The typing cursor is blue in every field */
 {P} :where(.counter-app input,.counter-app textarea){{caret-color:#5B8EF0}}
-/* While the Counter is open: the banner, the swipe handle and the lock button (60, 16 from the right, 14 from the bottom) */
-{P}:has(dialog.counter-app[open]){{--bar-bg:#121B2D;--bar-blur:none;--bar-line:rgba(17,24,39,.14);--bar-shadow:0 calc(1 * var(--bn-u)) 0 var(--bar-line),0 calc(2 * var(--bn-u)) calc(4 * var(--bn-u)) rgba(17,24,39,.05),0 calc(8 * var(--bn-u)) calc(22 * var(--bn-u)) rgba(17,24,39,.10);--bar-text:{text};--bar-muted:{muted};--bar-mark-bg:#D9DFEA;--bar-mark-text:#0B1220;--bar-bat-low-bg:{lowbg};--bar-bat-low:{low};--bar-bat-charge:{charge};--bar-bat-bolt:#121B2D;--bar-pill-bg:#1B2539;--bar-pill-edge:rgba(17,24,39,.06);--bar-pill-text:{text};--bar-dot:#16A34A}}
+/* While the Counter is open: the banner (with the top bar's shadow, as everywhere: Aurora's on the dark; owner, 16 Nov 2026), the
+   swipe handle and the lock button (60, 16 from the right, 14 from the bottom) */
+{P}:has(dialog.counter-app[open]){{--bar-bg:#121B2D;--bar-blur:none;--bar-line:rgba(17,24,39,.14);--bar-shadow:0 calc(1 * var(--bn-u)) 0 var(--bar-line),0 calc(6 * var(--bn-u)) calc(20 * var(--bn-u)) rgba(0,0,0,.45);--bar-text:{text};--bar-muted:{muted};--bar-mark-bg:#D9DFEA;--bar-mark-text:#0B1220;--bar-bat-low-bg:{lowbg};--bar-bat-low:{low};--bar-bat-charge:{charge};--bar-bat-bolt:#121B2D;--bar-pill-bg:#1B2539;--bar-pill-edge:rgba(17,24,39,.06);--bar-pill-text:{text};--bar-dot:#16A34A}}
 {P}:has(dialog.counter-app[open]) #top-banner .battery>rect:first-of-type{{stroke:#1C1917}}
 {P}:has(dialog.counter-app[open]) .home-indicator{{background:rgba(233,238,248,.35)}}
 {P}:not([data-nav="bar"]):has(dialog.counter-app[open]) .system-lock{{background:#1E2A42;color:#F5F5F4;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.18),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(0,0,0,.5)}}
@@ -567,8 +568,9 @@ ORDERS_HEAD = '''/* Midnight: the Orders app's dark theme (Update Pack 4, 01_Ord
    orders.css and the pack's Midnight stylesheets: change orders.css and run it again rather than editing the colours here. */
 /* The typing cursor is blue */
 {P} :where(.orders-app input){{caret-color:#5B8EF0}}
-/* While Orders is open: the banner on the page's navy with a hairline, the swipe handle and the lock button */
-{P}:has(dialog.orders-app[open]){{--bar-bg:#0B1220;--bar-blur:none;--bar-line:#1F2A40;--bar-shadow:0 calc(1 * var(--bn-u)) 0 #1F2A40;--bar-text:#F1F4FA;--bar-muted:#C5CEDD;--bar-mark-bg:#D9DFEA;--bar-mark-text:#0B1220;--bar-bat-low-bg:#4A1414;--bar-bat-low:#FF9C9C;--bar-bat-charge:#7EE2A8;--bar-bat-bolt:#0B1220;--bar-pill-bg:#1B2539;--bar-pill-edge:rgba(255,255,255,.06);--bar-pill-text:#F1F4FA;--bar-dot:#16A34A;--bar-off-bg:#3A2008;--bar-off-edge:#7A4A1C;--bar-off-dot:#FFA066;--bar-off-text:#FFC48A}}
+/* While Orders is open: the banner on the page's navy with a hairline and the top bar's shadow (as everywhere: Aurora's on the
+   dark; owner, 16 Nov 2026), the swipe handle and the lock button */
+{P}:has(dialog.orders-app[open]){{--bar-bg:#0B1220;--bar-blur:none;--bar-line:#1F2A40;--bar-shadow:0 calc(1 * var(--bn-u)) 0 #1F2A40,0 calc(6 * var(--bn-u)) calc(20 * var(--bn-u)) rgba(0,0,0,.45);--bar-text:#F1F4FA;--bar-muted:#C5CEDD;--bar-mark-bg:#D9DFEA;--bar-mark-text:#0B1220;--bar-bat-low-bg:#4A1414;--bar-bat-low:#FF9C9C;--bar-bat-charge:#7EE2A8;--bar-bat-bolt:#0B1220;--bar-pill-bg:#1B2539;--bar-pill-edge:rgba(255,255,255,.06);--bar-pill-text:#F1F4FA;--bar-dot:#16A34A;--bar-off-bg:#3A2008;--bar-off-edge:#7A4A1C;--bar-off-dot:#FFA066;--bar-off-text:#FFC48A}}
 {P}:has(dialog.orders-app[open]) .home-indicator{{background:rgba(233,238,248,.35)}}
 {P}:not([data-nav="bar"]):has(dialog.orders-app[open]) .system-lock{{background:#1E2A42;color:#F5F5F4;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.18),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(0,0,0,.5)}}
 {P}:not([data-nav="bar"]):has(dialog.orders-app[open]) .system-lock:active{{background:#000000}}

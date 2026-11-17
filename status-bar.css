@@ -7,6 +7,8 @@
    they work as before), the battery pill (Counter Update 5), the Online pill (38.4 high, grey with a fine edge, a 10.8 dot: green online; "Offline" amber,
    Update Pack 4) and the signed-in server's profile circle (38.4, their initials; a person outline while nobody is signed
    in). Over an app its shadow falls on the top of the app as on a plain page. Pull it down for quick controls, as before.
+   The shadow, never a plain line, on the home screen and in every app, in every theme (owner, 16 Nov 2026: the top bar
+   looks the same wherever it is; the app pictures' plain line is not used). The Midnight apps take Aurora's.
    Sizes in the bar's unit (--bn-u, launcher.css: the Counter pack's 40-high bar drawn at 1.2). */
 :root{--top-banner-height:calc(40 * var(--bn-u))}
 #top-banner{position:sticky;top:0;z-index:3;box-sizing:border-box;height:var(--top-banner-height);min-height:var(--top-banner-height);display:flex;align-items:center;gap:calc(12 * var(--bn-u));padding:0 calc(24 * var(--bn-u));border:0;background:var(--bar-bg);-webkit-backdrop-filter:var(--bar-blur);backdrop-filter:var(--bar-blur);box-shadow:var(--bar-shadow);color:var(--bar-text);font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;line-height:normal}

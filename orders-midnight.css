@@ -3,8 +3,9 @@
    orders.css and the pack's Midnight stylesheets: change orders.css and run it again rather than editing the colours here. */
 /* The typing cursor is blue */
 html[data-app-theme="midnight"] :where(.orders-app input){caret-color:#5B8EF0}
-/* While Orders is open: the banner on the page's navy with a hairline, the swipe handle and the lock button */
-html[data-app-theme="midnight"]:has(dialog.orders-app[open]){--bar-bg:#0B1220;--bar-blur:none;--bar-line:#1F2A40;--bar-shadow:0 calc(1 * var(--bn-u)) 0 #1F2A40;--bar-text:#F1F4FA;--bar-muted:#C5CEDD;--bar-mark-bg:#D9DFEA;--bar-mark-text:#0B1220;--bar-bat-low-bg:#4A1414;--bar-bat-low:#FF9C9C;--bar-bat-charge:#7EE2A8;--bar-bat-bolt:#0B1220;--bar-pill-bg:#1B2539;--bar-pill-edge:rgba(255,255,255,.06);--bar-pill-text:#F1F4FA;--bar-dot:#16A34A;--bar-off-bg:#3A2008;--bar-off-edge:#7A4A1C;--bar-off-dot:#FFA066;--bar-off-text:#FFC48A}
+/* While Orders is open: the banner on the page's navy with a hairline and the top bar's shadow (as everywhere: Aurora's on the
+   dark; owner, 16 Nov 2026), the swipe handle and the lock button */
+html[data-app-theme="midnight"]:has(dialog.orders-app[open]){--bar-bg:#0B1220;--bar-blur:none;--bar-line:#1F2A40;--bar-shadow:0 calc(1 * var(--bn-u)) 0 #1F2A40,0 calc(6 * var(--bn-u)) calc(20 * var(--bn-u)) rgba(0,0,0,.45);--bar-text:#F1F4FA;--bar-muted:#C5CEDD;--bar-mark-bg:#D9DFEA;--bar-mark-text:#0B1220;--bar-bat-low-bg:#4A1414;--bar-bat-low:#FF9C9C;--bar-bat-charge:#7EE2A8;--bar-bat-bolt:#0B1220;--bar-pill-bg:#1B2539;--bar-pill-edge:rgba(255,255,255,.06);--bar-pill-text:#F1F4FA;--bar-dot:#16A34A;--bar-off-bg:#3A2008;--bar-off-edge:#7A4A1C;--bar-off-dot:#FFA066;--bar-off-text:#FFC48A}
 html[data-app-theme="midnight"]:has(dialog.orders-app[open]) .home-indicator{background:rgba(233,238,248,.35)}
 html[data-app-theme="midnight"]:not([data-nav="bar"]):has(dialog.orders-app[open]) .system-lock{background:#1E2A42;color:#F5F5F4;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.18),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(0,0,0,.5)}
 html[data-app-theme="midnight"]:not([data-nav="bar"]):has(dialog.orders-app[open]) .system-lock:active{background:#000000}
