@@ -215,7 +215,8 @@ def twin(sel, decls):
     if sel in LIGHT_ONLY: return []
     if any(k in sel for k in KEEP):
         return [d for p, v in decls if p == 'color' for c in [parse(v)] for m in [map_text(c)]
-                for d in (('color', fmt(m)), ('--ink2', fmt(m)), ('border-color', fmt(c)))]
+                for d in (('color', fmt(m)), ('--ink2', fmt(m)), ('border-color', fmt(c)))] + \
+               [('--bt', fmt(b)) for p, v in decls if p == '--bt' for b in [parse(v)] if b]
     if any(k in sel for k in KEEP_BG): decls = [(p, v) for p, v in decls if p not in ('background', 'background-color')]
     own = [colours(v)[-1] for p, v in decls if p in ('background', 'background-color') and colours(v)]
     known = CONTEXTS.get(sel, {})
@@ -252,7 +253,10 @@ def twin(sel, decls):
         elif p.startswith('border'):
             out.append((p, ' '.join(fmt(map_border(c)) if (c := parse(x)) else x
                                     for x in re.findall(r'#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|\b[a-zA-Z]+\b', v)) + imp))
-        elif p == 'box-shadow': out.append(('box-shadow', map_shadow(v) + imp))
+        elif p == 'box-shadow':
+            # (the half pixel of a 1.5 line, coloured var(--bt), var(--ring) or currentColor: it follows the twin's colours itself)
+            if not colours(v) and re.search(r'var\(--(bt|ring)\b|currentcolor', v, re.I): continue
+            out.append(('box-shadow', map_shadow(v) + imp))
         # (--bt: a line's colour for the inset shadow that draws the half pixel Chrome leaves off a 1.5 line: as its border)
         elif p == '--bt' and (c := parse(v)): out.append(('--bt', fmt(map_border(c)) + imp))
         elif p == 'caret-color': out.append(('caret-color', v + imp))     # (the Counter's own cursors hide the browser's)
@@ -347,7 +351,7 @@ def tokens():
     # Update Pack 4, Counter scheduling (02_Counter-scheduling §8): the picker #141E33 (the pop-ups'), day chips raised and the
     # picked one white, wheels #0F1829 with a blue band, the two buttons raised (too soon: #151E30 / #5A6782), the calendar
     # #16213A; the KOT line plum or a green tick; Hold greyed #151E30; Clear schedule #FF9C9C
-    T('.cx-chip.hold.off', '#151E30', '#5A6782', None)
+    T('.cx-chip.hold.off,.cx-chip.cx-sched.off', '#151E30', '#5A6782', None)
     T('.cx-kotl:not(.sent)', None, '#E7B2F2')
     T('.cx-kotl.sent', None, '#E6EAF2'); T('.cx-kotl.sent svg', None, '#7EE2A8')
     T('.cx-sd:not(.on)', RAISE, '#FFFFFF', EDGE); T('.cx-sd.on', SEL, SELT, None)
@@ -375,7 +379,7 @@ def tokens():
 def orders_tokens():
     out = []
     def R(sels, *decls):
-        out.append(','.join(f'{P} .orders-app {x.strip()}' for x in sels.split(',')) + '{' + ';'.join(f'{p}:{v}!important' for p, v in decls) + '}')
+        out.append(','.join(f'{P} .orders-app {x.strip()}' for x in sels.split(',')) + '{' + ';'.join(f'{p}:{v}' + ('' if p.startswith('--') else '!important') for p, v in decls) + '}')
     def T(sels, bg=None, fg=None, ring=''):
         d = ([('background-color', bg)] if bg else []) + [('background-image', 'none')]
         if ring is None: d.append(('box-shadow', 'none'))
@@ -413,6 +417,8 @@ def orders_tokens():
     # (Update Pack 5, Icon Pack 1: Online sky blue in Light, rose in Midnight)
     for light, dark in (('9A6B1F', '#B49A6E'), ('2E7D4F', '#7FAA92'), ('2F5FB3', '#8396BF'), ('6D4BC4', '#9890BE'), ('0284C7', '#C98BA5')):
         R(f'.or-tt[style*="{light}"],.or-it .ii[style*="{light}"]', ('color', dark))
+    out.append('/* (Update Pack 6, Icon Pack 1.1) Event: teal #6FB5A8 on the Midnight tile #18223A */')
+    R('.or-tt[style*="0F766E"],.or-it .ii[style*="0F766E"]', ('color', '#6FB5A8'))
     # the QR tag (Update Pack 5, K: PQ1–PQ6 Midnight) and the QR row of the Order type filter
     R('.or-qr', ('background-color', '#1B2A47'), ('border-color', '#34507F'), ('color', '#A9C2FF')); R('.or-it .ii.t.qr', ('color', '#A9C2FF'))
     R('.or-offline .or-i', ('fill', '#F5C870'))   # (the offline notice's icon keeps its amber; Due's orange is now #C2410C)
@@ -432,11 +438,11 @@ def orders_tokens():
     R('.or-b.sent::after', ('background-color', READY)); R('.or-b.failed::after', ('background-color', REF))  # (the last one didn't go: red)
     # the ring round a button at work (buzzing, its pop-up open) and the keyboard's focus ring: the brighter blue
     R('.or-b.busy,.or-b.opener,:is(.or-root,.or-scrim) button:focus-visible,.or-r:focus-visible,.or-li:focus-visible,.or-cd:focus-visible', ('outline-color', '#5B8EF0'))
-    R('.or-b', ('--ring', '#5B8EF0'))   # (the ring's outer half pixel, orders.css .or-b.busy::before)
     T('.or-open', ACT, '#FFFFFF', None)
     # the Sync button in its states (normal raised navy; syncing blue, synced green, waiting amber, offline grey)
     T('.sync-btn.normal', S2, T1, E08); T('.sync-btn.syncing', '#16336B', '#BFD5FF', '#3E6CC9'); T('.sync-btn.synced', '#123D24', '#8CF0B4', '#2E7D4F')
     T('.sync-btn.pending', '#3A2A08', '#FFD27A', '#7A5A1C'); R('.sync-btn-n', ('--bt', B), ('border-color', B))
+    R('.or-b', ('--ring', '#5B8EF0'))   # (the ring's outer half pixel, orders.css .or-b.busy::before)
     # search, Clear filters, the menus' buttons, sort
     T('.or-search', S2, T3, E08); R('.or-search-in', ('color', T1)); R('.or-search-in::placeholder', ('color', T3)); R('.or-search-i', ('fill', T3))
     T('.or-search.typed', None, None, 'inset 0 0 0 2px #5B8EF0'); R('.or-search.typed .or-search-in', ('color', '#FFFFFF'))

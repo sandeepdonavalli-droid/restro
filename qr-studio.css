@@ -69,8 +69,8 @@
 .qrs-h h1{font-size:calc(30 * var(--fu));font-weight:800;line-height:1;letter-spacing:-.005em;color:#1C1917;white-space:nowrap}
 /* (Update Pack 6: the Event QRs pages' titles have no tightening and sit 1px higher) */
 .qrs-main.p-event .qrs-h h1{position:relative;top:calc(-1 * var(--fu));letter-spacing:0}
-.qrs-help{flex:none;width:calc(34 * var(--fu));height:calc(34 * var(--fu));margin-left:calc(1 * var(--fu));display:grid;place-items:center;box-sizing:border-box;border:calc(1.5 * var(--fu)) solid #D4D5D8!important;border-radius:50%;background:#FFFFFF!important;color:#57534E!important;font-size:calc(17 * var(--fu))!important;font-weight:800!important}
-.qrs-help.on{border-color:#292524!important;background:#292524!important;color:#FFFFFF!important}
+.qrs-help{flex:none;width:calc(34 * var(--fu));height:calc(34 * var(--fu));margin-left:calc(1 * var(--fu));display:grid;place-items:center;box-sizing:border-box;--bt:#D4D5D8;border:calc(1.5 * var(--fu)) solid var(--bt)!important;box-shadow:inset 0 0 0 calc(.5 * var(--fu)) var(--bt);border-radius:50%;background:#FFFFFF!important;color:#57534E!important;font-size:calc(17 * var(--fu))!important;font-weight:800!important}
+.qrs-help.on{--bt:#292524;background:#292524!important;color:#FFFFFF!important}
 .qrs-tools{display:flex;align-items:center;gap:calc(10 * var(--fu))}
 .qrs-btn{height:calc(52 * var(--fu));box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:calc(10 * var(--fu));padding:0 calc(24 * var(--fu))!important;border:1px solid #E2E3E5!important;border-radius:calc(26 * var(--fu));background:#FFFFFF!important;color:#1C1917;font-size:calc(16.5 * var(--fu))!important;font-weight:700!important;white-space:nowrap}
 .qrs-btn .qi{width:calc(20 * var(--fu));height:calc(20 * var(--fu))}
