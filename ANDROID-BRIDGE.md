@@ -908,13 +908,15 @@ the middle still scans. Every method here is optional, as noted.
     event (needs the internet; greyed for the event's only table: "Only table left"). Send, Replace QR's question and
     Delete's question go back to the table when closed without doing it; once done, all close and the toast says so
     ("Event table 3 QR printed", "Event table 3 has a new QR · the old one no longer works" with Print now).
-  - Event QRs and the restaurant's QRs never pause each other (H1), so the restaurant's banners aren't shown there.
+  - Event QRs and the restaurant's QRs never pause each other (H1), so the restaurant's banners aren't shown there; an
+    event paused by itself shows its own (EV9: An event's own path, below).
 - **What needs looking at** (the home badge, J: `RestroQrStudio.attention()`). Each clears by itself once fixed.
   - Each table renamed in Floor since its card was printed or sent: "Now Table 11 · reprint the card". QR Studio
     compares the names. Floor notes the change on the table as `renamed: { at, by }` for "Renamed today by ‹name›".
   - Each quiet QR: no scan in 3 open business days, for a QR the cloud says usually gets scans (`usual`, below).
     "Card is fine · hide for 7 days" sets `quietOk`.
   - QR ordering paused by itself (not while the restaurant is closed).
+  - Each event paused by itself (Update Pack 6, H3: below).
 
 ### QR ordering (I1, I3)
 
@@ -1000,6 +1002,70 @@ it starts up, not for a blip) and takes the kitchen printers as working. Send `n
 Wi-Fi has no internet says "Offline" while a handheld's mobile data carries the orders (QS45); QR ordering stays on,
 Send and Test scan stay usable (they follow `cloudAvailable`), and See devices on the sidebar's card shows how the
 orders are coming in.
+
+### An event's own path, backup and pause (Update Pack 6, H; EV9–EV11)
+
+Each live event that takes orders checks **only its own path**: the internet at the event (mobile data or Wi-Fi on its
+printer devices) → its printer devices → the printers its dishes print on. Send it in the same status, as `events`
+(one entry per such event; send it again whenever any of it changes):
+
+```
+{ internet, wifiInternet, mobileVia, since, printers: [...],
+  events: [{ id, internet, since, printers: [{ id, name, link, state, paper, device: { name, on, lastSeen, internet, away } }] }] }
+```
+
+- `id`: the event's id (`restro.events.v1`). Send the events that are live and open now and take orders (not Menu only).
+- `internet`: the event's QR orders can reach it (its printer devices' mobile data or Wi-Fi). `since`: when its path
+  broke (ms), 0 when not known.
+- `printers`: the printers the event's dishes print on: the ones picked for them in step 3 (`menu.items[].printers`,
+  `menu.own[].printers`), else each dish's own printers. Fields as the restaurant's printers, plus on `device`:
+  `internet` (`'mobile'`, `'wifi'` or `null`: how that device is online) and `away` (`true`: the device is at the event,
+  not at the restaurant). Report a printer `down` only after its 30 s grace (H2).
+- The restaurant's own `printers` are the restaurant's kitchen printers. A printer used by both (an event held in the
+  restaurant printing on Main kitchen) is in both lists and keeps working for both; a printer only an event uses is never
+  in the restaurant's list.
+
+The page works out each event's state by itself (`RestroQrStudio.attention()` counts each paused event):
+
+| `reason` | When | The banner: "‹event› paused · …" | See devices: "‹event› …" |
+| --- | --- | --- | --- |
+| `internet` | the event's `internet` is false | no internet at the event | can’t take QR orders · no internet at the event |
+| `device` | its only printer is wired or Bluetooth and its printer device is off | event printer device is off | can’t print KOTs · its printer device is off |
+| `wired` | its only printer is wired or Bluetooth and not connected | event printer not connected | can’t print KOTs · its only printer is not connected |
+| `wifi` | its only printer is on Wi-Fi and can't be reached | event printer not reachable | can’t print KOTs · its only printer is not reachable |
+| `printers` | two or more printers and none works | no event printer is working | can’t print KOTs · no event printer is working |
+
+- **One failing never pauses the other (H1).** The restaurant's QR ordering keeps its own check (above); a paused event
+  never pauses the restaurant's QRs, and the restaurant pausing (or closing) never pauses an event.
+- **Two or more event printers (H2):** while one still works the event stays on, and the app prints a down printer's
+  KOTs on the first event printer still working, along with its own (no "moved" label). See devices says "‹event› is
+  on · Event printer 2 is printing", and on that printer "Printing all event KOTs" (or "Printing Event printer 1’s
+  dishes too").
+- **Its only printer down (H3)**, or no internet at the event: the event pauses by itself (EV9). Event QRs shows the
+  banner "Live music night paused · event printer not connected", "Paused by itself at 7:24 PM · turns back on by itself.
+  Event customers see “QR ordering is paused. Please reach out to staff.” Your restaurant QRs are not affected." with
+  **See devices**; the event's card shows a red **Paused**; This event's Status reads "Paused · event printer not
+  connected"; the home badge counts it. It turns back on by itself once its path has worked for 10 s, with no notice.
+  Upcoming, ended and Menu only events, and an event between its days, never pause.
+- **Event KOTs never print at the restaurant, and restaurant KOTs never print on an event's printer** (the app's job):
+  the restaurant's backup printer never takes an event's KOTs, and an event's printers back up only each other.
+- **See devices** (EV10, EV11): from the banner, or a tap on This event's "KOTs go to" row (one QR for the whole event).
+  Internet ("Mobile data on Handheld 2", one line per printer device) → each printer device ("At the event" while
+  `away`) → each printer. With one printer it is "Event printer" with what it prints (Settings › Printers: "Prints KOTs,
+  bills and receipts"); down: "Check power, paper and that it’s near Handheld 2". Paused: "**Only this event is paused.**
+  Your restaurant’s QRs keep working. **Try:** turn the printer on, check the paper and keep it near Handheld 2. The
+  event turns back on by itself." Backing up: "Event printer 1’s dishes print on Event printer 2 along with its own
+  until printer 1 is back. An event’s printers only back up each other: event KOTs never print at the restaurant, and
+  restaurant KOTs never print at the event." In a web browser, with no path: the internet only and "Nothing to do. The
+  event’s printer devices and printers show here in the RESTRO Android app."
+- **KOTs go to** (This event): "Each dish’s own printer" while no dish has printers picked for the event; else its
+  printers, "Event printer 1 + Event printer 2" (one: "Event printer · its only printer").
+- **The cloud (Phase 2)** must refuse a paused event's QR orders (customers see "QR ordering is paused. Please reach out
+  to staff.") while the restaurant's QRs keep working, and the other way round. Event orders reach every device
+  through the cloud with the sync rules (SYNC.md); an event device without internet keeps its orders and syncs them
+  when it's back, with the Pending QR payment rules on that device (H4).
+- Nothing about it is kept or synced: each device works it out from the path it gets, as the restaurant's pause.
+- **Not built yet:** the activity log of pauses (the event, the reason, from–to and how long), with Analytics › Activity.
 
 ### Scans: `restro:qr-scan` or `RestroQrStudio.scanned(scan)`
 

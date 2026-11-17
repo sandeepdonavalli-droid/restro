@@ -22,7 +22,8 @@
 //       Takeaway) | 'takeaway' | 'menu') | 'tables' (one QR per event table: tablesFrom 'event' | 'floor', tables
 //       [{ id, name (its number, or the Floor table's name), floor (a Floor table's id), code, path
 //       '<restaurant>/E<name>-<code>', replacedAt, replacedBy, printedAt, printedBy, sentAt, sentBy }]), menu { items
-//       (dishes from the menu), own (event-only dishes) }, endedAt, endedBy (End now), hadOrders (set once it has an
+//       (dishes from the menu: [{ id, price, printers }], price and printers only when changed for the event), own
+//       (event-only dishes) }, endedAt, endedBy (End now), hadOrders (set once it has an
 //       order, never cleared: Delete stays off), createdAt, createdBy, replacedAt, replacedBy (the whole event's QR
 //       replaced), printedAt, printedBy, sentAt, sentBy }.
 //   An event works only from its start to its end, even outside business hours, and stops by itself; then it shows under
@@ -30,7 +31,9 @@
 //   or replaced (a new code: the old one stops working), and an event table's QR deleted (that table leaves the event).
 // - Scans come from the cloud (RestroQrStudio.scanned, ANDROID-BRIDGE.md); each device keeps them: restro.qrScans.v1.
 // - The path for QR orders (internet → printer device → kitchen printer) comes from the Android app:
-//   RestroQrStudio.path(status) or a restro:qr-path event (ANDROID-BRIDGE.md).
+//   RestroQrStudio.path(status) or a restro:qr-path event (ANDROID-BRIDGE.md). Each live event that takes orders has
+//   its own path in it (events: the internet at the event → its printer devices → its printers): one failing pauses
+//   only that event (EV9), and the restaurant's never pauses an event, or the other way round (Update Pack 6, H).
 // Nothing here is part of the code or the website's data: it stays on the devices until the cloud exists.
 (() => {
   const dialog = document.querySelector('#qr-studio-dialog');
@@ -101,8 +104,8 @@
     search: ['s', '<circle cx="10.6" cy="10.6" r="6.4"/><path d="m15.4 15.4 4.6 4.6"/>'],
     chevron: ['s', '<path d="m9.5 6 6 6-6 6"/>'],
     arrow: ['s', '<path d="M4.5 12h15M13.5 6l6 6-6 6"/>'],
-    wifi: ['s', '<path d="M2.6 9.2a13.6 13.6 0 0 1 18.8 0M5.8 12.6a9 9 0 0 1 12.4 0M9 16a4.4 4.4 0 0 1 6 0"/><circle cx="12" cy="19.2" r="1.2" fill="currentColor" stroke="none"/>'],
-    monitor: ['s', '<rect x="3" y="4" width="18" height="12.4" rx="2"/><path d="M12 16.4V20M8 20h8"/>'],
+    wifi: ['s', '<path d="M2.2 9.2a14.62 14.62 0 0 1 19.6 0M5.8 12.6a9 9 0 0 1 12.4 0M9 16a4.4 4.4 0 0 1 6 0"/><circle cx="12" cy="19.2" r="2.1" fill="currentColor" stroke="none"/>'],
+    monitor: ['s', '<rect x="3" y="4" width="18" height="12.9" rx="2"/><path d="M12 16.9V21"/><rect x="8.8" y="19.9" width="6.4" height="2.3" rx="1" fill="currentColor" stroke="none"/>'],
     clock: ['s', '<circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 2"/>'],
     // (Update Pack 6, EV3: a date field's calendar)
     cal: ['s', '<rect x="3.6" y="5" width="16.8" height="15.4" rx="2.4"/><path d="M3.6 9.8h16.8M8.2 3.2v3.6M15.8 3.2v3.6"/>'],
@@ -369,6 +372,58 @@
     return { reason: lastBroken || 'internet', since: autoSince };
   }
 
+  // ---------- an event's own path (Update Pack 6, H) ----------
+  // Each live event that takes orders checks only its own path, as the Android app reports it (path.events): its printer
+  // devices' internet (mobile data or Wi-Fi) → those devices → the printers its dishes print on. The restaurant's QRs
+  // keep their own check; one failing never pauses the other. With two or more event printers, one down hands its
+  // dishes to the first one still working (the app prints them there) and the event stays on; with one, the event
+  // pauses by itself and turns back on once its path has worked for about 10 s, as the restaurant's.
+  const evPathOf = e => path?.events?.[e.id] || null;
+  const working = k => k.state === 'ok' && (!cable(k) || k.device?.on !== false);
+  function evBroken(ep) {
+    if (!ep) return null;
+    if (!ep.internet) return 'internet';
+    const ks = ep.printers;
+    if (!ks.length || ks.some(working)) return null;
+    if (ks.length > 1) return 'printers';
+    return cable(ks[0]) ? (ks[0].device?.on === false ? 'device' : 'wired') : 'wifi';
+  }
+  // { reason, since } while it's paused by itself, else null (only while it's live, open and takes orders)
+  const evAuto = new Map();
+  function evPause(e, s = evState(e), now = Date.now()) {
+    if (s.state !== 'live' || !s.open || (e.qrs !== 'tables' && e.mode === 'menu')) { evAuto.delete(e.id); return null; }
+    const ep = evPathOf(e), broken = evBroken(ep); let a = evAuto.get(e.id);
+    if (broken) { if (!a) { a = { since: Number(ep.since) || now }; evAuto.set(e.id, a); } a.okSince = 0; a.last = broken; return { reason: broken, since: a.since }; }
+    if (!a) return null;
+    if (!a.okSince) a.okSince = now;
+    if (now - a.okSince >= RESUME_AFTER) { evAuto.delete(e.id); return null; }
+    return { reason: a.last || 'internet', since: a.since };
+  }
+  const EV_REASONS = {
+    internet: { status: 'no internet at the event', devices: 'can’t take QR orders · no internet at the event' },
+    device: { status: 'event printer device is off', devices: 'can’t print KOTs · its printer device is off' },
+    wired: { status: 'event printer not connected', devices: 'can’t print KOTs · its only printer is not connected' },
+    wifi: { status: 'event printer not reachable', devices: 'can’t print KOTs · its only printer is not reachable' },
+    printers: { status: 'no event printer is working', devices: 'can’t print KOTs · no event printer is working' }
+  };
+  // A printer's name: as Settings › Printers names it, as the Android app lists it, or as the paths report it
+  function printerName(id) {
+    const set = window.RestroPrefs?.get?.('printers')?.[id]?.name; if (set) return set;
+    const k = kitchen.find(x => x.id === id) || (path?.printers || []).find(x => x.id === id) || Object.values(path?.events || {}).flatMap(x => x.printers).find(x => x.id === id);
+    return k?.name || 'Printer';
+  }
+  // Where an event's KOTs go (This event): "Each dish’s own printer" while no dish has printers picked for the event;
+  // else its printers ("Event printer 1 + Event printer 2", one: "Event printer · its only printer")
+  function kotsWords(e) {
+    const picked = new Set(); let usual = false;
+    const add = ps => { if (Array.isArray(ps) && ps.length) ps.forEach(id => picked.add(String(id))); else usual = true; };
+    for (const i of Array.isArray(e.menu?.items) ? e.menu.items : []) add(i && typeof i === 'object' ? i.printers : null);
+    for (const d of Array.isArray(e.menu?.own) ? e.menu.own : []) add(d?.printers);
+    if (!picked.size) return 'Each dish’s own printer';
+    const names = [...new Set([...(usual ? kitchen.map(k => k.id) : []), ...picked])].map(printerName);
+    return names.length === 1 ? `${names[0]} · its only printer` : names.join(' + ');
+  }
+
   // ---------- QR ordering: on, paused, off by hand, paused by itself, closed (I1, I3) ----------
   function readOrdering() {
     try { const v = JSON.parse(localStorage.getItem(ORDERING_KEY) || 'null'); if (v && typeof v === 'object') return { off: v.off && typeof v.off === 'object' ? v.off : null, late: v.late && typeof v.late === 'object' ? v.late : null }; } catch {}
@@ -422,6 +477,7 @@
       if (quietOf(r, now)) n++;
     }
     if (ordering(now).state === 'auto') n++;
+    for (const e of events) if (evPause(e, evState(e, now), now)) n++;
     return n;
   }
 
@@ -684,7 +740,8 @@
       ended: all.filter(x => x.s.state === 'ended').sort((a, b) => b.s.at - a.s.at) };
     const listed = history ? by.ended : [...by.live, ...by.upcoming], sel = listed.find(x => x.e.id === view.evPick[view.evTab]) || listed[0] || null;
     view.evPick[view.evTab] = sel ? sel.e.id : null;
-    const line = el('p', { class: 'qrs-line' }, 'A QR for one event, with its own menu, prices, dates and times. It stops working by itself when the event ends.');
+    const line = [el('p', { class: 'qrs-line' }, 'A QR for one event, with its own menu, prices, dates and times. It stops working by itself when the event ends.'),
+      all.map(x => evBanner(x.e, x.s))];
     // (New event: step 1, details and tables or QR (EV3–EV3d); Edit: in the next parts)
     const newBtn = el('button', { type: 'button', class: `qrs-evnew${sel ? '' : ' first'}`, onclick: openForm },
       el('span', { class: 'qrs-evnew-i' }, icon('plus')), el('b', {}, 'New event'), el('small', {}, 'Name, dates, tables, menu'));
@@ -708,10 +765,18 @@
       el('div', { class: 'qrs-evscroll' }, groups.map(([label, l]) => [el('p', { class: 'qrs-evlab' }, label), l.map(x => eventCard(x.e, x.s, x === sel))])));
     return [headEl('Event QRs', tabs, eventTools(sel.e, sel.s)), line, el('div', { class: 'qrs-ev' }, list, sel.e.qrs === 'tables' ? tablesPanel(sel.e, sel.s) : wholePanel(sel.e, sel.s))];
   }
-  // An event in the list: its tile, name, dates, QRs and orders, and where it stands (Live, Starts Fri, Ended)
+  // An event paused by itself (EV9): why, since when, what its customers see; See devices
+  function evBanner(e, s) {
+    const a = evPause(e, s); if (!a) return null;
+    return el('div', { class: 'qrs-banner bad ev', role: 'status' }, el('span', { class: 'qrs-bn-i' }, el('span', { class: 'qrs-bn-x' }, '!')),
+      el('div', {}, el('b', {}, `${e.name} paused · ${EV_REASONS[a.reason].status}`),
+        el('span', {}, `Paused by itself at ${clock(a.since)} · turns back on by itself. Event customers see “${CUSTOMER_PAUSED}” Your restaurant QRs are not affected.`)),
+      btn('qrs-bn-btn', 'See devices', () => openPop('devices', { event: e.id })));
+  }
+  // An event in the list: its tile, name, dates, QRs and orders, and where it stands (Live, Paused, Starts Fri, Ended)
   function eventCard(e, s, on) {
     const chip = s.state === 'ended' ? el('span', { class: 'qrs-evchip ended' }, 'Ended') : s.state === 'upcoming' ? el('span', { class: 'qrs-evchip soon' }, `Starts ${dayWords(e.start)}`)
-      : s.open ? el('span', { class: 'qrs-evchip live' }, el('i'), 'Live') : el('span', { class: 'qrs-evchip soon' }, `Opens ${daysApart(Date.now(), s.next) === 0 ? clock(s.next) : dayWords(s.next)}`);
+      : evPause(e, s) ? el('span', { class: 'qrs-evchip bad' }, 'Paused') : s.open ? el('span', { class: 'qrs-evchip live' }, el('i'), 'Live') : el('span', { class: 'qrs-evchip soon' }, `Opens ${daysApart(Date.now(), s.next) === 0 ? clock(s.next) : dayWords(s.next)}`);
     // (the chip keeps its own column on the right: the lines wrap before it, as EV2)
     return el('button', { type: 'button', class: `qrs-evcard${on ? ' on' : ''}${s.state === 'ended' ? ' ended' : ''}`, 'aria-pressed': String(on), onclick: () => { view.evPick[view.evTab] = e.id; render(); } },
       el('span', { class: 'qrs-evcard-i' }, icon('event')),
@@ -738,6 +803,7 @@
     if (s.state === 'upcoming') return el('b', { class: 'soon' }, `Starts ${weekdayDate(e.start)}, ${clock(e.start)}`);
     if (s.state === 'ended') return el('span', { class: 'muted' }, s.early ? `Ended ${daysApart(s.at, now) === 0 ? 'today' : weekdayDate(s.at)}, ${clock(s.at)}${byWho(e.endedBy)}` : `Ended ${weekdayDate(s.at)}, ${clock(s.at)}`);
     if (!s.open) return el('b', { class: 'soon' }, `Opens ${dayWords(s.next)}, ${clock(s.next)}`);
+    const a = evPause(e, s); if (a) return el('b', { class: 'bad' }, `Paused · ${EV_REASONS[a.reason].status}`);
     return el('b', { class: 'ok' }, s.last ? `Live · ends ${inWords(s.until - now)}` : `Live · open until ${clock(s.until)}`);
   }
   // "12 dishes · 10 from your menu · 2 event-only"
@@ -752,7 +818,9 @@
     const o = ordersOf(e), mode = MODES[e.mode] || MODES.both, menuOnly = e.mode === 'menu';
     const rows = [['Status', statusEl(e, s)], ['Dates and times', datesText(e)], ['QRs', 'One QR for the whole event'],
       ['Order type', menuOnly ? 'Menu only · no ordering' : `${mode.label} · name and phone`], ['Menu', menuWords(e)]];
-    if (!menuOnly) rows.push(['KOTs go to', 'Each dish’s own printer'], ['Orders so far', o.n ? `${o.n} · ${rupees(o.kept)}` : 'None yet']);
+    // (EV11's See devices: the event is on, so no banner; a tap on KOTs go to opens it)
+    if (!menuOnly) rows.push(['KOTs go to', el('button', { type: 'button', class: 'qrs-ddbtn', 'aria-label': `KOTs go to ${kotsWords(e)}. See devices`, onclick: () => openPop('devices', { event: e.id }) }, kotsWords(e))],
+      ['Orders so far', o.n ? `${o.n} · ${rupees(o.kept)}` : 'None yet']);
     rows.push(['Created', `${dayMonth(e.createdAt)}${byWho(e.createdBy)}`]);
     const at = s.state === 'ended' ? s.at : e.end, when = daysApart(Date.now(), at) === 0 ? clock(at) : `${clock(at)} on ${weekdayDate(at)}`;
     const first = menuOnly ? (s.state === 'ended' ? `The QR stopped showing the menu at ${when}` : `The QR stops showing the menu at ${when} by itself`)
@@ -926,7 +994,7 @@
     if (typeof host?.list === 'function') { try { const l = await host.list(); list = Array.isArray(l) ? l : []; } catch {} }
     const set = window.RestroPrefs?.get?.('printers') || {};
     kitchen = list.filter(p => p && typeof p.id === 'string' && ['kitchen', 'both'].includes(set[p.id]?.role)).map(p => ({ id: p.id, name: String(set[p.id]?.name || p.name || 'Printer') }));
-    if (form) render();
+    if (dialog.open) render();
   }
   const printerWords = ids => { const names = (ids || []).map(id => kitchen.find(k => k.id === id)?.name).filter(Boolean); return names.length ? names.join(' + ') : null; };
   // where a dish's KOT prints now (no printers of its own yet): every kitchen printer
@@ -1444,11 +1512,14 @@
       el('div', { class: `qrs-pop ${cls}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': pop.kind }, body));
   }
   // The path check (QS44–QS47): Internet → Printer device → Kitchen printer, as far as each step is known
+  // (the devices pop-ups' pieces: a step's box, the arrow between steps, how a printer is linked)
+  const devLink = k => (k.link === 'wifi' ? 'Wi-Fi' : k.link === 'bluetooth' ? 'Bluetooth' : 'Wired');
+  const devBox = (state, ic, title, chip, lines) => el('section', { class: `qrs-dev ${state}` }, el('h4', {}, icon(ic), el('span', {}, title)), el('span', { class: 'qrs-dev-chip' }, chip), lines.filter(Boolean).map(l => el('p', {}, l)));
+  const devArrow = () => el('span', { class: 'qrs-dev-arrow', 'aria-hidden': 'true' }, icon('arrow'));
   function devicesBody() {
+    const ev = pop?.event ? events.find(x => x.id === pop.event) : null; if (ev) return evDevicesBody(ev);
     const p = pathNow(), broken = brokenStep(p), kitchen = (p.printers || []).map(k => ({ ...k, name: kName(k) }));
-    const linkName = k => (k.link === 'wifi' ? 'Wi-Fi' : k.link === 'bluetooth' ? 'Bluetooth' : 'Wired');
-    const box = (state, ic, title, chip, lines) => el('section', { class: `qrs-dev ${state}` }, el('h4', {}, icon(ic), title), el('span', { class: 'qrs-dev-chip' }, chip), lines.filter(Boolean).map(l => el('p', {}, l)));
-    const arrow = () => el('span', { class: 'qrs-dev-arrow', 'aria-hidden': 'true' }, icon('arrow'));
+    const linkName = devLink, box = devBox, arrow = devArrow;
     const internet = box(p.internet ? 'ok' : 'bad', 'wifi', 'Internet', p.internet ? 'Connected' : 'No internet',
       p.internet ? [p.wifiInternet === false ? 'Wi-Fi internet: not connected' : 'Wi-Fi internet', p.mobileVia ? `Mobile data: ${p.mobileVia}` : null] : ['Wi-Fi internet: not connected', 'Mobile data: no device is on it']);
     const printerBox = (k, many) => {
@@ -1482,6 +1553,48 @@
     else if (!many) { const k = kitchen[0]; flow = el('div', { class: 'qrs-flow' }, internet, arrow(), cable(k) ? [deviceBox(k), arrow()] : null, printerBox(k)); cls = cable(k) ? 'three' : 'two'; }
     else { flow = el('div', { class: 'qrs-flow many' }, internet, arrow(), el('div', { class: 'qrs-flow-rows' }, kitchen.map(k => el('div', { class: `qrs-flow-row${cable(k) ? '' : ' solo'}` }, cable(k) ? [deviceBox(k, true), arrow()] : null, printerBox(k, true))))); cls = 'many'; }
     return { cls, kids: [popHead(many ? 'Devices and kitchen printers' : 'Devices and kitchen printer', sub), flow, text, el('div', { class: 'qrs-pbar one' }, btn('', 'Close', closePop))] };
+  }
+  // An event's devices and printers (Update Pack 6, H; EV10, EV11): its own path, Internet → its printer devices → its
+  // printers, as the Android app reports it. One printer down pauses it; with more, the first one still working prints
+  // the down one's dishes too.
+  function evDevicesBody(e) {
+    const ep = evPathOf(e), ks = (ep?.printers || []).map(k => ({ ...k, name: kName(k) })), many = ks.length > 1, broken = ep ? evBroken(ep) : null;
+    const ok = ks.filter(working), down = ks.filter(k => !working(k)), backup = down.length && ok.length ? ok[0] : null;
+    const devs = [...new Map(ks.filter(k => cable(k) && k.device?.name).map(k => [k.device.name, k.device])).values()];
+    const net = !ep ? pathNow().internet : ep.internet;
+    const internet = devBox(net ? 'ok' : 'bad', 'wifi', 'Internet', net ? 'Connected' : 'No internet',
+      !ep ? [net ? 'This device is online' : 'This device is offline'] : devs.length ? devs.map(d => (net ? `${d.internet === 'wifi' ? 'Wi-Fi' : 'Mobile data'} on ${d.name}` : `No mobile data or Wi-Fi on ${d.name}`)) : [net ? 'Wi-Fi' : 'No Wi-Fi']);
+    // (what it prints, Settings › Printers: shown for the only printer, as EV10)
+    const job = k => { const r = window.RestroPrefs?.get?.('printers')?.[k.id]?.role; return r === 'both' ? 'Prints KOTs, bills and receipts' : r === 'kitchen' ? 'Prints KOTs' : null; };
+    const printerBox = k => {
+      const name = many ? k.name : 'Event printer';
+      if (cable(k) && k.device?.on === false) return devBox('off', 'print', name, 'Can’t check', [devLink(k), k.link === 'bluetooth' ? 'The device it’s paired with is off' : 'The device it’s plugged into is off']);
+      if (working(k)) return devBox('ok', 'print', name, 'Connected', [many && cable(k) && k.device?.name ? `${devLink(k)} · on ${k.device.name}` : devLink(k), many ? null : job(k),
+        k === backup ? (ok.length === 1 ? 'Printing all event KOTs' : `Printing ${down.map(x => `${x.name}’s`).join(' and ')} dishes too`) : null]);
+      if (k.link === 'wifi') return devBox('bad', 'print', name, 'Not reachable', ['Wi-Fi', many ? null : job(k), many ? 'Check power and paper' : 'Check power, paper and Wi-Fi']);
+      return devBox('bad', 'print', name, 'Not connected', [devLink(k), many ? null : job(k), many ? 'Check power and paper'
+        : k.link === 'bluetooth' ? `Check power, paper and that it’s near ${k.device?.name || 'its printer device'}` : 'Check power, cable and paper']);
+    };
+    const deviceBox = k => (k.device?.on === false ? devBox('bad', 'monitor', 'Printer device', 'Off', [k.device.name || null, k.device.lastSeen ? `Last seen ${clock(k.device.lastSeen)}` : null])
+      : devBox('ok', 'monitor', 'Printer device', 'On', [k.device?.name || null, k.device?.away ? 'At the event' : null]));
+    let sub;
+    if (broken) sub = `${e.name} ${EV_REASONS[broken].devices}`;
+    else if (backup) sub = `${e.name} is on · ${ok.map(k => k.name).join(' and ')} ${ok.length === 1 ? 'is' : 'are'} printing`;
+    else sub = ep ? `${e.name} is on · every step works` : `${e.name} is on`;
+    const near = ks[0]?.device?.name || 'its printer device';
+    const tries = { internet: `turn on mobile data or Wi-Fi on ${devs.map(d => d.name).join(' or ') || 'the event’s printer device'}.`, device: `turn on ${near}.`,
+      wired: ks[0]?.link === 'bluetooth' ? `turn the printer on, check the paper and keep it near ${near}.` : 'turn the printer on, check the cable and the paper.',
+      wifi: 'turn the printer on, check the paper and that it’s on the Wi-Fi.', printers: 'get any one event printer working.' };
+    // ("until printer 1 is back": Event printer 1, as EV11 says it)
+    const short = k => (/^event printer\s+\S/i.test(k.name) ? k.name.replace(/^event printer\s+/i, 'printer ') : k.name);
+    const text = broken ? el('p', { class: 'qrs-pnote dark' }, el('b', {}, 'Only this event is paused.'), ' Your restaurant’s QRs keep working. ', el('b', {}, 'Try:'), ` ${tries[broken]} The event turns back on by itself.`)
+      : backup ? el('p', { class: 'qrs-pnote dark' }, `${down.map(k => `${k.name}’s`).join(' and ')} dishes print on ${backup.name} along with its own until ${down.length === 1 ? short(down[0]) : 'they'} ${down.length === 1 ? 'is' : 'are'} back. An event’s printers only back up each other: event KOTs never print at the restaurant, and restaurant KOTs never print at the event.`)
+      : el('p', { class: 'qrs-pnote dark' }, ep ? 'Nothing to do.' : 'Nothing to do. The event’s printer devices and printers show here in the RESTRO Android app.');
+    let flow, cls = 'one';
+    if (!ks.length) flow = el('div', { class: 'qrs-flow' }, internet);
+    else if (!many) { const k = ks[0]; flow = el('div', { class: 'qrs-flow' }, internet, devArrow(), cable(k) ? [deviceBox(k), devArrow()] : null, printerBox(k)); cls = cable(k) ? 'three' : 'two'; }
+    else { flow = el('div', { class: 'qrs-flow many' }, internet, devArrow(), el('div', { class: 'qrs-flow-rows' }, ks.map(k => el('div', { class: `qrs-flow-row${cable(k) ? '' : ' solo'}` }, cable(k) ? [deviceBox(k), devArrow()] : null, printerBox(k))))); cls = 'many'; }
+    return { cls: `${cls} ev`, kids: [popHead(`${e.name} · devices and printers`, sub), flow, text, el('div', { class: 'qrs-pbar one' }, btn('', 'Close', closePop))] };
   }
   // ak••••••@gmail.com, +91 98••• ••210
   function maskEmail(v) { const m = /^([^@\s]+)@(.+)$/.exec(String(v || '').trim()); return m ? `${m[1].slice(0, 2)}••••••@${m[2]}` : ''; }
@@ -1774,16 +1887,22 @@
     if (status == null) { path = null; changed(); return; }
     let s = status; if (typeof s === 'string') { try { s = JSON.parse(s); } catch { return; } }
     if (!s || typeof s !== 'object') return;
+    const list = v => (Array.isArray(v) ? v : []).filter(x => x && typeof x === 'object');
+    const printer = (k, i, word) => ({ id: String(k.id ?? i), name: String(k.name || `${word} ${i + 1}`), link: k.link === 'wifi' ? 'wifi' : k.link === 'bluetooth' ? 'bluetooth' : 'wired',
+      state: k.state === 'ok' ? 'ok' : 'down', paper: k.paper === 'ok' ? 'ok' : null, backup: k.backup === true,
+      device: k.device && typeof k.device === 'object' ? { name: String(k.device.name || ''), on: k.device.on !== false, lastSeen: Number(k.device.lastSeen) || 0,
+        internet: k.device.internet === 'mobile' ? 'mobile' : k.device.internet === 'wifi' ? 'wifi' : null, away: k.device.away === true } : null });
     path = { internet: s.internet !== false, wifiInternet: s.wifiInternet !== false, mobileVia: typeof s.mobileVia === 'string' && s.mobileVia ? s.mobileVia : null, since: Number(s.since) || 0,
-      printers: (Array.isArray(s.printers) ? s.printers : []).filter(k => k && typeof k === 'object').map((k, i) => ({ id: String(k.id ?? i), name: String(k.name || `Kitchen printer ${i + 1}`), link: k.link === 'wifi' ? 'wifi' : k.link === 'bluetooth' ? 'bluetooth' : 'wired',
-        state: k.state === 'ok' ? 'ok' : 'down', paper: k.paper === 'ok' ? 'ok' : null, backup: k.backup === true,
-        device: k.device && typeof k.device === 'object' ? { name: String(k.device.name || ''), on: k.device.on !== false, lastSeen: Number(k.device.lastSeen) || 0 } : null })) };
+      printers: list(s.printers).map((k, i) => printer(k, i, 'Kitchen printer')),
+      // (Update Pack 6, H: each live event's own path)
+      events: Object.fromEntries(list(s.events).filter(x => typeof x.id === 'string' && x.id).map(x => [x.id, { internet: x.internet !== false, since: Number(x.since) || 0,
+        printers: list(x.printers).map((k, i) => printer(k, i, 'Event printer')) }])) };
     changed();
   }
 
   // ---------- opening, closing, Back ----------
   function open(page) {
-    load(); loadScans(); loadEvents(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; pop = null; form = null;
+    load(); loadScans(); loadEvents(); loadKitchen(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; pop = null; form = null;
     noteOrders();
     if (!dialog.open) dialog.showModal();
     render(); dialog.querySelector('#qr-studio-title')?.focus({ preventScroll: true });
@@ -1812,7 +1931,7 @@
   window.addEventListener('restro:qr-scan', e => scanned(e.detail));
   window.addEventListener('restro:restaurant-renamed', () => render());
   // (QR ordering's own clock: a pause ending, opening and closing, and the 10 s before it turns back on by itself)
-  setInterval(() => { const n = attention(); if (n !== lastCount) changed(); else if (dialog.open && autoSince && pathOkSince) render(); }, 5000);
+  setInterval(() => { const n = attention(); if (n !== lastCount) changed(); else if (dialog.open && ((autoSince && pathOkSince) || [...evAuto.values()].some(a => a.okSince))) render(); }, 5000);
   window.RestroQrStudio = Object.freeze({ open, goBack, attention: () => attention(), ordering: () => { const s = ordering(); return { state: s.state, reason: s.auto?.reason || null }; },
     scanned, path: setPath, list: () => records.map(r => ({ ...r })), events: () => events.map(e => ({ ...e })) });
 })();
