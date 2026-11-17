@@ -1190,6 +1190,10 @@ mode the lock, to sit on top of the tablet's keyboard.
   still does what it does (a dish tapped on the Counter is added). Except: a tap on the field being typed in or its own
   box (its ✕ clears it, and the typing goes on), a tap on another field (the typing goes there), and the navigation
   bar (its Back puts the keyboard away first, as before). A finger that moves (scrolling a list) is not a tap.
+- **It opens on any field that takes the focus**, so a screen that puts the focus in a field by itself opens it too.
+  The Counter doesn't (owner, 17 Nov 2026): Pay opens with nothing typed into (a quick amount is tapped, or the Cash
+  received box to type one), and after Save, or Pay's New order, the Counter is back on its order page with the search
+  empty and the keyboard down.
 - **The field stays in view:** where the keyboard would cover it, the list it is in scrolls it up, with room added under
   the list while the keyboard is up. The Counter's pop-ups go to the top while typing, as before.
 - **Look:** Light: #E9ECEF behind, white keys, #CDD2D8 for the keys that do things, Enter in RESTRO blue #2F6FDE.

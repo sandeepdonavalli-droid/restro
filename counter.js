@@ -946,7 +946,8 @@
     if (askKot('save')) return;
     const done = await fire(null); if (!done) return;
     const { entry, kot, printed } = done;
-    fresh();
+    // (owner, 17 Nov 2026) the new order starts on the order page, as after Pay: the search cleared, no category open
+    query = ''; category = null; fresh();
     // (Update Pack 4, CS6 and CS9) a scheduled order: "· KOT prints at 9:30 pm", or "· KOT sent to the kitchen"; the KOT's
     // number once it has one
     const no = printed ? await printed : null;
@@ -3661,7 +3662,8 @@
         el('div', { class: 'ctr-received' }, el('span', { 'aria-hidden': 'true' }, '₹'), input),
         el('div', { class: 'ctr-fast-row' }, ...options.map(v => el('button', { type: 'button', class: 'ctr-chip', onclick: () => { input.value = String(v / 100); update(); } }, money(v).replace('.00', '')))),
         change, completeBtn);
-      setTimeout(() => { input.focus(); update(); });
+      // (owner, 17 Nov 2026) Pay doesn't go into the amount box by itself: a quick amount, or the box tapped to type one
+      update();
       return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
         el('div', { class: 'ctr-sheet', role: 'dialog', 'aria-label': 'Take payment' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Take payment'), close), body));
     }
@@ -3760,7 +3762,7 @@
             el('dt', {}, 'Total'), el('dd', {}, money(receipt.total)),
             el('dt', {}, 'Cash received'), el('dd', {}, money(receipt.received)),
             el('dt', { class: 'ctr-total' }, 'Change to give'), el('dd', { class: 'ctr-total' }, money(receipt.change))),
-          el('button', { type: 'button', class: 'primary-button ctr-complete', onclick: () => { sheet = null; receipt = null; render(); dialog.querySelector('#counter-search')?.focus(); } }, 'New order')));
+          el('button', { type: 'button', class: 'primary-button ctr-complete', onclick: () => { sheet = null; receipt = null; render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); } }, 'New order')));
     }
     return null;
   }
@@ -3791,7 +3793,7 @@
     const pickEl = dialog.querySelector('.cx-pkl'); if (pickEl) pickEl.scrollTop = popScroll[2];
     // Typing carries on where it was (search, a note, a reason, or a custom item's name or note while it is the one being
     // typed in)
-    const typingOn = focusId === 'counter-search' || focusId === 'counter-note' || focusId === 'counter-reason' || focusId === 'counter-dish-reason' || (customPop && focusId === `counter-custom-${customPop.field}`);
+    const typingOn = focusId === 'counter-search' || focusId === 'counter-note' || focusId === 'counter-reason' || focusId === 'counter-dish-reason' || focusId === 'counter-received' || (customPop && focusId === `counter-custom-${customPop.field}`);
     if (typingOn) { const f = dialog.querySelector(`#${focusId}`); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
   }
   // Messages on the Counter go in its message bar (Update 7); with the Counter not on screen, the system's toast
