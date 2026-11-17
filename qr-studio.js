@@ -795,8 +795,8 @@
   // runs over more than a day, on as EV3; its two times are the start's and the end's); qrs 'tables' | 'whole'; tables
   // from 'event' (numbers [{ n, on }]: Table 1–12, + Add; a tap leaves one out or puts it back) or 'floor' (off: the
   // Floor tables left out); mode 'both' | 'takeaway' | 'menu'; the codes its QRs will get (on the card preview); pick:
-  // the field whose picker is open; cal: the month its calendar shows. The menu (EV4–EV6) and the printers (EV8) come
-  // next; until then Next says "Coming soon".
+  // the field whose picker is open; cal: the month its calendar shows. Then step 2, the menu (EV4–EV6: menu), and step
+  // 3, the printers (EV8: prn); Create event keeps the event (nothing is kept before).
   let form = null;
   const HOUR = 36e5;
   function openForm() {
@@ -836,6 +836,7 @@
   }
   function formPage() {
     if (form.step === 2) return menuStepPage();
+    if (form.step === 3) return printersStepPage();
     const f = form, multi = multiDay(), tables = f.qrs === 'tables', menuOnly = !tables && f.mode === 'menu', problem = formProblem();
     const next = btn('teal', 'Next: choose the menu', nextStep); next.disabled = Boolean(problem);
     const line = el('p', { class: 'qrs-line' }, tables ? 'Step 1 of 3 · details and tables. Then the menu and the printers.' : menuOnly ? 'Step 1 of 2 · details and QR. Then the menu.' : 'Step 1 of 3 · details and QR. Then the menu and the printers.');
@@ -943,17 +944,111 @@
     return { total: picked.length + m.own.length, line: [`${picked.length} from your menu (${cats.filter(c => used.has(c.id)).length} of ${cats.length} categories)`, `${m.own.length} event-only`,
       changed.length ? `${changed.join(' and ')} changed` : ''].filter(Boolean).join(' · ') };
   }
+  const stepLi = (n, label, state) => el('li', { class: `qrs-step${state === 'on' ? ' on' : state === 'done' ? ' done' : ''}`, 'aria-current': state === 'on' ? 'step' : null }, el('span', {}, state === 'done' ? icon('check') : String(n)), el('b', {}, label));
+  const stepJoint = () => el('li', { class: 'qrs-step-line', 'aria-hidden': 'true' });
+  const tickBox = (on, label, fn, cls = '') => el('button', { type: 'button', class: `qrs-tick2${cls ? ` ${cls}` : ''}${on ? ' on' : ''}`, role: 'checkbox', 'aria-checked': String(on), 'aria-label': label, onclick: ev => { ev.stopPropagation(); fn(); } }, on ? icon('check') : null);
+  // The event's dishes as they stand: the dishes picked from the menu (in its order), then the event-only ones, per
+  // category: { key (the dish's id), cat, name, veg, price (its event price), out (sold out today), own, set (the
+  // printers picked for this event; null: where KOTs print now), changed }
+  function eventDishes() {
+    const m = form.menu, out = [];
+    for (const c of menuCats()) {
+      for (const i of c.items) if (m.picked.has(i.id)) { const ch = m.changes.get(i.id) || {}; out.push({ key: i.id, cat: c, name: i.name, veg: i.veg !== false, price: ch.price ?? i.price, out: soldOutNow(i.id), own: false, set: ch.printers || null }); }
+      for (const d of m.own) if (d.cat === c.id) out.push({ key: d.id, cat: c, name: d.name, veg: d.veg, price: d.price, out: false, own: true, set: d.printers.length ? d.printers : null });
+    }
+    return out;
+  }
+  // a dish's printers now: its own pick, or every kitchen printer
+  const printsAt = d => (d.set ? d.set.filter(id => kitchen.some(k => k.id === id)) : kitchen.map(k => k.id));
+  // ---------- New event, step 3: the printers (Update Pack 6, G: EV8) ----------
+  // Built for groups: tick dishes (across categories; the ticks stay), tick one or more printers, Apply to them; then the
+  // next group. For this event only: the dishes not ticked keep their printers. prn: { sel (dish keys), on (printer ids),
+  // cat (the category on show) }.
+  function printersStepPage() {
+    const f = form, m = f.menu, name = f.name.trim(), all = eventDishes(), keys = new Set(all.map(d => d.key));
+    const p = f.prn || (f.prn = { sel: new Set(), on: new Set(), cat: null });
+    for (const k of [...p.sel]) if (!keys.has(k)) p.sel.delete(k);
+    for (const k of [...p.on]) if (!kitchen.some(x => x.id === k)) p.on.delete(k);
+    const cats = [...new Map(all.map(d => [d.cat.id, d.cat])).values()], cat = cats.find(c => c.id === p.cat) || cats[0] || null;
+    if (cat) p.cat = cat.id;
+    const n = p.sel.size, problem = formProblem();
+    const create = btn('teal', 'Create event', createEvent); create.disabled = Boolean(problem) || !all.length;
+    const pill = c => { const k = all.filter(d => d.cat === c && p.sel.has(d.key)).length, on = c === cat;
+      return el('button', { type: 'button', class: `qrs-mcat${on ? ' on' : ''}`, 'aria-pressed': String(on), onclick: () => { p.cat = c.id; render(); } }, el('span', {}, c.name), k ? el('i', { class: 'qrs-mbadge', 'aria-label': `${k} selected` }, String(k), icon('check')) : null); };
+    let panel = null;
+    if (cat) {
+      const mine = all.filter(d => d.cat === cat), every = mine.length > 0 && mine.every(d => p.sel.has(d.key));
+      const toggle = d => { p.sel.has(d.key) ? p.sel.delete(d.key) : p.sel.add(d.key); render(); };
+      const row = d => { const on = p.sel.has(d.key), words = d.set ? printerWords(d.set) : null;
+        return el('div', { class: `qrs-drow pk${on ? ' sel' : ''}`, role: 'button', tabindex: '0', 'aria-pressed': String(on), 'aria-label': d.name, onclick: () => toggle(d),
+          onkeydown: ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(d); } } },
+          tickBox(on, d.name, () => toggle(d), 'blue'), dishThumb(),
+          el('span', { class: 'qrs-dtext' }, el('span', { class: 'qrs-dname' }, vegMark(d.veg), el('b', {}, d.name), d.out ? el('em', { class: 'qrs-dtag out' }, 'Sold out today') : null, d.own ? el('em', { class: 'qrs-dtag own' }, 'Event-only') : null),
+            el('span', { class: 'qrs-dsub' }, `${d.cat.name} · ${inr(d.price)}`)),
+          el('span', { class: `qrs-dchip${words && !d.own ? ' on' : ''}` }, icon('print'), words || usualPrinters())); };
+      panel = el('section', { class: 'qrs-mpanel pk', 'aria-label': cat.name },
+        el('div', { class: 'qrs-mhead' }, tickBox(every, `Select all ${cat.name}`, () => { for (const d of mine) every ? p.sel.delete(d.key) : p.sel.add(d.key); render(); }, 'blue'),
+          el('div', {}, el('b', {}, `Select all ${cat.name}`), el('span', {}, 'Or tick single dishes. Ticks in other categories stay.'))),
+        el('div', { class: 'qrs-mrows' }, mine.map(row)));
+    }
+    const counts = new Map(kitchen.map(k => [k.id, all.filter(d => printsAt(d).includes(k.id)).length]));
+    const pr = k => { const on = p.on.has(k.id), c = counts.get(k.id), pick = () => { on ? p.on.delete(k.id) : p.on.add(k.id); render(); };
+      return el('div', { class: 'qrs-pk', role: 'button', tabindex: '0', 'aria-pressed': String(on), onclick: pick, onkeydown: ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } } },
+        tickBox(on, k.name, pick, 'blue'), el('span', {}, el('b', {}, k.name), el('small', {}, c ? `${plural(c, 'dish', 'dishes')} ${c === 1 ? 'prints' : 'print'} here now` : 'No dishes print here now'))); };
+    const apply = btn('teal', n ? `Apply to ${plural(n, 'dish', 'dishes')}` : 'Apply', applyPrinters); apply.disabled = !n || !p.on.size;
+    const right = el('div', { class: 'qrs-mside' },
+      el('section', { class: 'qrs-mcard pk' }, el('h3', {}, n ? `Send the ${n} selected ${n === 1 ? 'dish' : 'dishes'} to` : 'Send the selected dishes to'),
+        el('p', {}, 'Tick one or more printers.'),
+        kitchen.length ? el('div', { class: 'qrs-pks' }, kitchen.map(pr)) : el('p', { class: 'qrs-pnote' }, 'No kitchen printers yet. Settings › Printers lists them once the RESTRO Android app finds them.'),
+        apply, el('p', { class: 'qrs-pknote' }, 'Only for this event. Dishes you didn’t select keep their printer.')),
+      el('section', { class: 'qrs-mcard tip' }, el('h3', {}, 'Tip'), el('ul', {}, el('li', {}, 'Select all dishes once to send everything to one printer'), el('li', {}, 'Or do it in groups: e.g. 30 dishes to Tandoor, then 10 to Desserts'))));
+    return [headEl(`${name} · printers`, null, [btn('', 'Back', () => { f.step = 2; render(); }), create]),
+      el('p', { class: 'qrs-line' }, 'Step 3 of 3 · select dishes, tick the printers they go to, then Apply. Repeat for the next group.'),
+      el('ol', { class: 'qrs-steps m', 'aria-label': 'Steps' }, stepLi(1, 'Details', 'done'), stepJoint(), stepLi(2, 'Menu', 'done'), stepJoint(), stepLi(3, 'Printers', 'on')),
+      el('div', { class: 'qrs-mstep' }, el('div', { class: 'qrs-mcats' }, el('p', { class: 'qrs-evlab' }, 'ON THIS EVENT'), el('div', { class: 'qrs-mcats-l' }, cats.map(pill))),
+        panel || el('section', { class: 'qrs-mpanel none' }, el('p', {}, 'No dishes on this event yet.')), right)];
+  }
+  // Apply: the ticked dishes print at the ticked printers, for this event; the ticks clear for the next group
+  function applyPrinters() {
+    const p = form?.prn, m = form?.menu; if (!p || !p.sel.size || !p.on.size) return;
+    const ids = kitchen.map(k => k.id).filter(id => p.on.has(id)), every = ids.length === kitchen.length, n = p.sel.size;
+    for (const key of p.sel) {
+      const own = m.own.find(d => d.id === key);
+      if (own) { own.printers = [...ids]; continue; }
+      const ch = { ...(m.changes.get(key) || {}) };
+      if (every) delete ch.printers; else ch.printers = [...ids];
+      if (Object.keys(ch).length) m.changes.set(key, ch); else m.changes.delete(key);
+    }
+    p.sel.clear(); p.on.clear(); render();
+    toast(`${plural(n, 'dish', 'dishes')} now ${n === 1 ? 'goes' : 'go'} to ${printerWords(ids)}`);
+  }
+  // Create event: kept as Event QRs keep events (restro.events.v1, synced), its QRs as the card preview showed them, its
+  // menu: items [{ id, price (its event price, when changed), printers (when picked for the event) }], own [the
+  // event-only dishes]; then Event QRs shows it
+  function createEvent() {
+    const f = form; if (!f || formProblem()) return;
+    const m = f.menu, items = menuCats().flatMap(c => c.items.filter(i => m.picked.has(i.id)).map(i => { const ch = m.changes.get(i.id) || {};
+      return { id: i.id, ...(ch.price != null ? { price: ch.price } : {}), ...(ch.printers ? { printers: [...ch.printers] } : {}) }; }));
+    if (!items.length && !m.own.length) return;
+    const at = Date.now(), base = formEvent();
+    const e = { id: `ev_${at.toString(36)}${Math.random().toString(36).slice(2, 6)}`, name: base.name, start: base.start, end: base.end, daily: base.daily, qrs: f.qrs,
+      menu: { items, own: m.own.map(d => ({ ...d, printers: [...d.printers] })) }, createdAt: at, createdBy: who() };
+    if (f.qrs === 'whole') Object.assign(e, { mode: f.mode, code: f.code, path: base.path });
+    else Object.assign(e, { tablesFrom: f.from, tables: formTables() });
+    events.push(e); storeEvents();
+    form = null; pop = null; view.evTab = 'events'; view.evPick.events = e.id; render();
+    toast(`${e.name} created`);
+  }
   function menuStepPage() {
     const f = form, m = f.menu, cats = menuCats(), cat = cats.find(c => c.id === m.cat) || cats[0] || null, menuOnly = f.qrs === 'whole' && f.mode === 'menu', name = f.name.trim(), sum = menuSum();
     if (cat) m.cat = cat.id;
-    const next = btn('teal', menuOnly ? 'Create event' : 'Next: printers', () => { if (sum.total) toast('Coming soon', null, null); }); next.disabled = !sum.total;
-    const step = (n, label, state) => el('li', { class: `qrs-step${state === 'on' ? ' on' : state === 'done' ? ' done' : ''}`, 'aria-current': state === 'on' ? 'step' : null }, el('span', {}, state === 'done' ? icon('check') : String(n)), el('b', {}, label));
-    const joint = () => el('li', { class: 'qrs-step-line', 'aria-hidden': 'true' });
+    const next = btn('teal', menuOnly ? 'Create event' : 'Next: printers', () => { if (!sum.total) return; if (menuOnly) createEvent(); else { f.step = 3; render(); } }); next.disabled = !sum.total;
+    const step = stepLi, joint = stepJoint;
     const ownIn = c => m.own.filter(d => d.cat === c.id);
     const countOf = c => { const n = c.items.length, t = c.items.filter(i => m.picked.has(i.id)).length, o = ownIn(c).length; return { text: `${t === n && n ? `All ${n}` : `${t} of ${n}`}${o ? ` + ${o}` : ''}`, some: t + o > 0 }; };
     const catPill = c => { const k = countOf(c), on = c === cat;
       return el('button', { type: 'button', class: `qrs-mcat${on ? ' on' : ''}${k.some ? ' some' : ''}`, 'aria-pressed': String(on), onclick: () => { m.cat = c.id; render(); } }, el('span', {}, c.name), el('small', {}, k.text)); };
-    const tick = (on, label, fn) => el('button', { type: 'button', class: `qrs-tick2${on ? ' on' : ''}`, role: 'checkbox', 'aria-checked': String(on), 'aria-label': label, onclick: ev => { ev.stopPropagation(); fn(); } }, on ? icon('check') : null);
+    const tick = (on, label, fn) => tickBox(on, label, fn);
     let panel = null;
     if (cat) {
       const all = cat.items.length > 0 && cat.items.every(i => m.picked.has(i.id)), gst = `GST ${gstOf()}%`;
@@ -1699,7 +1794,7 @@
     if (pop) { if (pop.kind !== 'test' || pop.result) { closePop(); return true; } closePop(); return true; }
     if (view.picked) { stopPicking(); return true; }
     // (New event: Back closes an open calendar or wheels, then the form, as Cancel)
-    if (form) { if (form.pick) { form.pick = null; render(); } else if (form.step === 2) { form.step = 1; render(); } else closeForm(); return true; }
+    if (form) { if (form.pick) { form.pick = null; render(); } else if (form.step > 1) { form.step -= 1; render(); } else closeForm(); return true; }
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });

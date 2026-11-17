@@ -798,8 +798,11 @@ the middle still scans. Every method here is optional, as noted.
     printedBy, sentAt, sentBy }]`, `path` `<restaurant>/E3-<code>`; `tablesFrom: 'event'` (event table numbers) or
     `'floor'` (the restaurant's tables: `floor` is the Floor table's id). Each table keeps when its own card was last
     printed or sent (Print all and Send all set them on every table) and when its QR was replaced.
-  - `menu: { items, own }`: the dishes from the menu (with their event price and printers when changed) and the
-    event-only dishes (New event, step 2).
+  - `menu: { items, own }` (New event, steps 2 and 3): `items: [{ id, price, printers }]`, the dishes from the menu in
+    the menu's order (`id` the dish's; `price` in rupees only when changed for the event; `printers` only when picked
+    for the event: the kitchen printers' ids, `RESTRODevice.printer.list()`; without it the dish's KOT prints where
+    KOTs print now, every kitchen printer), and `own: [{ id, cat, name, price, gst, veg, printers }]`, the event-only
+    dishes. A whole category is kept as its dishes (dishes added to the category later don't join).
   - `endedAt`, `endedBy`: End now. `hadOrders`: set once it has an order (never cleared), so Delete stays off after its
     orders leave this device.
   - Two tabs right of the title (owner, 16 Nov 2026), as the area chips, with their counts: **Events** lists **New
@@ -832,9 +835,9 @@ the middle still scans. Every method here is optional, as noted.
       before it starts"). **Next: choose the menu** opens step 2. **Cancel**, Back, another pill or closing QR Studio
       leave the form (Back first closes an open calendar or wheels); nothing is kept until the event is created.
   - **New event**, step 2, the menu (Pack 6 F, the screens EV4–EV6): "‹event› · menu", Back (to step 1, everything
-    kept) and **Next: printers** (Menu only: **Create event**, "Step 2 of 2"); both greyed with no dish picked and say
-    "Coming soon" until the Printers step (EV8) is built. "Step 2 of 3 · every category from your menu. Tick a whole
-    category or single dishes; add event-only dishes inside a category."
+    kept) and **Next: printers** (step 3; Menu only: **Create event**, "Step 2 of 2", as step 3's), greyed with no dish
+    picked. "Step 2 of 3 · every category from your menu. Tick a whole category or single dishes; add event-only
+    dishes inside a category."
     - Left: **YOUR MENU · N CATEGORIES**, every category of the menu (`RestroMenu`, as the Menu app has it) with how
       many of its dishes are on the event ("0 of 17", "6 of 17 + 1" with event-only dishes, "All 17"; teal once any).
     - Middle, the category on show: **‹category› · whole category** ticks all its dishes ("New dishes added to
@@ -867,7 +870,27 @@ the middle still scans. Every method here is optional, as noted.
       (Update Pack 5's photo upload rules), so the photo buttons say "Coming soon".
     - The draft, kept on the form only: `menu: { picked: Set(dish id), changes: Map(dish id → { price?, printers? }),
       own: [{ id, cat, name, price, gst, veg, printers }] }`, prices in rupees as the menu; it becomes the event's
-      `menu` when the event is created (the Printers step).
+      `menu` when the event is created.
+  - **New event**, step 3, the printers (Pack 6 G, the screen EV8): "‹event› · printers", Back (to step 2, everything
+    kept; the device Back too) and **Create event**. "Step 3 of 3 · select dishes, tick the printers they go to, then
+    Apply. Repeat for the next group." Built for groups, for this event only:
+    - Left: **ON THIS EVENT**, the categories with dishes on the event, in the menu's order, each with how many of its
+      dishes are selected (a blue "3 ✓").
+    - Middle, the category on show: **Select all ‹category›** ("Or tick single dishes. Ticks in other categories
+      stay."), then its dishes (from the menu, then event-only): a blue tick (a tap anywhere on the row; Enter or Space),
+      "Add photo", veg mark, name (Sold out today, Event-only), "‹category› · ₹‹event price›" and where its KOT goes
+      now (the printers picked for the event in teal; else where KOTs print now: "All kitchen printers"; an
+      event-only dish shows its own printers, never teal). A selected row is tinted blue.
+    - Right: **Send the N selected dishes to** · "Tick one or more printers.": each kitchen printer with a blue tick and
+      "12 dishes print here now"; **Apply to N dishes** (greyed until a dish and a printer are ticked; with none:
+      "No kitchen printers yet. Settings › Printers lists them once the RESTRO Android app finds them." and the event
+      can still be created) · "Only for this event. Dishes you didn't select keep their printer." Apply sets the
+      selected dishes' printers ("3 dishes now go to Tandoor"; every kitchen printer is the same as no change) and
+      clears the ticks for the next group. Then the **Tip** card.
+    - **Create event** (greyed while step 1's checks fail, as when its end has passed): the event is kept in
+      `restro.events.v1` (synced) with its QRs as the card preview showed them (one per event table, or one for the
+      whole event with its mode) and its menu (above), `createdAt` and `createdBy`; then Event QRs shows it picked,
+      with "‹event› created". Nothing is kept before this.
   - Buttons: Test scan · Reprint · Send · Replace QR · Edit · End now · Delete for one QR for the whole event; Test scan
     · Print all · Send all · Edit · End now · Delete for one per event table. End now is greyed before the event starts
     and after it ends; Delete is greyed once it has had an order, so takings never disappear. Once the event has ended
