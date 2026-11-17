@@ -32,7 +32,7 @@ Run it after any change to how the page talks to the app.
 | `restro:keyboard` | event | The keyboard |
 | `printer.printBill` | method | Printing the bill |
 | `printer.printKot` | method | The kitchen printer |
-| `printer.list` | method | The printers |
+| `printer.list` | method | The printers (Settings › Printers; QR Studio's New event) |
 | `recommendedTimeout` | method | Messages |
 | `printer.paperStatus`, `printer.subscribePaperStatus`, `restro:printer-paper` | methods, event | The bill printer's paper |
 | `RestroSystem.back`, `RestroSystem.home`, `RestroSystem.recents`, `goHome`, `goBack`, `openRecentApps` | page calls, methods | Back, Home and Recent apps |
@@ -798,7 +798,8 @@ the middle still scans. Every method here is optional, as noted.
     printedBy, sentAt, sentBy }]`, `path` `<restaurant>/E3-<code>`; `tablesFrom: 'event'` (event table numbers) or
     `'floor'` (the restaurant's tables: `floor` is the Floor table's id). Each table keeps when its own card was last
     printed or sent (Print all and Send all set them on every table) and when its QR was replaced.
-  - `menu: { items, own }`: the dishes from the menu and the event-only dishes.
+  - `menu: { items, own }`: the dishes from the menu (with their event price and printers when changed) and the
+    event-only dishes (New event, step 2).
   - `endedAt`, `endedBy`: End now. `hadOrders`: set once it has an order (never cleared), so Delete stays off after its
     orders leave this device.
   - Two tabs right of the title (owner, 16 Nov 2026), as the area chips, with their counts: **Events** lists **New
@@ -828,9 +829,44 @@ the middle still scans. Every method here is optional, as noted.
     - **Card preview**: the card as it will print, with the code its QR will get: an event table's ("CARD PREVIEW ·
       EVENT TABLE 3": its third table, or its first while it has fewer), or the whole event's.
     - Next is greyed without a name or a table, and while it ends before it starts or has already ended ("It ends
-      before it starts"). **Next: choose the menu** says "Coming soon" until the menu step (EV4–EV6) is built; nothing
-      is kept yet. **Cancel**, Back, another pill or closing QR Studio leave the form (Back first closes an open
-      calendar or wheels).
+      before it starts"). **Next: choose the menu** opens step 2. **Cancel**, Back, another pill or closing QR Studio
+      leave the form (Back first closes an open calendar or wheels); nothing is kept until the event is created.
+  - **New event**, step 2, the menu (Pack 6 F, the screens EV4–EV6): "‹event› · menu", Back (to step 1, everything
+    kept) and **Next: printers** (Menu only: **Create event**, "Step 2 of 2"); both greyed with no dish picked and say
+    "Coming soon" until the Printers step (EV8) is built. "Step 2 of 3 · every category from your menu. Tick a whole
+    category or single dishes; add event-only dishes inside a category."
+    - Left: **YOUR MENU · N CATEGORIES**, every category of the menu (`RestroMenu`, as the Menu app has it) with how
+      many of its dishes are on the event ("0 of 17", "6 of 17 + 1" with event-only dishes, "All 17"; teal once any).
+    - Middle, the category on show: **‹category› · whole category** ticks all its dishes ("New dishes added to
+      ‹category› later don't join by themselves": the event keeps the dishes, not the category), then each dish:
+      tick, picture, veg mark, name, "Menu price ₹260 · GST 5%" (and "· event price ₹280" once changed), where its KOT
+      prints and its price for the event. A dish sold out in Availability (`restro.menu.availability.v1`) says "Sold
+      out today" and "Sold out in Availability · still on this event while ticked": it can be ticked (stock kept aside
+      for the event) and stays sold out for regular orders. Unticked dishes are dimmed. Last: **Add event-only dish to
+      ‹category›**.
+    - A tap on a dish (EV6): "‹dish› · for this event · Changes apply to ‹event› only. Your regular menu stays the
+      same.": its picture with Replace photo for this event (Scan to add · Device camera · Device gallery), **Event
+      price** ("Menu price ₹230"), GST "5% · from your menu", **KOT goes to** · usually ‹where› · pick one or more (the
+      kitchen printers, all ticked at first), Cancel · **Save for this event** (greyed without a price, or with no
+      printer ticked while there are kitchen printers). Saving ticks the dish; the same price and every printer is no
+      change. The regular menu, its prices and its dishes' printers never change here.
+    - **Add event-only dish to ‹category›** (EV5): "Only for ‹event› · ends with the event": Dish name, Price (₹,
+      digits and a point), GST (0 · 5 · 12 · 18%, the menu's to start), Veg or non-veg, KOT goes to (pick one or more;
+      the only kitchen printer is ticked at first), Photos, Cancel · **Add dish** (greyed until a name, a price and a
+      printer, while there are kitchen printers). It shows after the category's dishes with an Event-only tag; a tap
+      opens it again with **Take it off** · Save dish. Event-only dishes never show in Availability or Inventory.
+    - Right: **Event-only dishes · N** (each with its category, veg, GST, printers and price; a tap opens it), **Sold out
+      today** (a note) and what the menu comes to: "29 dishes on this menu · 27 from your menu (7 of 14 categories) · 2
+      event-only · 1 price and 1 printer changed".
+    - Dishes have no photos or printers of their own yet (the Menu app): each shows its category's picture, and its KOT
+      prints where KOTs print now, every kitchen printer ("All kitchen printers"; with one, its name; with none, "No
+      kitchen printer yet", and a dish can be added without a printer). The kitchen printers are those
+      `RESTRODevice.printer.list()` gives whose job (Settings › Printers, `restro.printers.v1`) is KOTs or both.
+      Adding a photo waits for the photo checks in the cloud (Update Pack 5's photo upload rules), so the photo
+      buttons say "Coming soon".
+    - The draft, kept on the form only: `menu: { picked: Set(dish id), changes: Map(dish id → { price?, printers? }),
+      own: [{ id, cat, name, price, gst, veg, printers }] }`, prices in rupees as the menu; it becomes the event's
+      `menu` when the event is created (the Printers step).
   - Buttons: Test scan · Reprint · Send · Replace QR · Edit · End now · Delete for one QR for the whole event; Test scan
     · Print all · Send all · Edit · End now · Delete for one per event table. End now is greyed before the event starts
     and after it ends; Delete is greyed once it has had an order, so takings never disappear. Once the event has ended
@@ -1269,8 +1305,8 @@ CANCELLED slip as before; none prints when none of the orders reached the kitche
 ## The printers: `RESTRODevice.printer.list()`
 
 Settings › Printers lists the printers the app knows: this device's own and the rest of the restaurant's (the other
-devices' printers, through the restaurant's network or the cloud). Return `[{ id, name, connection, own, device,
-connected }]` (or a Promise of it):
+devices' printers, through the restaurant's network or the cloud); QR Studio's New event (the menu step) lists the
+kitchen printers from it too. Return `[{ id, name, connection, own, device, connected }]` (or a Promise of it):
 - `connection`: as it should read, e.g. `"Bluetooth"`, `"Wi-Fi"`, `"USB"`, `"Built in"`. `"Bluetooth"` marks a
   Bluetooth printer.
 - `own`: `true` for this device's own printers: built in, or set up on this device (USB, Bluetooth or Wi-Fi). Left
