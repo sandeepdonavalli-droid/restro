@@ -2882,9 +2882,10 @@
       ...(() => { const ls = [bill.address, [bill.phone, bill.email].filter(Boolean).join(' · '), [bill.gstin ? `GSTIN ${bill.gstin}` : '', bill.fssai ? `FSSAI ${bill.fssai}` : ''].filter(Boolean).join(' · ')].filter(Boolean);
         return ls.length ? [el('p', { class: 'small' }, ...ls.flatMap((t, i) => (i ? [el('br'), t] : [t])))] : []; })(),
       el('hr'), el('p', { class: 'b' }, bill.title || 'TAX INVOICE'),
-      el('table', { class: 'small' }, el('tbody', {}, row([bill.bill ? `Bill #${bill.bill}` : '', bill.number ? `Order ${bill.number}` : ''].filter(Boolean).join(' · ') || 'Bill', when),
-        row([bill.type, bill.event, bill.table ? `Table ${bill.table}` : bill.eventTable, bill.guests ? plural(bill.guests, 'guest') : '', bill.customer?.name, bill.customer?.phone].filter(Boolean).join(' · '),
-          bill.server ? `Server: ${firstOf(bill.server)}` : bill.qr ? 'QR order' : ''))),
+      // (each line its own table, so a long type line isn't squeezed by the date's column; a phone number never splits)
+      el('table', { class: 'small' }, el('tbody', {}, row([bill.bill ? `Bill #${bill.bill}` : '', bill.number ? `Order ${bill.number}` : ''].filter(Boolean).join(' · ') || 'Bill', when))),
+      el('table', { class: 'small' }, el('tbody', {}, row([bill.type, bill.event, bill.table ? `Table ${bill.table}` : bill.eventTable, bill.guests ? plural(bill.guests, 'guest') : '', bill.customer?.name,
+        bill.customer?.phone ? bill.customer.phone.replace(/ /g, '\u00a0') : ''].filter(Boolean).join(' · '), bill.server ? `Server: ${firstOf(bill.server)}` : bill.qr ? 'QR order' : ''))),
       el('hr'),
       el('table', {}, el('tbody', {}, ...bill.lines.flatMap(l => [
         row([`${l.qty} × ${l.name}`, l.modifiers.length ? el('div', { class: 'mod' }, l.modifiers.join(' · ')) : null], r(l.total)),
