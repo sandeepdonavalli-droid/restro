@@ -790,7 +790,8 @@ Orders' Midnight.
   - `printedAt` / `printedBy`: Print, black and white. `sentAt` / `sentBy`: Send, the colour PDF.
   - `createdBy`, `replacedBy`, `printedBy`, `sentBy` (and QR ordering's `by`, below): the staff's full names. QR Studio
     shows "by ‹name›" with the first name only (owner, 17 Nov 2026: everywhere a person is named, Orders, the Counter's
-    Change server and the lock screen too); the Counter's history and the slips keep initials.
+    Change server and the lock screen too, and since the same day the KOTs, the bills' REPRINT box and the Counter's
+    history, which had initials; an avatar circle keeps them).
   - `quietOk`: the quiet warning hidden until then (ms).
 - **Replace** gives the QR a new code, so the old card stops working. **Delete** removes the QR. The cloud (Phase 2)
   keeps which codes work, from these records as they sync. Delete, Send and Test scan need the cloud (greyed while
@@ -1317,7 +1318,7 @@ Amounts are in rupees.
 | `kind` | `"bill"` (not paid yet) or `"receipt"` (paid: a document of its own, not a reprint of the bill); or `"refund"`, a QR order cancelled and refunded (below) |
 | `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is; or `"BILL · NOT A TAX INVOICE"` (below); or `"REFUND · NOT A TAX INVOICE"` |
 | `at` | the bill's first print (a receipt keeps the bill's date and time when a bill was printed first, otherwise its own first print); a reprint keeps it |
-| `reprint` | `null` on a first print; on every later print of the same bill or receipt `{ at, by }`: a bold black outlined box at the very top, **REPRINT** in large letters, and under it `"Reprinted 7 Nov 2026 12:20 PM · by RK"` (`by`: the staff's initials) |
+| `reprint` | `null` on a first print; on every later print of the same bill or receipt `{ at, by }`: a bold black outlined box at the very top, **REPRINT** in large letters, and under it `"Reprinted 7 Nov 2026 12:20 PM · by ‹first name›"` (`by`: the staff's first name; owner, 17 Nov 2026, not initials) |
 | `payments` | Update Pack 7 (H2; it was `paid`, one payment): every payment taken on the order, `[{ method, amount, at, ref }]`, each a boxed line above the footer, `"PAID · UPI ₹1,260"` and under it `"16 Nov 2026 7:25 PM · Ref 4318 9920 1032"`, in the order paid, 8 apart (`method`: `"Cash"`, `"UPI"`, `"Card"`, `"Net banking"`, `"Wallet"`, `"Swiggy"` or `"Zomato"`, several joined `"UPI + Cash"`, or `"QR"` for a QR order staff saw paid and not matched yet; `ref` only when the payment has one). A receipt has them all; a bill of an order paid in part (a round paid by QR, the rest due) has those paid so far; `[]` for none |
 | `due` | Update Pack 7 (H2): what is still to pay on an order paid in part (rupees), `0` otherwise: a black box under the PAID boxes, white on black, **"DUE ₹798"** and under it "Pay on your phone or at the counter" |
 | `refunded` | refund slips only: `{ method, amount, at }`, the same boxed line where PAID goes, `"REFUNDED ₹1,260"` and under it `"9 Nov 2026 7:28 PM · Order cancelled"` (`at`: when staff cancelled it); `method` is `""` until the cloud has refunded it, then `"UPI"` and the rest: `"REFUNDED · UPI ₹1,260"` |
@@ -1428,7 +1429,7 @@ that sent it tries again by itself every 30 seconds until it prints.
 | `first` | Update Pack 5 (C2): the first row, black, the largest (above): `"Table 6"`, `"‹customer› · Swiggy #4521"`, `"‹customer› · Pager 18"`, `"‹customer› · +91 9xxxx xxxxx"`; an event's (K3), `"Event table 3"` (a QR per event table) or `"‹customer› · +91 9xxxx xxxxx"` (one QR for the whole event); `""` for none. The customer's phone number is in full, every digit, never masked (Update Pack 4), with the country code before it (Update Pack 7, D3: the name and the phone together, everywhere) |
 | `title`, `when` | the second row, bold (above): `"KOT #3 · Order #1015"` (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket), then `when`, `"Pickup 1:15 PM"` or `"Ready by 10:30 PM"`, or `""` |
 | `round`, `addOn` | Update Pack 5 (C4): the KOT's round, `2`, `3`…, and `true`, on every KOT after the order's first (ADD-ON +); `null` and `false` on the first |
-| `info` | small: an order placed by QR (Update Pack 7, K3) `"QR · Paid · 7:31 PM"` (its KOT prints once it is paid), with the day for an event that runs over several days, `"QR · Paid · Fri 13 Nov · 7:31 PM"`, and a later round `"Round 2 · QR · Paid · 7:40 PM"`; dine-in `"4 guests · 11:46 AM · Server: ‹initials›"`, a later round `"Round 2 · 4 guests · 7:40 PM · Server: ‹initials›"`; takeaway, phone and own delivery `"7:58 PM · ‹initials›"` (a pager is in the first row; with none, nothing is said of it); on VOID and CHANGED `"11:52 AM · By: ‹initials›"`; on ORDER CANCELLED `"VOID ALL · 12:05 PM · By: ‹initials›"`; on TIME CHANGED (C5) `"was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹initials›"` (the ready-by time before, when the KOT went, when it changed, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: RK"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · placed 7:11 PM"` (above). Times are in capitals, `"9:30 PM"` (Update Pack 4) |
+| `info` | small: an order placed by QR (Update Pack 7, K3) `"QR · Paid · 7:31 PM"` (its KOT prints once it is paid), with the day for an event that runs over several days, `"QR · Paid · Fri 13 Nov · 7:31 PM"`, and a later round `"Round 2 · QR · Paid · 7:40 PM"`; dine-in `"4 guests · 11:46 AM · Server: ‹first name›"`, a later round `"Round 2 · 4 guests · 7:40 PM · Server: ‹first name›"`; takeaway, phone and own delivery `"7:58 PM · ‹first name›"` (a pager is in the first row; with none, nothing is said of it); on VOID and CHANGED `"11:52 AM · By: ‹first name›"`; on ORDER CANCELLED `"VOID ALL · 12:05 PM · By: ‹first name›"`; on TIME CHANGED (C5) `"was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹first name›"` (the ready-by time before, when the KOT went, when it changed, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: ‹first name›"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · placed 7:11 PM"` (above). Times are in capitals, `"9:30 PM"` (Update Pack 4). People are named by their first name (owner, 17 Nov 2026; initials before) |
 | `at` | when it happened, milliseconds |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT and the priority notice; `""` for none |
 | `lines` | (none on TIME CHANGED: the dishes don't change) `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |
@@ -1436,7 +1437,7 @@ that sent it tries again by itself every 30 seconds until it prints.
 | `reason`, `by` | the reason staff gave (`""` for none) and who did it (their full name, or `null`) |
 | `priority` | true when the ★★ PRIORITY ★★ box is on it |
 | `printers` | Settings › Printers: `[{ id, language, copies, backup }]` for the kitchen printers; `backup: true` on the backup printer only (Update Pack 5, I2: Settings, below) |
-| `reprint` | KOTs reprinted from Orders (Update Pack 3): `{ at, by }` (`by`: initials), the red **REPRINT** box with the time and initials, and **(R)** after every dish (Update Pack 1); `undefined` otherwise |
+| `reprint` | KOTs reprinted from Orders (Update Pack 3): `{ at, by }` (`by`: the first name; owner, 17 Nov 2026), the red **REPRINT** box with the time and the first name, and **(R)** after every dish (Update Pack 1); `undefined` otherwise |
 
 - **Red** (modifiers, dish notes, the order note, the boxes, the **REPRINT** box) prints red on two-colour printers
   (red/black ribbon or two-colour thermal paper), and black on black-only printers, as everything else (above). The
@@ -1455,8 +1456,8 @@ it and why (no PIN asked for now: "PIN required" comes with the access levels).
 
 **Bulk cancel** (Update Pack 3, `PS02_bulk-cancel-slip`): orders deleted together in Orders print one compact slip
 instead of one ORDER CANCELLED each: `kind: "cancel-bulk"`, `band` (`"ORDERS CANCELLED"`, the black band), `action`
-(`"BULK DELETE · 5 ORDERS"`, the red outlined box), `at` (printed `Mon 9 Nov 2026 · 11:58 PM`), `info` (`"By: EC ·
-Reason: End of day – not collected"`), `orders` (`{ order, kots, at }` each, newest first, as a table ORDER · KOT ·
+(`"BULK DELETE · 5 ORDERS"`, the red outlined box), `at` (printed `Mon 9 Nov 2026 · 11:58 PM`), `info` (`"By: ‹first
+name› · Reason: End of day – not collected"`), `orders` (`{ order, kots, at }` each, newest first, as a table ORDER · KOT ·
 TIME: `"#1031"`, `"141 · 152"` or `"—"` for an order that never reached the kitchen, `7:24 pm`), `footer` (`"— = order
 never reached the kitchen."`), `reason`, `by` (as above) and `printers`. A single order deleted prints its ORDER
 CANCELLED slip as before; none prints when none of the orders reached the kitchen.

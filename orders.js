@@ -146,13 +146,6 @@
   const minutes = ms => Math.max(0, Math.floor(ms / 60000));
   // (owner, 17 Nov 2026) a person shown by their first name only; records keep the full name
   const firstOf = name => (typeof name === 'string' ? name.trim().split(/\s+/)[0] : '') || '';
-  // A person's initials: of the first and last name (one name: its first letter); a name typed as initials (two or
-  // three capitals) as it is
-  const initialsOf = name => {
-    const words = typeof name === 'string' ? name.trim().split(/\s+/).filter(Boolean) : [];
-    if (words.length === 1 && /^[A-Z]{2,3}$/.test(words[0])) return words[0];
-    return (words.length > 1 ? [words[0], words.at(-1)] : words).map(w => Array.from(w)[0]).join('').toLocaleUpperCase('en-IN');
-  };
   const tableName = id => (id && (window.RestroFloor?.tableName(id) || id)) || '';
   // "+91 90000 00000"; other lengths as typed; a delivery app's number as the app sends it ("+91 80 0000 0000")
   const phoneOf = (c, asSent = false) => {
@@ -282,7 +275,7 @@
     const who = ev ? { l1: `${ev.name} · ${ev.mode}`, l2: ev.where || [name, phone].filter(Boolean).join(' · ') }
       : dine
       ? { l1: `Table ${tableName(o.table)}${o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : ''}`, l2: server ? `Server: ${firstOf(server)}` : '' }
-      : { l1: name || (platform ? 'Customer' : 'Guest'), l2: platform ? phone : [phone, type.key === 'online' ? (o.source === 'App' ? 'App' : 'Website') : phone ? initialsOf(server) : server ? `Server: ${server}` : ''].filter(Boolean).join(' · ') };
+      : { l1: name || (platform ? 'Customer' : 'Guest'), l2: platform ? phone : [phone, type.key === 'online' ? (o.source === 'App' ? 'App' : 'Website') : phone ? firstOf(server) : server ? `Server: ${firstOf(server)}` : ''].filter(Boolean).join(' · ') };
     if (platform && (o.callCode || o.handover || (o.platformType !== 'pickup' && o.riderAt))) who.codes = { call: o.callCode || '', handover: o.handover || '', rider: o.platformType !== 'pickup' && o.riderAt ? timeOf(o.riderAt) : '' };
     const status = statusOf(o, now), pay = payOf(o);
     const tags = { disc: Boolean(o.discountPct) || (o.lines || []).some(l => Number(l.off) > 0), void: (Array.isArray(o.kots) ? o.kots : []).some(k => k && (k.kind === 'void' || k.kind === 'changed')) };

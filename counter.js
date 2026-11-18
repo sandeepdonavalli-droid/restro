@@ -1377,7 +1377,8 @@
     const what = { void: 'VOID', changed: 'CHANGED', cancel: 'ORDER CANCELLED', time: 'TIME CHANGED' }[kind] || null;
     const boxes = [priority ? '★★ PRIORITY ★★' : null, round ? 'ADD-ON +' : null, sched ? `SCHEDULED · READY ${timeOf(o.readyAt)}` : null, what].filter(Boolean);
     const appTime = !app ? '' : o.platformType === 'pickup' ? (o.readyBy ? `Ready by ${timeOf(o.readyBy)}` : '') : o.pickupAt ? `Pickup ${timeOf(o.pickupAt)}` : '';
-    const at = timeOf(k.at || Date.now()), by = k.byApp || initialsOf(k.by || staffName()), server = initialsOf(o.server);
+    // (owner, 17 Nov 2026: people on KOTs by their first name, not initials)
+    const at = timeOf(k.at || Date.now()), by = k.byApp || firstOf(k.by || staffName()), server = firstOf(o.server);
     const printed = sched && k.how ? `${at} (${k.how === 'queue' ? 'scheduled' : 'sent early'})` : at;
     // the second row: KOT # · Order # (VOID and CHANGED: the KOT the dish was on; ORDER CANCELLED: the order's KOTs;
     // TIME CHANGED: the KOT it is about, C5; the priority notice: the order alone)
@@ -1386,7 +1387,7 @@
     const when = kind === 'time' ? `Ready by ${timeOf(k.readyAt)}` : !app && type === 'phone' && cleanTime(o.readyAt) ? `Pickup ${timeOf(o.readyAt)}` : '';
     const info = kind === 'cancel' && app ? [appTime, 'VOID ALL', at, by ? `By: ${by}` : '']
       : kind === 'cancel' ? ['VOID ALL', at, by ? `By: ${by}` : '']
-      // (C5) TIME CHANGED: "was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹initials›"
+      // (C5) TIME CHANGED: "was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹first name›"
       : kind === 'time' ? [k.was ? `was ${timeOf(k.was)}` : '', k.kot?.at ? `KOT sent ${timeOf(k.kot.at)}` : '', `changed ${at}`, by]
       : kind === 'void' || kind === 'changed' ? [at, by ? `By: ${by}` : '']
       : app ? [appTime, `placed ${timeOf(o.createdAt || k.at || Date.now())}`]
@@ -2755,7 +2756,7 @@
     };
   }
   // Update Pack 3 (04_Printed-slips): the first print of a bill, and of a receipt, is plain; every later print of the
-  // same one has a bold black REPRINT box at the top ("Reprinted 7 Nov 2026 12:20 PM · by RK"), black only. The receipt
+  // same one has a bold black REPRINT box at the top ("Reprinted 7 Nov 2026 12:20 PM · by ‹first name›"), black only. The receipt
   // after payment is a document of its own: TAX INVOICE · RECEIPT, and a boxed "PAID · UPI ₹837" line with the time
   // (and the payment's reference) above the footer. Each print is kept on the order (`bills`, `receipts`).
   // (Update Pack 4: Settings › Business details › Bill number. "At payment": a bill printed before the payment is "BILL ·
@@ -2783,7 +2784,7 @@
     return part > 0 && part < Math.round(total * 100) ? [{ method: methodOf(o.method), amount: part / 100, at: atOf(o.paidAmountAt), ref }] : [];
   }
   function billDoc(o, kind, prints, rec = null, pre = false) {
-    const same = prints.filter(p => (p?.tax === false) === pre), now = Date.now(), last = same.length ? { at: now, by: initialsOf(staffName()) } : null;
+    const same = prints.filter(p => (p?.tax === false) === pre), now = Date.now(), last = same.length ? { at: now, by: firstOf(staffName()) } : null;
     // (the receipt carries the bill's date and time, as PS01 draws it, when a bill (a tax invoice) was printed first)
     const billAt = kind === 'receipt' && Array.isArray(rec?.bills) ? Number(rec.bills.find(b => b && b.tax !== false)?.at) || 0 : 0;
     const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : kind === 'refund' ? 'REFUND · NOT A TAX INVOICE' : pre ? 'BILL · NOT A TAX INVOICE' : 'TAX INVOICE', at: billAt || same[0]?.at || now, reprint: last };
@@ -3344,7 +3345,7 @@
   const voidAmount = (rec, k) => Number.isFinite(k.amount) ? k.amount
     : (k.lines || []).reduce((sum, l) => sum + Math.abs(Number(l.qty) || 0) * 100 * (Number(rec.lines.find(x => x.id === l.id)?.price) || Number(items.get(l.id)?.price) || 0), 0);
   function historyOf(rec) {
-    const by = name => (name ? `by ${initialsOf(name)}` : '');
+    const by = name => (name ? `by ${firstOf(name)}` : '');
     const known = new Map();
     for (const e of [...cleanEvents(rec.events), ...cleanEvents(order.events)]) known.set(e.id || `${e.kind}@${e.at}`, e);
     const list = [...known.values()].map(e => ({ ...e }));
@@ -3380,7 +3381,7 @@
         case 'svc-off': return { e, icon: 'room_service', title: 'Service charge removed', sub: [e.was ? `was ${e.was}%` : '', by(e.by)] };
         case 'move': return { e, icon: 'move_table', title: 'Moved table', sub: [`Table ${tableName(e.from)} → Table ${tableName(e.to)}`, by(e.by)] };
         case 'merge': return { e, icon: 'merge', title: 'Merged tables', sub: [`Table ${tableName(e.from)}${e.to ? ` → Table ${tableName(e.to)}` : ''}`, e.number ? `Order ${ticket(e.number)}` : '', by(e.by)] };
-        case 'server': return { e, icon: 'badge', title: 'Server changed', sub: [`${initialsOf(e.from) || '—'} → ${initialsOf(e.to)}`, by(e.by)] };
+        case 'server': return { e, icon: 'badge', title: 'Server changed', sub: [`${firstOf(e.from) || '—'} → ${firstOf(e.to)}`, by(e.by)] };
         case 'priority': return { e, icon: 'flag', title: 'Marked as priority', sub: ['Kitchen only', by(e.by)] };
         case 'priority-off': return { e, icon: 'flag', title: 'Priority removed', sub: ['Kitchen only', by(e.by)] };
         default: return null;
@@ -3403,7 +3404,7 @@
     const opened = rows.find(r => r.e.kind === 'open')?.e;
     const title = `Track history · Order ${ticket(order.number)}`;
     const sub = [typeLabel[order.type || DEFAULT_TYPE], usesTable(order) ? `Table ${tableName(order.table)}` : order.customer?.name || '', order.guests ? plural(order.guests, 'guest') : '',
-      opened ? `opened ${clockOf(opened.at)}${opened.by ? ` by ${initialsOf(opened.by)}` : ''}` : ''].filter(Boolean).join(' · ');
+      opened ? `opened ${clockOf(opened.at)}${opened.by ? ` by ${firstOf(opened.by)}` : ''}` : ''].filter(Boolean).join(' · ');
     const minus = n => (n > 0 ? `−${amount(n)}` : amount(0));
     const list = el('ul', { class: 'cx-hl', 'aria-label': 'What happened, oldest first' }, ...rows.map(r => el('li', { class: [r.after ? 'am' : r.cls || ''].join(' ').trim() },
       el('div', { class: 'tm' }, clockOf(r.e.at)),
@@ -3975,7 +3976,7 @@
   // prints as it was. Resolves { ok, failed: [{ no, why }] }.
   async function reprintKots(uid, ids) {
     const rec = loadOrders().find(o => idOf(o) === uid); if (!rec) return { ok: false, failed: [] };
-    const failed = [], at = Date.now(), by = initialsOf(staffName());
+    const failed = [], at = Date.now(), by = firstOf(staffName());
     for (const k of kotsOf(rec).filter(x => ids.includes(x.id))) {
       const r = await sendSlip({ ...kitchenSlip(rec, k), ...(k.failed ? {} : { reprint: { at, by } }) }, { uid, id: k.id });
       if (!r.ok) failed.push({ no: k.no, why: r.why });
@@ -4058,7 +4059,7 @@
       const rec = reached[0]; sendSlip(kitchenSlip(rec, cancelSlipOf(rec, why, by, now)));
     } else if (reached.length) {
       sendSlip({ kind: 'cancel-bulk', band: 'ORDERS CANCELLED', action: `BULK DELETE · ${gone.length} ORDERS`, at: now, by: by || null, reason: why,
-        info: [`By: ${initialsOf(by) || '—'}`, `Reason: ${why}`].join(' · '),
+        info: [`By: ${firstOf(by) || '—'}`, `Reason: ${why}`].join(' · '),
         orders: [...gone].sort((a, b) => createdOf(b) - createdOf(a)).map(o => ({ order: ticket(o.number), kots: kotsOf(o).map((k, i) => k.no || i + 1).join(' · ') || '—', at: createdOf(o) })),
         footer: '— = order never reached the kitchen.',
         printers: kitchenPrinters() });
