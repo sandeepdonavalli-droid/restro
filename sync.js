@@ -80,7 +80,9 @@
     // (Counter Update 7: what is sold out, set in the Availability app (today's Menu app), shown live on every Counter)
     availability: { key: 'restro.menu.availability.v1' },
     // (Update Pack 5, I3: QR ordering paused or turned off by hand, or turned on after hours)
-    qrOrdering: { key: 'restro.qrOrdering.v1' }
+    qrOrdering: { key: 'restro.qrOrdering.v1' },
+    // (Update Pack 7, B: QR Studio's Menu design, the template customers see, its accent colour and the logo photo)
+    menuDesign: { key: 'restro.menuDesign.v1' }
   };
   const NAMES = [...Object.keys(COLLECTIONS), 'settings'];
   const TICKET_KEY = 'restro.counter.ticket.v2'; // { day, next }: after the highest number this tablet has given or seen today

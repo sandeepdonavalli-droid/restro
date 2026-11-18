@@ -1,0 +1,359 @@
+/* The customer menu's 7 templates (Update Pack 7, B and C): Night, Fresh grid, Café and Editorial show dish photos;
+   Chalkboard, Classic list and Minimal don't. Sizes are the designs' CSS pixels on a 360-wide phone. The customer menu
+   looks the same whatever the tablet's theme (B1), so nothing here follows Light or Midnight. QR Studio shows it in a
+   phone (Menu design, QS7 and QS8); customers will see the same page when they scan (customer-menu.js).
+   Fonts (SIL Open Font License, assets/fonts/OFL-*.txt): DM Sans in every template, with Playfair Display (Night),
+   Cormorant Garamond (Editorial) and Yatra One (Chalkboard). The letters "QR" are always in DM Sans, upright (B2). */
+@font-face{font-family:'DM Sans';font-style:normal;font-weight:100 1000;font-display:swap;src:url(assets/fonts/dm-sans-latin-opsz-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'DM Sans';font-style:normal;font-weight:100 1000;font-display:swap;src:url(assets/fonts/dm-sans-latin-ext-opsz-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20B8,U+20BA-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'CM Rupee';font-style:normal;font-weight:100 900;font-display:swap;src:url(assets/fonts/inter-latin-ext-wght-normal.woff2) format('woff2');unicode-range:U+20B9}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;src:url(assets/fonts/playfair-display-latin-wght-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;src:url(assets/fonts/playfair-display-latin-ext-wght-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20B8,U+20BA-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Playfair Display';font-style:italic;font-weight:400 900;font-display:swap;src:url(assets/fonts/playfair-display-latin-wght-italic.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Playfair Display';font-style:italic;font-weight:400 900;font-display:swap;src:url(assets/fonts/playfair-display-latin-ext-wght-italic.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20B8,U+20BA-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:300 700;font-display:swap;src:url(assets/fonts/cormorant-garamond-latin-wght-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:300 700;font-display:swap;src:url(assets/fonts/cormorant-garamond-latin-ext-wght-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20B8,U+20BA-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:300 700;font-display:swap;src:url(assets/fonts/cormorant-garamond-latin-wght-italic.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:300 700;font-display:swap;src:url(assets/fonts/cormorant-garamond-latin-ext-wght-italic.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20B8,U+20BA-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Yatra One';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/yatra-one-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Yatra One';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/yatra-one-latin-ext-400-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20B8,U+20BA-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+/* ---------- the page: one scroll; the cart bar, the bell and the Menu button stay put (C1) ---------- */
+.cm{position:relative;width:360px;height:760px;overflow:hidden;box-sizing:border-box;background:var(--bg);color:var(--ink);font-family:'DM Sans','CM Rupee',system-ui,sans-serif;font-optical-sizing:auto;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;text-align:left}
+.cm *{box-sizing:border-box}
+:where(.cm) :is(h1,h2,h3,p){margin:0;padding:0;font:inherit}
+:where(.cm) button{margin:0;padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cm-scroll{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.cm-scroll::-webkit-scrollbar{display:none}
+.cm .ci{display:block;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* The top (B2): the restaurant's logo photo across it, its name large on top, the pill; until there's a photo, a plain
+   dark band in its place */
+.cm-top{position:relative;height:300px;background:#2A2522 center/cover no-repeat;overflow:hidden}
+.cm-top::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.72) 0,rgba(0,0,0,.65) 45px,rgba(0,0,0,0) 150px);pointer-events:none}
+.cm-status{position:absolute;z-index:2;left:0;right:0;top:0;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 25px 0 22.5px;color:#F0E8DA;font-size:14px;font-weight:600;line-height:1}
+.cm-status i{display:flex;gap:4.5px}
+.cm-status i::before,.cm-status i::after,.cm-status i b{content:'';display:block;width:9.5px;height:9.5px;border-radius:50%;background:currentColor}
+/* (the name and the pill share the row: a long name ends in … before the pill) */
+.cm-hrow{position:absolute;z-index:1;left:0;right:20.5px;top:0;display:flex;align-items:flex-start;gap:8px;padding-left:20px}
+.cm-name{position:relative;flex:0 1 auto;min-width:0;top:50px;color:#FFFFFF;font-size:33px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-pill{position:relative;flex:none;margin-left:auto;top:51px;height:36px;display:flex;align-items:center;padding:0 18px;border-radius:18px;font-size:16.8px;font-weight:700;line-height:1;white-space:nowrap}
+
+/* The category bar (C1): sticks to the top, the current one marked; search at its right end, in the same place in every
+   template (C2) */
+.cm-cats{position:sticky;z-index:3;top:0;height:44px;display:flex;align-items:stretch;background:var(--bg)}
+.cm-tabs{flex:1;min-width:0;display:flex;overflow-x:auto;scrollbar-width:none}
+.cm-tabs::-webkit-scrollbar{display:none}
+.cm-tab{position:relative;flex:none;white-space:nowrap}
+.cm-cats::after{content:'';position:absolute;z-index:1;top:0;right:0;bottom:1px;width:36px;background:var(--bg);pointer-events:none}
+.cm-search{position:absolute;z-index:2;top:0;right:14px;width:44px;height:44px;display:grid;place-items:center;border-radius:50%}
+.cm-search .ci{width:21px;height:21px;stroke-width:2.6}
+
+/* A category: its name, how many dishes, its dishes */
+.cm-sh{display:flex;align-items:baseline}
+.cm-sh small{flex:none}
+.cm-dish{position:relative;display:flex;align-items:center}
+.cm-ph{position:relative;flex:none;display:block;overflow:hidden;background:#3A3430 center/cover no-repeat}
+/* (a dish without a photo yet: its place in a plain tone with a plate) */
+.cm-ph.none{display:grid;place-items:center;background:var(--ph,#EEEAE4);color:var(--ph-ink,#CFC7BC)}
+.cm-ph.none .ci{width:34%;height:34%;fill:currentColor;stroke:none}
+.cm-dt{flex:1;min-width:0}
+.cm-dn{display:flex;align-items:center}
+.cm-dn b{min-width:0;font-weight:inherit}
+.cm-dr{flex:none;display:flex;flex-direction:column;align-items:flex-end}
+/* veg / non-veg: green square with a dot, red square with a triangle */
+.cm-mk{flex:none;position:relative;display:block;width:11px;height:11px;border:1.4px solid #1C9A4E;border-radius:2px}
+.cm-mk::after{content:'';position:absolute;left:50%;top:50%;width:4.6px;height:4.6px;margin:-2.3px 0 0 -2.3px;border-radius:50%;background:#1C9A4E}
+.cm-mk.nv{border-color:#D02A26}
+.cm-mk.nv::after{width:0;height:0;margin:-2.6px 0 0 -3px;border-radius:0;background:none;border-left:3px solid transparent;border-right:3px solid transparent;border-bottom:4.8px solid #D02A26}
+.cm-add{flex:none;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+.cm-add-t{display:none}
+.cm-add.out .cm-add-t{display:block}
+.cm-add .ci{width:16px;height:16px;stroke-width:2.9}
+.cm-add .ci-check{width:19px;height:19px;stroke-width:2.3}
+
+/* What stays put: the Menu button (C1), the Help bell (H1: Table QR and event-table QR only), the cart bar */
+.cm-menu{position:absolute;z-index:4;right:15px;bottom:83px;height:44px;display:flex;align-items:center;gap:8.6px;padding:0 14.7px 0 16.6px;border-radius:22px;font-size:14px;font-weight:700;line-height:1}
+.cm-menu .ci{width:14px;height:11px;stroke-width:2}
+.cm-bell{position:absolute;z-index:4;left:13px;bottom:15px;width:54px;height:54px;display:grid;place-items:center;border-radius:50%}
+.cm-bell .ci{width:24px;height:24px;stroke-width:2.1}
+.cm-cart{position:absolute;z-index:4;left:76px;right:14px;bottom:16px;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 19px 0 18px;font-size:15px;font-weight:700;line-height:1}
+.cm.no-bell .cm-cart{left:15px}
+.cm-cart span{display:flex;align-items:center;gap:5px}
+
+/* ---------- Night: dark, gold, Playfair Display ---------- */
+.cm-t-night{--bg:#0E0D0B;--ink:#F4EEE1;--mute:#8E8877;--line:#26231E;--acc:#D9B867;--on-acc:#14120E;--ph:#1E1C18;--ph-ink:#3A362F}
+.cm-t-night .cm-top::after{background:linear-gradient(180deg,rgba(0,0,0,.7) 0,rgba(0,0,0,.62) 45px,rgba(0,0,0,0) 140px,rgba(0,0,0,0) 255px,var(--bg) 300px)}
+.cm-t-night .cm-name{left:-2px;top:52px;color:#F6F0E2;font:italic 400 33.6px/1.2 'Playfair Display','CM Rupee',serif}
+.cm-t-night .cm-pill{border:1.5px solid var(--acc);color:var(--acc);background:rgba(14,13,11,.25)}
+.cm-t-night .cm-cats{border-bottom:1px solid var(--line)}
+.cm-t-night .cm-tabs{padding:0 58px 0 11px}
+.cm-t-night .cm-tab{padding:1px 9.5px 0;color:var(--mute);font-size:14.2px;font-weight:500;line-height:42px}
+.cm-t-night .cm-tab.on{color:var(--ink)}
+.cm-t-night .cm-tab.on::after{content:'';position:absolute;left:9.5px;right:9.5px;bottom:0;height:1.5px;background:var(--acc)}
+.cm-t-night .cm-search{border:1.5px solid #3B372F;background:var(--bg);color:var(--ink)}
+.cm-t-night .cm-sec{padding:0 20px}
+.cm-t-night .cm-sh{gap:10px;padding:24.5px 0 3.5px}
+.cm-t-night .cm-sh span{font:italic 400 22.5px/1 'Playfair Display','CM Rupee',serif}
+.cm-t-night .cm-sh small{color:var(--mute);font-size:12px}
+.cm-t-night .cm-dish{gap:13.5px;padding:12px 0 11px;border-bottom:1px solid var(--line)}
+.cm-t-night .cm-ph{width:73px;height:73px;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.cm-t-night .cm-dn{gap:7.5px;font:400 17px/1.25 'Playfair Display','CM Rupee',serif}
+.cm-t-night .cm-dd{margin-top:2px;color:var(--mute);font-size:12.5px;line-height:17px}
+.cm-t-night .cm-dt{padding-top:2px}
+.cm-t-night .cm-mk{top:-2px}
+.cm-t-night .cm-dr{align-self:flex-start;gap:7px;margin:9.5px 0 0 -2px}
+.cm-t-night .cm-pr{color:var(--acc);font:600 16px/1 'Playfair Display','CM Rupee',serif}
+.cm-t-night .cm-add{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--acc);color:var(--acc)}
+.cm-t-night .cm-add.on{border:0;background:var(--acc);color:var(--on-acc)}
+.cm-t-night .cm-menu{border:1px solid #36332D;background:#1B1A16;color:var(--acc)}
+.cm-t-night .cm-bell{border:1px solid #36332D;background:#1B1A16;color:var(--acc)}
+.cm-t-night .cm-cart{border-radius:17px;background:var(--acc);color:var(--on-acc)}
+
+/* ---------- Fresh grid: light, green, two dishes a row ---------- */
+.cm-t-fresh-grid{--bg:#F6F5F1;--ink:#1B1815;--mute:#69645F;--line:#E5E4E1;--acc:#1F6B4F;--on-acc:#FFFFFF}
+.cm-t-fresh-grid .cm-top{height:300px}
+.cm-t-fresh-grid .cm-name{left:0;top:51.5px;font-size:32.8px;font-weight:700}
+.cm-t-fresh-grid .cm-pill{border:1px solid rgba(255,255,255,.72);background:rgba(255,255,255,.14);color:#FFFFFF}
+.cm-t-fresh-grid .cm-cats{height:54px}
+.cm-t-fresh-grid .cm-tabs{gap:8px;align-items:center;padding:0 58px 0 16px}
+.cm-t-fresh-grid .cm-tab{height:34px;padding:0 13px;border:1px solid var(--line);border-radius:17px;background:#FFFFFF;color:#43403B;font-size:13.8px;font-weight:600;line-height:32px}
+.cm-t-fresh-grid .cm-tab.on{border-color:var(--acc);background:var(--acc);color:var(--on-acc)}
+.cm-t-fresh-grid .cm-search{top:5px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.cm-t-fresh-grid .cm-search .ci{width:22px;height:22px;stroke-width:2.3;margin:0 0 0 -.5px}
+.cm-t-fresh-grid .cm-sec{padding:0 16px}
+.cm-t-fresh-grid .cm-sh{gap:10px;padding:19px 0 10px}
+.cm-t-fresh-grid .cm-sh span{font-size:19px;font-weight:700;line-height:1}
+.cm-t-fresh-grid .cm-sh small{color:var(--mute);font-size:12px}
+.cm-t-fresh-grid .cm-list{display:grid;grid-template-columns:1fr 1fr;gap:12.5px 12px}
+.cm-t-fresh-grid .cm-dish{flex-direction:column;align-items:stretch;border-radius:14px;background:#FFFFFF;box-shadow:0 1px 3.5px rgba(28,25,23,.08);overflow:hidden}
+.cm-t-fresh-grid .cm-ph{width:100%;height:156px}
+.cm-t-fresh-grid .cm-dt{padding:11px 11px 0}
+.cm-t-fresh-grid .cm-dn{gap:7.5px;font-size:14.5px;font-weight:700;line-height:18px}
+.cm-t-fresh-grid .cm-dn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-t-fresh-grid .cm-dd{display:none}
+.cm-t-fresh-grid .cm-dr{align-items:flex-start;padding:5px 11px 13px}
+.cm-t-fresh-grid .cm-pr{font-size:14.5px;font-weight:700;line-height:18px}
+.cm-t-fresh-grid .cm-add{position:absolute;top:116px;right:8.5px;width:33.5px;height:33.5px;border-radius:50%;background:#FFFFFF;color:var(--acc)}
+.cm-t-fresh-grid .cm-add .ci{width:15px;height:15px;stroke-width:3.2}
+.cm-t-fresh-grid .cm-add.on{background:var(--acc);color:var(--on-acc)}
+.cm-t-fresh-grid .cm-add.on .ci{width:19px;height:19px;stroke-width:2.6}
+.cm-t-fresh-grid .cm-menu{border:1px solid var(--line);background:#FFFFFF;color:var(--acc);box-shadow:0 2px 8px rgba(28,25,23,.08)}
+.cm-t-fresh-grid .cm-bell{border:1px solid var(--line);background:#FFFFFF;color:var(--acc);box-shadow:0 2px 8px rgba(28,25,23,.08)}
+.cm-t-fresh-grid .cm-cart{border-radius:26px;background:var(--acc);color:var(--on-acc)}
+
+/* ---------- Café: cream, warm browns, dishes on white cards ---------- */
+.cm-t-cafe{--bg:#FFF8F0;--ink:#2A1B12;--mute:#745F4D;--line:#F1E3D6;--acc:#B5441C;--on-acc:#FFFFFF;--dark:#2B1D14}
+.cm-t-cafe .cm-top{height:300px}
+.cm-t-cafe .cm-name{left:0;top:56px;font-size:28.1px;font-weight:700;font-variation-settings:'opsz' 9}
+.cm-t-cafe .cm-pill{top:50px;height:38px;padding:0 18.25px;border-radius:19px;background:#FFD9A8;color:#2C2014}
+.cm-t-cafe .cm-cats{height:56px}
+.cm-t-cafe .cm-tabs{gap:8px;align-items:center;padding:0 58px 0 14px}
+.cm-t-cafe .cm-tab{height:36px;padding:0 15px;border-radius:10px;background:#F7E7D8;color:#6A4E39;font-size:13.8px;font-weight:600;line-height:36px}
+.cm-t-cafe .cm-tab.on{padding:0 15.5px;background:var(--dark);color:#FFFAF2;font-size:13.4px;font-weight:700}
+.cm-t-cafe .cm-search{top:5px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.cm-t-cafe .cm-search .ci{width:22px;height:22px;stroke-width:2.3;margin:0 0 0 -.5px}
+.cm-t-cafe .cm-sec{padding:0 14px}
+.cm-t-cafe .cm-sh{gap:10px;padding:17px 5px 12px}
+.cm-t-cafe .cm-sh span{font-size:20px;font-weight:700;line-height:1}
+.cm-t-cafe .cm-sh small{color:#735F4F;font-size:12px}
+.cm-t-cafe .cm-list{display:flex;flex-direction:column;gap:10px}
+.cm-t-cafe .cm-dish{display:grid;grid-template-columns:96px 1fr;grid-template-rows:auto 1fr;column-gap:14px;padding:10px;border-radius:16px;background:#FFFFFF;box-shadow:0 0 0 1px #F7ECE1,0 2px 0 1px var(--line)}
+.cm-t-cafe .cm-ph{grid-row:1/3;width:96px;height:96px;border-radius:12px}
+.cm-t-cafe .cm-dt{padding-top:8.5px}
+.cm-t-cafe .cm-dn{gap:8px;font-size:16px;font-weight:700;line-height:20px}
+.cm-t-cafe .cm-dd{margin-top:4px;color:var(--mute);font-size:12.5px;line-height:17px}
+.cm-t-cafe .cm-dr{flex-direction:row;align-items:center;justify-content:space-between;align-self:end;margin-bottom:8px}
+.cm-t-cafe .cm-pr{font-size:15.75px;font-weight:700;line-height:1}
+.cm-t-cafe .cm-add{height:32px;gap:2.5px;padding:0 11.6px 0 13.1px;border-radius:16px;background:#FDE3D6;color:#A83A11;font-size:13.6px;font-weight:700}
+.cm-t-cafe .cm-add-t{display:block}
+.cm-t-cafe .cm-add .ci{width:11.5px;height:11.5px;stroke-width:3.4}
+.cm-t-cafe .cm-add.on{gap:4px;padding:0 12.5px 0 13.5px;background:var(--acc);color:var(--on-acc)}
+.cm-t-cafe .cm-add.on .ci{width:13px;height:13px;stroke-width:3.2}
+.cm-t-cafe .cm-menu{border:1px solid var(--line);background:#FFFFFF;color:var(--dark);box-shadow:0 2px 8px rgba(43,29,20,.08)}
+.cm-t-cafe .cm-bell{border:1px solid var(--line);background:#FFFFFF;color:var(--dark);box-shadow:0 2px 8px rgba(43,29,20,.08)}
+.cm-t-cafe .cm-cart{border-radius:26px;background:var(--dark);color:#FFFAF2}
+
+/* ---------- Editorial: linen, maroon, Cormorant Garamond; photos framed, left and right in turn ---------- */
+.cm-t-editorial{--bg:#F5EFE3;--ink:#28231E;--mute:#685E53;--line:#DBD2C3;--acc:#8C2F39;--on-acc:#FFFFFF}
+.cm-t-editorial .cm-top{height:300px}
+.cm-t-editorial .cm-name{left:-1px;top:50px;font:700 37.4px/1.2 'Cormorant Garamond','CM Rupee',serif}
+.cm-t-editorial .cm-pill{top:50px;height:38px;padding:0 15.9px 0 15.5px;border:1px solid rgba(255,255,255,.88);border-radius:0;background:rgba(0,0,0,.08);color:#FFFFFF;font-size:12.94px;letter-spacing:.164em}
+.cm-t-editorial .cm-cats{height:50px}
+.cm-t-editorial .cm-cats{border-bottom:1px solid var(--line)}
+.cm-t-editorial .cm-tabs{padding:0 58px 0 10px}
+.cm-t-editorial .cm-tab{padding:0 10px 3px;color:#6B6258;font:700 15.2px/46px 'Cormorant Garamond',serif;letter-spacing:.096em;text-transform:uppercase}
+.cm-t-editorial .cm-tab.on{color:var(--acc)}
+.cm-t-editorial .cm-tab.on::after{content:'';position:absolute;left:10px;right:10px;bottom:0;height:1.5px;background:var(--acc)}
+.cm-t-editorial .cm-search{top:3px;border:1px solid #E1D6C6;background:var(--bg);color:#27221D}
+.cm-t-editorial .cm-search .ci{width:22px;height:22px;stroke-width:2.3}
+.cm-t-editorial .cm-sec{padding:0 15px}
+.cm-t-editorial .cm-sh{justify-content:center;padding:22px 0 4px;color:var(--acc);font-size:12.5px;font-weight:700;line-height:15px;letter-spacing:.345em;text-transform:uppercase}
+.cm-t-editorial .cm-sh span::before{content:'\2014\20'}
+.cm-t-editorial .cm-sh span::after{content:'\20\2014'}
+.cm-t-editorial .cm-sh small{display:none}
+.cm-t-editorial .cm-dish{display:grid;grid-template-columns:122px 1fr;grid-template-rows:1fr auto auto 1fr;column-gap:13px;padding:11px 0}
+.cm-t-editorial .cm-dish::after{content:'';position:absolute;left:5px;right:5px;bottom:0;height:1px;background:var(--line)}
+.cm-t-editorial .cm-ph{grid-row:1/5;width:122px;height:122px;border:5px solid #FFFFFF;border-radius:6px;background-origin:padding-box;box-shadow:0 2px 6px rgba(60,45,30,.08)}
+.cm-t-editorial .cm-dt{grid-row:2}
+.cm-t-editorial .cm-dn{gap:6.5px;font:700 21px/20px 'Cormorant Garamond',serif}
+.cm-t-editorial .cm-mk{top:2px}
+.cm-t-editorial .cm-dd{margin-top:8px;color:var(--mute);font:italic 500 14.4px/18px 'Cormorant Garamond',serif}
+.cm-t-editorial .cm-dr{grid-row:3;flex-direction:row;align-items:center;gap:12px;margin-top:9px}
+.cm-t-editorial .cm-pr{color:var(--acc);font:700 18.5px/1 'Cormorant Garamond','CM Rupee',serif}
+.cm-t-editorial .cm-add{height:30px;padding:0 14px 0 14.3px;border:1px solid var(--acc);color:var(--acc);font-size:12.1px;font-weight:700;letter-spacing:.125em;text-transform:uppercase}
+.cm-t-editorial .cm-add-t{display:block}
+.cm-t-editorial .cm-add .ci{display:none}
+.cm-t-editorial .cm-add.on{padding:0 14.4px 0 12.9px;background:var(--acc);color:var(--on-acc);letter-spacing:.129em}
+/* (every other dish: the photo on the right, the words set to the right, the veg mark after the name) */
+.cm-t-editorial .cm-dish:nth-child(even){grid-template-columns:1fr 122px}
+.cm-t-editorial .cm-dish:nth-child(even) .cm-ph{grid-column:2}
+.cm-t-editorial .cm-dish:nth-child(even) :is(.cm-dt,.cm-dr){grid-column:1;text-align:right}
+.cm-t-editorial .cm-dish:nth-child(even) .cm-dn{flex-direction:row-reverse;justify-content:flex-start;gap:7.5px}
+.cm-t-editorial .cm-dish:nth-child(even) .cm-dr{justify-content:flex-end}
+.cm-t-editorial .cm-menu{border:1px solid #D6D0C4;background:#FFFFFF;color:var(--acc);box-shadow:0 2px 8px rgba(60,45,30,.08)}
+.cm-t-editorial .cm-bell{border:1px solid #DAD3C1;background:#FFFFFF;color:var(--acc);box-shadow:0 2px 8px rgba(60,45,30,.08)}
+.cm-t-editorial .cm-cart{border-radius:6px;background:var(--acc);color:var(--on-acc)}
+
+/* ---------- Chalkboard: a dark green board, chalk-white and yellow, Yatra One; no photos ---------- */
+.cm-t-chalkboard{--bg:#1B2421;--ink:#F4F1EA;--mute:#ABB4AE;--line:#3B453D;--acc:#F5D26C;--on-acc:#17241F;--dots:radial-gradient(circle,rgba(255,255,255,.05) .7px,transparent 1.1px) 0 0/7px 7px}
+.cm-t-chalkboard .cm-scroll{background:var(--dots);background-attachment:local}
+.cm-t-chalkboard .cm-top{height:300px}
+.cm-t-chalkboard .cm-name{left:-.5px;top:52.5px;color:#FFFFFF;font:400 33.6px/1.2 'Yatra One','CM Rupee',sans-serif}
+.cm-t-chalkboard .cm-pill{top:50px;height:38px;padding:0 14.5px;border-radius:8px;background:var(--acc);color:var(--on-acc);font:400 16.8px/1 'Yatra One',sans-serif}
+.cm-t-chalkboard .cm-cats{height:50px;background:var(--bg) var(--dots);border-bottom:1px solid var(--line)}
+.cm-t-chalkboard .cm-cats::after{background:var(--bg) radial-gradient(circle,rgba(255,255,255,.05) .7px,transparent 1.1px) 5px 0/7px 7px}
+.cm-t-chalkboard .cm-tabs{padding:0 58px 0 11px}
+.cm-t-chalkboard .cm-tab{padding:2.5px 9.5px .5px;color:var(--mute);font:400 17.2px/46px 'Yatra One',sans-serif}
+.cm-t-chalkboard .cm-tab.on{color:var(--acc)}
+.cm-t-chalkboard .cm-tab.on::after{content:'';position:absolute;left:9px;right:9.5px;bottom:1px;height:2px;background:repeating-linear-gradient(90deg,var(--acc) 0 6px,transparent 6px 9.5px)}
+.cm-t-chalkboard .cm-search{top:3px;border:1px solid #474D49;background:var(--bg);color:var(--ink)}
+.cm-t-chalkboard .cm-search .ci{width:22px;height:22px;stroke-width:2.3}
+.cm-t-chalkboard .cm-sec{padding:0 20px}
+.cm-t-chalkboard .cm-sh{justify-content:center;padding:21px 0 0;font:400 26px/32px 'Yatra One',sans-serif}
+.cm-t-chalkboard .cm-sh span::before{content:'~\20'}
+.cm-t-chalkboard .cm-sh span::after{content:'\20~'}
+.cm-t-chalkboard .cm-sh small{display:none}
+.cm-t-chalkboard .cm-dish{display:grid;grid-template-columns:1fr auto;align-items:start;column-gap:12px;padding:16px 0 12.5px}
+.cm-t-chalkboard .cm-dish::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:repeating-linear-gradient(90deg,#4F5752 0 3px,transparent 3px 5.5px)}
+.cm-t-chalkboard :is(.cm-dt,.cm-dr){display:contents}
+.cm-t-chalkboard .cm-dn{grid-column:1;grid-row:1;gap:7.5px;font:400 19.2px/24px 'Yatra One',sans-serif}
+.cm-t-chalkboard .cm-pr{grid-column:2;grid-row:1;justify-self:end;color:var(--acc);font:400 19px/24px 'Yatra One','CM Rupee',sans-serif}
+.cm-t-chalkboard .cm-dd{grid-column:1;grid-row:2;margin-top:4px;color:var(--mute);font-size:13px;line-height:17px}
+.cm-t-chalkboard .cm-add{grid-column:2;grid-row:2;justify-self:end;height:31px;gap:2.5px;margin-top:6px;padding:0 10px 0 12px;border:1px solid #F1F2EC;border-radius:8px;color:#F4F1EA;font-size:13.6px;font-weight:700}
+.cm-t-chalkboard .cm-add-t{display:block}
+.cm-t-chalkboard .cm-add .ci{width:11.5px;height:11.5px;stroke-width:3.4}
+.cm-t-chalkboard .cm-add.on{gap:2.5px;padding:0 11.25px 0 12.25px;border-color:var(--acc);background:var(--acc);color:var(--on-acc)}
+.cm-t-chalkboard .cm-add.on .ci{width:13px;height:13px;stroke-width:3.2}
+.cm-t-chalkboard .cm-menu{border:1px solid #434945;background:#26332C;color:var(--acc)}
+.cm-t-chalkboard .cm-bell{border:1px solid #3F4541;background:#26332C;color:var(--acc)}
+.cm-t-chalkboard .cm-cart{border-radius:8px;background:var(--acc);color:var(--on-acc)}
+
+/* ---------- Classic list: white, black and orange; name, dots, price; no photos ---------- */
+.cm-t-classic-list{--bg:#FFFFFF;--ink:#161618;--mute:#707076;--line:#F0EEEF;--acc:#B5530A;--on-acc:#FFFFFF}
+.cm-t-classic-list .cm-top{height:300px}
+.cm-t-classic-list .cm-name{left:0;top:51.5px;font-size:32.8px;font-weight:700}
+.cm-t-classic-list .cm-pill{top:50px;height:38px;padding:0 14.5px;border-radius:8px;background:var(--acc);color:var(--on-acc)}
+.cm-t-classic-list .cm-cats{border-bottom:1px solid var(--line)}
+.cm-t-classic-list .cm-tabs{padding:0 58px 0 6.5px}
+.cm-t-classic-list .cm-tab{padding:0 11.25px;color:#696970;font-size:14.2px;font-weight:600;line-height:43px}
+.cm-t-classic-list .cm-tab.on{color:var(--ink);font-size:13.9px;font-weight:700}
+.cm-t-classic-list .cm-tab.on::after{content:'';position:absolute;left:10.75px;right:10.75px;bottom:0;height:2px;background:var(--acc)}
+.cm-t-classic-list .cm-search{border:1px solid #E3E3E3;background:var(--bg);color:var(--ink)}
+.cm-t-classic-list .cm-search .ci{width:22px;height:22px;stroke-width:2.3}
+.cm-t-classic-list .cm-sec{padding:0 18px}
+.cm-t-classic-list .cm-sh{gap:10px;padding:21px 0 3.5px 1px}
+.cm-t-classic-list .cm-sh span{font-size:20.2px;font-weight:700;line-height:1}
+.cm-t-classic-list .cm-sh small{color:var(--mute);font-size:12px}
+.cm-t-classic-list .cm-dish{display:grid;grid-template-columns:1fr auto 36px;align-items:center;column-gap:0;padding:12px 0 12.5px;border-bottom:1px solid #F4F4F4}
+.cm-t-classic-list :is(.cm-dt,.cm-dr){display:contents}
+.cm-t-classic-list .cm-dn{grid-column:1;grid-row:1;gap:7.5px;font-size:16.4px;font-weight:700;line-height:22px}
+.cm-t-classic-list .cm-dn::after{content:'';flex:1;min-width:12px;height:2px;margin:0 7.5px 0 .5px;position:relative;top:1px;background:repeating-linear-gradient(90deg,#D2D2D4 0 2px,transparent 2px 4px)}
+.cm-t-classic-list .cm-dn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-t-classic-list .cm-pr{grid-column:2;grid-row:1;margin-right:13px;font-size:16.2px;font-weight:700;line-height:22px}
+.cm-t-classic-list .cm-dd{grid-column:1/3;grid-row:2;margin-top:2px;color:var(--mute);font-size:13px;line-height:17px}
+.cm-t-classic-list .cm-add{grid-column:3;grid-row:1/3;width:36px;height:36px;border:1px solid var(--acc);border-radius:8px;color:var(--acc)}
+.cm-t-classic-list .cm-add .ci{width:16px;height:16px;stroke-width:3}
+.cm-t-classic-list .cm-add.on{background:var(--acc);color:var(--on-acc)}
+.cm-t-classic-list .cm-add.on .ci{width:19px;height:19px;stroke-width:2.6}
+.cm-t-classic-list .cm-menu{border:1px solid #F0F0F0;background:#FFFFFF;color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.cm-t-classic-list .cm-bell{border:1px solid #F0F0F0;background:#FFFFFF;color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.cm-t-classic-list .cm-cart{border-radius:10px;background:#18181A;color:#FFFFFF}
+
+/* ---------- Minimal: off-white, black rules, one red; square corners; prices without ₹; no photos ---------- */
+.cm-t-minimal{--bg:#FBFBF9;--ink:#080807;--mute:#6A6A68;--line:#0A0A0A;--acc:#D62829;--on-acc:#FFFFFF}
+.cm-t-minimal .cm-top{height:300px}
+.cm-t-minimal .cm-name{left:0;top:51.5px;font-size:32.3px;font-weight:700}
+.cm-t-minimal .cm-pill{top:50px;height:38px;padding:0 15px;border-radius:0;background:var(--acc);color:var(--on-acc)}
+.cm-t-minimal .cm-tabs{padding:0 58px 0 10px}
+.cm-t-minimal .cm-tab{padding:2.5px 10px 0;color:#696968;font-size:14.25px;font-weight:600;line-height:43px}
+.cm-t-minimal .cm-tab.on{padding-top:1.5px;color:var(--ink);font-size:13.9px;font-weight:700}
+.cm-t-minimal .cm-tab.on::after{content:'.'}
+.cm-t-minimal .cm-search{border:1.5px solid var(--line);border-radius:0;background:var(--bg);color:var(--ink)}
+.cm-t-minimal .cm-search .ci{width:22px;height:22px;stroke-width:2.3}
+.cm-t-minimal .cm-sec{padding:0 20px}
+.cm-t-minimal .cm-sh{justify-content:space-between;padding:20px 0 11px 1px;border-bottom:1px solid var(--line)}
+.cm-t-minimal .cm-sh span{font-size:32.4px;font-weight:700;line-height:38px;letter-spacing:-.005em}
+.cm-t-minimal .cm-sh small{color:#686868;font-size:13px;font-weight:700;letter-spacing:-.075em}
+.cm-t-minimal .cm-dish{display:grid;grid-template-columns:1fr auto;align-items:start;column-gap:12px;padding:14px 0 12px;border-bottom:2px solid var(--line)}
+.cm-t-minimal :is(.cm-dt,.cm-dr){display:contents}
+.cm-t-minimal .cm-dn{grid-column:1;grid-row:1;gap:7px;font-size:16.7px;font-weight:700;line-height:22px}
+.cm-t-minimal .cm-pr{grid-column:2;grid-row:1;justify-self:end;font-size:16.7px;font-weight:700;line-height:22px}
+.cm-t-minimal .cm-rs{display:none}
+.cm-t-minimal .cm-dd{grid-column:1;grid-row:2;margin-top:12.5px;color:var(--mute);font-size:13px;line-height:17px}
+.cm-t-minimal .cm-add{grid-column:2;grid-row:2;justify-self:end;height:34px;gap:1px;margin-top:6px;padding:0 12px 0 10px;border:1px solid var(--acc);background:#FFFFFF;color:var(--acc);font-size:13.6px;font-weight:700}
+.cm-t-minimal .cm-add-t{display:block}
+.cm-t-minimal .cm-add:not(.on){flex-direction:row-reverse}
+.cm-t-minimal .cm-add .ci{width:11.5px;height:11.5px;stroke-width:3.4}
+.cm-t-minimal .cm-add.on{gap:3.5px;padding:0 10.5px 0 12px;background:var(--acc);color:var(--on-acc)}
+.cm-t-minimal .cm-add.on .ci{width:13px;height:13px;stroke-width:3.2}
+.cm-t-minimal .cm-menu{border:1.5px solid var(--line);background:#FFFFFF;color:var(--ink)}
+.cm-t-minimal .cm-bell{border:1.5px solid var(--line);background:#FFFFFF;color:var(--ink)}
+.cm-t-minimal .cm-cart{border-radius:0;background:#0A0A0A;color:#FFFFFF}
+
+/* ---------- An accent colour picked in QR Studio (Menu design), not the template's own: the buttons, tabs and cart bar
+   take it, with dark or white words on it (customer-menu.js) ---------- */
+.cm.own-acc .cm-cart{background:var(--acc);color:var(--on-acc)}
+.cm-t-cafe.own-acc{--dark:var(--acc)}
+.cm-t-cafe.own-acc .cm-tab.on{color:var(--on-acc)}
+.cm-t-cafe.own-acc .cm-add:not(.on,.out){background:color-mix(in srgb,var(--acc) 14%,#FFFFFF);color:var(--acc)}
+.cm-t-classic-list.own-acc .cm-menu,.cm-t-classic-list.own-acc .cm-bell,.cm-t-minimal.own-acc .cm-menu,.cm-t-minimal.own-acc .cm-bell{color:var(--acc)}
+
+/* ---------- A sold-out dish (C4), as drawn in every template: greyed (its name lighter, the rest at half), its photo
+   grey, and "Sold out" (70 x 30) where its button goes; it can't be added ---------- */
+.cm .cm-dish.out .cm-dn b{opacity:.28}
+.cm .cm-dish.out :is(.cm-mk,.cm-dd,.cm-pr){opacity:.5}
+.cm .cm-dish.out .cm-ph{filter:grayscale(1);opacity:.55}
+.cm .cm-add.out{width:70px;height:30px;gap:0;padding:0;border:0;border-radius:15px;background:var(--so-bg);color:var(--so-ink);font:700 12.5px/1 'DM Sans','CM Rupee',sans-serif;letter-spacing:0;text-transform:none;box-shadow:none;pointer-events:none}
+.cm .cm-add.out .cm-add-t{display:block}
+.cm-t-night{--so-bg:#2B2A28;--so-ink:#EFEADD}
+.cm-t-night .cm-add.out{margin-top:1px;padding-top:2px;border-radius:12px}
+.cm-t-fresh-grid{--so-bg:#D9D9D9;--so-ink:#212121}
+.cm-t-fresh-grid .cm-dish.out .cm-ph{filter:grayscale(1) brightness(.85);opacity:1}
+.cm-t-fresh-grid .cm-add.out{top:120px;right:8px}
+.cm-t-cafe{--so-bg:#EDEDED;--so-ink:#2E2017}
+.cm-t-editorial{--so-bg:#E1DDD2;--so-ink:#1C1917}
+.cm-t-editorial .cm-add.out{padding-top:2px;border-radius:10px}
+.cm-t-editorial .cm-dish.out .cm-ph{opacity:.6}
+.cm-t-chalkboard{--so-bg:#363F3C;--so-ink:#EFEEE7}
+.cm-t-chalkboard .cm-add.out{margin-top:5px;padding-top:2px;border-radius:12px}
+.cm-t-classic-list{--so-bg:#EEEEEE;--so-ink:#1B1B1C}
+.cm-t-classic-list .cm-dish:has(.cm-add.out){grid-template-columns:1fr auto 70px}
+.cm-t-classic-list .cm-add.out{margin-top:4px;padding-top:2px;border-radius:10px}
+.cm-t-minimal{--so-bg:#E9E9E7;--so-ink:#0D0D0C}
+.cm-t-minimal .cm-add.out{border-radius:0}
+.cm-t-minimal .cm-dish.out .cm-dn b{opacity:.5}
+
+/* ---------- The Menu QR (C6): view only, so no buttons, cart or bell; the price where the buttons were, the Menu button
+   down where the cart bar goes ---------- */
+.cm.view .cm-menu{bottom:18px}
+.cm-t-night.view .cm-dr{align-self:center;margin-top:0}
+.cm-t-chalkboard.view .cm-dish{padding-bottom:11px}
+.cm-t-minimal.view .cm-dish{padding-bottom:13px}
+.cm-t-minimal.view .cm-dd{margin-top:1.5px}
+.cm-t-fresh-grid.view .cm-dr{padding-top:0}
+.cm-t-cafe.view .cm-dt{padding-top:13.5px}
+.cm-t-cafe.view .cm-dr{min-height:32px}
+.cm-t-classic-list.view .cm-dish{grid-template-columns:1fr auto}
+.cm-t-classic-list.view .cm-pr{margin-right:0}
+/* (a sold-out dish on the Menu QR keeps its "Sold out" tag: C6) */

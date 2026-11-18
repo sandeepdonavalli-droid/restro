@@ -1,4 +1,5 @@
-/* QR Studio (Update Pack 5: G, I1, I3, I4, J; the Light screens QS1–QS6, QS16–QS53). Sizes are the designs' pixels on
+/* QR Studio (Update Pack 5: G, I1, I3, I4, J; the Light screens QS1–QS6, QS16–QS53; Update Pack 7: Menu design, QS7 and
+   QS8, whose phones show customer-menu.css). Sizes are the designs' pixels on
    the 1920 x 1080 screen (U = --fu), as in Orders. Light; Midnight (Update Pack 7, L1) is qr-studio-midnight.css, written
    from this file by tools/qr_midnight.py: run it after any colour change here. Every button, chip and search box is
    at least 48 tall (H2). The tables' gold #9A6B1F, Takeaway's green #2E7D4F and the Menu's maroon #8E1E3C are the printed
@@ -829,6 +830,65 @@
 .k-devices .qrs-pop.many:not(.ev) .qrs-flow+.qrs-pnote{margin-top:calc(15.4 * var(--fu));line-height:calc(22 * var(--fu))}
 .k-devices .qrs-pop.many:not(.ev) .qrs-flow+.qrs-pnote.backup{margin-bottom:calc(-1 * var(--fu))}
 .k-devices .qrs-pop:not(.ev):has(.qrs-dev.off) .qrs-pbar{margin-top:calc(19.1 * var(--fu))}
+
+/* ---------- Menu design (Update Pack 7, B4): QS7 all 7 templates, QS8 one full size. The phones show the customers'
+   menu (customer-menu.css) scaled to their screens (fitPreview); it looks the same in Light and Midnight (B1). ---------- */
+.qrs-md-all{flex:none;display:flex;align-items:flex-start;margin-top:calc(15.2 * var(--fu))}
+.qrs-md-group h3{height:calc(16 * var(--fu));padding-left:calc(5 * var(--fu));font-size:calc(13 * var(--fu));font-weight:800;line-height:calc(16 * var(--fu));letter-spacing:.08em;color:#57534E;white-space:nowrap}
+.qrs-md-cards{display:flex;gap:calc(14 * var(--fu));margin-top:calc(9.8 * var(--fu))}
+.qrs-md-div{flex:none;align-self:stretch;width:1px;margin:calc(42.8 * var(--fu)) calc(22 * var(--fu)) 0;background:#E2DFDA}
+/* A template's card: its phone, name, photos line and button; the one in use green-edged (2.5 wide, as drawn) */
+.qrs-md-card{width:calc(211 * var(--fu));box-sizing:border-box;display:flex;flex-direction:column;align-items:center;padding:calc(12 * var(--fu)) calc(11 * var(--fu)) calc(12 * var(--fu));border:1px solid #E1E2E6;border-radius:calc(24 * var(--fu));background:#FFFFFF;box-shadow:0 calc(3 * var(--fu)) calc(8 * var(--fu)) rgba(17,24,39,.05)}
+.qrs-md-card.on{border-color:#16A34A;box-shadow:0 0 0 calc(1.5 * var(--fu)) #16A34A,0 calc(3 * var(--fu)) calc(8 * var(--fu)) rgba(17,24,39,.05)}
+.qrs-md-open{display:block;border-radius:calc(26 * var(--fu));cursor:pointer;-webkit-tap-highlight-color:transparent}
+.qrs-md-open:focus-visible{outline:2px solid #2F6FE4;outline-offset:2px}
+.qrs-md-phone{position:relative;flex:none;width:calc(182 * var(--fu));height:calc(373 * var(--fu));box-sizing:border-box;border:calc(5 * var(--fu)) solid #0A0A0B;border-radius:calc(26 * var(--fu));background:#0A0A0B;box-shadow:0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(17,24,39,.12)}
+.qrs-md-screen{position:absolute;inset:0;overflow:hidden;border-radius:calc(21 * var(--fu));background:#FFFFFF}
+.qrs-md-screen>.cm{position:absolute;left:0;top:0;transform-origin:0 0}
+.qrs-md-name{margin-top:calc(11.2 * var(--fu));font-size:calc(17 * var(--fu));font-weight:800;line-height:calc(21 * var(--fu));color:#1C1917;white-space:nowrap}
+.qrs-md-stat{align-self:stretch;height:calc(26 * var(--fu));display:grid;place-items:center;margin:calc(11.8 * var(--fu)) calc(1 * var(--fu)) 0;padding-bottom:calc(1.5 * var(--fu));box-sizing:border-box;border-radius:calc(13 * var(--fu));color:#9A5B0B;font-size:calc(12.6 * var(--fu));font-weight:600;white-space:nowrap}
+.qrs-md-stat.warn{background:#FEF3E2}
+.qr-studio-app .qrs-md-card .qrs-md-use,.qrs-md-inuse{align-self:stretch;height:calc(44 * var(--fu));margin:calc(10 * var(--fu)) calc(1 * var(--fu)) 0;padding:0!important;border-radius:calc(22 * var(--fu));font-size:calc(15 * var(--fu))!important}
+.qrs-md-inuse{box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:calc(7 * var(--fu));--bt:#BFE5CB;border:calc(1.5 * var(--fu)) solid var(--bt);box-shadow:inset 0 0 0 calc(.5 * var(--fu)) var(--bt);background:#E7F5EC;color:#166534;font-weight:700;white-space:nowrap}
+.qrs-md-inuse .qi{width:calc(16 * var(--fu));height:calc(16 * var(--fu));stroke-width:2.4}
+
+/* QS8: All templates and the template's name; the grey stage (QR switch, phone, ‹ ›, where it is in the 7); the cards */
+.qrs-main.f-tpl .qrs-h{gap:calc(13.5 * var(--fu))}
+.qr-studio-app .qrs-md-back{gap:calc(4 * var(--fu));padding:0 calc(17.5 * var(--fu)) 0 calc(9 * var(--fu))!important}
+.qrs-md-back .qi.qrs-md-back-i{width:calc(30 * var(--fu));height:calc(30 * var(--fu));stroke-width:1.9;transform:scaleX(-1)}
+.qrs-md-body{flex:1;min-height:0;display:flex;align-items:flex-start;gap:calc(27 * var(--fu));margin-top:calc(28 * var(--fu));padding-bottom:calc(18 * var(--fu))}
+.qrs-md-stage{position:relative;flex:none;width:calc(1126 * var(--fu));height:calc(850 * var(--fu));box-sizing:border-box;display:flex;flex-direction:column;align-items:center;padding-top:calc(19 * var(--fu));border-radius:calc(28 * var(--fu));background:#ECEAE6}
+.qrs-md-seg{flex:none;display:flex;align-items:center;gap:calc(7.25 * var(--fu));height:calc(52 * var(--fu));box-sizing:border-box;padding:0 calc(5 * var(--fu));border:1px solid #DFDDDA;border-radius:calc(26 * var(--fu));background:#FFFFFF}
+.qr-studio-app .qrs-md-seg button{height:calc(40 * var(--fu));padding:0 calc(15.25 * var(--fu))!important;border-radius:calc(20 * var(--fu));color:#57534E;font-size:calc(15 * var(--fu));font-weight:700;white-space:nowrap}
+.qr-studio-app .qrs-md-seg button.on{background:#292524;color:#FFFFFF}
+.qrs-md-phone.big{width:calc(344 * var(--fu));height:calc(711 * var(--fu));margin-top:calc(11 * var(--fu));border-width:calc(7 * var(--fu));border-radius:calc(48 * var(--fu));box-shadow:0 calc(14 * var(--fu)) calc(30 * var(--fu)) rgba(17,24,39,.14)}
+.qrs-md-phone.big .qrs-md-screen{border-radius:calc(41 * var(--fu))}
+.qrs-md-nav{position:absolute;top:calc(426 * var(--fu));width:calc(58 * var(--fu));height:calc(58 * var(--fu));box-sizing:border-box;display:grid;place-items:center;border:1px solid #DDDCDA!important;border-radius:50%;background:#FFFFFF!important;color:#1C1917;box-shadow:0 calc(4 * var(--fu)) calc(10 * var(--fu)) rgba(17,24,39,.08)}
+.qrs-md-nav.l{left:calc(298 * var(--fu))}
+.qrs-md-nav.r{left:calc(770 * var(--fu))}
+.qrs-md-nav .qi{width:calc(26 * var(--fu));height:calc(26 * var(--fu));stroke-width:2}
+.qrs-md-nav.l .qi{transform:scaleX(-1)}
+.qrs-md-cap{margin-top:calc(16 * var(--fu))!important;font-size:calc(14 * var(--fu));font-weight:500;line-height:calc(20 * var(--fu));color:#57534E;white-space:nowrap}
+.qrs-md-side{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(12 * var(--fu));margin-top:calc(-1 * var(--fu))}
+.qrs-md-side .qrs-info p{margin-top:calc(9 * var(--fu));font-size:calc(14 * var(--fu));line-height:calc(19.5 * var(--fu));color:#78716C}
+.qrs-md-row{display:flex;align-items:center;gap:calc(14 * var(--fu));margin-top:calc(13 * var(--fu))}
+.qrs-md-side .qrs-md-mine{padding-top:calc(17 * var(--fu));padding-bottom:calc(17 * var(--fu))}
+.qrs-md-row+.qrs-md-row{margin-top:calc(12 * var(--fu))}
+.qrs-md-row>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.qrs-md-row b{font-size:calc(16 * var(--fu));font-weight:700;line-height:calc(20 * var(--fu));color:#1C1917}
+.qrs-md-acc p{margin-top:calc(8 * var(--fu))!important;line-height:calc(21.5 * var(--fu))!important}
+.qrs-md-row>div>span{margin-top:calc(1 * var(--fu));font-size:calc(14 * var(--fu));line-height:calc(19.5 * var(--fu));color:#78716C}
+.qrs-md-logo{flex:none;width:calc(64 * var(--fu));height:calc(64 * var(--fu));box-sizing:border-box;border-radius:calc(10 * var(--fu));background:#ECEAE6 center/cover no-repeat}
+.qrs-md-logo.none,.qrs-md-dishes .none{border:calc(2 * var(--fu)) solid #E2E0DD;background:#F5F4F2}
+.qrs-md-logo.none{display:grid;place-items:center;color:#A8A29E}
+.qrs-md-logo.none .qi{width:calc(26 * var(--fu));height:calc(26 * var(--fu))}
+.qrs-md-dishes{flex:none;display:grid;grid-template-columns:repeat(2,calc(31 * var(--fu)));gap:calc(3 * var(--fu))}
+.qrs-md-dishes span{width:calc(31 * var(--fu));height:calc(31 * var(--fu));box-sizing:border-box;border-radius:calc(7 * var(--fu));background:#ECEAE6 center/cover no-repeat}
+.qr-studio-app .qrs-md-sbtn{flex:none;height:calc(48 * var(--fu));padding:0 calc(19 * var(--fu))!important;font-size:calc(15 * var(--fu))!important}
+.qrs-md-sw{display:flex;gap:calc(10 * var(--fu));margin-top:calc(13.5 * var(--fu))}
+.qrs-md-side .qrs-md-acc{padding-bottom:calc(17.5 * var(--fu))}
+.qrs-md-dot{position:relative;flex:none;width:calc(40 * var(--fu));height:calc(40 * var(--fu));border-radius:50%!important;background:var(--c)!important}
+.qrs-md-dot.on::after{content:'';position:absolute;inset:calc(-5.5 * var(--fu));border:calc(2.5 * var(--fu)) solid #1C1917;border-radius:50%}
 
 /* ---------- the dark message (QS6, QS28): centred on the screen, above the foot ---------- */
 .qrs-toast{position:absolute;left:50%;bottom:calc(104 * var(--fu));z-index:40;transform:translateX(-50%);display:flex;align-items:center;min-height:calc(54 * var(--fu));box-sizing:border-box;padding:calc(10 * var(--fu)) calc(22 * var(--fu)) calc(10 * var(--fu)) calc(16 * var(--fu));border-radius:calc(30 * var(--fu));background:#1C1917;color:#FFFFFF;box-shadow:0 calc(10 * var(--fu)) calc(28 * var(--fu)) rgba(17,24,39,.28);white-space:nowrap}

@@ -1,5 +1,6 @@
 'use strict';
-// QR Studio (Update Pack 5: E, G, I1, I3, I4, J; the Light screens QS1–QS6 and QS16–QS53).
+// QR Studio (Update Pack 5: E, G, I1, I3, I4, J; the Light screens QS1–QS6 and QS16–QS53; Update Pack 7, B: Menu
+// design, QS7 and QS8).
 // One Takeaway QR, one Menu QR and one Table QR for each table of the floor plan. Customers scan the Menu QR to see the
 // menu, and a Table or Takeaway QR to order and pay; the KOT prints (Dine-in / Takeaway) once payment is confirmed.
 //
@@ -30,6 +31,10 @@
 //   An event works only from its start to its end, even outside business hours, and stops by itself; then it shows under
 //   History (owner, 16 Nov 2026). Like a table QR, each event table's QR and the whole event's QR can be reprinted, sent
 //   or replaced (a new code: the old one stops working), and an event table's QR deleted (that table leaves the event).
+// - Menu design (Update Pack 7, B): restro.menuDesign.v1, the restaurant's (synced): { template (the id of one of the 7
+//   templates, customer-menu.js; null until the restaurant picks one: B3, there is no default), accent ('#RRGGBB' for
+//   the buttons, tabs and cart bar, or null: the template's own), logo ({ id, url }: the logo photo, picked from the
+//   Gallery; null until there is one), at, by }. The customers' menu shows the template; QRs never change with it.
 // - Scans come from the cloud (RestroQrStudio.scanned, ANDROID-BRIDGE.md); each device keeps them: restro.qrScans.v1.
 // - The path for QR orders (internet → printer device → kitchen printer) comes from the Android app:
 //   RestroQrStudio.path(status) or a restro:qr-path event (ANDROID-BRIDGE.md). Each live event that takes orders has
@@ -39,7 +44,7 @@
 (() => {
   const dialog = document.querySelector('#qr-studio-dialog');
   if (!dialog) return;
-  const KEY = 'restro.qr.v1', ORDERING_KEY = 'restro.qrOrdering.v1', SCANS_KEY = 'restro.qrScans.v1', EVENTS_KEY = 'restro.events.v1';
+  const KEY = 'restro.qr.v1', ORDERING_KEY = 'restro.qrOrdering.v1', SCANS_KEY = 'restro.qrScans.v1', EVENTS_KEY = 'restro.events.v1', DESIGN_KEY = 'restro.menuDesign.v1';
   // (our website until the domain is decided: the GitHub Pages site, 404.html)
   const HOST = 'sandeepdonavalli-droid.github.io/restro';
   const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // (no 0 / O, 1 / I / L: easy to type from the card)
@@ -549,8 +554,9 @@
   // page: 'table' | 'takeaway' | 'menu' | 'event'; area: 'all' or an area's id; picked: the QR ids ticked after a
   // long-press (Set), or null; selected: the table QR the panel shows; evTab: Event QRs' tab, 'events' (live and
   // upcoming) | 'history' (ended); evPick: the event picked on each tab; evAvail: the event whose dish availability
-  // shows (Update Pack 7, EV12), or null
-  const view = { page: 'table', area: 'all', search: '', picked: null, selected: null, evTab: 'events', evPick: { events: null, history: null }, evAvail: null };
+  // shows (Update Pack 7, EV12), or null; tpl: the template Menu design shows full size (QS8), or null for all 7 (QS7);
+  // tplKind: the QR its preview is for, 'table' | 'takeaway' | 'menu'
+  const view = { page: 'table', area: 'all', search: '', picked: null, selected: null, evTab: 'events', evPick: { events: null, history: null }, evAvail: null, tpl: null, tplKind: 'table' };
   let root = null, pop = null, toastTimer = 0, tick = 0;
   const greyed = (label, why) => ({ disabled: true, 'aria-disabled': 'true', title: why || null, 'aria-label': why ? `${label} · ${why}` : null });
   const online = () => internetHere();
@@ -570,10 +576,9 @@
     return el('aside', { class: 'qrs-side' },
       el('div', { class: 'qrs-sh' }, el('button', { type: 'button', class: 'qrs-home', 'aria-label': 'Home', onclick: goHome }, icon('home')), appArt(), el('h2', { id: 'qr-studio-title', class: 'qrs-studio', tabindex: '-1' }, 'Studio')),
       el('nav', { class: 'qrs-pills', 'aria-label': 'QR types' }, pill('table', 'table', 'Table QRs'), pill('takeaway', 'bag', 'Takeaway QR'), pill('menu', 'menu', 'Menu QR'), pill('event', 'event', 'Event QRs'),
-        // (Menu design: under it the template chosen, "Pick a template" until there is one (Update Pack 7, B3); its
-        // screens come with the templates, so a tap says "Coming soon" until then)
-        el('button', { type: 'button', class: 'qrs-pill two', onclick: () => toast('Coming soon', null, null) }, el('span', { class: 'qrs-pill-i' }, icon('palette')),
-          el('span', { class: 'qrs-pill-t' }, 'Menu design', el('small', {}, 'Pick a template')))),
+        // (Menu design: under it the template in use, "Pick a template" until there is one: Update Pack 7, B3)
+        el('button', { type: 'button', class: `qrs-pill two${view.page === 'design' ? ' on' : ''}`, 'aria-current': view.page === 'design' ? 'page' : null, onclick: () => go('design') }, el('span', { class: 'qrs-pill-i' }, icon('palette')),
+          el('span', { class: 'qrs-pill-t' }, 'Menu design', el('small', {}, tplOf(design.template)?.name || 'Pick a template')))),
       orderingCard(st));
   }
   const pauseBtn = (off = false) => btn('qrs-cbtn', 'Pause for a while', () => openPop('pause'), 'pause', { off });
@@ -924,6 +929,7 @@
   let form = null;
   const HOUR = 36e5;
   function openForm() {
+    if (askTemplate()) return;
     const now = new Date(), start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1).getTime();
     form = { name: '', start, end: start + 4 * HOUR, daily: true, qrs: 'tables', from: 'event', numbers: Array.from({ length: 12 }, (_, i) => ({ n: i + 1, on: true })),
       off: new Set(), mode: 'both', code: null, codes: new Map(), pick: null, cal: null, step: 1, menu: { picked: new Set(), changes: new Map(), own: [], cat: null } };
@@ -1399,12 +1405,101 @@
       renamed || (quiet && !notPrinted(r)) ? null : el('p', { class: 'qrs-note' }, el('b', {}, 'Reprint'), ' prints the same QR in black and white on the receipt printer; for colour, use ', el('b', {}, 'Send'), '. ', el('b', {}, 'Replace'), ' makes a new QR; the old one stops working.'));
   }
 
+  // ---------- Menu design (Update Pack 7, B4: QS7 all 7 templates, QS8 one full size) ----------
+  // The 7 templates are customer-menu.js's, which draws the customers' menu: each phone here is that page, scaled to its
+  // screen. The logo photo and dish photos come from the Gallery, with the cloud (the photo checks: Pack 5's photo
+  // security spec), so Change and Manage say "Coming soon" until then, and the phones show the photos there are.
+  let design = { template: null, accent: null, logo: null, at: 0, by: null };
+  const TPLS = () => window.RestroCustomerMenu?.templates || [];
+  const tplOf = id => TPLS().find(t => t.id === id) || null;
+  // (a photo's address: only the photos' own https address, never anything else)
+  const photoUrl = u => (typeof u === 'string' && /^https:\/\/[^\s"'()\\<>]+$/.test(u) ? u : null);
+  function loadDesign() {
+    let v = null; try { v = JSON.parse(localStorage.getItem(DESIGN_KEY) || 'null'); } catch {}
+    v = v && typeof v === 'object' ? v : {};
+    design = { template: tplOf(v.template) ? v.template : null, accent: /^#[0-9a-f]{6}$/i.test(v.accent || '') ? v.accent.toUpperCase() : null,
+      logo: v.logo && photoUrl(v.logo.url) ? { id: String(v.logo.id || ''), url: v.logo.url } : null, at: Number(v.at) || 0, by: typeof v.by === 'string' ? v.by : null };
+  }
+  function storeDesign(change) {
+    Object.assign(design, change, { at: Date.now(), by: who() });
+    try { localStorage.setItem(DESIGN_KEY, JSON.stringify(design)); } catch {}
+    window.RestroSync?.wrote(DESIGN_KEY); changed();
+  }
+  // (B3: there is no default template, so a QR made before one is picked asks for it first)
+  function askTemplate() {
+    if (design.template) return false;
+    toast('Pick a menu design first', ['Pick a template', () => go('design')], null); return true;
+  }
+  // The accent colours (QS8): the template's own first, then these
+  const ACCENTS = [['#1F5E3A', 'Green'], ['#B45309', 'Orange'], ['#DC2626', 'Red'], ['#1E4FB8', 'Blue'], ['#7C3AED', 'Purple'], ['#1C1917', 'Black']];
+  // The dishes as customers see them: the menu's categories in order; a dish turned off in Availability (Restaurant
+  // menu, C4) stays, greyed as "Sold out"
+  function previewMenu() {
+    let out = {}; try { out = JSON.parse(localStorage.getItem('restro.menu.availability.v1') || 'null')?.soldOut || {}; } catch {}
+    return (window.RestroMenu?.categories || []).map(c => ({ id: c.id, name: c.name, items: (c.items || []).map(d => ({ id: d.id, name: d.name, desc: typeof d.desc === 'string' ? d.desc : '',
+      price: d.price, veg: d.veg, photo: photoUrl(d.photo), out: out?.[d.id] === true })) })).filter(c => c.items.length);
+  }
+  // A template in a phone, as a customer at a table (the first table's name on the pill), at the Takeaway QR or the Menu
+  // QR sees it; one dish in the cart, as drawn
+  function phoneEl(id, kind, cats, big = false) {
+    const { tables } = floor(), t = tables.find(x => qrOfTable(x.id)) || tables[0], first = cats.flatMap(c => c.items).find(d => !d.out);
+    const page = window.RestroCustomerMenu?.page({ template: id, accent: design.accent, kind, pill: kind === 'table' ? tableLabel(t?.name ?? '1') : kind === 'takeaway' ? 'Takeaway' : 'Menu',
+      restaurant: window.RestroRestaurantName?.value || '', logo: design.logo?.url || null, categories: cats, cart: first && kind !== 'menu' ? { [first.id]: 1 } : {}, status: true }) || el('div');
+    if (!big) page.inert = true;
+    return el('div', { class: `qrs-md-phone${big ? ' big' : ''}` }, el('div', { class: 'qrs-md-screen' }, page));
+  }
+  const sendPreview = () => btn('', 'Send me a preview', () => toast('Coming soon', null, null), 'send');
+  const useTemplate = id => storeDesign({ template: id });
+  function designPage() {
+    if (view.tpl && tplOf(view.tpl)) return tplPage();
+    const cats = previewMenu(), all = cats.flatMap(c => c.items), missing = all.filter(d => !d.photo).length;
+    const card = t => {
+      const on = design.template === t.id, open = () => { view.tpl = t.id; view.tplKind = 'table'; render(); };
+      return el('div', { class: `qrs-md-card${on ? ' on' : ''}`, role: 'listitem' },
+        el('div', { class: 'qrs-md-open', role: 'button', tabindex: '0', 'aria-label': `See ${t.name} full size`, onclick: open, onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } } }, phoneEl(t.id, 'table', cats)),
+        el('b', { class: 'qrs-md-name' }, t.name),
+        t.photos ? el('span', { class: 'qrs-md-stat warn' }, missing ? `Best with photos · ${missing} missing` : 'Best with photos') : el('span', { class: 'qrs-md-stat' }, 'No dish photos needed'),
+        on ? el('span', { class: 'qrs-md-inuse' }, icon('check'), 'In use') : btn('tint qrs-md-use', 'Use this template', () => useTemplate(t.id)));
+    };
+    const group = (title, list) => el('section', { class: 'qrs-md-group' }, el('h3', {}, `${title} · ${list.length}`), el('div', { class: 'qrs-md-cards', role: 'list' }, list.map(card)));
+    return [headEl('Menu design', null, [sendPreview()]), el('p', { class: 'qrs-line' }, 'How your menu looks when customers scan. Your logo photo, dishes and prices in all 7. Ordering works the same in all.'),
+      el('div', { class: 'qrs-md-all' }, group('WITH DISH PHOTOS', TPLS().filter(t => t.photos)), el('i', { class: 'qrs-md-div', 'aria-hidden': 'true' }), group('WITHOUT DISH PHOTOS', TPLS().filter(t => !t.photos)))];
+  }
+  // QS8: one template full size, for a Table, the Takeaway or the Menu QR; ‹ › step through the 7 (round)
+  function tplPage() {
+    const T = TPLS(), i = T.findIndex(t => t.id === view.tpl), t = T[i], cats = previewMenu(), all = cats.flatMap(c => c.items), have = all.filter(d => d.photo);
+    const prev = T[(i + T.length - 1) % T.length], next = T[(i + 1) % T.length], step = d => { view.tpl = (d < 0 ? prev : next).id; render(); };
+    const soon = () => toast('Coming soon', null, null), on = design.template === t.id;
+    const back = el('button', { type: 'button', class: 'qrs-btn qrs-md-back', onclick: () => { view.tpl = null; render(); } }, icon('chevron', 'qrs-md-back-i'), el('span', {}, 'All templates'));
+    const head = el('header', { class: 'qrs-head' }, el('div', { class: 'qrs-h' }, back, el('h1', {}, t.name)),
+      el('div', { class: 'qrs-tools' }, sendPreview(), on ? el('span', { class: 'qrs-btn qrs-md-inuse' }, icon('check', 'qrs-btn-i'), el('span', {}, 'In use')) : btn('blue', 'Use this template', () => useTemplate(t.id), 'check')));
+    const seg = el('div', { class: 'qrs-md-seg', role: 'tablist', 'aria-label': 'The QR customers scan' }, [['table', 'Table QR'], ['takeaway', 'Takeaway QR'], ['menu', 'Menu QR']].map(([k, label]) =>
+      el('button', { type: 'button', role: 'tab', class: view.tplKind === k ? 'on' : null, 'aria-selected': String(view.tplKind === k), onclick: () => { view.tplKind = k; render(); } }, label)));
+    const stage = el('section', { class: 'qrs-md-stage', 'aria-label': `${t.name}, as customers see it` }, seg, phoneEl(t.id, view.tplKind, cats, true),
+      el('button', { type: 'button', class: 'qrs-md-nav l', 'aria-label': `Previous: ${prev.name}`, onclick: () => step(-1) }, icon('chevron')),
+      el('button', { type: 'button', class: 'qrs-md-nav r', 'aria-label': `Next: ${next.name}`, onclick: () => step(1) }, icon('chevron')),
+      el('p', { class: 'qrs-md-cap' }, `‹ ${prev.name} · ${i + 1} of ${T.length} · ${next.name} ›`));
+    const logo = design.logo ? el('span', { class: 'qrs-md-logo', style: `background-image:url("${design.logo.url}")` }) : el('span', { class: 'qrs-md-logo none' }, icon('addphoto'));
+    const dishes = el('span', { class: 'qrs-md-dishes', 'aria-hidden': 'true' }, [0, 1, 2, 3].map(k => (k < 3 && have[k] ? el('span', { style: `background-image:url("${have[k].photo}")` }) : el('span', { class: 'none' }))));
+    const swatch = (value, hex, name) => el('button', { type: 'button', role: 'radio', class: `qrs-md-dot${design.accent === value ? ' on' : ''}`, style: `--c:${hex}`, 'aria-checked': String(design.accent === value), 'aria-label': name,
+      onclick: () => { if (design.accent !== value) storeDesign({ accent: value }); } });
+    const side = el('div', { class: 'qrs-md-side' },
+      el('section', { class: 'qrs-info qrs-md-mine' }, el('h3', {}, 'Make it yours'), el('p', {}, 'These go into every template, so switching keeps your look.'),
+        el('div', { class: 'qrs-md-row' }, logo, el('div', {}, el('b', {}, 'Logo photo'), el('span', {}, 'Shown across the top, behind your name')), btn('qrs-md-sbtn', 'Change', soon)),
+        el('div', { class: 'qrs-md-row' }, dishes, el('div', {}, el('b', {}, 'Dish photos'), el('span', {}, t.photos ? `${have.length} of ${all.length} dishes have a photo` : 'Not shown in this template')), btn('qrs-md-sbtn', 'Manage', soon))),
+      el('section', { class: 'qrs-info qrs-md-acc' }, el('h3', {}, 'Accent colour'), el('p', {}, 'Buttons, tabs and the cart bar. First one is the template’s own.'),
+        el('div', { class: 'qrs-md-sw', role: 'radiogroup', 'aria-label': 'Accent colour' }, swatch(null, t.accent, `${t.name}’s own`), ACCENTS.map(([hex, name]) => swatch(hex, hex, name)))),
+      info('Same in every template', ['Your dishes and prices, live from the POS', 'Sold-out dishes greyed as “Sold out” (Availability app)', 'Search, cart, Help bell and order status in the same place; the payment page is the same for all', 'No reprint: QRs keep working when you switch']));
+    return [head, el('div', { class: 'qrs-md-body' }, stage, side)];
+  }
+
   // ---------- pop-ups ----------
   // kind: help | create | send | delete | delete-many | replace | test | pause | devices; an event's: end | delete-event |
   // replace-event | etable (one event table's QR) | delete-etable. One opened from an event table's own (Send, Replace QR,
   // Delete: table) goes back to it when closed without doing it; done, all close and the toast says so.
   function openPop(kind, data = {}) {
     if (kind === 'help' && pop?.kind === 'help') { closePop(); return; }
+    if (kind === 'create' && askTemplate()) return;
     pop = { kind, ...data };
     if (kind === 'create') pop.ticked = new Set(data.one ? [data.ids[0]] : data.ids);
     if (kind === 'send') { pop.size = 'a6'; pop.language = 'en'; }
@@ -1682,7 +1777,7 @@
   // ---------- doing things ----------
   const pickedRecords = () => (view.picked ? [...view.picked].map(id => records.find(r => r.id === id)).filter(Boolean) : []);
   // (the Event QRs pill opens on its Events tab)
-  function go(page) { view.page = page; view.picked = null; pop = null; form = null; view.evAvail = null; if (page === 'event') view.evTab = 'events'; render(); }
+  function go(page) { view.page = page; view.picked = null; pop = null; form = null; view.evAvail = null; view.tpl = null; view.tplKind = 'table'; if (page === 'event') view.evTab = 'events'; render(); }
   function goHome() { document.querySelector('#system-home')?.click(); if (dialog.open) dialog.close(); }
   function tapCard(r) {
     if (view.picked) { view.picked.has(r.id) ? view.picked.delete(r.id) : view.picked.add(r.id); if (!view.picked.size) view.picked = null; }
@@ -1714,7 +1809,7 @@
     toast(made.length === 1 ? `QR created for ${tableLabel(made[0].name)}` : `QRs created for ${tablesText(made.map(r => r.name), ' and ')}`, ['Print now', () => printQrs(made)]);
   }
   function createOne(kind) {
-    if (qrOfKind(kind)) return;
+    if (qrOfKind(kind) || askTemplate()) return;
     const r = makeQr(kind); records.push(r); store();
     toast(`${nameOf(r)} created`, ['Print now', () => printQrs([r])]);
   }
@@ -1901,6 +1996,7 @@
   }
 
   // ---------- drawing it all ----------
+  const phoneAt = { key: null, top: 0 };
   function render() {
     if (!dialog.open) return;
     // (a field being typed in keeps the typing: Search table, New event's name)
@@ -1908,11 +2004,16 @@
     const { tables } = floor();
     if (view.page === 'table' && !records.some(r => r.id === view.selected && r.kind === 'table' && tables.some(t => t.id === r.table))) view.selected = tables.map(t => qrOfTable(t.id)).find(Boolean)?.id || null;
     tally = null;
-    const main = el('main', { class: `qrs-main p-${view.page}${view.page === 'event' && form ? ' f-new' : ''}` }, view.page === 'table' ? tablePage(st) : view.page === 'event' ? eventPage() : onePage(st, view.page));
+    const main = el('main', { class: `qrs-main p-${view.page}${view.page === 'event' && form ? ' f-new' : ''}${view.page === 'design' && view.tpl ? ' f-tpl' : ''}` },
+      view.page === 'table' ? tablePage(st) : view.page === 'event' ? eventPage() : view.page === 'design' ? designPage() : onePage(st, view.page));
     const fresh = el('div', { class: `qrs-root${view.page === 'table' ? '' : ' wide'}` }, el('span', { class: 'qrs-unit', 'aria-hidden': 'true' }), sideEl(st), main, view.page === 'table' ? panelEl() : null, popEl(), toastEl);
     if (root) root.replaceWith(fresh); else dialog.append(fresh);
     root = fresh;
     const sc = root.querySelector('.qrs-scroll'); if (sc) sc.scrollTop = scroll;
+    // (the big phone keeps its place while the screen redraws, until another template or QR is picked)
+    const ps = root.querySelector('.qrs-md-phone.big .cm-scroll'), key = `${view.tpl}/${view.tplKind}`;
+    if (ps) { if (key === phoneAt.key) ps.scrollTop = phoneAt.top; phoneAt.key = key; ps.addEventListener('scroll', () => { phoneAt.top = ps.scrollTop; }, { passive: true }); }
+    if (!ps) phoneAt.key = null;
     if (typing) { const input = root.querySelector(typing); input?.focus(); input?.setSelectionRange?.(input.value.length, input.value.length); }
     fitPreview();
   }
@@ -1923,6 +2024,8 @@
   // (QS2, QS3: 1 design pixel a card unit) too.
   function fitPreview() {
     const u = unit();
+    // (Menu design: each phone's page, 360 wide, scaled to its screen)
+    for (const scr of root?.querySelectorAll('.qrs-md-screen') || []) { const page = scr.firstElementChild; if (page) page.style.transform = `scale(${scr.clientWidth / 360})`; }
     const extra = card => { const cu = card.offsetWidth / 426, link = card.querySelector('.qrs-card-link'); return cu > 0 && link ? Math.max(0, link.offsetHeight / cu - 20) : 0; };
     for (const box of root?.querySelectorAll('.qrs-prev') || []) {
       const card = box.querySelector('.qrs-card'); if (!card) continue;
@@ -1976,7 +2079,7 @@
 
   // ---------- opening, closing, Back ----------
   function open(page) {
-    load(); loadScans(); loadEvents(); loadKitchen(); view.page = KINDS[page] ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; view.evAvail = null; pop = null; form = null;
+    load(); loadScans(); loadEvents(); loadKitchen(); loadDesign(); view.page = KINDS[page] || page === 'design' ? page : 'table'; view.picked = null; view.search = ''; view.evTab = 'events'; view.evAvail = null; view.tpl = null; view.tplKind = 'table'; pop = null; form = null;
     noteOrders();
     if (!dialog.open) dialog.showModal();
     render(); dialog.querySelector('#qr-studio-title')?.focus({ preventScroll: true });
@@ -1988,6 +2091,8 @@
     if (view.picked) { stopPicking(); return true; }
     // (New event: Back closes an open calendar or wheels, then the form, as Cancel)
     if (form) { if (form.pick) { form.pick = null; render(); } else if (form.step > 1) { form.step -= 1; render(); } else closeForm(); return true; }
+    // (Menu design: Back from a template full size goes to all 7, as ‹ All templates)
+    if (view.page === 'design' && view.tpl) { view.tpl = null; render(); return true; }
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
@@ -1995,6 +2100,7 @@
   window.addEventListener('restro:data-changed', e => {
     const c = e.detail?.collections || [];
     if (c.includes('events')) loadEvents();
+    if (c.includes('settings')) loadDesign();
     if (c.includes('qr') || c.includes('settings') || c.includes('events')) { load(); loadScans(); changed(); }
     // (an event's orders: its counts on the Event QRs page, and Delete off once it has one)
     if (c.includes('orders') && events.length) { noteOrders(); if (dialog.open && view.page === 'event') render(); }

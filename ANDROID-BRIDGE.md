@@ -952,6 +952,47 @@ Orders' Midnight.
   - QR ordering paused by itself (not while the restaurant is closed).
   - Each event paused by itself (Update Pack 6, H3: below).
 
+### Menu design: the 7 templates (Update Pack 7, B; QS7, QS8)
+
+Built 18 Nov 2026 in `qr-studio.js` (the page) and `customer-menu.js` / `customer-menu.css` (the customers' menu).
+
+- **The choice**, in `restro.menuDesign.v1` (synced, SYNC.md: a setting): `{ template, accent, logo, at, by }`.
+  - `template`: `'night' | 'fresh-grid' | 'cafe' | 'editorial'` (with dish photos) or `'chalkboard' | 'classic-list' |
+    'minimal'` (without), or `null` until the restaurant picks one. There is no default (B3).
+  - `accent`: `'#RRGGBB'` for the buttons, tabs and cart bar, or `null` for the template's own (the first of the 7
+    swatches; the others are `#1F5E3A`, `#B45309`, `#DC2626`, `#1E4FB8`, `#7C3AED`, `#1C1917`). Words on it are white
+    on a dark accent, dark on a light one.
+  - `logo`: `{ id, url }`, the logo photo (a real photo of the logo or name board, across the top behind the name: B2),
+    picked from the Gallery; `null` until there is one (the top is then a plain dark band). Only an `https://` address
+    is used.
+  - `at`, `by`: when and by whom it last changed (the staff's full name).
+- **QS7, all 7:** With dish photos (4) and Without dish photos (3), each a phone showing the restaurant's own menu in
+  that template, as a customer at a table sees it (one dish in the cart), with its name, "Best with photos · ‹N›
+  missing" (the dishes without a photo) or "No dish photos needed", and Use this template; the one in use has a green
+  edge and "In use". Tapping a phone opens it full size.
+- **QS8, one full size:** ‹ All templates, its name, Send me a preview, Use this template (or In use); the Table QR /
+  Takeaway QR / Menu QR switch (the Takeaway QR has no Help bell; the Menu QR is view only: no buttons, cart or bell,
+  C6); the phone (it scrolls, and its category bar works); ‹ › step through all 7 round ("‹ Fresh grid · 3 of 7 ·
+  Editorial ›"). Make it yours: the logo photo and dish photos (Change, Manage), Accent colour (applies at once), and
+  Same in every template.
+- **Not yet:** Change (QS9, QS14: the logo photo from the Gallery), Manage (QS10–QS13: dish photos), tapping a dish on
+  the preview for its photo (QS15) and Send me a preview say "Coming soon": photos come through the Gallery after the
+  photo checks in the cloud (Pack 5, 02_PHOTO-UPLOAD-SECURITY-SPEC), and the preview is sent by the cloud.
+- **B3:** while there is no template, making a QR (a table's, all tables', the Takeaway or Menu QR, a new event) says
+  "Pick a menu design first" with Pick a template, which opens Menu design; nothing is made.
+- **The customers' menu** (`RestroCustomerMenu.page(options)`, the same page the customer pages will use): the
+  restaurant's photo and name on top with the pill (Table 7, Takeaway, Menu); the category bar sticks and marks the
+  category on show, search at its end; the dishes as in the menu, with the dish's photo in the 4 photo templates (its
+  place kept, with a plain plate, while a dish has none); a sold-out dish (the Availability app's Restaurant menu
+  switch, `restro.menu.availability.v1`) stays greyed, with "Sold out" for its button (C4); the Menu button, the Help
+  bell (Table QR and event-table QR only: H1) and the cart bar ("1 item · ₹260 · View cart ›"). The page is the same
+  whatever the tablet's theme (B1): in Midnight only QR Studio around it turns dark. Fonts (SIL Open Font License, in
+  `assets/fonts` with their licences): DM Sans in all 7, Playfair Display (Night), Cormorant Garamond (Editorial),
+  Yatra One (Chalkboard); the ₹ sign is Inter's in every template, as drawn.
+- **For the cloud (Phase 2):** a QR's page shows the restaurant's `template` with its `accent` and `logo`, the menu
+  and what is sold out, live; no template yet: the neutral page, "Our menu is coming soon. Please ask staff." (B3).
+  Changing the template never needs a reprint: the QRs keep their links.
+
 ### QR ordering (I1, I3)
 
 The sidebar's card, kept in `restro.qrOrdering.v1` (synced): `{ off: { until, choice, by, at } | null, late: { by, at,
@@ -982,8 +1023,7 @@ The sidebar's card and the banner (QS37, QS48, QS53 and the like):
   and the kitchen printers show here in the RESTRO Android app."
 - **Menu design**: its pill reads "Menu design" with the chosen template's name under it, and "Pick a template" until
   one is chosen (Update Pack 7, B3: no template is ever chosen for a restaurant; "Night" in the designs is only the
-  sample restaurant's). Its screens (the 7 templates, QS7–QS9, QS14, QS15) come in a later part, so a tap says "Coming
-  soon" until then.
+  sample restaurant's). Its page is below ("Menu design: the 7 templates").
 - **What the customer gets** (Update Pack 7, L2): Table QRs (before any QR, and its help): "Help bell: waiter, water,
   bill, receipt" and "pay the table’s bill on the phone"; the Menu QR: "The live menu: sold-out dishes greyed as “Sold
   out”, prices always current".

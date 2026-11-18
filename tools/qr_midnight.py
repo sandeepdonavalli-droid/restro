@@ -33,7 +33,9 @@ SURFACE = {
   '#E6F4F1': '#14302D', '#F3FAF8': '#14302D', '#CDEBE4': '#14302D',
   '#292524': '#E9EEF8', '#1C1917': '#E9EEF8',
   '#1E4FB8': '#2F6FDE', '#2F6FE4': '#2F6FDE', '#2F6FDE': '#2F6FDE', '#0F766E': '#0F766E', '#16A34A': '#16A34A', '#15803D': '#15803D',
-  '#D92D20': '#D92D20', '#DC2626': '#DC2626', '#B91C1C': '#B91C1C', '#F7F4EE': '#F7F4EE'}
+  '#D92D20': '#D92D20', '#DC2626': '#DC2626', '#B91C1C': '#B91C1C', '#F7F4EE': '#F7F4EE',
+  # (Update Pack 7, QS7: Menu design's photos line, the divider between the two groups, an empty photo square)
+  '#FEF3E2': '#3A2A08', '#E2DFDA': '#28344C'}
 TEXT = {
   '#1C1917': '#F1F4FA', '#292524': '#F1F4FA', '#44403C': '#C5CEDD', '#57534E': '#A3ADBF', '#78716C': '#8D97AB', '#726F6C': '#8D97AB',
   '#A8A29E': '#7A869C', '#B3AEAB': '#6B778D', '#C4C0BC': '#7A869C', '#9A9895': '#7A869C', '#D6D3D1': '#5A6782',
@@ -41,7 +43,7 @@ TEXT = {
   '#0F766E': '#6FB5A8', '#115E59': '#8FD0C3',
   '#166534': '#7EE2A8', '#15803D': '#7EE2A8', '#1B7A3E': '#7EE2A8', '#14532D': '#7EE2A8',
   '#B91C1C': '#FFB0B0', '#991B1B': '#FFB0B0', '#7F1D1D': '#FFB0B0', '#9A3412': '#FFA066', '#C2410C': '#FFA066', '#7C2D12': '#FFA066',
-  '#FFFFFF': '#FFFFFF'}
+  '#9A5B0B': '#FFD27A', '#FFFFFF': '#FFFFFF'}
 LINE = {
   '#D6D3D1': '#28344C', '#E2DFDA': '#28344C', '#CFCAC2': '#28344C', '#E7E5E4': '#28344C', '#BDB7AE': '#28344C', '#C4C0BC': '#28344C',
   '#E2E4E8': '#28344C', '#F0EFED': '#28344C', '#E8E7E5': '#28344C', '#E2E3E5': '#28344C', '#E1E2E6': '#28344C', '#DDDEE2': '#28344C',
@@ -50,10 +52,13 @@ LINE = {
   '#9DBCF2': '#35579A', '#9ED3C8': '#2C6B62', '#FCA5A5': '#8A3434', '#F3C2C2': '#8A3434', '#FCA8A8': '#8A3434',
   '#BBF7D0': '#2E7D4F', '#BFE5CB': '#2E7D4F', '#F5C27A': '#7A5A1C',
   '#292524': '#E9EEF8', '#1C1917': '#E9EEF8', '#1E4FB8': '#2F6FDE', '#2F6FE4': '#2F6FDE', '#2F6FDE': '#2F6FDE', '#0F766E': '#0F766E',
-  '#16A34A': '#16A34A', '#DC2626': '#DC2626', '#D92D20': '#D92D20', '#B91C1C': '#B91C1C', '#FFFFFF': '#121B2D'}
+  '#16A34A': '#16A34A', '#DC2626': '#DC2626', '#D92D20': '#D92D20', '#B91C1C': '#B91C1C', '#FFFFFF': '#121B2D',
+  # (Update Pack 7, QS8: the QR switch's line, the ‹ › buttons' line, an empty photo square's line)
+  '#DFDDDA': '#2F384A', '#DDDCDA': '#2A3140', '#E2E0DD': '#28344C'}
 
-# ---------- what stays paper (L1): the printed card's preview, and the QR codes on white ----------
-PAPER = ('.qrs-card', '.qrs-qr')
+# ---------- what stays as it is (L1): the printed card's preview, the QR codes on white, and the customers' menu in
+# Menu design's phones (it looks the same whatever the tablet's theme: B1) ----------
+PAPER = ('.qrs-card', '.qrs-qr', '.qrs-md-screen')
 # ---------- inside the pop-ups: white turns the pop-up's own #141E33 (QS4: its chips and list), not the panels' #121B2D ----------
 POP = ('.qrs-pop', '.qrs-pick', '.qrs-langs', '.qrs-lang')
 MISSING = {}
@@ -139,6 +144,9 @@ def tokens():
     # the create tiles' icon circles (QS1): light on the dark tile, the blue's own lighter blue on the blue one
     R('.qrs-tile-i', ('background', '#E8EAEE'))
     R('.qrs-tile.all .qrs-tile-i', ('background', '#5489E4'))
+    # Menu design (QS8): the QR switch's picked one light with dark words; the ‹ ›' arrows softer
+    R('.qrs-md-seg button.on', ('color', DARK))
+    R('.qrs-md-nav', ('color', '#C5CEDD'))
     # an event table's QR (EV7): on a white plate, as drawn (11.5 round it, corners 5), the card's layout as in Light
     R('.qrs-etqr', ('display', 'block'), ('margin', 'calc(-11.5 * var(--fu))'), ('padding', 'calc(11.5 * var(--fu))'), ('border-radius', 'calc(5 * var(--fu))'), ('background', '#FFFFFF'))
     # the picked tables' QRs (QS40, QS43): a wider white plate round the same code (8 round it; 7 when four a row)
