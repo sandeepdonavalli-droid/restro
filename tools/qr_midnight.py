@@ -66,6 +66,8 @@ def swap(v, table, kind):
         if kind == 'surface' and c[3] < 0.9:
             r, g, b = c[:3]
             return M.fmt((0, 0, 0, min(.7, c[3] * 2))) if max(r, g, b) < 80 else m.group(0)
+        # (a see-through dark shadow stays a shadow: black, deeper on the dark; only solid ones are drawn lines)
+        if kind == 'shadow' and c[3] < 0.9 and max(c[:3]) < 60: return M.fmt((0, 0, 0, min(1, c[3] * 2.4)))
         if h in table:
             d = M.parse(table[h])
             return M.fmt(d[:3] + (c[3],))
@@ -115,6 +117,7 @@ def tokens():
     # picked: light with dark words (the pills, area chips, picks, the help button, a category)
     R('.qrs-pill.on,.qrs-chip.on,.qrs-pick.on,.qrs-help.on,.qrs-mcat.on', ('color', f'{DARK}!important'))
     R('.qrs-pill.on .qrs-pill-i,.qrs-mcat.on small', ('color', DARK))
+    R('.qrs-pick.on small', ('color', '#424956'))                                      # (QS4: "A6" on the picked size)
     R('.qrs-pill.on .qrs-pill-n', ('background', 'rgba(11,18,32,.12)'), ('color', DARK))
     # a table's QR: on its white plate, inset in its dark box behind a line
     R('.qrs-tqr', ('background', '#FFFFFF'), ('border-color', '#28344C'), ('box-shadow', 'inset 0 0 0 calc(4 * var(--fu)) #121B2D'))

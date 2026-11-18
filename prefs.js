@@ -49,7 +49,35 @@
   const LATEST_CLOSE = 360; // (a closing time the next morning: 6:00 am at the latest)
   const AUTO_LOCK = Object.freeze([0, 1, 2, 5, 10, 15]);        // minutes; 0 = off
   const GO_DARK = Object.freeze([1, 2, 5, 10, 15, 30, 0]);      // minutes; 0 = never
-  const LANGUAGES = Object.freeze(['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati']);
+  // Languages (Update Pack 7, C7: all the major Indian languages; owner, 17 Nov 2026: every language choice shows English
+  // first, the region's language, Hindi, then the rest in a list). code: as dishes' names in other languages are keyed
+  // (Update Pack 3); name: in English (a printer's KOT language is kept by it); native: in its own script.
+  const LANGS = Object.freeze([['en', 'English', 'English'], ['hi', 'Hindi', 'हिन्दी'], ['te', 'Telugu', 'తెలుగు'], ['ta', 'Tamil', 'தமிழ்'],
+    ['kn', 'Kannada', 'ಕನ್ನಡ'], ['ml', 'Malayalam', 'മലയാളം'], ['mr', 'Marathi', 'मराठी'], ['gu', 'Gujarati', 'ગુજરાતી'], ['bn', 'Bengali', 'বাংলা'],
+    ['pa', 'Punjabi', 'ਪੰਜਾਬੀ'], ['or', 'Odia', 'ଓଡ଼ିଆ'], ['as', 'Assamese', 'অসমীয়া'], ['ur', 'Urdu', 'اردو'], ['kok', 'Konkani', 'कोंकणी']]
+    .map(([code, name, native]) => Object.freeze({ code, name, native })));
+  const LANGUAGES = Object.freeze(LANGS.map(l => l.name));
+  // The region's language: by the GSTIN's state code (its first two digits), else by the address (a state or a big
+  // city in it); Hindi where Hindi is the region's; null when neither tells
+  const GST_STATE = { '01': 'ur', '02': 'hi', '03': 'pa', '04': 'pa', '05': 'hi', '06': 'hi', '07': 'hi', '08': 'hi', '09': 'hi', '10': 'hi',
+    '16': 'bn', '18': 'as', '19': 'bn', '20': 'hi', '21': 'or', '22': 'hi', '23': 'hi', '24': 'gu', '25': 'gu', '26': 'gu', '27': 'mr', '28': 'te',
+    '29': 'kn', '30': 'kok', '31': 'ml', '32': 'ml', '33': 'ta', '34': 'ta', '35': 'hi', '36': 'te', '37': 'te' };
+  const PLACES = [['te', 'telangana andhra hyderabad secunderabad vijayawada visakhapatnam vizag warangal tirupati guntur nellore kakinada'],
+    ['ta', 'tamil chennai coimbatore madurai tiruchirappalli trichy salem puducherry pondicherry'],
+    ['kn', 'karnataka bengaluru bangalore mysuru mysore mangaluru mangalore hubballi hubli belagavi'],
+    ['ml', 'kerala kochi cochin ernakulam thiruvananthapuram trivandrum kozhikode calicut thrissur'],
+    ['mr', 'maharashtra mumbai pune nagpur nashik thane aurangabad'], ['gu', 'gujarat ahmedabad surat vadodara rajkot'],
+    ['bn', 'bengal kolkata howrah siliguri tripura agartala'], ['pa', 'punjab ludhiana amritsar jalandhar chandigarh mohali'],
+    ['or', 'odisha orissa bhubaneswar cuttack'], ['as', 'assam guwahati'], ['kok', 'goa panaji margao'],
+    ['hi', 'delhi uttar madhya lucknow kanpur noida gurugram gurgaon haryana rajasthan jaipur bhopal indore bihar patna jharkhand ranchi chhattisgarh raipur uttarakhand dehradun himachal shimla']];
+  function regionLanguage() {
+    const b = get('business'), st = String(b.gstin || '').slice(0, 2);
+    if (GST_STATE[st]) return GST_STATE[st];
+    const a = ` ${String(b.address || '').toLowerCase().replace(/[^a-z]+/g, ' ')} `;
+    for (const [code, words] of PLACES) if (words.split(' ').some(w => a.includes(` ${w} `))) return code;
+    return null;
+  }
+  const langOf = code => LANGS.find(l => l.code === code) || null;
   const ROLES = Object.freeze(['bills', 'kitchen', 'both']);
   const LAST_ORDER = Object.freeze([0, 15, 30, 45, 60]);      // minutes before closing; 0 = at closing
   const TYPES = ['takeaway', 'delivery', 'phone'];
@@ -258,6 +286,6 @@
   // FSSAI licence and registration numbers are 14 digits
   const fssaiOk = value => /^\d{14}$/.test(String(value || ''));
 
-  window.RestroPrefs = Object.freeze({ get: name => (SCOPED[name] && !CLEAN[name] ? scoped(name).value : get(name)), set, update, scoped, setScoped, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, printerRoles: ROLES, gstinOk, fssaiOk,
+  window.RestroPrefs = Object.freeze({ get: name => (SCOPED[name] && !CLEAN[name] ? scoped(name).value : get(name)), set, update, scoped, setScoped, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, langs: LANGS, langOf, regionLanguage, printerRoles: ROLES, gstinOk, fssaiOk,
     days: DAYS, latestClose: LATEST_CLOSE, hoursOn, lastOrderOn, lastOrderChoices: LAST_ORDER, businessDay, spillMinutes, breakOn, lastOrderBreakOn, breakOk, openAt });
 })();

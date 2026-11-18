@@ -643,7 +643,23 @@
     const state = p.connected === true ? [' · ', el('b', { class: 'ok' }, 'Connected')] : p.connected === false ? [' · ', el('b', { class: 'bad' }, 'Not connected')] : [];
     const seg = (label, value, off, pick) => el('div', { class: `st-pseg${off ? ' off' : ''}`, role: 'radiogroup', 'aria-label': label },
       [1, 2, 3].map(n => el('button', { type: 'button', role: 'radio', 'aria-checked': String(n === value), disabled: off, onclick: () => { pick(n); again(); } }, String(n))));
-    const pop = el('div', { class: 'st-ppop', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'st-ppop-title', tabindex: '-1' },
+    // The KOT language as every language choice (owner, 17 Nov 2026; as the QR card's in QR Studio): English, the region's
+    // language (the GSTIN in Business details, else the address; none when neither tells, or when it is Hindi), Hindi,
+    // then More languages ▾ with every other language in a list; picked from it, that chip shows it
+    const region = Prefs.regionLanguage?.() || null, codes = ['en', region !== 'hi' ? region : null, 'hi'].filter(Boolean);
+    const cur = (Prefs.langs || []).find(l => l.name === d.language)?.code || 'en', listed = !codes.includes(cur), open = Boolean(ppop.langList && kots);
+    const setLang = code => { d.language = Prefs.langOf(code).name; ppop.langList = false; again(); };
+    const langRow = el('div', { class: `st-plang${kots ? '' : ' off'}` }, el('p', { class: 'st-plab', id: 'st-plang-lab' }, 'KOT language'),
+      el('div', { class: 'st-pseg', role: 'radiogroup', 'aria-labelledby': 'st-plang-lab', style: `grid-template-columns:repeat(${codes.length + 1},1fr)` },
+        codes.map(c => el('button', { type: 'button', role: 'radio', 'aria-checked': String(c === cur), disabled: !kots, onclick: () => setLang(c) }, Prefs.langOf(c).native)),
+        el('button', { type: 'button', role: 'radio', class: 'st-pmore-b', 'aria-checked': String(listed), 'aria-haspopup': 'listbox', 'aria-expanded': String(open), disabled: !kots,
+          onclick: () => { ppop.langList = !ppop.langList; again(); } }, el('span', {}, listed ? Prefs.langOf(cur).native : 'More languages'), line('<path d="m6 9.5 6 6 6-6"/>'))),
+      open ? el('div', { class: 'st-langs', role: 'listbox', 'aria-labelledby': 'st-plang-lab' }, Prefs.langs.filter(l => !codes.includes(l.code)).map(l =>
+        el('button', { type: 'button', role: 'option', class: `st-lang${l.code === cur ? ' on' : ''}`, 'aria-selected': String(l.code === cur), onclick: () => setLang(l.code) },
+          el('b', {}, l.native), el('small', {}, l.name), l.code === cur ? line(CHECK) : null))) : null);
+    // a tap anywhere else in the pop-up puts the list away
+    const pop = el('div', { class: 'st-ppop', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'st-ppop-title', tabindex: '-1',
+      onclick: e => { if (ppop?.langList && !e.target.closest?.('.st-pmore-b, .st-langs')) { ppop.langList = false; again(); } } },
       el('div', { class: 'st-ppop-h' },
         el('div', {}, el('h3', { id: 'st-ppop-title' }, nameOf(p)), el('p', {}, `Settings › Printers${p.connection ? ` · ${p.connection}` : ''}${where}`, ...state)),
         el('button', { type: 'button', class: 'st-ppop-x', 'aria-label': 'Close', onclick: closePrinter }, line(X))),
@@ -653,11 +669,10 @@
       el('div', { class: 'st-pjobs', role: 'radiogroup', 'aria-labelledby': 'st-pjob-lab' }, JOBS.map(j =>
         el('button', { type: 'button', class: 'st-pjob', role: 'radio', 'aria-checked': String(d.role === j.value), id: `st-pjob-${j.value}`, onclick: () => { d.role = j.value; if (j.value === 'bills') d.backup = false; again(); } },
           el('span', { class: 'st-prd' }), el('span', { class: 'st-pjob-t' }, el('b', {}, j.label), el('span', {}, j.text))))),
-      // (not drawn: the settings each printer already had, one row, greyed when its job leaves them out)
+      // (not drawn: the settings each printer already had, greyed when its job leaves them out: the KOT language on a row
+      // of its own, then the copies)
+      langRow,
       el('div', { class: 'st-pmore' },
-        el('div', { class: kots ? '' : 'off' }, el('label', { class: 'st-plab', for: 'st-plang' }, 'KOT language'),
-          el('select', { id: 'st-plang', class: 'st-pselect', disabled: !kots, onchange: e => { d.language = e.target.value; } },
-            Prefs.languages.map(l => el('option', { value: l, selected: l === d.language }, l)))),
         el('div', { class: kots ? '' : 'off' }, el('p', { class: 'st-plab' }, 'Copies per KOT'), seg('Copies per KOT', d.copies, !kots, n => { d.copies = n; })),
         el('div', { class: bills ? '' : 'off' }, el('p', { class: 'st-plab' }, 'Copies per bill'), seg('Copies per bill', d.billCopies, !bills, n => { d.billCopies = n; }))),
       el('label', { class: `st-pbackup${kots ? '' : ' off'}`, for: 'st-pbackup' },

@@ -1161,9 +1161,20 @@ PDF and sends it with the backend's own email and WhatsApp service: no keys on t
 
 - `to`: `'email'` or `'whatsapp'`.
 - `size`: `'a6'` (Table card, A6), `'sticker'` (Sticker, 10 × 10 cm) or `'a4'` (A4 sheet, 4 per page).
-- `language`: `'en'` (English), `'te'` (తెలుగు), `'hi'` (हिन्दी) or `'en+te'` (English + తెలుగు). The texts in
-  `cards` are in English; the cloud prints them in the language chosen. The restaurant's name and the link stay as
-  they are.
+- `language`: one language's code, or English with one (`'en+'` and its code): `'en'` (English), `'hi'` (हिन्दी),
+  `'te'` (తెలుగు), `'ta'` (தமிழ்), `'kn'` (ಕನ್ನಡ), `'ml'` (മലയാളം), `'mr'` (मराठी), `'gu'` (ગુજરાતી), `'bn'` (বাংলা),
+  `'pa'` (ਪੰਜਾਬੀ), `'or'` (ଓଡ଼ିଆ), `'as'` (অসমীয়া), `'ur'` (اردو), `'kok'` (कोंकणी); `'en+te'` is English + తెలుగు.
+  The texts in `cards` are in English; the cloud prints them in the language chosen. The restaurant's name and the
+  link stay as they are.
+
+  **Card language** in the pop-up, as every language choice (owner, 17 Nov 2026): **English** first (picked to start
+  with), then the region's language, then **हिन्दी**, then **More languages ▾**, a list of every other choice (each
+  language alone, then with English) to scroll through; a language picked from it shows on that chip. The region's
+  language comes from the GSTIN in Settings › Business details, whose first two digits are the state (36, 37, 28
+  తెలుగు; 33, 34 தமிழ்; 29 ಕನ್ನಡ; 32, 31 മലയാളം; 27 मराठी; 24, 25, 26 ગુજરાતી; 19, 16 বাংলা; 03, 04 ਪੰਜਾਬੀ; 21 ଓଡ଼ିଆ;
+  18 অসমীয়া; 30 कोंकणी; 01 اردو; 02, 05 to 10, 20, 22, 23, 35 हिन्दी), else from the business address (a state or city
+  named in it, `regionLanguage()` in `prefs.js`); none when neither tells, and when it is Hindi, Hindi shows once.
+  Nothing is stored: the choice goes with the job.
 - `cards`: as for printing, above. The PDF draws them in colour, as the screens' preview does.
 
 Return `true` (or nothing) once the cloud has it: the page marks them sent and says "Table 7 sent to email ‹masked›".
@@ -1404,10 +1415,12 @@ that sent it tries again by itself every 30 seconds until it prints.
 - **Red** (modifiers, dish notes, the order note, the boxes, the **REPRINT** box) prints red on two-colour printers
   (red/black ribbon or two-colour thermal paper), and black on black-only printers, as everything else (above). The
   first row is always black.
-- **Language:** each printer's KOT language (`"English"`, `"Telugu"`, `"Hindi"`, `"Tamil"`, `"Kannada"`,
-  `"Malayalam"`, `"Marathi"`, `"Bengali"`, `"Gujarati"`). Anything but English is printed as an image (raster), as
-  thermal printers have no Indic fonts; a dish's name in that language comes from `names` (keyed by the language's code:
-  `te`, `hi`, `ta`, `kn`, `ml`, `mr`, `bn`, `gu`), falling back to English.
+- **Language:** each printer's KOT language, by its English name: `"English"`, `"Hindi"`, `"Telugu"`, `"Tamil"`,
+  `"Kannada"`, `"Malayalam"`, `"Marathi"`, `"Gujarati"`, `"Bengali"`, `"Punjabi"`, `"Odia"`, `"Assamese"`, `"Urdu"` or
+  `"Konkani"`. Anything but English is printed as an image (raster), as thermal printers have no Indic fonts (Urdu
+  right to left); a dish's name in that language comes from `names`, keyed by the language's code (`hi`, `te`, `ta`,
+  `kn`, `ml`, `mr`, `gu`, `bn`, `pa`, `or`, `as`, `ur`, `kok`), falling back to English. (KOTs are in one language:
+  no English + another, as the QR cards have.)
 - **Copies:** `copies` (1–3) of each slip on that printer.
 
 The page keeps every slip on its order (`kots`: `{ id, at, kind, no, lines, reason, by }`; Update Pack 4: `how`,
@@ -1477,8 +1490,11 @@ on that device only.
 page. Its name as the title; under it "Settings › Printers · Bluetooth · paired with Handheld 2 · **Connected**" (the
 connection, then "paired with" a Bluetooth printer's device or "on" another's, then **Connected** in green or **Not
 connected** in red, from `connected`). Then **Printer name**; **What this printer prints**, the three jobs as option
-cards with their lines; (not drawn: the settings each printer had before, in one row) **KOT language**, **Copies per
-KOT** and **Copies per bill**, each greyed while the job leaves it out; **Use as backup printer**, "For the restaurant.
+cards with their lines; (not drawn: the settings each printer had before) **KOT language**, on its own row, as every
+language choice (owner, 17 Nov 2026): **English**, the region's language (as the QR cards' **Card language**: the
+GSTIN, else the address; none when neither tells), **हिन्दी**, then **More languages ▾**, a list of every other language
+to scroll through (each in its own script and in English, the current one ticked); a language picked from it shows on
+that chip; then **Copies per KOT** and **Copies per bill** side by side; each greyed while the job leaves it out; **Use as backup printer**, "For the restaurant.
 Only printers that print KOTs can be the backup. Event printers back up each other by themselves.", greyed for Bills
 and receipts only; for a Bluetooth printer, "Bluetooth works like a cable: the printer belongs to the one device it’s
 paired with, and that device is its Printer device."; then **Cancel** and **Save**. Nothing changes until Save; Cancel,

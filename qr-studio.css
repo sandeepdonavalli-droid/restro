@@ -718,6 +718,18 @@
 .qrs-pick small{margin-left:calc(2 * var(--fu));font-size:calc(13 * var(--fu));font-weight:500;color:#726F6C}
 .qrs-pick.on{border-color:#292524!important;background:#292524!important;color:#FFFFFF}
 .qrs-pick.on small{color:#C9C8C8}
+/* (owner, 17 Nov 2026) The card's language: English, the region's language, Hindi, then More languages ▾: a list of every
+   other language, alone or with English; picked from it, the chip shows it */
+.qrs-more-w{position:relative}
+.qrs-more-i{flex:none;width:calc(16 * var(--fu));height:calc(16 * var(--fu));margin:0 calc(-3 * var(--fu)) 0 calc(1 * var(--fu));transform:rotate(90deg);stroke-width:2.2}
+.qrs-more[aria-expanded="true"] .qrs-more-i{transform:rotate(-90deg)}
+.qrs-langs{position:absolute;top:calc(100% + 8 * var(--fu));left:0;z-index:6;width:calc(340 * var(--fu));max-height:calc(251 * var(--fu));box-sizing:border-box;padding:calc(8 * var(--fu));overflow-y:auto;overscroll-behavior:contain;border:1px solid #E2E4E8;border-radius:calc(18 * var(--fu));background:#FFFFFF;box-shadow:0 calc(12 * var(--fu)) calc(32 * var(--fu)) rgba(28,25,23,.16)}
+.qrs-lang{display:flex;align-items:center;gap:calc(10 * var(--fu));width:100%;height:calc(52 * var(--fu));box-sizing:border-box;padding:0 calc(12 * var(--fu))!important;border-radius:calc(12 * var(--fu));background:transparent!important;text-align:left}
+.qrs-lang+.qrs-lang{margin-top:calc(2 * var(--fu))}
+.qrs-lang b{flex:none;font-size:calc(16.5 * var(--fu));font-weight:600;color:#1C1917;white-space:nowrap}
+.qrs-lang small{flex:1;min-width:0;font-size:calc(13.5 * var(--fu));color:#78716C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrs-lang.on{background:#F5F4F2!important}
+.qrs-lang-i{flex:none;width:calc(18 * var(--fu));height:calc(18 * var(--fu));color:#1E4FB8;stroke-width:2.4}
 .qrs-pick .qrs-pick-i{width:calc(16 * var(--fu));height:calc(16 * var(--fu));margin:0 calc(3 * var(--fu)) 0 calc(1 * var(--fu));stroke-width:2.8}
 .qrs-pnote{margin-top:calc(12.6 * var(--fu));font-size:calc(14 * var(--fu));line-height:calc(20 * var(--fu));color:#78716C}
 .qrs-pnote.dark b{color:#78716C}

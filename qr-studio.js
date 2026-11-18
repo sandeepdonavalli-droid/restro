@@ -1416,6 +1416,22 @@
   function closePop() { if (!pop) return false; pop = backTo(pop); clearInterval(testTimer); render(); return true; }
   const popHead = (title, sub) => el('div', { class: 'qrs-pop-h' }, el('div', {}, el('h3', {}, title), sub ? el('p', {}, sub) : null), el('button', { type: 'button', class: 'qrs-x', 'aria-label': 'Close', onclick: closePop }, icon('close')));
   const label = text => el('p', { class: 'qrs-plabel' }, text);
+  // The card's language (owner, 17 Nov 2026; Update Pack 7, C7): English first (picked to start with), the region's
+  // language (by the GSTIN in Business details, else the address; none when neither tells, or when it is Hindi), Hindi,
+  // then a ▾ list of every other choice: each language alone or with English. Picked from the list, the chip shows it.
+  const langWord = code => { const n = c => window.RestroPrefs?.langOf?.(c)?.native || c, [a, b] = String(code).split('+'); return b ? `${n(a)} +\u00a0 ${n(b)}` : n(a); };
+  function langPicks() {
+    const P = window.RestroPrefs, region = P?.regionLanguage?.() || null, chips = ['en', region !== 'hi' ? region : null, 'hi'].filter(Boolean);
+    const options = (P?.langs || []).filter(l => l.code !== 'en').flatMap(l => [...(chips.includes(l.code) ? [] : [l.code]), `en+${l.code}`]);
+    const listed = !chips.includes(pop.language), set = code => { pop.language = code; pop.langList = false; render(); };
+    const more = el('button', { type: 'button', class: `qrs-pick qrs-more${listed ? ' on' : ''}`, 'aria-haspopup': 'listbox', 'aria-expanded': String(Boolean(pop.langList)),
+      onclick: () => { pop.langList = !pop.langList; render(); } }, el('span', {}, listed ? langWord(pop.language) : 'More languages'), icon('chevron', 'qrs-more-i'));
+    const name = code => { const [a, b] = code.split('+'); return b ? `English and ${P.langOf(b).name}` : P.langOf(a).name; };
+    const list = pop.langList ? el('div', { class: 'qrs-langs', role: 'listbox', 'aria-label': 'Card language' }, options.map(code =>
+      el('button', { type: 'button', role: 'option', class: `qrs-lang${pop.language === code ? ' on' : ''}`, 'aria-selected': String(pop.language === code), onclick: () => set(code) },
+        el('b', {}, langWord(code)), el('small', {}, name(code)), pop.language === code ? icon('check', 'qrs-lang-i') : null))) : null;
+    return el('div', { class: 'qrs-picks qrs-lpicks' }, chips.map(code => pick(pop.language === code, langWord(code), () => set(code))), el('div', { class: 'qrs-more-w' }, more, list));
+  }
   const pick = (on, text, onclick, extra, before) => el('button', { type: 'button', class: `qrs-pick${on ? ' on' : ''}`, 'aria-pressed': String(on), onclick }, before || null, el('span', {}, text), extra || null);
   function popEl() {
     if (!pop) return null;
@@ -1452,7 +1468,7 @@
       body = [popHead(one ? `Send ${eventTableLabel(one)} QR` : tables ? 'Send all event table QRs' : `Send ${e.name} QR`, ['Colour PDF', one ? eventTableLabel(one) : tables ? tablesWords(e) : (MODES[e.mode] || MODES.both).label, e.name].join(' · ')), label('PRINT SIZE'),
         el('div', { class: 'qrs-picks' }, [['a6', 'Table card', 'A6'], ['sticker', 'Sticker', '10 × 10 cm'], ['a4', 'A4 sheet', '4 per page']].map(([id, t, x]) => pick(pop.size === id, t, () => { pop.size = id; render(); }, el('small', {}, x)))),
         label('CARD LANGUAGE'),
-        el('div', { class: 'qrs-picks' }, [['en', 'English'], ['te', 'తెలుగు'], ['hi', 'हिन्दी'], ['en+te', 'English +\u00a0 తెలుగు']].map(([id, t]) => pick(pop.language === id, t, () => { pop.language = id; render(); }))),
+        langPicks(),
         label('SENDS TO THE BUSINESS’S REGISTERED CONTACTS'),
         el('dl', { class: 'qrs-contacts' }, el('div', {}, el('dt', {}, 'Email'), el('dd', {}, icon('mail'), email || 'Not added yet')), el('div', {}, el('dt', {}, 'WhatsApp'), el('dd', {}, icon('chat'), phone || 'Not added yet'))),
         el('p', { class: 'qrs-pnote' }, 'Colour, print-ready PDF: print, laminate or make stickers. To change these contacts: Settings › Business details. Download comes with the web dashboard.'),
@@ -1506,7 +1522,7 @@
       body = [popHead(title, sub), label('PRINT SIZE'),
         el('div', { class: 'qrs-picks' }, [['a6', 'Table card', 'A6'], ['sticker', 'Sticker', '10 × 10 cm'], ['a4', 'A4 sheet', '4 per page']].map(([id, t, x]) => pick(pop.size === id, t, () => { pop.size = id; render(); }, el('small', {}, x)))),
         label('CARD LANGUAGE'),
-        el('div', { class: 'qrs-picks' }, [['en', 'English'], ['te', 'తెలుగు'], ['hi', 'हिन्दी'], ['en+te', 'English +\u00a0 తెలుగు']].map(([id, t]) => pick(pop.language === id, t, () => { pop.language = id; render(); }))),
+        langPicks(),
         label('SENDS TO THE BUSINESS’S REGISTERED CONTACTS'),
         el('dl', { class: 'qrs-contacts' }, el('div', {}, el('dt', {}, 'Email'), el('dd', {}, icon('mail'), email || 'Not added yet')), el('div', {}, el('dt', {}, 'WhatsApp'), el('dd', {}, icon('chat'), phone || 'Not added yet'))),
         el('p', { class: 'qrs-pnote' }, 'Colour, print-ready PDF: print, laminate or make stickers. To change these contacts: Settings › Business details. Download comes with the web dashboard.'),
@@ -1565,7 +1581,8 @@
         el('div', { class: 'qrs-pbar' }, btn('', 'Cancel', closePop), btn('blue', label2, () => pauseFor(pop.choice), 'pause'))];
     } else if (pop.kind === 'devices') { body = devicesBody(); cls = `devices ${body.cls}`; body = body.kids; }
     return el('div', { class: `qrs-scrim k-${pop.kind}`, onclick: e => { if (e.target === e.currentTarget && pop?.kind !== 'test') closePop(); } },
-      el('div', { class: `qrs-pop ${cls}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': pop.kind }, body));
+      el('div', { class: `qrs-pop ${cls}`, role: 'dialog', 'aria-modal': 'true', 'aria-label': pop.kind,
+        onclick: e => { if (pop?.langList && !e.target.closest?.('.qrs-more-w')) { pop.langList = false; render(); } } }, body));
   }
   // The path check (QS44–QS47): Internet → Printer device → Kitchen printer, as far as each step is known
   // (the devices pop-ups' pieces: a step's box, the arrow between steps, how a printer is linked)
