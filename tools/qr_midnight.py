@@ -62,6 +62,10 @@ def swap(v, table, kind):
         c = M.parse(m.group(0))
         if not c or c[3] == 0: return m.group(0)
         h = hexof(c)
+        # (a see-through colour over the page: a dark dimming gets deeper, a light one stays as it is)
+        if kind == 'surface' and c[3] < 0.9:
+            r, g, b = c[:3]
+            return M.fmt((0, 0, 0, min(.7, c[3] * 2))) if max(r, g, b) < 80 else m.group(0)
         if h in table:
             d = M.parse(table[h])
             return M.fmt(d[:3] + (c[3],))
