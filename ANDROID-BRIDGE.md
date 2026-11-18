@@ -38,6 +38,7 @@ Run it after any change to how the page talks to the app.
 | `RestroSystem.back`, `RestroSystem.home`, `RestroSystem.recents`, `goHome`, `goBack`, `openRecentApps` | page calls, methods | Back, Home and Recent apps |
 | `setScreenDark` | method | Going dark |
 | `restro:device-ready` | event | The WebView |
+| `location.state`, `restro:location-state` | method, event | The region's language (the state the tablet is in) |
 | (nothing to add in the app) | what staff see | Orders and the Counter (Update Pack 5): payment status names, order-type icons, QR orders, readability, QR payment Pending, home-screen badges |
 | `printer.printQr`, `qr.send`, `restro:qr-path`, `restro:qr-scan`, `RestroQrStudio.path`, `RestroQrStudio.scanned` | methods, events, page calls | QR Studio (Update Pack 5; Event QRs, Update Pack 6) |
 
@@ -1179,8 +1180,9 @@ PDF and sends it with the backend's own email and WhatsApp service: no keys on t
   language alone, then with English) to scroll through; a language picked from it shows on that chip. The region's
   language comes from the GSTIN in Settings › Business details, whose first two digits are the state (36, 37, 28
   తెలుగు; 33, 34 தமிழ்; 29 ಕನ್ನಡ; 32, 31 മലയാളം; 27 मराठी; 24, 25, 26 ગુજરાતી; 19, 16 বাংলা; 03, 04 ਪੰਜਾਬੀ; 21 ଓଡ଼ିଆ;
-  18 অসমীয়া; 30 कोंकणी; 01 اردو; 02, 05 to 10, 20, 22, 23, 35 हिन्दी), else from the business address (a state or city
-  named in it, `regionLanguage()` in `prefs.js`); none when neither tells, and when it is Hindi, Hindi shows once.
+  18 অসমীয়া; 30 कोंकणी; 01 اردو; 02, 05 to 10, 20, 22, 23, 35 हिन्दी), else from the state the tablet is in (below, "The
+  region's language"), else from the business address (a state or city named in it, `regionLanguage()` in
+  `prefs.js`); none when none tells, and when it is Hindi, Hindi shows once.
   Nothing is stored: the choice goes with the job.
 - `cards`: as for printing, above. The PDF draws them in colour, as the screens' preview does.
 
@@ -1499,13 +1501,32 @@ connection, then "paired with" a Bluetooth printer's device or "on" another's, t
 connected** in red, from `connected`). Then **Printer name**; **What this printer prints**, the three jobs as option
 cards with their lines; (not drawn: the settings each printer had before) **KOT language**, on its own row, as every
 language choice (owner, 17 Nov 2026): **English**, the region's language (as the QR cards' **Card language**: the
-GSTIN, else the address; none when neither tells), **हिन्दी**, then **More languages ▾**, a list of every other language
+GSTIN, else the state the tablet is in, else the address; none when none tells), **हिन्दी**, then **More languages ▾**,
+a list of every other language
 to scroll through (each in its own script and in English, the current one ticked); a language picked from it shows on
 that chip; then **Copies per KOT** and **Copies per bill** side by side; each greyed while the job leaves it out; **Use as backup printer**, "For the restaurant.
 Only printers that print KOTs can be the backup. Event printers back up each other by themselves.", greyed for Bills
 and receipts only; for a Bluetooth printer, "Bluetooth works like a cable: the printer belongs to the one device it’s
 paired with, and that device is its Printer device."; then **Cancel** and **Save**. Nothing changes until Save; Cancel,
 ✕, Back or a tap outside it drop the changes. An empty name goes back to the app's.
+
+## The region's language: `RESTRODevice.location.state()`, `restro:location-state`
+
+Every language choice (QR Studio's **Card language**, Settings › Printers' **KOT language**) shows English, the region's
+language, Hindi, then **More languages ▾** (owner, 17 Nov 2026). The page finds the region's language from the GSTIN in
+Settings › Business details (its state code), else from **the state the tablet is in**, else from the business address
+(`regionLanguage()` in `prefs.js`).
+
+- `location.state()`: return the name of the Indian state the tablet is in, in English, as Android's `Geocoder` gives
+  it (`Address.getAdminArea()`: `"Telangana"`, `"Tamil Nadu"`, `"West Bengal"`), or `""` while it isn't known. Find it
+  from a coarse location (`ACCESS_COARSE_LOCATION`; `FusedLocationProviderClient` at a low-power priority) the first
+  time the page asks, asking for the permission then with Android's own prompt; if it is refused, return `""` and don't
+  ask again. Keep only the state's name, never the location itself.
+- Answer at once with what the app knows (`""` until it is found); when it is found later, dispatch
+  `restro:location-state` with `{ state: "Telangana" }`.
+- The page asks on load and on `restro:device-ready`, only while no device has found it, and keeps the first state
+  found as Business details' `deviceState` (synced, SYNC.md), so every device shows the same languages. The GSTIN, when
+  there is one, comes first. Without the method (a web browser) the address is used.
 
 ## Messages: `RESTRODevice.recommendedTimeout(ms, hasControls)`
 

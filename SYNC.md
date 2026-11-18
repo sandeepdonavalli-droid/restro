@@ -18,7 +18,7 @@ number (`RestroSync.takeBillNumber()`, Bill numbers below).
 | Held tickets (`restro.counter.held.v1`) | Navigation (swipe or bar) and Go dark |
 | Customers (`restro.customers.v1`) | Home screen and tile order |
 | Staff accounts (`restro.staff.v1`), with PINs only as salted hashes | The order being rung up |
-| The restaurant's name, profile and Business details (`restro.business.v1`), with its Business hours (`restro.hours.v1`, with the last order time, Update Pack 5, and the break hours and last order before break, owner 14 Nov 2026) and Bill number (`restro.billNumber.v1`; Update Pack 4) | |
+| The restaurant's name, profile and Business details (`restro.business.v1`; with `deviceState`, the state a tablet found from its location, for the region's language, owner 17 Nov 2026), with its Business hours (`restro.hours.v1`, with the last order time, Update Pack 5, and the break hours and last order before break, owner 14 Nov 2026) and Bill number (`restro.billNumber.v1`; Update Pack 4) | |
 | Billing & charges (`restro.billing.v1`), Staff & security (`restro.security.v1`) | Who is signed in |
 | The printers' settings: what each prints (Update Pack 6), its name, KOT language, copies per KOT and per bill, the backup printer (`restro.printers.v1`) | The pairing code and the cloud sign-in |
 | Kitchen prep time (`restro.kitchen.prep.v1`, and the older `restro.counter.prepMinutes.v1`) | |

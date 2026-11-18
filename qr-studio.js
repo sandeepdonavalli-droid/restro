@@ -1417,8 +1417,9 @@
   const popHead = (title, sub) => el('div', { class: 'qrs-pop-h' }, el('div', {}, el('h3', {}, title), sub ? el('p', {}, sub) : null), el('button', { type: 'button', class: 'qrs-x', 'aria-label': 'Close', onclick: closePop }, icon('close')));
   const label = text => el('p', { class: 'qrs-plabel' }, text);
   // The card's language (owner, 17 Nov 2026; Update Pack 7, C7): English first (picked to start with), the region's
-  // language (by the GSTIN in Business details, else the address; none when neither tells, or when it is Hindi), Hindi,
-  // then a ▾ list of every other choice: each language alone or with English. Picked from the list, the chip shows it.
+  // language (by the GSTIN in Business details, else the state a tablet found from its location, else the address; none
+  // when none tells, or when it is Hindi), Hindi, then a ▾ list of every other choice: each language alone or with
+  // English. Picked from the list, the chip shows it.
   const langWord = code => { const n = c => window.RestroPrefs?.langOf?.(c)?.native || c, [a, b] = String(code).split('+'); return b ? `${n(a)} +\u00a0 ${n(b)}` : n(a); };
   function langPicks() {
     const P = window.RestroPrefs, region = P?.regionLanguage?.() || null, chips = ['en', region !== 'hi' ? region : null, 'hi'].filter(Boolean);

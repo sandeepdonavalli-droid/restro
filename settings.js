@@ -219,7 +219,7 @@
     if (fssai && !Prefs.fssaiOk(fssai)) { say('business-fssai-error', 'An FSSAI number has 14 digits.'); ok = false; }
     if (!ok) { document.querySelector(gstin && !Prefs.gstinOk(gstin) ? '#business-gstin' : '#business-fssai').focus(); return; }
     if (!window.RestroRestaurantName?.save(document.querySelector('#restaurant-input').value)) return;
-    Prefs.set('business', { address: document.querySelector('#business-address').value, ...contact, gstin, fssai, footer: document.querySelector('#business-footer').value });
+    Prefs.set('business', { ...Prefs.get('business'), address: document.querySelector('#business-address').value, ...contact, gstin, fssai, footer: document.querySelector('#business-footer').value });
     fillBusiness(); toast('Business details saved');
   });
 
@@ -644,8 +644,9 @@
     const seg = (label, value, off, pick) => el('div', { class: `st-pseg${off ? ' off' : ''}`, role: 'radiogroup', 'aria-label': label },
       [1, 2, 3].map(n => el('button', { type: 'button', role: 'radio', 'aria-checked': String(n === value), disabled: off, onclick: () => { pick(n); again(); } }, String(n))));
     // The KOT language as every language choice (owner, 17 Nov 2026; as the QR card's in QR Studio): English, the region's
-    // language (the GSTIN in Business details, else the address; none when neither tells, or when it is Hindi), Hindi,
-    // then More languages ▾ with every other language in a list; picked from it, that chip shows it
+    // language (the GSTIN in Business details, else the state a tablet found from its location, else the address; none
+    // when none tells, or when it is Hindi), Hindi, then More languages ▾ with every other language in a list; picked from
+    // it, that chip shows it
     const region = Prefs.regionLanguage?.() || null, codes = ['en', region !== 'hi' ? region : null, 'hi'].filter(Boolean);
     const cur = (Prefs.langs || []).find(l => l.name === d.language)?.code || 'en', listed = !codes.includes(cur), open = Boolean(ppop.langList && kots);
     const setLang = code => { d.language = Prefs.langOf(code).name; ppop.langList = false; again(); };

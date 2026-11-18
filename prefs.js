@@ -15,7 +15,7 @@
       packaging: { on: false, mode: 'flat', flat: 0, types: ['takeaway', 'delivery', 'phone'] },
       delivery: { on: false, flat: 0 }
     },
-    business: { address: '', phone: '', phoneCountry: 'IN', email: '', gstin: '', fssai: '', footer: 'Thank you! Visit again.' },
+    business: { address: '', phone: '', phoneCountry: 'IN', email: '', gstin: '', fssai: '', footer: 'Thank you! Visit again.', deviceState: '' },
     printers: {},
     security: { autoLock: 5 },
     navigation: { mode: 'swipe', order: 'back-left' },
@@ -57,8 +57,9 @@
     ['pa', 'Punjabi', 'ਪੰਜਾਬੀ'], ['or', 'Odia', 'ଓଡ଼ିଆ'], ['as', 'Assamese', 'অসমীয়া'], ['ur', 'Urdu', 'اردو'], ['kok', 'Konkani', 'कोंकणी']]
     .map(([code, name, native]) => Object.freeze({ code, name, native })));
   const LANGUAGES = Object.freeze(LANGS.map(l => l.name));
-  // The region's language: by the GSTIN's state code (its first two digits), else by the address (a state or a big
-  // city in it); Hindi where Hindi is the region's; null when neither tells
+  // The region's language (owner, 17 Nov 2026): by the GSTIN's state code (its first two digits), else by the state a
+  // tablet found from its location (the RESTRO app), else by the address (a state or a big city in it); Hindi where
+  // Hindi is the region's; null when none tells
   const GST_STATE = { '01': 'ur', '02': 'hi', '03': 'pa', '04': 'pa', '05': 'hi', '06': 'hi', '07': 'hi', '08': 'hi', '09': 'hi', '10': 'hi',
     '16': 'bn', '18': 'as', '19': 'bn', '20': 'hi', '21': 'or', '22': 'hi', '23': 'hi', '24': 'gu', '25': 'gu', '26': 'gu', '27': 'mr', '28': 'te',
     '29': 'kn', '30': 'kok', '31': 'ml', '32': 'ml', '33': 'ta', '34': 'ta', '35': 'hi', '36': 'te', '37': 'te' };
@@ -68,14 +69,17 @@
     ['ml', 'kerala kochi cochin ernakulam thiruvananthapuram trivandrum kozhikode calicut thrissur'],
     ['mr', 'maharashtra mumbai pune nagpur nashik thane aurangabad'], ['gu', 'gujarat ahmedabad surat vadodara rajkot'],
     ['bn', 'bengal kolkata howrah siliguri tripura agartala'], ['pa', 'punjab ludhiana amritsar jalandhar chandigarh mohali'],
-    ['or', 'odisha orissa bhubaneswar cuttack'], ['as', 'assam guwahati'], ['kok', 'goa panaji margao'],
+    ['or', 'odisha orissa bhubaneswar cuttack'], ['as', 'assam guwahati'], ['kok', 'goa panaji margao'], ['ur', 'jammu kashmir srinagar'],
+    ['ml', 'lakshadweep'], ['gu', 'daman diu dadra silvassa'],
     ['hi', 'delhi uttar madhya lucknow kanpur noida gurugram gurgaon haryana rajasthan jaipur bhopal indore bihar patna jharkhand ranchi chhattisgarh raipur uttarakhand dehradun himachal shimla']];
-  function regionLanguage() {
-    const b = get('business'), st = String(b.gstin || '').slice(0, 2);
-    if (GST_STATE[st]) return GST_STATE[st];
-    const a = ` ${String(b.address || '').toLowerCase().replace(/[^a-z]+/g, ' ')} `;
+  const placeLanguage = place => {
+    const a = ` ${String(place || '').toLowerCase().replace(/[^a-z]+/g, ' ')} `;
     for (const [code, words] of PLACES) if (words.split(' ').some(w => a.includes(` ${w} `))) return code;
     return null;
+  };
+  function regionLanguage() {
+    const b = get('business'), st = String(b.gstin || '').slice(0, 2);
+    return GST_STATE[st] || placeLanguage(b.deviceState) || placeLanguage(b.address);
   }
   const langOf = code => LANGS.find(l => l.code === code) || null;
   const ROLES = Object.freeze(['bills', 'kitchen', 'both']);
@@ -109,7 +113,10 @@
       const d = DEFAULTS.business;
       // (Update Pack 3: the restaurant's phone and email, from My Profile, printed under the address)
       return { address: text(v?.address, 160, ''), phone: text(v?.phone, 15, '').replace(/\D/g, ''), phoneCountry: /^[A-Z]{2}$/.test(v?.phoneCountry) ? v.phoneCountry : 'IN',
-        email: text(v?.email, 120, '').toLowerCase(), gstin: text(v?.gstin, 15, '').toUpperCase().replace(/\s/g, ''), fssai: text(v?.fssai, 14, '').replace(/\D/g, ''), footer: typeof v?.footer === 'string' ? text(v.footer, 80, '') : d.footer };
+        email: text(v?.email, 120, '').toLowerCase(), gstin: text(v?.gstin, 15, '').toUpperCase().replace(/\s/g, ''), fssai: text(v?.fssai, 14, '').replace(/\D/g, ''), footer: typeof v?.footer === 'string' ? text(v.footer, 80, '') : d.footer,
+        // (owner, 17 Nov 2026) the state a tablet found from its location (the RESTRO app), for the region's language:
+        // the state only, never where the tablet is
+        deviceState: text(v?.deviceState, 40, '') };
     },
     printers(v) {
       const out = {};
@@ -285,6 +292,19 @@
   }
   // FSSAI licence and registration numbers are 14 digits
   const fssaiOk = value => /^\d{14}$/.test(String(value || ''));
+
+  // The state this tablet is in, from the RESTRO app (owner, 17 Nov 2026): asked once while no device has found it, and
+  // kept as Business details' deviceState, so every device shows the same languages. location.state() answers at once
+  // with what the app knows ('' until then); restro:location-state brings it when the app finds it later
+  function learnState(state) {
+    const s = text(state, 40, '');
+    if (s && !get('business').deviceState) update('business', b => { b.deviceState = s; });
+  }
+  const askState = () => { try { if (!get('business').deviceState) learnState(window.RESTRODevice?.location?.state?.()); } catch {} };
+  window.addEventListener('restro:location-state', event => learnState(event.detail?.state));
+  window.addEventListener('restro:device-ready', askState);
+  // (once every script has loaded, so the change also goes to the other tablets: sync.js)
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', askState); else askState();
 
   window.RestroPrefs = Object.freeze({ get: name => (SCOPED[name] && !CLEAN[name] ? scoped(name).value : get(name)), set, update, scoped, setScoped, keys: KEYS, defaults: DEFAULTS, autoLockChoices: AUTO_LOCK, goDarkChoices: GO_DARK, languages: LANGUAGES, langs: LANGS, langOf, regionLanguage, printerRoles: ROLES, gstinOk, fssaiOk,
     days: DAYS, latestClose: LATEST_CLOSE, hoursOn, lastOrderOn, lastOrderChoices: LAST_ORDER, businessDay, spillMinutes, breakOn, lastOrderBreakOn, breakOk, openAt });
