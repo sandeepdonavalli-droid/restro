@@ -627,7 +627,7 @@
   }
 
   // ---------- the pages ----------
-  const headEl = (title, help, tools) => el('header', { class: 'qrs-head' }, el('div', { class: 'qrs-h' }, el('h1', {}, title), help), el('div', { class: 'qrs-tools' }, tools));
+  const headEl = (title, help, tools, cls = '') => el('header', { class: 'qrs-head' }, el('div', { class: 'qrs-h' }, el('h1', {}, title), help), el('div', { class: `qrs-tools${cls ? ` ${cls}` : ''}` }, tools));
 
   // Table QRs (QS1, QS16–QS19, QS35–QS43)
   function tablePage(st) {
@@ -646,7 +646,7 @@
       : [btn('', 'Print all', () => printQrs(tables.map(t => qrOfTable(t.id)).filter(Boolean)), 'print', { off: !anyQr }),
         btn('', 'Send all', () => openPop('send', { ids: tables.map(t => qrOfTable(t.id)?.id).filter(Boolean), all: true }), 'send', { off: !anyQr || !online(), why: anyQr && !online() ? 'Needs internet' : '' })];
     const help = el('button', { type: 'button', class: `qrs-help${pop?.kind === 'help' ? ' on' : ''}`, 'aria-label': 'About Table QRs', 'aria-expanded': String(pop?.kind === 'help'), onclick: () => openPop('help') }, '?');
-    const kids = [headEl('Table QRs', help, tools), el('p', { class: 'qrs-line' }, 'One QR per table from your floor plan. Customers scan, order and pay. The KOT prints as Dine-in.'), bannerEl(st, 'table')];
+    const kids = [headEl('Table QRs', help, tools, picking ? 'pick' : ''), el('p', { class: 'qrs-line' }, 'One QR per table from your floor plan. Customers scan, order and pay. The KOT prints as Dine-in.'), bannerEl(st, 'table')];
     if (anyQr) {
       const chip = (id, label, n) => {
         const ticked = picking ? [...view.picked].filter(qid => { const r = records.find(x => x.id === qid); return r && (id === 'all' || tables.find(t => t.id === r.table)?.area === id); }).length : 0;

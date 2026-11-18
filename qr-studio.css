@@ -76,6 +76,10 @@
 .qrs-help{flex:none;width:calc(34 * var(--fu));height:calc(34 * var(--fu));margin-left:calc(1 * var(--fu));display:grid;place-items:center;box-sizing:border-box;--bt:#D4D5D8;border:calc(1.5 * var(--fu)) solid var(--bt)!important;box-shadow:inset 0 0 0 calc(.5 * var(--fu)) var(--bt);border-radius:50%;background:#FFFFFF!important;color:#57534E!important;font-size:calc(17 * var(--fu))!important;font-weight:800!important}
 .qrs-help.on{--bt:#292524;background:#292524!important;color:#FFFFFF!important}
 .qrs-tools{display:flex;align-items:center;gap:calc(10 * var(--fu))}
+/* Choosing tables (QS39–QS43): Delete and Cancel with the wide header's padding, Print and Send as wide as Print all and
+   Send all, as drawn */
+.qr-studio-app .qrs-tools.pick .qrs-btn{padding:0 calc(19 * var(--fu))!important}
+.qrs-tools.pick .qrs-btn:nth-child(n+3){width:calc(142 * var(--fu))}
 .qrs-btn{height:calc(52 * var(--fu));box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:calc(10 * var(--fu));padding:0 calc(24 * var(--fu))!important;border:1px solid #E2E3E5!important;border-radius:calc(26 * var(--fu));background:#FFFFFF!important;color:#1C1917;font-size:calc(16.5 * var(--fu))!important;font-weight:700!important;white-space:nowrap}
 .qrs-btn .qi{width:calc(20 * var(--fu));height:calc(20 * var(--fu))}
 /* A line 1.5 (or 2.5) wide: Chrome, and so Android's WebView, draws a border's width in whole pixels (1.5 as 1). The
@@ -179,9 +183,10 @@
 .qrs-tcard:is(.sel,.ticked) .qrs-tag{top:calc(9 * var(--fu));left:calc(11 * var(--fu));right:calc(11 * var(--fu))}
 .qrs-tag.blue{background:#1E4FB8}
 .qrs-tag.red{background:#DC2626}
-.qrs-tick{position:absolute;top:calc(12 * var(--fu));left:calc(12 * var(--fu));width:calc(26 * var(--fu));height:calc(26 * var(--fu));box-sizing:border-box;display:grid;place-items:center;border:calc(2 * var(--fu)) solid #D6D3D1;border-radius:calc(7 * var(--fu));background:#FFFFFF}
+/* (QS39–QS43: 32 square, 13 from the card's corner, as drawn) */
+.qrs-tick{position:absolute;top:calc(13 * var(--fu));left:calc(13 * var(--fu));width:calc(32 * var(--fu));height:calc(32 * var(--fu));box-sizing:border-box;display:grid;place-items:center;border:calc(2 * var(--fu)) solid #D6D3D1;border-radius:calc(8 * var(--fu));background:#FFFFFF}
 .qrs-tick.on{border-color:#2F6FE4;background:#2F6FE4;color:#FFFFFF}
-.qrs-tick .qi{width:calc(16 * var(--fu));height:calc(16 * var(--fu));stroke-width:3}
+.qrs-tick .qi{width:calc(19 * var(--fu));height:calc(19 * var(--fu));stroke-width:2.1}
 
 /* Before the first table QR (QS17): three cards under the tiles */
 .qrs-grid.first{grid-template-columns:repeat(2,calc(262 * var(--fu)));grid-auto-rows:auto;gap:calc(22 * var(--fu)) calc(16 * var(--fu))}
