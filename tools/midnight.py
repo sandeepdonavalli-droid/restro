@@ -16,6 +16,9 @@ How it works
  3. The pack's tokens (03_specs/midnight-theme-tokens.json) last: exact colours for the coloured chips, the quantity, the
     pop-ups, what is selected, the totals, the message bar, the banner, the swipe handle and the lock button.
     For Orders: the same tokens as the pack's Midnight stylesheets and screens give them (orders_tokens), on our classes.
+
+QR Studio's Midnight (Update Pack 7, L1) is written by tools/qr_midnight.py, with this file's parser and colour helpers:
+its colours are measured on the pack's QR Studio and Event QR screens rather than turned by rule.
 """
 import json, math, os, re, sys
 

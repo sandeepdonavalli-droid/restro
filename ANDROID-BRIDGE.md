@@ -760,6 +760,13 @@ links on a page of our own GitHub Pages site until the domain is decided, and th
 made by `vendor/qrcode-generator.js` (Kazuhiko Arase, MIT, unchanged), error correction H, so the table's number in
 the middle still scans. Every method here is optional, as noted.
 
+**Light and Midnight** (Update Pack 7, L1, 17 Nov 2026): QR Studio follows the apps' theme as the Counter and Orders do
+(Home on Aurora Dark gives Midnight): `qr-studio-midnight.css`, written from `qr-studio.css` by `tools/qr_midnight.py`
+with the colours of the pack's Midnight screens (`01_QR-Studio_Midnight`, `02_Event-QR_Midnight`). What prints stays
+paper: the card previews stay white, and every QR code is on white so it scans (a table's on its white plate, an event
+table's on a white plate drawn only in Midnight). The lock button and the swipe handle are as in the Counter's and
+Orders' Midnight.
+
 ### What QR Studio holds
 
 - **The QRs:** one per table of the floor plan (Table QRs, listed by area), one **Takeaway** QR and one **Menu** QR

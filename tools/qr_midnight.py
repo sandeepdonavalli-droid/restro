@@ -27,7 +27,7 @@ SURFACE = {
   '#FFFFFF': '#121B2D', '#FEFEFE': '#121B2D', '#F3F4F7': '#0B1220', '#F3F4F6': '#1B2539', '#F1EFEB': '#1B2539', '#F5F4F2': '#1B2539',
   '#ECEAE6': '#1B2539', '#F7F6F4': '#1B2539', '#F7F8FA': '#1B2539', '#F5F8FF': '#1B2539', '#F1F0EE': '#1B2539', '#F3F1EE': '#1B2539',
   '#E7E4DF': '#1B2539', '#FAFAF9': '#1B2539', '#F4F3F2': '#1B2539', '#F5F5F4': '#1B2539', '#E9E8E7': '#1B2539', '#E8E7E5': '#1B2539',
-  '#E7E5E4': '#28344C', '#D6D3D1': '#28344C', '#E2E2E2': '#1B2539',
+  '#E7E5E4': '#28344C', '#D6D3D1': '#28344C', '#E2E2E2': '#1B2539', '#F0EFED': '#28344C',
   '#EEF4FF': '#162B54', '#E3ECFC': '#162B54', '#F0FDF4': '#123D24', '#E7F5EC': '#123D24', '#E7F6EC': '#123D24', '#DCFCE7': '#123D24',
   '#FEF2F2': '#3A1515', '#FEE2E2': '#3A1515', '#FDECEC': '#3A1515', '#FFF7ED': '#3A2A08', '#FDEBD8': '#3A2A08',
   '#E6F4F1': '#14302D', '#F3FAF8': '#14302D', '#CDEBE4': '#14302D',
@@ -54,6 +54,8 @@ LINE = {
 
 # ---------- what stays paper (L1): the printed card's preview, and the QR codes on white ----------
 PAPER = ('.qrs-card', '.qrs-qr')
+# ---------- inside the pop-ups: white turns the pop-up's own #141E33 (QS4: its chips and list), not the panels' #121B2D ----------
+POP = ('.qrs-pop', '.qrs-pick', '.qrs-langs', '.qrs-lang')
 MISSING = {}
 
 def hexof(c): return '#%02X%02X%02X' % tuple(int(round(v)) for v in c[:3])
@@ -96,17 +98,22 @@ def twins():
         if any('print' in c for c in ctx): continue
         out_sels = [s for s in sels if not any(k in s for k in PAPER)]
         if not out_sels: continue
-        out = []
-        for p, v in decls:
-            p = p.lower()
-            if p not in PROPS or not M.COLOR_RE.search(v): continue
-            kind, table = PROPS[p]
-            # (a colour that stays is written too, so the twins keep the light rules' cascade: .on over its base)
-            out.append(f'{p}:{swap(v, table, kind)}')
-        if out:
-            rule = ','.join(scope(s) for s in out_sels) + '{' + ';'.join(out) + '}'
-            for c in reversed(ctx): rule = f'{c}{{{rule}}}'
-            blocks.append(rule)
+        pops = [s for s in out_sels if any(k in s for k in POP)]
+        for group, inside in ((pops, True), ([s for s in out_sels if s not in pops], False)):
+            if not group: continue
+            out = []
+            for p, v in decls:
+                p = p.lower()
+                # (a border drawn in var(--bt) is written too: it takes the twin's --bt, and over the plain button's twin)
+                if p not in PROPS or not (M.COLOR_RE.search(v) or 'var(--bt)' in v): continue
+                kind, table = PROPS[p]
+                if inside and kind == 'surface': table = {**table, '#FFFFFF': '#141E33'}
+                # (a colour that stays is written too, so the twins keep the light rules' cascade: .on over its base)
+                out.append(f'{p}:{swap(v, table, kind)}')
+            if out:
+                rule = ','.join(scope(s) for s in group) + '{' + ';'.join(out) + '}'
+                for c in reversed(ctx): rule = f'{c}{{{rule}}}'
+                blocks.append(rule)
     return blocks
 
 # ---------- the exact colours (the pack's screens) where a Light colour turns two ways ----------
@@ -119,6 +126,24 @@ def tokens():
     R('.qrs-pill.on .qrs-pill-i,.qrs-mcat.on small', ('color', DARK))
     R('.qrs-pick.on small', ('color', '#424956'))                                      # (QS4: "A6" on the picked size)
     R('.qrs-pill.on .qrs-pill-n', ('background', 'rgba(11,18,32,.12)'), ('color', DARK))
+    # the dimming behind the pop-ups (fitted from QS21 and QS29 against QS1: rgba(1,6,16,.62)); the help's light
+    # dimming as in Light (QS20)
+    R('.qrs-scrim', ('background', 'rgba(1,6,16,.62)'))
+    R('.qrs-scrim.k-help', ('background', 'rgba(28,25,23,.10)'))
+    # the new event's menu summary (EV4): light, as the picked things, with dark words
+    R('.qrs-msum', ('color', DARK))
+    R('.qrs-msum span', ('color', '#475569'))
+    # the ordering card closed (QS37): its line softer, its greyed button on the panels' navy
+    R('.qrs-ord-line b', ('color', '#C5CEDD'))
+    R('.qrs-ord .qrs-cbtn:disabled', ('background', '#121B2D!important'))
+    # the create tiles' icon circles (QS1): light on the dark tile, the blue's own lighter blue on the blue one
+    R('.qrs-tile-i', ('background', '#E8EAEE'))
+    R('.qrs-tile.all .qrs-tile-i', ('background', '#5489E4'))
+    # an event table's QR (EV7): on a white plate, as drawn (11.5 round it, corners 5), the card's layout as in Light
+    R('.qrs-etqr', ('display', 'block'), ('margin', 'calc(-11.5 * var(--fu))'), ('padding', 'calc(11.5 * var(--fu))'), ('border-radius', 'calc(5 * var(--fu))'), ('background', '#FFFFFF'))
+    # the picked tables' QRs (QS40, QS43): a wider white plate round the same code (8 round it; 7 when four a row)
+    R('.qrs-thumb .qrs-qr', ('width', 'calc(92 * var(--fu))'), ('height', 'calc(92 * var(--fu))'), ('margin', 'calc(-6 * var(--fu))'), ('padding', 'calc(8 * var(--fu))'))
+    R('.qrs-thumbs.many .qrs-thumb .qrs-qr', ('width', 'calc(76 * var(--fu))'), ('height', 'calc(76 * var(--fu))'), ('margin', 'calc(-5 * var(--fu))'), ('padding', 'calc(7 * var(--fu))'))
     # a table's QR: on its white plate, inset in its dark box behind a line
     R('.qrs-tqr', ('background', '#FFFFFF'), ('border-color', '#28344C'), ('box-shadow', 'inset 0 0 0 calc(4 * var(--fu)) #121B2D'))
     return out

@@ -1,5 +1,6 @@
 /* QR Studio (Update Pack 5: G, I1, I3, I4, J; the Light screens QS1–QS6, QS16–QS53). Sizes are the designs' pixels on
-   the 1920 x 1080 screen (U = --fu), as in Orders. Light only (Midnight comes later). Every button, chip and search box is
+   the 1920 x 1080 screen (U = --fu), as in Orders. Light; Midnight (Update Pack 7, L1) is qr-studio-midnight.css, written
+   from this file by tools/qr_midnight.py: run it after any colour change here. Every button, chip and search box is
    at least 48 tall (H2). The tables' gold #9A6B1F, Takeaway's green #2E7D4F and the Menu's maroon #8E1E3C are the printed
    cards' colours; one blue #1E4FB8 for actions. */
 .qr-studio-app{position:fixed;inset:var(--header-height) 0 var(--header-height);width:100%;height:auto;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:#F3F4F7;color:#1C1917}
