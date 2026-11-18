@@ -755,7 +755,8 @@ they are built as the other Settings cards.
 ## QR Studio (Update Pack 5): `printer.printQr`, `qr.send`, `restro:qr-path`, `restro:qr-scan`
 
 Built 13 Nov 2026 (Update Pack 5, part 6: the Light screens QS1–QS6 and QS16–QS53, with E, G, I1, I3, I4 and J), in
-`qr-studio.js` and `qr-studio.css`; changed 14 Nov 2026 by the owner's answers: who did something in full names,
+`qr-studio.js` and `qr-studio.css`; changed 14 Nov 2026 by the owner's answers: who did something by name (since 17
+Nov 2026 the first name only),
 break hours (QS48), See devices on the sidebar card while a step is down, the bar's pill Online or Offline only, the
 links on a page of our own GitHub Pages site until the domain is decided, and the Menu design pill. The QR codes are
 made by `vendor/qrcode-generator.js` (Kazuhiko Arase, MIT, unchanged), error correction H, so the table's number in
@@ -781,8 +782,9 @@ Orders' Midnight.
     these links says QR ordering is coming soon (below, "Our website for now").
   - `name`: the table's name as on the card printed or sent last.
   - `printedAt` / `printedBy`: Print, black and white. `sentAt` / `sentBy`: Send, the colour PDF.
-  - `createdBy`, `replacedBy`, `printedBy`, `sentBy` (and QR ordering's `by`, below): the staff's names. QR Studio shows
-    them in full, "by ‹name›" (owner, 14 Nov 2026); the Counter's history and the slips keep initials.
+  - `createdBy`, `replacedBy`, `printedBy`, `sentBy` (and QR ordering's `by`, below): the staff's full names. QR Studio
+    shows "by ‹name›" with the first name only (owner, 17 Nov 2026: everywhere a person is named, Orders, the Counter's
+    Change server and the lock screen too); the Counter's history and the slips keep initials.
   - `quietOk`: the quiet warning hidden until then (ms).
 - **Replace** gives the QR a new code, so the old card stops working. **Delete** removes the QR. The cloud (Phase 2)
   keeps which codes work, from these records as they sync. Delete, Send and Test scan need the cloud (greyed while

@@ -142,6 +142,8 @@
   const shortDay = t => new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
   const weekday = t => new Date(t).toLocaleDateString('en-GB', { weekday: 'short' });
   const minutes = ms => Math.max(0, Math.floor(ms / 60000));
+  // (owner, 17 Nov 2026) a person shown by their first name only; records keep the full name
+  const firstOf = name => (typeof name === 'string' ? name.trim().split(/\s+/)[0] : '') || '';
   // A person's initials: of the first and last name (one name: its first letter); a name typed as initials (two or
   // three capitals) as it is
   const initialsOf = name => {
@@ -272,7 +274,7 @@
     const ev = evo ? { name: String(evo.name || 'Event'), mode: evo.mode === 'takeaway' ? 'Takeaway' : 'Dine-in', where: evo.table ? `Event table ${evo.floor ? tableName(evo.table) : evo.table}` : '' } : null;
     const who = ev ? { l1: `${ev.name} · ${ev.mode}`, l2: ev.where || [name, phone].filter(Boolean).join(' · ') }
       : dine
-      ? { l1: `Table ${tableName(o.table)}${o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : ''}`, l2: server ? `Server: ${server}` : '' }
+      ? { l1: `Table ${tableName(o.table)}${o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : ''}`, l2: server ? `Server: ${firstOf(server)}` : '' }
       : { l1: name || (platform ? 'Customer' : 'Guest'), l2: platform ? phone : [phone, type.key === 'online' ? (o.source === 'App' ? 'App' : 'Website') : phone ? initialsOf(server) : server ? `Server: ${server}` : ''].filter(Boolean).join(' · ') };
     if (platform && (o.callCode || o.handover || (o.platformType !== 'pickup' && o.riderAt))) who.codes = { call: o.callCode || '', handover: o.handover || '', rider: o.platformType !== 'pickup' && o.riderAt ? timeOf(o.riderAt) : '' };
     const status = statusOf(o, now), pay = payOf(o);
@@ -927,7 +929,7 @@
     // (an event's: "Event · Dine-in · QR · ‹customer› · ‹phone›" or "… · QR · Event table 3")
     const meta = r.type.platform ? [`${r.type.label} · ${r.name || 'Customer'}`, r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null]
       : r.ev ? [`${r.type.label} · ${r.ev.mode}`, r.qr ? ' · QR' : '', r.ev.where ? ` · ${r.ev.where}` : r.name ? ` · ${r.name}` : '', !r.ev.where && r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null]
-      : r.dine ? [r.type.label, r.qr ? ' · QR' : '', o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.server ? ` · Server: ${r.server}` : '']
+      : r.dine ? [r.type.label, r.qr ? ' · QR' : '', o.guests ? ` · ${o.guests} guest${o.guests === 1 ? '' : 's'}` : '', r.server ? ` · Server: ${firstOf(r.server)}` : '']
         : [r.type.label, r.qr ? ' · QR' : '', r.phone ? [' · ', el('span', { class: 'nb' }, r.phone)] : null];
     // (OS4, OS7) "KOT prints at 8:00 pm" today; "KOT prints Tue 10 Nov, 12:20 pm" on another day
     // (H1, PQ3) a Pending QR order: "· Not in kitchen yet"
@@ -1379,7 +1381,7 @@
   async function decideQr(r, choice, show) {
     const no = ticket(r.o.number), res = await window.RestroCounter?.qrChoice?.(r.id, choice);
     if (!res) return;
-    if (res.clash) { show({ bold: `Already ${res.clash.choice === 'refund' ? 'cancelled' : 'confirmed'} by ${res.clash.by || 'another tablet'}`, text: res.clash.at ? ` · ${timeOf(res.clash.at)}` : '' }); }
+    if (res.clash) { show({ bold: `Already ${res.clash.choice === 'refund' ? 'cancelled' : 'confirmed'} by ${firstOf(res.clash.by) || 'another tablet'}`, text: res.clash.at ? ` · ${timeOf(res.clash.at)}` : '' }); }
     else if (choice === 'refund') show({ bold: `Order ${no} cancelled`, text: ' · refunded once we’re online' });
     else if (res.ok) show({ bold: `KOT sent for Order ${no}`, text: readOnline() ? '' : ' · payment will be matched when the internet is back' });
     else kotFailed(r.id, res.kot, res.no, no, show);
@@ -1398,7 +1400,7 @@
   // arrived and its KOT went by itself)
   function paidGone(r) {
     const c = r?.o.qrChoice;
-    if (c && c.choice) say({ bold: `Already ${c.choice === 'refund' ? 'cancelled' : 'confirmed'} by ${c.by || 'another tablet'}`, text: c.at ? ` · ${timeOf(c.at)}` : '' });
+    if (c && c.choice) say({ bold: `Already ${c.choice === 'refund' ? 'cancelled' : 'confirmed'} by ${firstOf(c.by) || 'another tablet'}`, text: c.at ? ` · ${timeOf(c.at)}` : '' });
     else if (r?.o.paidAt) say({ bold: `Payment received for Order ${ticket(r.o.number)}`, text: ' · its KOT goes to the kitchen' });
   }
 
@@ -1417,7 +1419,7 @@
       el('div', { class: 'qrp-head' }, el('span', { class: 'qrp-q', 'aria-hidden': 'true' }, '!'),
         el('div', { class: 'qrp-tt' }, el('h3', {}, 'Payment failed for this order'), el('p', {}, qrSub(r))),
         el('button', { type: 'button', class: 'qrp-x', 'aria-label': 'Close', onclick: close }, icon('close'))),
-      el('p', { class: 'qrp-warn' }, el('b', {}, money(Number(r.o.total) || 0)), ' was confirmed as paid', c.by ? [' by ', el('b', {}, c.by)] : null,
+      el('p', { class: 'qrp-warn' }, el('b', {}, money(Number(r.o.total) || 0)), ' was confirmed as paid', c.by ? [' by ', el('b', {}, firstOf(c.by))] : null,
         c.at ? [' at ', el('b', {}, clockOf(c.at))] : null, ', but the payment never reached us. Please ask the customer to pay again.'),
       el('div', { class: 'qrp-foot' },
         el('button', { type: 'button', class: 'qrp-no', onclick: close }, 'Not now'),
@@ -1564,7 +1566,7 @@
       head = 'STAFF'; foot = 'Server on dine-in orders, cashier on the rest';
       const people = window.RestroStaff?.list?.() || [], names = [...new Set([...people.map(p => p.name), ...v.all.map(r => r.server).filter(Boolean)])];
       row(false, 'All staff', null, check(false), () => { staffF = null; }, { role: 'menuitemradio' }); sep();
-      names.forEach(name => row(staffF === name, name, null, check(staffF === name), () => { staffF = staffF === name ? null : name; }, { role: 'menuitemradio', sub: people.find(p => p.name === name)?.roleName || '' }));
+      names.forEach(name => row(staffF === name, firstOf(name), null, check(staffF === name), () => { staffF = staffF === name ? null : name; }, { role: 'menuitemradio', sub: people.find(p => p.name === name)?.roleName || '' }));
     } else if (menu === 'sort') {
       head = 'SORT BY'; foot = 'Customer / table · server can’t be sorted';
       for (const [key, name, choices] of SORTS) {

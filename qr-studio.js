@@ -150,9 +150,9 @@
   const weekdayDate = t => { const d = new Date(t); return `${WEEKDAYS[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
   const who = () => window.RestroStaff?.current?.name || null;
-  // Who did it: the staff member's full name (owner, 14 Nov 2026: "by ‹name›", not initials; the Counter and the slips
-  // keep initials)
-  const byWho = name => (typeof name === 'string' && name.trim() ? ` by ${name.trim().replace(/\s+/g, ' ')}` : '');
+  // Who did it: "by ‹name›", not initials (owner, 14 Nov 2026; the Counter and the slips keep initials), by the first name
+  // only ("by ‹name›" with the first of its words; owner, 17 Nov 2026); records keep the full name
+  const byWho = name => (typeof name === 'string' && name.trim() ? ` by ${name.trim().split(/\s+/)[0]}` : '');
 
   // ---------- the floor: its areas and tables (Floor app, floor-data.js) ----------
   // A table renamed or renumbered in Floor keeps its id; Floor notes it on the table as renamed: { at, by }.

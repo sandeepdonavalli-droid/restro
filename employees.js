@@ -223,7 +223,8 @@
   const BY = 'restro.lockedBy.v1';
   let lockedBy = null;
   try { const saved = JSON.parse(sessionStorage.getItem(BY) || 'null'); if (saved && typeof saved.name === 'string' && Number.isFinite(saved.at)) lockedBy = saved; } catch {}
-  const shortName = name => { const w = name.trim().split(/\s+/).filter(Boolean); return w.length > 1 ? `${w[0]} ${Array.from(w.at(-1))[0].toLocaleUpperCase('en-IN')}.` : w[0] || ''; };
+  // (owner, 17 Nov 2026) a person shown by their first name only
+  const shortName = name => name.trim().split(/\s+/)[0] || '';
   function paintBy() {
     const out = document.querySelector('#lock-by'); if (!out) return;
     out.hidden = !lockedBy;
@@ -255,8 +256,8 @@
     const name = (Staff.current?.name || '').trim(), words = name.split(/\s+/).filter(Boolean);
     initial.textContent = (words.length > 1 ? [words[0], words.at(-1)] : words).map(w => Array.from(w)[0]).join('').toLocaleUpperCase('en-IN');
     profile.classList.toggle('signed-out', !name);
-    profile.setAttribute('aria-label', name ? `Signed in: ${name}` : 'Nobody signed in');
-    profile.title = name || 'Nobody signed in';
+    profile.setAttribute('aria-label', name ? `Signed in: ${words[0]}` : 'Nobody signed in');
+    profile.title = words[0] || 'Nobody signed in';
   }
   window.addEventListener('restro:staff-signed-in', () => { paintName(); if (dialog.open && !isOwner()) close(); });
   window.addEventListener('restro:staff-changed', () => { syncLockMode(); if (dialog.open && !form) render(); });

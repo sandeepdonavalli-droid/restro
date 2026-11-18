@@ -643,7 +643,7 @@
   }
   function pickServer(person) {
     if ((order.uid || order.number) && person.name !== order.server) logEvent('server', { from: order.server || '', to: person.name });
-    order.server = person.name; order.serverId = person.id; sheet = null; serverPop = null; render(); say({ b: person.name, t: ' is serving this order' }); }
+    order.server = person.name; order.serverId = person.id; sheet = null; serverPop = null; render(); say({ b: firstOf(person.name), t: ' is serving this order' }); }
   // Anything on screen to delete: items, a type, a table, a customer, a pager, a ready time, Modify, a discount, or a
   // saved order.
   const hasOrder = () => Boolean(order.lines.length || order.number || order.type || order.table || order.customer || order.pager || order.readyAt || order.split || order.discountPct || order.servicePct || order.note);
@@ -712,6 +712,8 @@
   // the kitchen has.
   const staffName = () => window.RestroStaff?.current?.name || null;
   const initialsOf = name => (typeof name === 'string' && name.trim() ? name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() : '');
+  // (owner, 17 Nov 2026) a person shown by their first name only; records keep the full name
+  const firstOf = name => (typeof name === 'string' ? name.trim().split(/\s+/)[0] : '') || '';
   const newKotId = () => window.RestroSync?.newId?.('k') || `k${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
   const kotsOf = o => (Array.isArray(o?.kots) ? o.kots : []).filter(k => k && (k.kind || 'kot') === 'kot');
   // Track history (Update Pack 3): a change to the order on screen, kept with it when it is saved (one dropped before Save
@@ -3395,7 +3397,7 @@
       el('div', { class: 'cx-pkl', role: 'radiogroup', 'aria-label': 'Staff' }, ...people.map(person => {
         const on = current ? person.id === current : person.name === order.server;
         return el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), class: `cx-pk${on ? ' on' : ''}`, onclick: () => pickServer(person) },
-          el('span', { class: 'cx-av', 'aria-hidden': 'true' }, initialsOf(person.name)), el('b', {}, person.name), el('small', {}, window.RestroStaff.roles?.find?.(r => r.id === person.role)?.name || ''));
+          el('span', { class: 'cx-av', 'aria-hidden': 'true' }, initialsOf(person.name)), el('b', {}, firstOf(person.name)), el('small', {}, window.RestroStaff.roles?.find?.(r => r.id === person.role)?.name || ''));
       })));
   }
   // A line typed on (Update 5): the note (the note pop-up, a custom item's) and a custom item's name. With nothing on it
