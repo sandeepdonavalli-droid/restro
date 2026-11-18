@@ -909,6 +909,12 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
   #print-bill .paid{margin:calc(12 * var(--p)) 0 calc(8 * var(--p));padding:calc(6 * var(--p)) calc(10 * var(--p));border-width:calc(2 * var(--p))}
   #print-bill .paid b{font-size:calc(18 * var(--p));font-weight:900}
   #print-bill .reprint span,#print-bill .paid span{font-size:calc(13.5 * var(--p));font-weight:700}
+  /* Update Pack 7 (H2): one PAID box per payment, 8 apart, and while the order is part paid the black DUE box
+     under them, white on black: "DUE ₹798" and "Pay on your phone or at the counter" */
+  #print-bill .paid+.paid{margin-top:calc(8 * var(--p))}
+  #print-bill .due{display:flex;flex-direction:column;align-items:center;margin:calc(4 * var(--p)) 0 calc(8 * var(--p));padding:calc(6 * var(--p)) calc(10 * var(--p));background:#000;color:#FFF;text-align:center;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  #print-bill .due b{font-size:calc(18 * var(--p));font-weight:900}
+  #print-bill .due span{font-size:calc(13.5 * var(--p));font-weight:600}
 }
 
 

@@ -32,8 +32,10 @@
 // cancelledBy ('Swiggy'), payout ('awaiting', 'paid' or 'unpaid') and payoutAmount. Orders from the restaurant's own
 // website or app (to come) carry online: true and source ('Website' or 'App'), shown where the cashier would be.
 // Orders placed by QR (Update Pack 5, K: a Table QR's are Dine-in on its table, a Takeaway QR's Takeaway with the
-// customer's name and phone) carry qr: true, are paid first (paidAt, and method 'upi', 'card', 'netbanking' or
-// 'wallet') and show a small blue QR tag by the order type; a Takeaway QR's has no cashier. Its payment while the
+// customer's name and phone) carry qr: true, are paid first (paidAt, and method 'upi' or 'card': Update Pack 7, D2,
+// the payment page offers only UPI and cards) and show a small blue QR tag by the order type; a Takeaway QR's has no
+// cashier. (Update Pack 7, I1) An order closes once fully paid; a round by QR on a table's order with something still
+// due joins it (payments, qrRoundAt: its KOT goes from the printer device, below) and it is Part paid until the rest is. Its payment while the
 // restaurant is offline (Update Pack 5, H1) is qrPay: 'waiting' (the customer is on the payment page: not listed yet),
 // 'pending' (no confirmation in 30 s and no cloud: Pending, red Confirm !, in Due), 'matching' (staff saw it paid:
 // paid, its KOT sent, matched once online), 'refund' (staff cancelled it: Closed, Refunded; the refund itself goes once
@@ -205,9 +207,13 @@
   }
   // The payment status ("Paid - UPI": a hyphen for the payment status only), what of it counts in Total (kept, on the
   // day it was taken) and what is still due
+  // (Update Pack 7, I1) an order's payments, [{ method, amount (paise), at, ref }]: a round paid by QR on a table's open
+  // order, and the rest; without them, `paidAmount` (paid in part) or the one payment of a paid order
+  const paymentsOf = o => (Array.isArray(o.payments) ? o.payments.filter(p => p && Number(p.amount) > 0) : []);
   function payOf(o) {
-    const amount = Number(o.total) || 0, app = typeof o.cancelledBy === 'string' ? o.cancelledBy : '';
-    const how = Array.isArray(o.methods) && o.methods.length ? o.methods.map(m => PAID_BY[m] || m).join(' + ') : PAID_BY[o.method] || 'Cash';
+    const amount = Number(o.total) || 0, app = typeof o.cancelledBy === 'string' ? o.cancelledBy : '', pays = paymentsOf(o);
+    const how = pays.length ? [...new Set(pays.map(p => PAID_BY[p.method] || p.method))].join(' + ')
+      : Array.isArray(o.methods) && o.methods.length ? o.methods.map(m => PAID_BY[m] || m).join(' + ') : PAID_BY[o.method] || 'Cash';
     if (app) {
       if (o.payout === 'paid') return { key: 'paid', text: `Paid - ${app}`, short: 'Paid', kept: Number.isFinite(o.payoutAmount) ? o.payoutAmount : amount, at: Date.parse(o.payoutAt) || Date.parse(o.paidAt) || 0 };
       if (o.payout === 'unpaid') return { key: 'npp', text: `Unpaid - ${app}`, cls: 'red', short: 'Unpaid', kept: 0 };
@@ -232,8 +238,9 @@
       if (amount === 0) return { key: 'comp', text: 'Complimentary', short: 'Complimentary', kept: 0, at };
       return { key: 'paid', text: `Paid - ${how}`, short: 'Paid', kept: amount, at };
     }
-    const part = Number(o.paidAmount);
-    if (part > 0 && part < amount) return { key: 'part', text: 'Part paid', cls: 'red', short: 'Part paid', kept: part, due: amount - part, at: Number(o.paidAmountAt) || o.createdAt };
+    const part = pays.length ? pays.reduce((s, p) => s + Math.round(Number(p.amount)), 0) : Number(o.paidAmount);
+    const partAt = pays.length ? Math.max(...pays.map(p => Number(p.at) || Date.parse(p.at) || 0)) : Number(o.paidAmountAt);
+    if (part > 0 && part < amount) return { key: 'part', text: 'Part paid', cls: 'red', short: 'Part paid', kept: part, due: amount - part, at: partAt || o.createdAt };
     return { key: 'np', text: 'Due', cls: 'np', short: 'Due', kept: 0, due: amount };
   }
   const kotsOf = o => (Array.isArray(o.kots) ? o.kots : []).filter(k => k && (k.kind || 'kot') === 'kot');
@@ -1176,6 +1183,15 @@
       if (o.qr !== true || o.platform || qrOf(o) || !o.paidAt || o.sentAt || kotsOf(o).length || o.readyAt || o.cancelledBy || kotGoing.has(id) || dayOfOrder(o) !== todayKey()) continue;
       kotGoing.add(id);
       Promise.resolve(window.RestroCounter?.sendKitchen?.(id)).then(res => { if (res && !res.ok) kotFailed(id, res.kot, res.no, ticket(o.number), notice); if (dialog.open) renderRest(); })
+        .catch(() => {}).finally(() => kotGoing.delete(id));
+    }
+    // (Update Pack 7, I1) a round by QR on a table's open order (one with something still due): the cloud adds its
+    // dishes and its payment and sets qrRoundAt; its KOT goes from here once (ADD-ON +, "Round 2 · QR · Paid · 7:40 PM")
+    for (const o of list) {
+      const id = uidOf(o);
+      if (!(Number(o.qrRoundAt) > (Number(o.qrRoundSent) || 0)) || o.platform || qrOf(o) || o.cancelledBy || kotGoing.has(id) || dayOfOrder(o) !== todayKey()) continue;
+      kotGoing.add(id);
+      Promise.resolve(window.RestroCounter?.sendKitchen?.(id, { qr: true })).then(res => { if (res && !res.ok) kotFailed(id, res.kot, res.no, ticket(o.number), notice); if (dialog.open) renderRest(); })
         .catch(() => {}).finally(() => kotGoing.delete(id));
     }
   }

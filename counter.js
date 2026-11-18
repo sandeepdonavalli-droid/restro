@@ -767,7 +767,8 @@
   const thisDevice = () => window.RestroSync?.status?.()?.device?.id || null;
   // Sends the dishes the kitchen doesn't have yet as one KOT (its number comes as it prints: printKot). Returns the KOT,
   // or null.
-  function sendToKitchen(entry, now = Date.now()) {
+  // (Update Pack 7, I1: `qr`, a round that came by QR on the order: its KOT is "by QR", no staff's)
+  function sendToKitchen(entry, now = Date.now(), qr = false) {
     if (!entry.sent || typeof entry.sent !== 'object') entry.sent = {};
     const groups = new Map();
     for (const l of entry.lines) {
@@ -782,7 +783,7 @@
       entry.sent[k] = g.qty;
     }
     if (!lines.length) return null;
-    const kot = { id: newKotId(), at: now, kind: 'kot', no: null, lines, ...(entry.priority ? { priority: true } : {}), by: staffName() };
+    const kot = { id: newKotId(), at: now, kind: 'kot', no: null, lines, ...(entry.priority ? { priority: true } : {}), ...(qr ? { qr: true } : {}), by: qr ? null : staffName() };
     entry.sentAt = entry.sentAt || now; entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), kot].slice(-60);
     return kot;
   }
@@ -907,9 +908,10 @@
   }
   // (Update Pack 5: a QR order's own fields; a QR order whose payment failed, owner 13 Nov 2026, opens here to be paid:
   // it stays a QR order, with who confirmed it and when. An event's order keeps its event, an online one online and
-  // source: owner, 16 Nov 2026)
+  // source: owner, 16 Nov 2026. Update Pack 7, I1: what was paid of it so far (payments, or paidAmount) and when its
+  // last round came by QR, kept when staff save it)
   const KEPT = ['bills', 'receipts', 'refundSlips', 'billNo', 'billYear', 'platform', 'platformNo', 'platformType', 'platformLogo', 'pickupAt', 'readyBy', 'callCode', 'handover', 'riderAt', 'platformReadyAt', 'payRef',
-    'qr', 'qrPayAt', 'qrChoice', 'qrFailedAt', 'qrFailSeen', 'event', 'online', 'source'];
+    'qr', 'qrPayAt', 'qrChoice', 'qrFailedAt', 'qrFailSeen', 'event', 'online', 'source', 'payments', 'paidAmount', 'paidAmountAt', 'qrRoundAt', 'qrRoundSent'];
   // Fires the order on screen (Save, or Pay with the payment). With other tablets, only while this tablet reaches the
   // main system or the cloud, as a new order takes its number from them, so no two orders share one. Otherwise it says
   // so and the order stays on screen. Returns what upsertOrder does, or null. A dish that sold out before its KOT went
@@ -1307,8 +1309,18 @@
   // The RESTRO Android app prints it (RESTRODevice.printer.printKot) on the printers whose role is Kitchen or Both, in
   // each one's KOT language (anything but English as an image) and copies (Settings › Devices › Printers).
   const BAND = { 'dine-in': 'DINE-IN', takeaway: 'TAKEAWAY', delivery: 'DELIVERY', phone: 'PHONE ORDER' };
-  // (Update Pack 6, I: an event's order says EVENT · DINE-IN or EVENT · TAKEAWAY; the rest of its slip is still to be drawn)
+  // (Update Pack 6, I: an event's order says EVENT · DINE-IN or EVENT · TAKEAWAY; Update Pack 7, K3 (SL4): then the
+  // event's name, the first row "Event table 3" or the customer and their phone, KOT # · Order #, "QR · Paid · 7:31 PM")
   const bandOf = o => (o.type === 'event' ? `EVENT · ${o.event?.mode === 'takeaway' ? 'TAKEAWAY' : 'DINE-IN'}` : BAND[o.type]);
+  const eventTableOf = o => (o.type === 'event' && o.event?.table ? `Event table ${o.event.floor ? tableName(o.event.table) : o.event.table}` : '');
+  // (SL4: "QR · Paid · Fri 13 Nov · 7:31 PM": the day too when the event runs over more than one day)
+  const eventDays = o => {
+    if (o.type !== 'event' || !o.event?.id) return false;
+    let e = null; try { e = (JSON.parse(localStorage.getItem('restro.events.v1') || '[]') || []).find(x => x && x.id === o.event.id); } catch {}
+    const day = t => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+    return Boolean(e && Number(e.start) && Number(e.end) && day(Number(e.start)) !== day(Number(e.end) - 1));
+  };
+  const slipDay = t => { const d = new Date(t); return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]} ${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]}`; };
   const labelOf = m => (typeof m === 'string' ? optionOf.get(m)?.label || m : m?.label || m?.id || '');
   // What changed on a dish (a CHANGED slip): "Medium spicy → Less spicy", "+ No onion", "− Less oil", "+ Note: …"
   function changesOf(l) {
@@ -1336,16 +1348,19 @@
   // `backup: true` on the one chosen as the backup printer (Update Pack 5, I2)
   const kitchenPrinters = () => Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'kitchen' || p.role === 'both'))
     .map(([id, p]) => ({ id, language: p.language || 'English', copies: p.copies || 1, ...(p.backup ? { backup: true } : {}) }));
-  // (a phone number on a slip: 5 + 5 digits, "9xxxx xxxxx"; one as a delivery app sends it, as sent)
-  const slipPhone = m => { const raw = String(m || '').trim(), d = raw.replace(/\s+/g, ''); return /^\d{10}$/.test(d) ? `${d.slice(0, 5)} ${d.slice(5)}` : raw; };
+  // (a phone number on a slip: the country code, then 5 + 5 digits, "+91 9xxxx xxxxx" (Update Pack 7, D3: the name and
+  // the phone together, "‹customer› · +91 ‹phone›"); one as a delivery app sends it, as sent)
+  const slipPhone = (m, code) => { const raw = String(m || '').trim(), d = raw.replace(/\s+/g, ''); return /^\d{10}$/.test(d) ? `+${code || '91'} ${d.slice(0, 5)} ${d.slice(5)}` : raw; };
   // The first row (C2): the table (dine-in); the customer · the app's order number (a delivery app); the customer · the
-  // pager (takeaway and phone orders with one), otherwise the customer · their phone number (own delivery too)
+  // pager (takeaway and phone orders with one), otherwise the customer · their phone number (own delivery too); an
+  // event's (K3): "Event table 3" (a QR per event table) or the customer · their phone (one QR for the whole event)
   function firstRow(o, app) {
     const name = String(o.customer?.name || '').trim(), pager = cleanPager(o.pager);
     if (app) return [name, `${app} #${o.platformNo || '—'}`].filter(Boolean).join(' · ');
+    if (eventTableOf(o)) return eventTableOf(o);
     if (usesTable(o)) return `Table ${tableName(o.table)}`;
     if (pager && (o.type === 'takeaway' || o.type === 'phone')) return [name, `Pager ${pager}`].filter(Boolean).join(' · ');
-    return [name, slipPhone(o.customer?.mobile)].filter(Boolean).join(' · ');
+    return [name, slipPhone(o.customer?.mobile, o.customer?.code)].filter(Boolean).join(' · ');
   }
   function kitchenSlip(o, k) {
     const kind = k.kind || 'kot', type = o.type || DEFAULT_TYPE, no = k.no || null, kots = kotsOf(o), nos = kots.map(x => x.no).filter(Boolean);
@@ -1375,11 +1390,16 @@
       : kind === 'time' ? [k.was ? `was ${timeOf(k.was)}` : '', k.kot?.at ? `KOT sent ${timeOf(k.kot.at)}` : '', `changed ${at}`, by]
       : kind === 'void' || kind === 'changed' ? [at, by ? `By: ${by}` : '']
       : app ? [appTime, `placed ${timeOf(o.createdAt || k.at || Date.now())}`]
+      // (Update Pack 7, K3) an order placed by QR: "QR · Paid · 7:31 PM" (its KOT prints once it is paid), the event's day
+      // too when it runs over several days; a later round, "Round 2 · QR · Paid · 7:40 PM"
+      : o.qr === true || k.qr === true ? [round ? `Round ${round}` : '', 'QR', 'Paid', eventDays(o) ? slipDay(k.at || Date.now()) : '', printed]
       : type === 'dine-in' || usesTable(o) ? [round ? `Round ${round}` : '', o.guests ? plural(o.guests, 'guest') : '', printed, server ? `Server: ${server}` : '']
       // (a pager shows in the first row; no pager, nothing is said of it: owner, 13 Nov 2026)
       : [round ? `Round ${round}` : '', printed, server];
     return {
       kind, type, band: app ? app.toUpperCase() : bandOf({ ...o, type }), boxes, priority, addOn: Boolean(round), round, kot: kind === 'time' ? null : kotNo, order: ticket(o.number),
+      // (K3) the event's name, a bold line under the band and the boxes; "" for any other order
+      event: o.type === 'event' && o.event?.name ? String(o.event.name) : '',
       first: firstRow(o, app), title: [kotPart, `Order ${ticket(o.number)}`].filter(Boolean).join(' · '), when, info: info.filter(Boolean).join(' · '), at: k.at || Date.now(),
       note: (kind === 'kot' || kind === 'priority') && o.note ? o.note : '',
       lines: (k.lines || []).map(l => ({ qty: l.qty, name: l.name, names: items.get(l.id)?.names || null, mods: kind === 'changed' ? changesOf(l) : (l.mods || []).map(labelOf), note: l.note || '' })),
@@ -1611,7 +1631,9 @@
   const methodLabel = { cash: 'Cash', upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet' };
   const methodOf = o => (o.qr === true && o.qrPay === 'matching' ? 'QR' : methodLabel[o.method] || 'Cash');
   // (Update Pack 5) paid in part (the Pay screen, to come: paidAmount in paise, less than the total): Orders' Part paid
-  const partPaid = o => !o.paidAt && Number(o.paidAmount) > 0 && Number(o.paidAmount) < (Number(o.total) || 0);
+  // (Update Pack 7, I1: or its payments so far, `payments`, a round paid by QR on a table's open order)
+  const paidSoFar = o => (Array.isArray(o.payments) && o.payments.length ? o.payments.reduce((s, p) => s + (Math.round(Number(p?.amount)) || 0), 0) : Number(o.paidAmount) || 0);
+  const partPaid = o => !o.paidAt && paidSoFar(o) > 0 && paidSoFar(o) < (Number(o.total) || 0);
   // ---------- the Counter screen (POS Counter Handoff) ----------
   // The order panel on the left (context buttons, the order's lines, totals, Save and Pay) and the menu on the right
   // (the three-line menu, search, Held · Orders · Payment history, then the menu in the display style chosen in
@@ -2713,7 +2735,12 @@
       phone: biz.phone ? window.RestroProfile?.formatPhone?.(biz.phone, biz.phoneCountry) || biz.phone : '', email: biz.email || '',
       number: o.number ? ticket(o.number) : null, at: Date.now(),
       type: typeLabel[type], table: usesTable(o) ? tableName(o.table) : '', guests: o.guests || 0,
-      server: o.server || staffName() || '',
+      // (Update Pack 7, H2: the receipt as drawn) the server, printed by first name ("Server: ‹first name›"); an order
+      // placed by QR has none of its own and says "QR order" there (qr); a takeaway, phone, delivery or event customer
+      // with their phone beside the name ("‹customer› · +91 ‹phone›", D3); an event's name and its event table
+      server: o.qr === true ? o.server || '' : o.server || staffName() || '', qr: o.qr === true,
+      customer: !usesTable(o) && !eventTableOf(o) && String(o.customer?.name || '').trim() ? { name: String(o.customer.name).trim(), phone: slipPhone(o.customer.mobile, o.customer.code) } : null,
+      event: o.type === 'event' && o.event?.name ? String(o.event.name) : '', eventTable: eventTableOf(o),
       lines: o.lines.map(l => {
         const each = eachOf(l), gross = each * l.qty * 100, off = window.RestroBill.lineOff(gross, l.off);
         return { name: itemOf(l).name, qty: l.qty, each, total: each * l.qty, modifiers: (l.mods || []).map(modLabel), note: l.note || '',
@@ -2737,12 +2764,36 @@
   // (Update Pack 5: a QR order's own methods; paid by QR and not matched yet, H1: "PAID · QR")
   const PAID_AS = { cash: 'Cash', upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet', swiggy: 'Swiggy', zomato: 'Zomato' };
   const atPayment = () => window.RestroPrefs?.get?.('billNumber')?.at === 'payment';
+  // An order's payments, each { method, amount (rupees), at, ref } (Update Pack 7, H2 and I1: an order takes a payment
+  // for each round paid by QR, and the rest at the Counter): `payments` on the order when it has them ({ method, amount
+  // in paise, at, ref }); otherwise its one payment once paid (`paidAt`), the whole total; or what was paid of it in part
+  // (`paidAmount`). A QR order staff saw paid and not matched yet, H1: "QR". `full`: a receipt, so paid in full.
+  function paymentsOf(o, total, full) {
+    if (!o) return [];
+    const methodOf = (m, qr) => (qr ? 'QR' : PAID_AS[m] || (typeof m === 'string' && m ? m : 'Cash'));
+    const atOf = t => (Number.isFinite(Number(t)) && Number(t) > 0 ? Number(t) : Date.parse(t) || Date.now());
+    if (Array.isArray(o.payments) && o.payments.length)
+      return o.payments.filter(p => p && Number(p.amount) > 0).map(p => ({ method: methodOf(p.method), amount: Math.round(Number(p.amount)) / 100, at: atOf(p.at), ref: typeof p.ref === 'string' ? p.ref : '' }));
+    const qr = o.qr === true && o.qrPay === 'matching', ref = typeof o.payRef === 'string' ? o.payRef : '';
+    if (o.paidAt || full) {
+      const how = Array.isArray(o.methods) && o.methods.length > 1 ? o.methods.map(m => methodOf(m)).join(' + ') : methodOf(o.method, qr);
+      return [{ method: how, amount: total, at: atOf(o.paidAt), ref }];
+    }
+    const part = Number(o.paidAmount);
+    return part > 0 && part < Math.round(total * 100) ? [{ method: methodOf(o.method), amount: part / 100, at: atOf(o.paidAmountAt), ref }] : [];
+  }
   function billDoc(o, kind, prints, rec = null, pre = false) {
     const same = prints.filter(p => (p?.tax === false) === pre), now = Date.now(), last = same.length ? { at: now, by: initialsOf(staffName()) } : null;
     // (the receipt carries the bill's date and time, as PS01 draws it, when a bill (a tax invoice) was printed first)
     const billAt = kind === 'receipt' && Array.isArray(rec?.bills) ? Number(rec.bills.find(b => b && b.tax !== false)?.at) || 0 : 0;
     const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : kind === 'refund' ? 'REFUND · NOT A TAX INVOICE' : pre ? 'BILL · NOT A TAX INVOICE' : 'TAX INVOICE', at: billAt || same[0]?.at || now, reprint: last };
-    if (kind === 'receipt' && rec) bill.paid = { method: rec.qr === true && rec.qrPay === 'matching' ? 'QR' : PAID_AS[rec.method] || 'Cash', amount: bill.total, at: Date.parse(rec.paidAt) || now, ref: typeof rec.payRef === 'string' ? rec.payRef : '' };
+    // (a saved order placed by QR, H2: "QR order" where the server goes, and no staff's name of its own)
+    if (rec) { bill.qr = rec.qr === true; if (bill.qr) bill.server = rec.server || ''; }
+    // (Update Pack 7, H2) one PAID box per payment, and under them, while the order is part paid, the black DUE box
+    if (kind !== 'refund') {
+      const pays = paymentsOf(rec || o, bill.total, kind === 'receipt'), paid = pays.reduce((s, p) => s + Math.round(p.amount * 100), 0);
+      bill.payments = pays; bill.due = pays.length && paid < Math.round(bill.total * 100) ? (Math.round(bill.total * 100) - paid) / 100 : 0;
+    }
     // (a QR order cancelled and refunded: a boxed "REFUNDED ₹1,260" where PAID goes, with when it was cancelled; its
     // method once the cloud has refunded it: "REFUNDED · UPI ₹1,260")
     if (kind === 'refund' && rec) bill.refunded = { method: rec.refundedAt ? PAID_AS[rec.refundMethod] || PAID_AS[rec.method] || '' : '', amount: bill.total, at: Number(rec.qrChoice?.at) || Date.parse(rec.refundedAt) || now };
@@ -2832,7 +2883,8 @@
         return ls.length ? [el('p', { class: 'small' }, ...ls.flatMap((t, i) => (i ? [el('br'), t] : [t])))] : []; })(),
       el('hr'), el('p', { class: 'b' }, bill.title || 'TAX INVOICE'),
       el('table', { class: 'small' }, el('tbody', {}, row([bill.bill ? `Bill #${bill.bill}` : '', bill.number ? `Order ${bill.number}` : ''].filter(Boolean).join(' · ') || 'Bill', when),
-        row([bill.type, bill.table ? `Table ${bill.table}` : '', bill.guests ? plural(bill.guests, 'guest') : ''].filter(Boolean).join(' · '), bill.server ? `Server: ${initialsOf(bill.server)}` : ''))),
+        row([bill.type, bill.event, bill.table ? `Table ${bill.table}` : bill.eventTable, bill.guests ? plural(bill.guests, 'guest') : '', bill.customer?.name, bill.customer?.phone].filter(Boolean).join(' · '),
+          bill.server ? `Server: ${firstOf(bill.server)}` : bill.qr ? 'QR order' : ''))),
       el('hr'),
       el('table', {}, el('tbody', {}, ...bill.lines.flatMap(l => [
         row([`${l.qty} × ${l.name}`, l.modifiers.length ? el('div', { class: 'mod' }, l.modifiers.join(' · ')) : null], r(l.total)),
@@ -2847,7 +2899,8 @@
         bill.roundOff ? row('Round off', `${bill.roundOff < 0 ? '−' : '+'}${r(Math.abs(bill.roundOff))}`) : null)),
       el('hr'),
       el('table', { class: 'gt' }, el('tbody', {}, row('GRAND TOTAL', `₹${bill.total.toLocaleString('en-IN')}`))),
-      bill.paid ? el('div', { class: 'paid' }, el('b', {}, `PAID · ${bill.paid.method} ₹${bill.paid.amount.toLocaleString('en-IN')}`), el('span', {}, [stamp(bill.paid.at), bill.paid.ref ? `Ref ${bill.paid.ref}` : ''].filter(Boolean).join(' · '))) : null,
+      ...(bill.payments || []).map(p => el('div', { class: 'paid' }, el('b', {}, `PAID · ${p.method} ₹${p.amount.toLocaleString('en-IN')}`), el('span', {}, [stamp(p.at), p.ref ? `Ref ${p.ref}` : ''].filter(Boolean).join(' · ')))),
+      bill.due ? el('div', { class: 'due' }, el('b', {}, `DUE ₹${bill.due.toLocaleString('en-IN')}`), el('span', {}, 'Pay on your phone or at the counter')) : null,
       bill.refunded ? el('div', { class: 'paid' }, el('b', {}, `REFUNDED${bill.refunded.method ? ` · ${bill.refunded.method}` : ''} ₹${bill.refunded.amount.toLocaleString('en-IN')}`), el('span', {}, `${stamp(bill.refunded.at)} · Order cancelled`)) : null,
       bill.footer.length ? [el('hr'), el('p', { class: 'small' }, ...bill.footer.flatMap((f, i) => (i ? [el('br'), f] : [f])))] : null].flat().filter(Boolean));
     try { window.print(); } catch { toast('Printing isn’t available here'); }
@@ -3929,9 +3982,12 @@
     return { ok: !failed.length, failed };
   }
   // Sends a saved order's dishes the kitchen doesn't have yet as a new KOT. Resolves { ok, why, no, count }.
-  async function sendKitchen(uid) {
+  // (Update Pack 7, I1) `{ qr: true }`: the round the cloud added by QR (qrRoundAt), sent once (qrRoundSent)
+  async function sendKitchen(uid, opts = {}) {
     const list = loadOrders(), rec = list.find(o => idOf(o) === uid); if (!rec) return { ok: false };
-    const now = Date.now(), kot = sendToKitchen(rec, now); if (!kot) return { ok: true, no: null, count: 0 };
+    const qr = opts.qr === true, now = Date.now(), kot = sendToKitchen(rec, now, qr);
+    if (qr) rec.qrRoundSent = Number(rec.qrRoundAt) || now;
+    if (!kot) { if (qr) { rec.savedAt = now; storeOrders(list); } return { ok: true, no: null, count: 0 }; }
     if (cleanTime(rec.readyAt) && now < kitchenTime(rec)) kot.how = 'early'; // (a scheduled order's, before its kitchen time: "(sent early)")
     rec.kitchenAt = rec.kitchenDoneAt ? now : rec.kitchenAt || rec.sentAt || now;
     delete rec.kitchenDoneAt; rec.savedAt = now; storeOrders(list); if (order.uid === uid) keepOpened(rec);

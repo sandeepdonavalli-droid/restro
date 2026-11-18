@@ -121,6 +121,21 @@ If a client's cursor is past the server's `seq`, the client starts again from 0.
 
 Ticket numbers are settled by the server too, as described under Ticket numbers below.
 
+**When an order closes** (Update Pack 7, I1; it replaces Pack 5 C4's one order per table): an order closes as soon as
+it is fully paid (`paidAt`). A table then has no open order: it is free on Floor (I2: no Clear table step), and the
+next round there, by staff or by QR, starts a new order (a plain KOT, not an ADD-ON). While anything on the table's
+order is still due, every new round there joins it (ADD-ON KOT). So a table can have several closed orders in one
+sitting and at most one open order; the Counter opens only the open one.
+
+**A round by QR on a table's open order** (the cloud): it joins the order instead of making a new one. The cloud adds
+its dishes to `lines` (with the totals worked out again, `bill.js`), adds the payment to `payments` and sets
+`qrRoundAt` (ms); the printer device then sends its KOT once (ADD-ON +, `"Round 2 · QR · Paid · 7:40 PM"`, the KOT
+marked `qr: true`) and sets `qrRoundSent`. `payments` is every payment taken on the order, `[{ method, amount (paise),
+at (ms), ref }]`, in the order paid: a round paid by QR and, later, the rest at the Counter. Once they add up to the
+total, the order is paid: `paidAt` (the last payment's time) and `method` (or `methods`) are set by whoever took that
+last payment. Until then Orders shows it **Part paid**, and its bill and receipt a PAID box for each payment and the
+black DUE box (ANDROID-BRIDGE.md, printing the bill). A QR order on its own is paid first, so it is never part paid.
+
 ### QR payments (Update Pack 5, H1)
 
 A QR order whose payment hasn't been confirmed carries `qrPay` (ANDROID-BRIDGE.md, QR payment Pending): `'waiting'`
@@ -132,7 +147,7 @@ its change goes to the tablets as any other:
 
 | Answered | The money | The cloud |
 | --- | --- | --- |
-| Customer paid (`'matching'`) | arrived | takes off `qrPay`; sets `method` (`'upi'`, `'card'`, `'netbanking'`, `'wallet'`), `paidAt` (the payment's time) and `payRef` |
+| Customer paid (`'matching'`) | arrived | takes off `qrPay`; sets `method` (`'upi'` or `'card'`: the payment page offers only UPI and cards, Update Pack 7, D2), `paidAt` (the payment's time) and `payRef` |
 | not yet (`'waiting'`, `'pending'`) | arrived | the same; the main system then prints its KOT by itself |
 | Cancel and refund (`'refund'`) | arrived | refunds it; sets `paidAt`, `method`, `refundedAt`, `refundMethod`; takes off `qrPay` |
 | not yet, or Cancel and refund | never | deletes the order (a tombstone, as any deletion) |

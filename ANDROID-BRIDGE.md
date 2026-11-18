@@ -440,15 +440,21 @@ Where the names show and what staff can do:
 - **On the order** (from the cloud, once QR ordering is built): `qr: true`; a Table QR's order is Dine-in on its table
   (`type: 'dine-in'`, `table`: the table's permanent id, so renaming or renumbering a table never breaks it, `guests`
   and the table's `server` when known); a Takeaway QR's is `type: 'takeaway'` with `customer: { name, mobile, code }`
-  and no cashier (`server: ''`). Every QR order is **paid first**: `paidAt`, and `method` `'upi'`, `'card'`,
-  `'netbanking'` or `'wallet'`. Its KOT prints only once the payment is confirmed.
+  and no cashier (`server: ''`). Every QR order is **paid first**: `paidAt`, and `method` `'upi'` or `'card'` (the
+  payment page offers only UPI and cards, Update Pack 7, D2; orders paid at the Counter keep every method). Its KOT
+  prints only once the payment is confirmed.
+- **When an order closes** (Update Pack 7, I1, SYNC.md): as soon as it is fully paid. A round by QR at a table whose
+  order still has something due joins that order (its dishes, its payment in `payments`, `qrRoundAt`): the printer
+  device sends its KOT (ADD-ON +, "Round 2 · QR · Paid · 7:40 PM") and the order shows **Part paid** until the rest is
+  paid. Otherwise a round at the table starts a new order.
 - **How it shows:** a small blue **QR** tag right after the order type ("Dine-in [QR]", "Takeaway [QR]") in Classic,
   Split's list and Cards, and "Dine-in · QR · 2 guests · Server: …" in Split's order header. The tag: 24 tall, rounded
   7, a 1-wide border, the QR glyph 11 and "QR" 12.5 bold; Light `#EEF4FF` with border `#C7D7F6` and text `#1E4FB8`,
   Midnight `#1B2A47`, `#34507F` and `#A9C2FF`. The same in all 12 layouts.
-- **Payment:** the method it was paid with ("Paid - UPI", "Paid - Card", "Paid - Net banking", "Paid - Wallet"), never
-  Due; the bill button shows **Receipt**; it counts in Total, not Due. A Takeaway QR's row shows no cashier.
-- **Never Part paid** (owner, 13 Nov 2026): a paid QR order always shows the method it was paid with. A paid order
+- **Payment:** the method it was paid with ("Paid - UPI" or "Paid - Card"; Update Pack 7, D2), never Due; the bill
+  button shows **Receipt**; it counts in Total, not Due. A Takeaway QR's row shows no cashier.
+- **Never Part paid** (owner, 13 Nov 2026): a paid QR order always shows the method it was paid with (an order with a
+  round still due that a QR round joined is Part paid until the rest is paid: I1, above). A paid order
   doesn't open on the Counter: more food is a new order with its own number, and a pager goes to the new order. (The
   pack's line "If staff later add dishes at the Counter, those are unpaid, so the order becomes Part paid" is
   withdrawn.)
@@ -1280,8 +1286,12 @@ Print it as `25_printed-bill` (Counter Update 7, the customer's copy, the same f
   restaurant starting again at B-1 each financial year (1 April), given at the first print or at the payment, `null`
   before; `number`: the order's ticket, e.g. `"#1015"`, or `null` for an order not saved yet) and the date and time
   (`at`, milliseconds, printed `7 Nov 2026 11:58 AM`), then `type` (`"Dine-in"`, `"Takeaway"`, `"Delivery"`,
-  `"Phone call"`) · `Table …` (`table`, `""` for none) · `… guests` (`guests`, 0 for none), and `Server: EC` (the
-  initials of `server`, the full name).
+  `"Phone call"`, `"Event"`) · the event's name (`event`, `""` for any other order) · `Table …` (`table`, `""` for
+  none) or the event table (`eventTable`, `"Event table 3"`) · `… guests` (`guests`, 0 for none) · a takeaway, phone,
+  delivery or event customer and their phone together (`customer`: `{ name, phone }`, `"‹customer› · +91 98480
+  21734"`, `null` for none; Update Pack 7, D3), and on the right `Server: ‹first name›` (the first name of `server`,
+  the full name; owner, 17 Nov 2026), or **QR order** for an order placed by QR (`qr: true`; it has no server of its
+  own: Update Pack 7, H2's receipt).
 - **Dishes:** each of `lines`, `{ name, qty, each, total, modifiers, note, discount }`: `2 × Sweet lassi` and its
   `total` (`each` is one's price); its `modifiers` under it on one line (`"Half · Medium spicy"`); its dish discount,
   when it has one, as an indented minus line: `discount.label` and −`discount.amount` (`"10% off"` −26.00, `"100% off ·
@@ -1308,7 +1318,8 @@ Amounts are in rupees.
 | `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is; or `"BILL · NOT A TAX INVOICE"` (below); or `"REFUND · NOT A TAX INVOICE"` |
 | `at` | the bill's first print (a receipt keeps the bill's date and time when a bill was printed first, otherwise its own first print); a reprint keeps it |
 | `reprint` | `null` on a first print; on every later print of the same bill or receipt `{ at, by }`: a bold black outlined box at the very top, **REPRINT** in large letters, and under it `"Reprinted 7 Nov 2026 12:20 PM · by RK"` (`by`: the staff's initials) |
-| `paid` | receipts only: `{ method, amount, at, ref }`, a boxed line above the footer, `"PAID · UPI ₹837"` and under it `"7 Nov 2026 12:41 PM · Ref 4318 9920 1187"` (`method`: `"Cash"`, `"UPI"`, `"Card"`, `"Net banking"`, `"Wallet"`, `"Swiggy"` or `"Zomato"`, or `"QR"` for a QR order staff saw paid and not matched yet; `ref` only when the payment has one) |
+| `payments` | Update Pack 7 (H2; it was `paid`, one payment): every payment taken on the order, `[{ method, amount, at, ref }]`, each a boxed line above the footer, `"PAID · UPI ₹1,260"` and under it `"16 Nov 2026 7:25 PM · Ref 4318 9920 1032"`, in the order paid, 8 apart (`method`: `"Cash"`, `"UPI"`, `"Card"`, `"Net banking"`, `"Wallet"`, `"Swiggy"` or `"Zomato"`, several joined `"UPI + Cash"`, or `"QR"` for a QR order staff saw paid and not matched yet; `ref` only when the payment has one). A receipt has them all; a bill of an order paid in part (a round paid by QR, the rest due) has those paid so far; `[]` for none |
+| `due` | Update Pack 7 (H2): what is still to pay on an order paid in part (rupees), `0` otherwise: a black box under the PAID boxes, white on black, **"DUE ₹798"** and under it "Pay on your phone or at the counter" |
 | `refunded` | refund slips only: `{ method, amount, at }`, the same boxed line where PAID goes, `"REFUNDED ₹1,260"` and under it `"9 Nov 2026 7:28 PM · Order cancelled"` (`at`: when staff cancelled it); `method` is `""` until the cloud has refunded it, then `"UPI"` and the rest: `"REFUNDED · UPI ₹1,260"` |
 
 Each print is kept on the order (`bills`, `receipts`, `refundSlips`: `{ at, by, total }`), so the next one is a REPRINT
@@ -1373,11 +1384,14 @@ minus quantities and `footer` `"Reason: Cancelled by Swiggy"`; `by` is `null`.
    star), **ADD-ON +** (C4: every KOT after the order's first, the plus on the right only), **SCHEDULED · READY 10:00
    PM** (every KOT of a scheduled order), then what the slip is: **TIME CHANGED**, **ORDER CANCELLED**, **VOID** or
    **CHANGED**. None on a plain first KOT.
+   Then an event's order (Update Pack 7, K3, `SL4_event-kot-slips`): the event's name (`event`), bold, small, on a line
+   of its own.
 3. **The first row** (`first`), the largest on the slip, bold, **black** (owner, 13 Nov 2026: the designs' red isn't
-   used; it is never red): who the order is for (C2): Dine-in `"Table 6"`; a delivery app's `"‹customer› · Swiggy
-   #4521"`; Takeaway and Phone order `"‹customer› · Pager 18"`, with no pager the customer's phone number,
-   `"‹customer› · ‹phone›"` (as 5 + 5 digits, `"9xxxx xxxxx"`, or as a delivery app sends it); own delivery the same,
-   `"‹customer› · ‹phone›"`. The designs draw a
+   used; it is never red, an event's too though SL4 draws its customer's name red): who the order is for (C2): Dine-in
+   `"Table 6"`; a delivery app's `"‹customer› · Swiggy #4521"`; Takeaway and Phone order `"‹customer› · Pager 18"`, with
+   no pager the customer's phone number, `"‹customer› · +91 9xxxx xxxxx"` (the country code, then 5 + 5 digits; Update
+   Pack 7, D3; or as a delivery app sends it); own delivery the same; an event's `"Event table 3"` or `"‹customer› ·
+   +91 9xxxx xxxxx"` (K3). The designs draw a
    table 31 tall and a customer 26 (on the 420-wide slip). `""` when there is nothing to show (a walk-in with no name):
    leave the row out.
 4. **The second row**, bold: `title`, `"KOT #163 · Order #1033"` (C2: always KOT # · Order #; on VOID and CHANGED the KOT
@@ -1410,10 +1424,11 @@ that sent it tries again by itself every 30 seconds until it prints.
 | `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"`, `"time"` (TIME CHANGED, Update Pack 4) or `"cancel-bulk"` (below) |
 | `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"`, `"EVENT · DINE-IN"` / `"EVENT · TAKEAWAY"` (an event's order, Update Pack 6), or a delivery app's name in capitals, `"SWIGGY"`, `"ZOMATO"` (Update Pack 4) (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
 | `boxes` | Update Pack 5 (C1): the boxes under the band, in order (above): `["★★ PRIORITY ★★", "ADD-ON +", "SCHEDULED · READY 10:00 PM", "TIME CHANGED"]`, any of them, or `[]` |
-| `first` | Update Pack 5 (C2): the first row, black, the largest (above): `"Table 6"`, `"‹customer› · Swiggy #4521"`, `"‹customer› · Pager 18"`, `"‹customer› · ‹phone›"`; `""` for none. The customer's phone number is in full, every digit, never masked (Update Pack 4) |
+| `event` | Update Pack 7 (K3, `SL4_event-kot-slips`): an event's order, the event's name, `"Live music night"`, bold and small on a line of its own under the band and the boxes; `""` for any other order |
+| `first` | Update Pack 5 (C2): the first row, black, the largest (above): `"Table 6"`, `"‹customer› · Swiggy #4521"`, `"‹customer› · Pager 18"`, `"‹customer› · +91 9xxxx xxxxx"`; an event's (K3), `"Event table 3"` (a QR per event table) or `"‹customer› · +91 9xxxx xxxxx"` (one QR for the whole event); `""` for none. The customer's phone number is in full, every digit, never masked (Update Pack 4), with the country code before it (Update Pack 7, D3: the name and the phone together, everywhere) |
 | `title`, `when` | the second row, bold (above): `"KOT #3 · Order #1015"` (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket), then `when`, `"Pickup 1:15 PM"` or `"Ready by 10:30 PM"`, or `""` |
 | `round`, `addOn` | Update Pack 5 (C4): the KOT's round, `2`, `3`…, and `true`, on every KOT after the order's first (ADD-ON +); `null` and `false` on the first |
-| `info` | small: dine-in `"4 guests · 11:46 AM · Server: ‹initials›"`, a later round `"Round 2 · 4 guests · 7:40 PM · Server: ‹initials›"`; takeaway, phone and own delivery `"7:58 PM · ‹initials›"` (a pager is in the first row; with none, nothing is said of it); on VOID and CHANGED `"11:52 AM · By: ‹initials›"`; on ORDER CANCELLED `"VOID ALL · 12:05 PM · By: ‹initials›"`; on TIME CHANGED (C5) `"was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹initials›"` (the ready-by time before, when the KOT went, when it changed, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: RK"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · placed 7:11 PM"` (above). Times are in capitals, `"9:30 PM"` (Update Pack 4) |
+| `info` | small: an order placed by QR (Update Pack 7, K3) `"QR · Paid · 7:31 PM"` (its KOT prints once it is paid), with the day for an event that runs over several days, `"QR · Paid · Fri 13 Nov · 7:31 PM"`, and a later round `"Round 2 · QR · Paid · 7:40 PM"`; dine-in `"4 guests · 11:46 AM · Server: ‹initials›"`, a later round `"Round 2 · 4 guests · 7:40 PM · Server: ‹initials›"`; takeaway, phone and own delivery `"7:58 PM · ‹initials›"` (a pager is in the first row; with none, nothing is said of it); on VOID and CHANGED `"11:52 AM · By: ‹initials›"`; on ORDER CANCELLED `"VOID ALL · 12:05 PM · By: ‹initials›"`; on TIME CHANGED (C5) `"was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹initials›"` (the ready-by time before, when the KOT went, when it changed, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: RK"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · placed 7:11 PM"` (above). Times are in capitals, `"9:30 PM"` (Update Pack 4) |
 | `at` | when it happened, milliseconds |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT and the priority notice; `""` for none |
 | `lines` | (none on TIME CHANGED: the dishes don't change) `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |
