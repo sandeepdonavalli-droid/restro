@@ -989,6 +989,14 @@ Built 18 Nov 2026 in `qr-studio.js` (the page) and `customer-menu.js` / `custome
   whatever the tablet's theme (B1): in Midnight only QR Studio around it turns dark. Fonts (SIL Open Font License, in
   `assets/fonts` with their licences): DM Sans in all 7, Playfair Display (Night), Cormorant Garamond (Editorial),
   Yatra One (Chalkboard); the ₹ sign is Inter's in every template, as drawn.
+- **The restaurant's name** (the owner, 18 Nov 2026): always in capitals, as Business details keeps it (the designs
+  draw it in small letters), and never cut with "…": `RestroCustomerMenu.fit(page)`, once the page is on screen (QR
+  Studio does it for its phones; pages on screen are fitted again when the fonts arrive), sets it at the template's
+  size when it fits beside the pill; otherwise smaller on one line, down to 60% of that size; a longer name on two
+  lines, as large as they fit (up to the template's size); longer still, three lines at 60% or less, down to 40% (12 px
+  at the least). Lines break between words. The first line's middle stays where the template has it. A name in words
+  of up to 48 letters (the most Business details takes) fits whole in all 7 templates, whatever the pill; only one of
+  words too long even for three small lines (48 W's, say) is broken inside a word, and cut with "…" after three lines.
 - **For the cloud (Phase 2):** a QR's page shows the restaurant's `template` with its `accent` and `logo`, the menu
   and what is sold out, live; no template yet: the neutral page, "Our menu is coming soon. Please ask staff." (B3).
   Changing the template never needs a reprint: the QRs keep their links.

@@ -34,9 +34,12 @@
 .cm-status{position:absolute;z-index:2;left:0;right:0;top:0;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 25px 0 22.5px;color:#F0E8DA;font-size:14px;font-weight:600;line-height:1}
 .cm-status i{display:flex;gap:4.5px}
 .cm-status i::before,.cm-status i::after,.cm-status i b{content:'';display:block;width:9.5px;height:9.5px;border-radius:50%;background:currentColor}
-/* (the name and the pill share the row: a long name ends in … before the pill) */
+/* (the name, in capitals, and the pill share the row: a long name is set smaller to fit, or on two or three lines:
+   customer-menu.js, fitNames; the … is only a last resort) */
 .cm-hrow{position:absolute;z-index:1;left:0;right:20.5px;top:0;display:flex;align-items:flex-start;gap:8px;padding-left:20px}
 .cm-name{position:relative;flex:0 1 auto;min-width:0;top:50px;color:#FFFFFF;font-size:33px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cm-name.wrap{white-space:normal;text-wrap:balance}
+.cm-name.clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow-wrap:anywhere}
 .cm-pill{position:relative;flex:none;margin-left:auto;top:51px;height:36px;display:flex;align-items:center;padding:0 18px;border-radius:18px;font-size:16.8px;font-weight:700;line-height:1;white-space:nowrap}
 
 /* The category bar (C1): sticks to the top, the current one marked; search at its right end, in the same place in every

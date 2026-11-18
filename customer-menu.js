@@ -7,10 +7,12 @@
 // - page({ template, accent, kind, pill, restaurant, logo, categories, cart, status, onDish }):
 //     template: one of the ids; accent: '#RRGGBB' for the buttons, tabs and cart bar, or null for the template's own;
 //     kind: 'table' | 'takeaway' | 'menu' (Menu QR: view only, no add buttons, no cart, no bell: C6; the Help bell is on
-//       Table QRs only: H1); pill: the pill's words (Table 7, Takeaway, Menu); restaurant: its name; logo: the logo
-//     photo's address or null (B2); categories: [{ id, name, items: [{ id, name, desc, price (rupees), veg, photo, out }]
-//       }] (out: sold out, C4); cart: { ‹dish id›: quantity }; status: true draws a phone's status bar (QR Studio's
-//       preview); onDish(id): a dish tapped.
+//       Table QRs only: H1); pill: the pill's words (Table 7, Takeaway, Menu); restaurant: its name, always shown in
+//       capitals; logo: the logo photo's address or null (B2); categories: [{ id, name, items: [{ id, name, desc, price
+//       (rupees), veg, photo, out }] }] (out: sold out, C4); cart: { ‹dish id›: quantity }; status: true draws a phone's
+//       status bar (QR Studio's preview); onDish(id): a dish tapped.
+// - fit(page): sets the restaurant's name to fit its row once the page is on screen (see fitNames); pages already on
+//   screen are fitted again by themselves when the fonts arrive.
 (() => {
   // (accent: the template's own colour for its buttons, tabs and cart bar, the first of QR Studio's accent colours)
   const TEMPLATES = Object.freeze([
@@ -63,7 +65,7 @@
     if (o.accent && onAccent(o.accent)) { root.style.setProperty('--acc', o.accent); root.style.setProperty('--on-acc', onAccent(o.accent)); root.classList.add('own-acc'); }
     const top = el('header', { class: 'cm-top', style: o.logo ? `background-image:url("${String(o.logo).replace(/"/g, '%22')}")` : null },
       o.status ? el('div', { class: 'cm-status', 'aria-hidden': 'true' }, el('span', {}, '9:41'), el('i', {}, el('b'))) : null,
-      el('div', { class: 'cm-hrow' }, el('h1', { class: 'cm-name' }, o.restaurant || ''), o.pill ? el('span', { class: 'cm-pill' }, o.pill) : null));
+      el('div', { class: 'cm-hrow' }, el('h1', { class: 'cm-name' }, String(o.restaurant || '').toLocaleUpperCase('en-IN')), o.pill ? el('span', { class: 'cm-pill' }, o.pill) : null));
     const tabs = cats.map((c, i) => el('button', { type: 'button', class: `cm-tab${i === 0 ? ' on' : ''}`, 'data-cat': c.id }, c.name));
     const bar = el('nav', { class: 'cm-cats', 'aria-label': 'Categories' }, el('div', { class: 'cm-tabs' }, tabs),
       el('button', { type: 'button', class: 'cm-search', 'aria-label': 'Search' }, icon('search')));
@@ -99,5 +101,41 @@
     for (const b of tabs) b.addEventListener('click', () => { const s = secs.find(x => x.dataset.cat === b.dataset.cat); if (s) scroll.scrollTo({ top: s.offsetTop - bar.offsetHeight + 1 }); });
     return root;
   }
-  window.RestroCustomerMenu = Object.freeze({ templates: TEMPLATES, page });
+  // The restaurant's name, in capitals, fits beside the pill (the owner, 18 Nov 2026): at the template's size when it
+  // fits; otherwise smaller, on one line, down to 60% of that size; a longer name goes onto two lines, as large as they
+  // fit (up to the template's size); longer still, three lines at 60% or less, down to 40% (12 px at the least). Lines
+  // break between words (customer-menu.css, .cm-name.wrap); only a name too long even for that is cut, with … (.clamp).
+  // The first line's middle stays where the template has it, level with the pill. Measured in the page's own pixels,
+  // so a page shown scaled down (QR Studio's phones) fits the same.
+  function fitNames(scope) {
+    const quarter = v => Math.floor(v * 4) / 4, text = document.createRange();
+    for (const n of scope?.querySelectorAll?.('.cm-name') || []) {
+      n.classList.remove('wrap', 'clamp'); n.style.fontSize = ''; n.style.marginTop = '';
+      if (!n.clientWidth) continue;
+      text.selectNodeContents(n);
+      const cs = getComputedStyle(n), base = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight) / base || 1.2;
+      const oneLine = quarter(base * 0.6), least = Math.max(12, quarter(base * 0.4));
+      // (at size v, the name in `lines` lines or fewer, none wider than the box: measured unrounded, as a name even a
+      // fraction of a pixel too wide would end in …)
+      const fits = (v, lines) => {
+        n.style.fontSize = `${v}px`;
+        return text.getBoundingClientRect().width <= n.getBoundingClientRect().width * 1.0001 && Math.round(n.clientHeight / (v * lh)) <= lines;
+      };
+      // (the largest size from lo to hi, to a quarter pixel, at which it fits; 0 when not even at lo)
+      const largest = (lo, hi, lines) => {
+        if (fits(hi, lines)) return hi;
+        if (!fits(lo, lines)) return 0;
+        while (hi - lo > 0.25) { const mid = quarter((lo + hi) / 2); if (mid <= lo) break; if (fits(mid, lines)) lo = mid; else hi = mid; }
+        return lo;
+      };
+      let size = largest(oneLine, base, 1);
+      if (!size) { n.classList.add('wrap'); size = largest(oneLine, base, 2) || largest(least, oneLine, 3); }
+      if (!size) { n.classList.add('clamp'); size = least; }
+      n.style.fontSize = size < base ? `${size}px` : '';
+      if (size < base) n.style.marginTop = `${+((base - size) * 0.6).toFixed(2)}px`;
+    }
+  }
+  const fit = page => fitNames(page);
+  document.fonts?.addEventListener?.('loadingdone', () => { for (const p of document.querySelectorAll('.cm')) fitNames(p); });
+  window.RestroCustomerMenu = Object.freeze({ templates: TEMPLATES, page, fit });
 })();

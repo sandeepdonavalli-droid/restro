@@ -2024,8 +2024,8 @@
   // (QS2, QS3: 1 design pixel a card unit) too.
   function fitPreview() {
     const u = unit();
-    // (Menu design: each phone's page, 360 wide, scaled to its screen)
-    for (const scr of root?.querySelectorAll('.qrs-md-screen') || []) { const page = scr.firstElementChild; if (page) page.style.transform = `scale(${scr.clientWidth / 360})`; }
+    // (Menu design: each phone's page, 360 wide, scaled to its screen; the restaurant's name fitted to its row)
+    for (const scr of root?.querySelectorAll('.qrs-md-screen') || []) { const page = scr.firstElementChild; if (page) { page.style.transform = `scale(${scr.clientWidth / 360})`; window.RestroCustomerMenu?.fit?.(page); } }
     const extra = card => { const cu = card.offsetWidth / 426, link = card.querySelector('.qrs-card-link'); return cu > 0 && link ? Math.max(0, link.offsetHeight / cu - 20) : 0; };
     for (const box of root?.querySelectorAll('.qrs-prev') || []) {
       const card = box.querySelector('.qrs-card'); if (!card) continue;
