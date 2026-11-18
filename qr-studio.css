@@ -33,8 +33,11 @@
 .qrs-pill-i .qi-menu{width:calc(20 * var(--fu));height:calc(20 * var(--fu));stroke-width:1.8}
 .qrs-pill-i .qi-palette{width:calc(21 * var(--fu));height:calc(21 * var(--fu));stroke-width:1.8}
 .qrs-pill.on .qrs-pill-i{color:#FFFFFF}
-.qrs-pill-t{flex:1;min-width:0;margin-left:calc(12 * var(--fu));font-size:calc(17 * var(--fu));font-weight:600;line-height:1.15;white-space:nowrap}
+.qrs-pill-t{flex:1;min-width:0;margin-left:calc(11 * var(--fu));font-size:calc(17.5 * var(--fu));font-weight:600;line-height:1.15;white-space:nowrap}
 .qrs-pill-t small{display:block;margin-top:calc(3 * var(--fu));font-size:calc(13 * var(--fu));font-weight:500;color:#57534E}
+/* (Update Pack 7, B3) Menu design with its template's line under it: 64 tall */
+.qrs-pill.two{height:calc(64 * var(--fu))}
+.qrs-pill.two .qrs-pill-t{position:relative;top:calc(-1 * var(--fu))}
 .qrs-pill-n{flex:none;min-width:calc(26 * var(--fu));height:calc(21 * var(--fu));box-sizing:border-box;padding:0 calc(8 * var(--fu));display:grid;place-items:center;border-radius:calc(11 * var(--fu));background:#E7E4DF;color:#44403C;font-size:calc(13 * var(--fu));font-weight:700}
 .qrs-pill.on .qrs-pill-n{background:rgba(255,255,255,.22);color:#FFFFFF}
 

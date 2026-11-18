@@ -963,8 +963,13 @@ The sidebar's card and the banner (QS37, QS48, QS53 and the like):
   data or with a kitchen printer down, how the orders get through (QS45, QS47). Not while closed, paused or turned off
   by hand. In a web browser, with no path from the Android app, it shows the internet only and adds "The printer device
   and the kitchen printers show here in the RESTRO Android app."
-- **Menu design** (the templates come with the next set of designs): its pill reads "Menu design"; a tap says "Coming
-  soon".
+- **Menu design**: its pill reads "Menu design" with the chosen template's name under it, and "Pick a template" until
+  one is chosen (Update Pack 7, B3: no template is ever chosen for a restaurant; "Night" in the designs is only the
+  sample restaurant's). Its screens (the 7 templates, QS7–QS9, QS14, QS15) come in a later part, so a tap says "Coming
+  soon" until then.
+- **What the customer gets** (Update Pack 7, L2): Table QRs (before any QR, and its help): "Help bell: waiter, water,
+  bill, receipt" and "pay the table’s bill on the phone"; the Menu QR: "The live menu: sold-out dishes greyed as “Sold
+  out”, prices always current".
 
 `RestroQrStudio.ordering()` returns `{ state: 'on' | 'paused' | 'hand' | 'closed' | 'late' | 'auto', reason }`
 (`reason`: why it paused by itself, below).

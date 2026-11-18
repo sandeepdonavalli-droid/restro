@@ -570,8 +570,10 @@
     return el('aside', { class: 'qrs-side' },
       el('div', { class: 'qrs-sh' }, el('button', { type: 'button', class: 'qrs-home', 'aria-label': 'Home', onclick: goHome }, icon('home')), appArt(), el('h2', { id: 'qr-studio-title', class: 'qrs-studio', tabindex: '-1' }, 'Studio')),
       el('nav', { class: 'qrs-pills', 'aria-label': 'QR types' }, pill('table', 'table', 'Table QRs'), pill('takeaway', 'bag', 'Takeaway QR'), pill('menu', 'menu', 'Menu QR'), pill('event', 'event', 'Event QRs'),
-        // (Menu design: the templates come in the next set; owner, 14 Nov 2026: one line, a tap says "Coming soon")
-        el('button', { type: 'button', class: 'qrs-pill', onclick: () => toast('Coming soon', null, null) }, el('span', { class: 'qrs-pill-i' }, icon('palette')), el('span', { class: 'qrs-pill-t' }, 'Menu design'))),
+        // (Menu design: under it the template chosen, "Pick a template" until there is one (Update Pack 7, B3); its
+        // screens come with the templates, so a tap says "Coming soon" until then)
+        el('button', { type: 'button', class: 'qrs-pill two', onclick: () => toast('Coming soon', null, null) }, el('span', { class: 'qrs-pill-i' }, icon('palette')),
+          el('span', { class: 'qrs-pill-t' }, 'Menu design', el('small', {}, 'Pick a template')))),
       orderingCard(st));
   }
   const pauseBtn = (off = false) => btn('qrs-cbtn', 'Pause for a while', () => openPop('pause'), 'pause', { off });
@@ -684,7 +686,7 @@
     return el('div', { class: 'qrs-first' },
       el('section', { class: 'qrs-info' }, el('h3', {}, 'Table QRs'), el('dl', {}, el('div', {}, el('dt', {}, 'Tables on your floor'), el('dd', {}, String(total))), el('div', {}, el('dt', {}, 'With a QR'), el('dd', {}, '0')), el('div', {}, el('dt', {}, 'Order type'), el('dd', {}, 'Dine-in')))),
       el('section', { class: 'qrs-info' }, el('h3', {}, 'Where to put it'), el('ul', {}, el('li', {}, 'On each table: a table card or a sticker'), el('li', {}, 'Each QR belongs to one table only'), el('li', {}, 'Not at the counter: use the Takeaway QR there'))),
-      el('section', { class: 'qrs-info' }, el('h3', {}, 'What the customer gets'), el('ul', {}, el('li', {}, 'Menu → cart → pay, with the table already set'), el('li', {}, 'KOT prints as Dine-in the moment payment is confirmed'), el('li', {}, 'Call waiter and Ask for bill from the same QR'))));
+      el('section', { class: 'qrs-info' }, el('h3', {}, 'What the customer gets'), el('ul', {}, el('li', {}, 'Menu → cart → pay, with the table already set'), el('li', {}, 'KOT prints as Dine-in the moment payment is confirmed'), el('li', {}, 'Help bell: waiter, water, bill, receipt; pay the table’s bill on the phone'))));
   }
   // A table's card in the grid: its QR with the number, the table's name and Active; a tag on top when it needs looking at
   function tableCard(r, t) {
@@ -720,7 +722,7 @@
     if (has) rows.push(['Created', dayMonth(r.replacedAt || r.createdAt)], ['Last printed', printedOf(r) ? dayMonth(printedOf(r)) : 'Not yet']);
     rows.push(kind === 'takeaway' ? ['Order type', 'Takeaway'] : ['Ordering', 'Off (view only)']);
     const where = kind === 'takeaway' ? ['At the counter and the entrance', 'In the waiting area', 'Not on tables: use the Table QRs there'] : ['Windows, flyers, the entrance', 'Social media and Google listing (send it to your email)', 'Anywhere ordering isn’t wanted'];
-    const gets = kind === 'takeaway' ? ['Menu → cart → pay by UPI or card', 'Order and KOT print the moment payment is confirmed', 'Confirmation with order number, by SMS / WhatsApp too'] : ['The live menu: sold-out dishes hidden, prices always current', 'No reprint needed when the menu or prices change'];
+    const gets = kind === 'takeaway' ? ['Menu → cart → pay by UPI or card', 'Order and KOT print the moment payment is confirmed', 'Confirmation with order number, by SMS / WhatsApp too'] : ['The live menu: sold-out dishes greyed as “Sold out”, prices always current', 'No reprint needed when the menu or prices change'];
     const preview = has ? el('div', { class: 'qrs-big' }, cardEl(r))
       : el('div', { class: 'qrs-big' }, el('button', { type: 'button', class: `qrs-create k-${kind}`, style: `--accent:${KINDS[kind].accent}`, onclick: () => createOne(kind) },
         el('span', { class: 'qrs-create-i' }, icon('plus')), el('b', {}, `Create ${name}`), el('small', {}, kind === 'takeaway' ? 'One QR for takeaway orders' : 'One QR to view your menu')));
@@ -1423,7 +1425,7 @@
       el('div', { class: 'qrs-hgrid' },
         el('section', {}, el('h4', {}, 'What these tiles do'), el('ul', {}, el('li', {}, el('b', {}, 'Create a table QR'), ': pick one table without a QR'), el('li', {}, el('b', {}, 'Create QRs for all tables'), ': makes QRs only for tables without an active QR'), el('li', {}, el('b', {}, 'Long-press a table'), ' to select several, then Print, Send or Delete them'))),
         el('section', {}, el('h4', {}, 'Where to put it'), el('ul', {}, el('li', {}, 'On each table: a table card or a sticker'), el('li', {}, 'Each QR belongs to one table only'), el('li', {}, 'Not at the counter: use the Takeaway QR'))),
-        el('section', {}, el('h4', {}, 'What the customer gets'), el('ul', {}, el('li', {}, 'Menu → cart → pay, with the table already set'), el('li', {}, 'KOT prints as Dine-in once payment is confirmed'), el('li', {}, 'Call waiter and Ask for bill'))),
+        el('section', {}, el('h4', {}, 'What the customer gets'), el('ul', {}, el('li', {}, 'Menu → cart → pay, with the table already set'), el('li', {}, 'KOT prints as Dine-in once payment is confirmed'), el('li', {}, 'Help bell: waiter, water, bill, receipt'), el('li', {}, 'Pay the table’s bill on the phone'))),
         el('section', {}, el('h4', {}, 'Reprint or replace'), el('ul', {}, el('li', {}, el('b', {}, 'Reprint'), ': same QR, the old print keeps working'), el('li', {}, el('b', {}, 'Replace'), ': new QR, the old one stops working')))),
       el('p', { class: 'qrs-pfoot' }, 'Tap anywhere outside to close')];
     else if (pop.kind === 'create') {
