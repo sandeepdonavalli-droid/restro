@@ -1250,14 +1250,8 @@
     receipt = entry; sheet = 'receipt'; order = blankOrder(); baseline = null; opened = null; selected = null; category = null; query = ''; cashInput = ''; render();
     window.RestroSound?.play('tick');
     window.dispatchEvent(new CustomEvent('restro:order-paid', { detail: entry }));
-    // (Bill number "At payment": the numbered receipt prints by itself, on the bill printer of the RESTRO app)
-    if (atPayment() && typeof window.RESTRODevice?.printer?.printBill === 'function') printReceipt(idOf(entry));
-  }
-  function printReceipt(uid) {
-    printSaved(uid).then(r => {
-      const n = loadOrders().find(o => idOf(o) === uid)?.number;
-      if (!r.ok) say({ kind: 'error', b: 'Receipt not printed', sub: n ? `Order ${ticket(n)}` : '', retry: () => printReceipt(uid) });
-    });
+    // (nothing prints by itself at the payment, whatever Settings › Bill number says: the receipt prints when staff
+    // print it, owner 19 Nov 2026)
   }
 
   // ---------- messages (Counter Update 7; Update Pack 4, A4) ----------
@@ -2759,8 +2753,8 @@
   // after payment is a document of its own: TAX INVOICE · RECEIPT, and a boxed "PAID · UPI ₹837" line with the time
   // (and the payment's reference) above the footer. Each print is kept on the order (`bills`, `receipts`).
   // (Update Pack 4: Settings › Business details › Bill number. "At payment": a bill printed before the payment is "BILL ·
-  // NOT A TAX INVOICE", with no number (`pre`; kept as { tax: false } among `bills`), and the receipt, with its number,
-  // prints by itself at the payment. A bill that already has its number keeps it, and prints as the tax invoice.)
+  // NOT A TAX INVOICE", with no number (`pre`; kept as { tax: false } among `bills`), and the order gets its number at
+  // the payment. A bill that already has its number keeps it, and prints as the tax invoice.)
   // (Update Pack 5: a QR order's own methods; paid by QR and not matched yet, H1: "PAID · QR")
   const atPayment = () => window.RestroPrefs?.get?.('billNumber')?.at === 'payment';
   // (receipt.js: the title, date and time, REPRINT box, PAID boxes, DUE box and a refund, as on the customer's e-receipt)

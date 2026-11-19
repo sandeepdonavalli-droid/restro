@@ -1542,9 +1542,9 @@ payment provider; the customer doesn't wait for it.
 owner chooses when a bill gets its number: **When the bill is first printed** (the default, as above) or **At
 payment**. At payment, a bill printed before the payment comes with `title` `"BILL · NOT A TAX INVOICE"` and `bill`
 `null`: print it as any bill, with that title where TAX INVOICE is and `Order #07` alone where `Bill #B-45 · Order #07`
-is. The order gets its number when it is paid, and the page then sends the receipt (`kind` `"receipt"`, `title` `"TAX
-INVOICE · RECEIPT"`, its `bill`) to `printBill` by itself, straight after the payment; if it returns `false` the
-Counter shows "Receipt not printed" with RETRY. A pre-payment bill's prints are kept among `bills` as `{ at, by, total,
+is. The order gets its number when it is paid; its receipt (`kind` `"receipt"`, `title` `"TAX INVOICE · RECEIPT"`, its
+`bill`) prints when staff print it, as with the default. The setting is only about the bill's number: nothing prints by
+itself at the payment (owner, 19 Nov 2026). A pre-payment bill's prints are kept among `bills` as `{ at, by, total,
 tax: false }` and count for its own REPRINT box only: the first tax invoice of the same order prints plain. A bill that
 already has its number keeps it when the setting changes, and prints as the tax invoice.
 
