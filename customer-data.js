@@ -22,7 +22,9 @@
 //   so the phone's receipt is the one the POS prints
 //   business: what a receipt prints at the top and bottom (Settings › Business details: address, phone, email, GSTIN,
 //   FSSAI, the footer)
-//   table, eventTable: a table QR's table and an event table QR's event table, by name ('7', '3')
+//   table, eventTable: a table QR's table and an event table QR's event table, by name ('7', '3'); seats: a table QR's
+//   table's seats on the floor plan (captain mode's Guests to start with, J3); code: the QR's own code (a captain's round
+//   names its QR by it, RestroCounter.captainRound)
 //   link (404.html reads it from the address): { slug (the restaurant's part), kind: 'table' | 'takeaway' | 'menu' |
 //   'event' (TK, MN, EV), table (a table QR's table, as T7), eventTable (an event table's, as E3), code }
 //   kind and place as RestroCustomerPages.mount takes them: a whole event's QR is 'event' (eventMode 'both': Dine-in or
@@ -123,6 +125,7 @@
   }
   // (a table's name as the POS prints it (floor.js), and a dish's choice ("Extra gravy +₹40", counter.js))
   const tableName = id => (window.RestroFloorPlan?.areas || []).flatMap(a => a.tables || []).find(t => t.id === id)?.name || '';
+  const tableSeats = id => Number((window.RestroFloorPlan?.areas || []).flatMap(a => a.tables || []).find(t => t.id === id)?.seats) || 0;
   const modLabel = id => {
     const g = (window.RestroMenu?.modifierGroups || []).find(x => (x.options || []).some(y => y.id === id)), x = g?.options.find(y => y.id === id);
     const price = Number(x?.price) || 0;
@@ -141,7 +144,7 @@
     const design = json('restro.menuDesign.v1') || {}, soldOut = json('restro.menu.availability.v1')?.soldOut;
     const base = { restaurant: name.toLocaleUpperCase('en-IN'), template: typeof design.template === 'string' ? design.template : null,
       accent: /^#[0-9A-F]{6}$/i.test(design.accent || '') ? design.accent : null, logo: https(design.logo?.url), taxRate: Number(window.RestroMenu?.taxRate) || 0.05, kds: false,
-      key: `${link.slug}/${link.kind === 'takeaway' ? 'TK' : link.kind === 'menu' ? 'MN' : link.eventTable ? `E${link.eventTable}` : link.kind === 'event' ? 'EV' : `T${link.table}`}-${link.code}`, business: business(), bill: null };
+      key: `${link.slug}/${link.kind === 'takeaway' ? 'TK' : link.kind === 'menu' ? 'MN' : link.eventTable ? `E${link.eventTable}` : link.kind === 'event' ? 'EV' : `T${link.table}`}-${link.code}`, code: link.code, business: business(), bill: null };
     const dead = { page: 'dead' };
     if (link.kind === 'event' || link.eventTable) {
       const events = Array.isArray(json('restro.events.v1')) ? json('restro.events.v1') : [];
@@ -161,7 +164,7 @@
     const qr = qrs.find(r => r && r.kind === link.kind && r.code === link.code);
     const state = !qr ? dead : link.kind === 'menu' ? null : restaurantStatus();
     return { ...base, kind: link.kind, place: link.kind === 'table' ? `Table ${qr?.name || link.table}` : link.kind === 'takeaway' ? 'Takeaway' : 'Menu', categories: menuOf(soldOut), state,
-      ...(link.kind === 'table' ? { table: (qr && tableName(qr.table)) || qr?.name || link.table } : {}),
+      ...(link.kind === 'table' ? { table: (qr && tableName(qr.table)) || qr?.name || link.table, seats: (qr && tableSeats(qr.table)) || 0 } : {}),
       bill: qr && link.kind === 'table' ? tableBill(o => o.table === qr.table && (o.type === 'dine-in' || (Boolean(o.type) && o.split === true))) : null };
   }
 

@@ -1307,6 +1307,23 @@ menu", "I want them to work as is"): Update Pack 7's customer pages, below. When
 - **Paid while the restaurant is offline** (E5, Pack 5 Pending): the cloud calls the page's `paidOffline(method)` after
   30 s with no confirmation: "Paid · ₹1,260 · UPI · today at 7:25 PM · Successful", the coloured box "Show this screen
   to our staff…", the order number and the order.
+- **Captain mode** (Update Pack 7, J; below, "Captain mode: `RESTROCaptain`"): a Table QR, an event table's or a
+  whole event's QR opened in the Captain app. The bar "Captain mode · ‹first name›" and "Table 7 · no payment" over
+  the top of every page in the template's colour; no Help bell, no Pay bill bar; ordering works while QR ordering is
+  paused or closed (staff orders, J4; a QR that no longer works or an event not on still shows its message). A dish in
+  the cart gets "+ Note" under it on the menu (30 px, 44 px to tap): "Note for ‹dish› · Prints on the KOT under this
+  dish", the quick picks Less spicy · More spicy · No onion · No garlic · Jain (one or more), "Type your own note",
+  Save note and ← Back; a saved note shows as a pencil and the note. View cart › opens **Send to kitchen** instead of
+  checkout: "Round 1 · Dine-in" (an event table's "‹event› · Round 1"), "Server ‹first name›" (the order's first
+  captain) and Guests (the table's guests so far, or its seats on the floor plan); this round's dishes with their notes
+  (still editable, a tap on a dish changes how many); "This round · incl. GST" and "Table 7 · Due after this"; Send to
+  kitchen and "No payment here · collected at the counter". A whole event's (not drawn in the pack): "‹event› · Event
+  order", How do you want it?, the customer's name and phone (the KOT needs them), Send to kitchen once they're there.
+  Then "Sending to the kitchen…" and **Sent to the kitchen**: "Table 7 · Round 1 · by ‹first name›", the table's bill
+  (each round, paid by QR or due, and "Table 7 bill · Due ₹798"), the round's dishes and notes, "Guests: 4 · the
+  table's next rounds join this bill until it's paid.", Back to my tables · Print bill ("Bill sent to the printer") ·
+  Add more (the menu again, for the next round). Not reached, or a dish sold out meanwhile: "Not sent to the kitchen"
+  and the round stays to send again.
 - **Not yet:** nothing leaves the phone. The restaurant doesn't get the order and no money is taken (owner, 18 Nov
   2026: "now no order comes in, and for now only for testing"), so the payment step is a plain page saying so, with
   Pay by UPI, Pay by card and Cancel (a cancelled payment: "Payment didn't go through"). With the cloud and a payment
@@ -1318,6 +1335,41 @@ menu", "I want them to work as is"): Update Pack 7's customer pages, below. When
 - It holds no restaurant data of its own, keeps the customer's name and number only on the open page, and sends
   nothing anywhere; it loads only RESTRO's own files from the site. What the phone keeps (its requests, orders and
   what it paid on a table's bill, each for a day) is its own, never the restaurant's.
+
+### Captain mode: `RESTROCaptain` (Update Pack 7, J)
+
+Captains log in on their own phones with an OTP to the mobile number the owner added in Settings (the Captain app and
+Settings › Captains come after Floor, Pack 7 M); the Captain app runs on the POS too. To take a table's order the
+captain scans the table's QR **inside the Captain app** or picks the table from their list (a torn or missing QR); the
+app then opens the QR's link (the page above) in its own window, with `window.RESTROCaptain` there before the page's
+scripts run. A phone's camera opens the same link as a customer's: no `RESTROCaptain`, so the customer's pages with
+payment. The page never sees the captain's sign-in; the app sends what the page gives it.
+
+| Member | What it is |
+| --- | --- |
+| `name` | the captain's name (first name shown: "Captain mode · ‹first name›") |
+| `sendRound(round)` | sends a round to the restaurant and resolves its answer. `round`: `{ code, kind, captain, guests, lines: [{ id, qty, note }], customer, how }` (`code` the QR's; `note` as the KOT prints it under the dish; `customer: { name, mobile, code: '91' }` and `how` (`'dine-in'` or `'takeaway'`) for a whole event's). The answer, `RestroCounter.captainRound(round)` on the restaurant's main device (through the cloud: SYNC.md, "Captain mode"; on the POS itself, directly): `{ ok: true, uid, number, round, by, server, guests, total, paid, due }` (paise; `by` and `server` first names) or `{ ok: false, why, dishes }` |
+| `printBill({ code, uid, captain })` | Print bill: the table's open order (or a whole event's order, by `uid`) printed on the restaurant's bill printer, `RestroCounter.captainBill`; resolves `{ ok }` |
+| `tables()` | Back to my tables: the app's list of the captain's tables |
+
+**On the POS** (`counter.js`):
+- `RestroCounter.captainRound(round)`: the QR's code gives the place (`restro.qr.v1`: a Table QR's table;
+  `restro.events.v1`: an event table, or a whole event; a replaced or deleted QR, a Takeaway or Menu QR: `why: 'qr'`).
+  The round joins the table's open order while anything on it is due (I1), or starts a new one: Dine-in on the table (an
+  event table's: `type: 'event'`, `event: { id, name, mode: 'dine-in', table, floor }`; a whole event's: its own order
+  with `customer` and `mode`), `server` the captain (the first captain stays the server, J4), its `guests`. Each dish
+  as the menu prices it (an event's at the event's price and GST, `ev`), with its `note`; the totals worked out again
+  (`bill.js`). Due: nothing paid here, settled at the Counter, where discounts, voids and removing a dish are done too
+  (J4). Its KOT goes at once with the notes under the dishes, `{ by: ‹captain›, captain: true }` (the slip's `info`
+  above). A new order takes its number as Save does (from the main system or the cloud with other tablets: `why:
+  'number'` without one). Not stopped by QR ordering's pause, hours or switch (staff orders, J4); stopped by a dish
+  sold out (`why: 'sold-out'`, `dishes`), an event not on (`'event'`) or a whole event's customer without a name or a
+  valid mobile number (`'customer'`). The Counter showing that order unchanged shows the round at once; with changes
+  there, Save keeps both (as for another tablet's change). The table is in use on Floor while the order is due (I2).
+- `RestroCounter.captainBill({ code, uid, captain })`: Print bill, as Orders' Bill prints it (`printBill`, below; a
+  bill number at its first print, or "BILL · NOT A TAX INVOICE" with Bill number "At payment"), the captain as who
+  printed it (`bills`, and "Reprinted … · by ‹first name›" on a later one). `{ ok: false, why: 'none' }` with no open
+  order there.
 
 ### Sending the colour PDF: `RESTRODevice.qr.send({ to, size, language, cards })`
 
@@ -1583,7 +1635,7 @@ that sent it tries again by itself every 30 seconds until it prints.
 | `first` | Update Pack 5 (C2): the first row, black, the largest (above): `"Table 6"`, `"‹customer› · Swiggy #4521"`, `"‹customer› · Pager 18"`, `"‹customer› · +91 9xxxx xxxxx"`; an event's (K3), `"Event table 3"` (a QR per event table) or `"‹customer› · +91 9xxxx xxxxx"` (one QR for the whole event); `""` for none. The customer's phone number is in full, every digit, never masked (Update Pack 4), with the country code before it (Update Pack 7, D3: the name and the phone together, everywhere) |
 | `title`, `when` | the second row, bold (above): `"KOT #3 · Order #1015"` (`kot` is the KOT's number, `null` on TIME CHANGED; `order` the ticket), then `when`, `"Pickup 1:15 PM"` or `"Ready by 10:30 PM"`, or `""` |
 | `round`, `addOn` | Update Pack 5 (C4): the KOT's round, `2`, `3`…, and `true`, on every KOT after the order's first (ADD-ON +); `null` and `false` on the first |
-| `info` | small: an order placed by QR (Update Pack 7, K3) `"QR · Paid · 7:31 PM"` (its KOT prints once it is paid), with the day for an event that runs over several days, `"QR · Paid · Fri 13 Nov · 7:31 PM"`, and a later round `"Round 2 · QR · Paid · 7:40 PM"`; dine-in `"4 guests · 11:46 AM · Server: ‹first name›"`, a later round `"Round 2 · 4 guests · 7:40 PM · Server: ‹first name›"`; takeaway, phone and own delivery `"7:58 PM · ‹first name›"` (a pager is in the first row; with none, nothing is said of it); on VOID and CHANGED `"11:52 AM · By: ‹first name›"`; on ORDER CANCELLED `"VOID ALL · 12:05 PM · By: ‹first name›"`; on TIME CHANGED (C5) `"was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹first name›"` (the ready-by time before, when the KOT went, when it changed, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: ‹first name›"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · placed 7:11 PM"` (above). Times are in capitals, `"9:30 PM"` (Update Pack 4). People are named by their first name (owner, 17 Nov 2026; initials before) |
+| `info` | small: an order placed by QR (Update Pack 7, K3) `"QR · Paid · 7:31 PM"` (its KOT prints once it is paid), with the day for an event that runs over several days, `"QR · Paid · Fri 13 Nov · 7:31 PM"`, and a later round `"Round 2 · QR · Paid · 7:40 PM"`; dine-in `"4 guests · 11:46 AM · Server: ‹first name›"`, a later round `"Round 2 · 4 guests · 7:40 PM · Server: ‹first name›"`; a round a captain sent (Update Pack 7, J) the same, with `"by ‹first name›"` before the server when that captain isn't the order's server, `"Round 3 · 4 guests · 8:05 PM · by ‹first name› · Server: ‹first name›"`, and an event table's order by a captain as dine-in, with the day for an event over several days; takeaway, phone and own delivery `"7:58 PM · ‹first name›"` (a pager is in the first row; with none, nothing is said of it); on VOID and CHANGED `"11:52 AM · By: ‹first name›"`; on ORDER CANCELLED `"VOID ALL · 12:05 PM · By: ‹first name›"`; on TIME CHANGED (C5) `"was 10:00 PM · KOT sent 9:30 PM · changed 9:41 PM · ‹first name›"` (the ready-by time before, when the KOT went, when it changed, who); a scheduled order's KOT `"2 guests · 9:30 PM (scheduled) · Server: ‹first name›"` or `"… 7:27 PM (sent early) …"`; a delivery app's `"Pickup 7:25 PM · placed 7:11 PM"` (above). Times are in capitals, `"9:30 PM"` (Update Pack 4). People are named by their first name (owner, 17 Nov 2026; initials before) |
 | `at` | when it happened, milliseconds |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT and the priority notice; `""` for none |
 | `lines` | (none on TIME CHANGED: the dishes don't change) `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |

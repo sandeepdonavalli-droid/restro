@@ -33,10 +33,10 @@
 :where(.cm .cp-layer) .ci{display:block;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* (the page's top row: ‹ and its title, as Checkout) */
-.cp-head{flex:none;display:flex;align-items:center;gap:var(--cp-head-gap,12px);height:60px;margin-top:28px;padding:0 18px 0 17.5px}
-.cp-back{flex:none;width:39px;height:39px;display:grid;place-items:center;border:var(--cp-back-bw,1.5px) solid var(--cp-back-line,#3B372F);border-radius:var(--cp-back-r,12px);background:var(--cp-back-bg,transparent);color:var(--cp-back-ink,var(--acc))}
+.cp-head{flex:none;display:flex;align-items:center;gap:var(--cp-head-gap,10.5px);height:60px;margin-top:28px;padding:0 18px 0 15.5px}
+.cp-back{flex:none;width:40px;height:39px;display:grid;place-items:center;border:var(--cp-back-bw,1.5px) solid var(--cp-back-line,#3B372F);border-radius:var(--cp-back-r,12px);background:var(--cp-back-bg,transparent);color:var(--cp-back-ink,var(--acc))}
 .cp-back .ci{width:25px;height:25px;stroke-width:1.75}
-.cp-title{font:var(--cp-display);font-size:var(--cp-title-size,24.5px);line-height:1.2;letter-spacing:var(--cp-display-ls,0);color:var(--ink)}
+.cp-title{position:relative;top:1px;font:var(--cp-display);font-size:var(--cp-title-size,24.5px);line-height:1.2;letter-spacing:var(--cp-display-ls,0);color:var(--ink)}
 
 /* (a section's small heading: "Your order · 5 items", "Note for the kitchen · optional") */
 .cp-label{margin:15px 0 4px;color:var(--cp-lab,var(--acc));font:var(--cp-label-font,700 11.1px/14px 'DM Sans','CM Rupee',sans-serif);letter-spacing:var(--cp-label-ls,.17em);text-transform:var(--cp-label-tt,uppercase)}
@@ -102,7 +102,7 @@
 .cp-mrow small{color:var(--mute);font-size:12.5px}
 
 /* ---------- search (C2) ---------- */
-.cp-search .cp-head{gap:10px}
+.cp-search .cp-head{gap:10px;margin-top:30px;padding-right:16.5px}
 .cp-sfield{flex:1;min-width:0;display:flex;align-items:center;gap:9px;height:44px;padding:0 12px 0 13px;border:1.5px solid var(--cp-on-line,var(--acc));border-radius:var(--cp-field-r,12px);background:var(--cp-field,transparent);color:var(--ink)}
 .cp-sfield > .ci{width:20px;height:20px;stroke-width:2.3}
 .cp-sinput{flex:1;min-width:0;height:100%;font-size:15px}
@@ -420,3 +420,95 @@
 :is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-classic-list,.cm-t-minimal){--cp-mt-mt:16.75px;--cp-ms-mt:10.75px}
 .cm-t-editorial{--cp-mt-mt:16.5px;--cp-ms-mt:11px}
 .cm-t-chalkboard{--cp-mt-mt:17.25px;--cp-ms-mt:10.25px}
+
+/* ======================================================================================================================
+   Captain mode (Update Pack 7, J): the captain's bar, a dish's note ("+ Note"), the note sheet, Send to kitchen and Sent
+   to the kitchen. Night's sizes and colours below; each template's in its variables after them.
+   ====================================================================================================================== */
+/* (the bar over the top of every page, in the template's colour, where a phone's status bar shows) */
+.cp-capbar{position:absolute;z-index:25;left:0;right:0;top:0;display:flex;align-items:center;justify-content:space-between;gap:14px;height:34px;padding:0 14px;background:var(--cp-go,var(--acc));color:var(--cp-on-go,var(--on-acc));font:400 13px/1 'DM Sans','CM Rupee',sans-serif;white-space:nowrap}
+.cp-capbar b{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.cp-capbar span{flex:none}
+/* (its pages start under it) */
+.cp-captain .cp-page .cp-head{margin-top:32px}
+.cp-captain .cp-sentpg .cp-scroll{padding-top:34px}
+/* ("+ Note" and a saved note, with a pencil: 30 px on the menu (44 px to tap), 26 px in the round's list) */
+.cm .cp-nchip{position:relative;display:inline-flex;align-items:center;gap:5px;max-width:100%;height:30px;margin:6px 0 0;padding:0 9.5px 0 9.25px;border:1px solid var(--cp-nadd-line,var(--cp-card-line,#3B3529));border-radius:var(--cp-nchip-r,8px);background:transparent;color:var(--ink);font:700 12.5px/1 'DM Sans','CM Rupee',sans-serif;white-space:nowrap;cursor:pointer}
+/* (a saved note: the template's colour at 13%, its edge at 50%) */
+.cm .cp-nchip.on{border-color:var(--cp-nchip-line,color-mix(in srgb,var(--acc) 50%,transparent));background:color-mix(in srgb,var(--cp-go,var(--acc)) 13%,transparent)}
+.cp-nchip span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cp-nchip .ci{width:14px;height:14px;stroke-width:2}
+.cm .cp-nchip::after{content:'';position:absolute;left:0;right:0;top:50%;height:44px;transform:translateY(-50%)}
+/* (on the menu, under the dish's words: in Night inside them, in Fresh grid under the price (customer-pages.js); in the
+   others a row of the dish's own) */
+:is(.cm-t-chalkboard,.cm-t-classic-list,.cm-t-minimal) .cm-dish > .cp-nchip{grid-column:1;grid-row:3;justify-self:start}
+/* (Chalkboard's Add beside the description and the note; Classic list's in the middle of all three, as drawn) */
+.cm-t-chalkboard .cp-hasnote .cm-add{grid-row:2/4}
+.cm-t-classic-list .cp-hasnote .cm-add{grid-row:1/4}
+.cm-t-classic-list .cm-dish > .cp-nchip{margin-top:7px}
+.cm-t-minimal .cm-dish > .cp-nchip{margin:9px 0 1px}
+/* (Café: the words from the top of the card, the price and Add under them, then the note; the photo in the middle) */
+.cm-t-cafe .cm-dish.cp-hasnote{grid-template-rows:auto auto auto}
+.cm-t-cafe .cp-hasnote .cm-ph{grid-row:1/4;align-self:center}
+.cm-t-cafe .cp-hasnote .cm-dt{padding-top:.5px}
+.cm-t-cafe .cp-hasnote .cm-dr{align-self:start;margin:6.25px 0 0}
+.cm-t-cafe .cm-dish > .cp-nchip{grid-column:2;grid-row:3;justify-self:start;margin-top:7.25px}
+/* (Editorial: the note under the price, the row a little taller, the photo in its middle) */
+.cm-t-editorial .cm-dish.cp-hasnote{grid-template-rows:1fr auto auto auto 1fr;padding:15px 0 15.5px}
+.cm-t-editorial .cp-hasnote .cm-dd{margin-top:5px}
+.cm-t-editorial .cp-hasnote .cm-ph{grid-row:1/6}
+.cm-t-editorial .cm-dish > .cp-nchip{grid-column:2;grid-row:4;justify-self:start;margin-top:7px}
+.cm-t-editorial .cm-dish:nth-child(even) > .cp-nchip{grid-column:1;justify-self:end}
+/* (the round's dishes: the dish's line, then its note under its name) */
+.cp-caprow{padding:8px 0 6px;border-bottom:1px solid var(--cp-row-line,var(--line))}
+.cp-caprow.bare{padding-bottom:4px}
+.cp-caprow .cp-row{height:38px;border-bottom:0}
+.cm .cp-caprow .cp-nchip{display:flex;width:max-content;height:26px;margin:4px 0 0 var(--cp-nchip-ml,48px);padding:0 8.6px 0 8.35px;border-radius:var(--cp-lchip-r,var(--cp-nchip-r,8px))}
+.cm .cp-caprow .cp-nchip:not(.on){color:var(--cp-soft,#B5AE9B)}
+.cm .cp-caprow .cp-nchip.on{border-color:transparent}
+/* (the mark level with the dish's name, as drawn) */
+.cm-t-night .cp-caprow .cm-mk{top:0}
+/* (each template's chips, as drawn: pills in Fresh grid and Café, square in Minimal; no photos, no room for one) */
+:is(.cm-t-fresh-grid,.cm-t-cafe){--cp-nchip-r:15px;--cp-lchip-r:13px}
+.cm-t-editorial{--cp-nchip-r:8px;--cp-lchip-r:4px}
+.cm-t-minimal{--cp-nchip-r:0}
+.cm-t-cafe:not(.own-acc){--cp-nchip-line:#D0A292}
+.cm-t-chalkboard{--cp-nadd-line:#444D4A}
+:is(.cm-t-chalkboard,.cm-t-classic-list,.cm-t-minimal){--cp-nchip-ml:0}
+/* (a template without photos: the dish's line as tall as its words, as drawn) */
+:is(.cm-t-classic-list,.cm-t-minimal) .cp-caprow .cp-row{height:22px}
+:is(.cm-t-classic-list,.cm-t-minimal) .cm .cp-caprow .cp-nchip,.cm:is(.cm-t-classic-list,.cm-t-minimal) .cp-caprow .cp-nchip{margin-top:2px}
+.cm-t-chalkboard .cp-caprow .cp-row{height:25.5px}
+:is(.cm-t-classic-list,.cm-t-minimal) .cp-caprow.bare{padding-bottom:2px}
+.cm-t-chalkboard .cp-caprow.bare{padding-bottom:2.5px}
+.cm.cm-t-chalkboard .cp-caprow .cp-nchip{margin-top:2.5px}
+/* (Editorial: the dish's name a little smaller and lower, as drawn; the page's title too) */
+.cm-t-editorial .cp-caprow .cp-rname{position:relative;top:1px;font-size:17.1px}
+.cm-t-editorial .cp-sendpg .cp-title{font-size:23.5px}
+/* (the note sheet: the quick picks, the captain's own words, Save note) */
+.cp-picks{display:flex;flex-wrap:wrap;gap:8px;margin-top:7px}
+.cm .cp-pick{height:44px;padding:0 14.75px;border:1.5px solid var(--cp-field-line,#3B372F);border-radius:var(--cp-field-r,12px);color:var(--ink);font:700 14px/1 'DM Sans','CM Rupee',sans-serif}
+.cm .cp-pick[aria-pressed="true"]{border-color:var(--cp-go,var(--acc));background:var(--cp-go,var(--acc));color:var(--cp-on-go,var(--on-acc))}
+.cp-notes .cp-input{margin-top:12px}
+.cm:is(.cm-t-fresh-grid,.cm-t-cafe) .cp-pick{border-radius:22px}
+/* (Send to kitchen: the round's card with Guests, the sums) */
+.cp-sendpg .cp-rcard{margin-top:6px;padding-top:10px;padding-bottom:12px}
+.cp-rcard .cp-ctxt{margin-top:2px}
+.cp-sendpg .cp-rcard + div > .cp-label{margin-top:16px}
+.cp-guests{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px}
+.cp-guests .cp-stepper{width:115px;height:42px}
+.cp-guests small{color:var(--mute);font-size:11px;line-height:14px}
+.cp-box.cp-capsum{margin-top:12px;padding:8.5px 13px 8px;font-size:13.5px;line-height:24px}
+.cp-capsum p{display:flex;justify-content:space-between;gap:10px}
+.cp-capsum b{color:var(--ink)}
+.cp-capsum .cp-ptot{margin-top:4px;padding-top:3.5px;border-top:1px solid var(--cp-row-line,var(--line));color:var(--ink);font-weight:700}
+/* (Sent to the kitchen: Back to my tables, then Print bill and Add more) */
+.cp-sentpg .cp-hero + .cp-box{margin-top:14px}
+.cp-sentpg .cp-htitle{position:relative;top:1px}
+.cm-t-night .cp-sentpg .cp-htitle{font-size:24.4px}
+.cm-t-chalkboard .cp-sentpg .cp-htitle{font-size:23.1px}
+.cm-t-chalkboard .cp-sendpg .cp-title{font-size:23.15px}
+.cp-guestline{margin-top:8px;font-style:normal}
+.cp-capfoot{height:auto;padding:0 16px 16px}
+.cp-two{display:flex;gap:10px;margin-top:10px}
+.cm .cp-two .cp-btn{flex:1;height:48px;font-size:15px}

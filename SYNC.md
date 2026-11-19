@@ -383,6 +383,25 @@ requests and the receipt by email. The QR's code is the key: a replaced or delet
 Paying the table's bill uses the same payment provider as an order (D2), for what is due; the backend records it on the
 open order, which closes once fully paid (I1).
 
+### Captain mode (Update Pack 7, J)
+
+Captains sign in to the Captain app with an OTP sent to a mobile number the owner added in Settings › Captains (both
+come after Floor, Pack 7 M): the cloud gives that phone a captain token. Removing the number logs the phone out at once:
+the cloud refuses its token from then on. The Captain app opens a QR's link with `RESTROCaptain` (ANDROID-BRIDGE.md),
+and the page hands it a round to send; only a captain token can send a round without payment.
+
+| Method and path (the Captain app, with the captain's token) | Body | Answer |
+| --- | --- | --- |
+| `POST /captain/rounds` | the round: `{ code, kind, captain, guests, lines: [{ id, qty, note }], customer, how }` | the restaurant's main system (or the device it says) applies it, `RestroCounter.captainRound(round)`, and its answer comes back: `{ ok, uid, number, round, by, server, guests, total, paid, due }` or `{ ok: false, why, dishes }` |
+| `POST /captain/bill` | `{ code, uid, captain }` | the device with the bill printer prints it, `RestroCounter.captainBill`: `{ ok }` |
+
+The round joins the table's open order, or starts one, there (counter.js), so the order, its number (from the same
+series, as Save takes one), its KOT (`by` the captain, `captain: true`) and its totals are the POS's, and the order then
+syncs as any order. A captain's order is due: it closes when it is paid in full at the Counter or on the table's QR
+(I1). QR ordering's pause, hours and switch don't stop it (staff orders, J4); no path to the restaurant's devices does
+(the round isn't sent), and a kitchen printer that fails keeps its KOT failed and printing again every 30 seconds, as
+any KOT. The table's QR's bill (above) shows each round with the captain's first name.
+
 **One receipt everywhere** (owner, 18 Nov 2026: "the receipt should have the bill number and all details"): the bill
 the POS prints, the e-receipt on the phone and the one by email are the same document, made by `receipt.js` from the
 order as the POS keeps it (`restro.counter.orders.v1`). So the cloud keeps on every order what its receipt prints: its

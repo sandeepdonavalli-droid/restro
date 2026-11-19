@@ -10,7 +10,15 @@
 //   (0.05: CGST and SGST half each, D4), kds (true: the restaurant has a kitchen display, so Order placed shows the
 //   order's status: E1), history (true: the phone's Back closes what is open), full (true: fills the screen), hint
 //   (true: the Help bell's hint on a phone's first visit, C5), cart ({ ‹dish id›: quantity } to start with), status
-//   (true: a phone's status bar on the menu, for a preview) }
+//   (true: a phone's status bar on the menu, for a preview), code (the QR's own code) }
+// - Captain mode (Update Pack 7, J): options.captain, the captain's name, on a Table QR, an event table's or a whole
+//   event's, opened in the Captain app (ANDROID-BRIDGE.md, RESTROCaptain): the bar "Captain mode · ‹first name› ·
+//   Table 7 · no payment" on every page, no Help bell, "+ Note" under each dish in the cart, Send to kitchen instead of
+//   checkout (no payment), Sent to the kitchen. It works while QR ordering is paused or closed (staff orders, J4).
+//   onRound(round) sends a round to the restaurant: { code, kind, captain, guests, lines: [{ id, qty, note }],
+//   customer, how } and resolves { ok, uid, number, round, by, server, guests, due } or { ok: false, why, dishes }
+//   (RestroCounter.captainRound on the POS); onPrintBill({ code, uid }) prints the table's bill there and resolves
+//   { ok }; onTables() goes back to the Captain app's tables.
 // - Until the cloud takes orders and a payment provider is connected (D2, SYNC.md), nothing leaves the phone: Pay shows
 //   a plain payment step that takes no money, and the restaurant doesn't get the order (owner, 18 Nov 2026: "now no
 //   order comes in, and for now only for testing").
@@ -53,6 +61,8 @@
     clock: '<circle cx="12" cy="12" r="8.3"/><path d="M12 7.6V12l3 1.9"/>',
     // (a QR that no longer works: three of its corner squares, struck through)
     qroff: '<rect x="4.6" y="4.6" width="5.6" height="5.6" rx="1.1"/><rect x="13.8" y="4.6" width="5.6" height="5.6" rx="1.1"/><rect x="4.6" y="13.8" width="5.6" height="5.6" rx="1.1"/><path d="m3.6 3.6 16.8 16.8"/>',
+    // (a dish's note in captain mode, J3)
+    pencil: '<path d="M5.2 18.8l.9-4 9.5-9.5a2 2 0 0 1 2.9 0l.2.2a2 2 0 0 1 0 2.9l-9.5 9.5z"/><path d="m14.2 6.7 3.1 3.1"/>',
     calendar: '<rect x="3.6" y="5.6" width="16.8" height="14.4" rx="2.2"/><path d="M3.6 10.2h16.8M8.5 3.6v3.8M15.5 3.6v3.8M9 15h6"/>'
   };
   function icon(name) {
@@ -90,20 +100,24 @@
   const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch { return null; } return v; };
 
   function mount(host, opts) {
-    let o, kind, view, dineIn, restaurant, cats, dishes, t, paused, blocked;
+    let o, kind, view, dineIn, restaurant, cats, dishes, t, paused, blocked, captain;
     // (the options; again on update: the menu, sold out and the design as the restaurant changes them; paused or a
     // message instead of the menu, G)
     const setOptions = next => {
       o = { kind: 'table', taxRate: 0.05, kds: false, eventMode: 'both', ...next };
       kind = o.kind; view = kind === 'menu'; dineIn = kind === 'table' || kind === 'event-table';
-      paused = !view && o.state?.paused === true; blocked = ['dead', 'closed', 'upcoming', 'ended'].includes(o.state?.page) ? o.state : null;
+      // (captain mode on a table's QR, an event table's or a whole event's, J2: the captain's first name. Staff orders:
+      // not paused, closed or turned off with QR ordering, J4; a QR that no longer works or an event not on still stops)
+      captain = o.captain && (dineIn || kind === 'event') ? String(o.captain).trim().split(/\s+/)[0].slice(0, 30) || null : null;
+      paused = !view && !captain && o.state?.paused === true; blocked = (captain ? ['dead', 'upcoming', 'ended'] : ['dead', 'closed', 'upcoming', 'ended']).includes(o.state?.page) ? o.state : null;
       restaurant = String(o.restaurant || '').toLocaleUpperCase('en-IN');
       cats = (o.categories || []).filter(c => c.items?.length); dishes = new Map(cats.flatMap(c => c.items.map(d => [d.id, { ...d, cat: c.name }])));
       t = CM().templates.find(x => x.id === o.template) || CM().templates[0];
     };
     setOptions(opts);
     // (a whole event's QR: Dine-in or Takeaway, D3; one that only takes takeaway orders asks nothing)
-    const s = { cart: new Map(), note: '', name: '', phone: '', how: o.kind === 'event' && o.eventMode === 'takeaway' ? 'Takeaway' : null, touched: {}, order: null };
+    // (captain mode: each dish's note, { picks, text }, and the guests, J3)
+    const s = { cart: new Map(), note: '', name: '', phone: '', how: o.kind === 'event' && o.eventMode === 'takeaway' ? 'Takeaway' : null, touched: {}, order: null, notes: new Map(), guests: 0, sending: false };
     let root, layers = [];
     const cartObj = () => Object.fromEntries(s.cart);
     const lines = () => [...s.cart].map(([id, q]) => ({ d: dishes.get(id), q })).filter(l => l.d && l.q > 0);
@@ -153,10 +167,10 @@
     // (ordering is on: not the Menu QR, not paused, not a closed QR's menu: G)
     let seeMenu = false;
     const canOrder = () => !view && !paused && !blocked;
-    const setCart = () => { CM().setCart(root, cartObj()); dueBar(); };
+    const setCart = () => { CM().setCart(root, cartObj()); dueBar(); noteChips(); };
     function add(id, q = 1) {
       const d = dishes.get(id); if (!d || d.out || !canOrder()) return;
-      const n = Math.max(0, (s.cart.get(id) || 0) + q); if (n) s.cart.set(id, n); else s.cart.delete(id);
+      const n = Math.max(0, (s.cart.get(id) || 0) + q); if (n) s.cart.set(id, n); else { s.cart.delete(id); s.notes.delete(id); }
       setCart(); for (const l of layers) l._refresh?.();
     }
 
@@ -513,7 +527,7 @@
     function dueBar() {
       root?.querySelector(':scope > .cp-due')?.remove();
       const due = tableDue();
-      if (!dineIn || !canOrder() || s.cart.size || !due) return;
+      if (!dineIn || captain || !canOrder() || s.cart.size || !due) return;
       root.querySelector(':scope > .cm-menu')?.after(el('button', { type: 'button', class: 'cm-cart cp-due', onclick: billPage }, el('b', {}, `${o.place || where()} · ${fmt(due)} due`), el('span', {}, 'Pay bill ›')));
     }
     const roundTotal = r => bill(r.lines.map(l => ({ d: l, q: l.qty })), o.taxRate).toPay;
@@ -591,12 +605,169 @@
       open(layer);
     }
 
+    // ---------- captain mode (J): its bar, a dish's note, Send to kitchen, Sent to the kitchen ----------
+    const CAPBAR = 34;
+    // (the quick picks for a dish's note: fixed, in this order, one or more, J3)
+    const PICKS = ['Less spicy', 'More spicy', 'No onion', 'No garlic', 'Jain'];
+    const first = v => String(v || '').trim().split(/\s+/)[0] || '';
+    const capBar = () => el('div', { class: 'cp-capbar', role: 'note' }, el('b', {}, `Captain mode · ${captain}`), el('span', {}, `${o.place || where()} · no payment`));
+    // (a dish's note as the KOT prints it under the dish: the picks, then the captain's own words)
+    const noteOf = id => { const n = s.notes.get(id); return n ? [...n.picks, n.text].filter(Boolean).join(' · ') : ''; };
+    // ("+ Note" under a dish once it's in the cart, or a pencil and its note; a tap opens the note, J3)
+    const noteChip = id => {
+      const text = noteOf(id), name = dishes.get(id)?.name || '';
+      return el('button', { type: 'button', class: `cp-nchip${text ? ' on' : ''}`, 'data-note': text, 'aria-label': text ? `Note for ${name}: ${text}` : `Add a note for ${name}`, onclick: e => { e.stopPropagation(); noteSheet(id); } },
+        text ? [icon('pencil'), el('span', {}, text)] : '+ Note');
+    };
+    // (on the menu, under each dish in the cart as drawn: in the dish's words in Night, under its price in Fresh grid;
+    // in the others the dish's row places it, customer-pages.css)
+    const NOTE_AT = { night: '.cm-dt', 'fresh-grid': '.cm-dr' };
+    function noteChips() {
+      if (!captain || !root) return;
+      for (const row of root.querySelectorAll(':scope > .cm-scroll .cm-dish[data-id]')) {
+        const id = row.dataset.id, old = row.querySelector('.cp-nchip'), want = s.cart.has(id) && !dishes.get(id)?.out;
+        row.classList.toggle('cp-hasnote', want);
+        if (old && want && old.dataset.note === noteOf(id)) continue;
+        old?.remove(); if (want) (row.querySelector(NOTE_AT[t.id]) || row).append(noteChip(id));
+      }
+    }
+    // "Note for Paneer tikka · Prints on the KOT under this dish": the quick picks, the captain's own words, Save note;
+    // ← Back keeps the note as it was
+    function noteSheet(id) {
+      const d = dishes.get(id); if (!d) return;
+      const was = s.notes.get(id) || { picks: [], text: '' }, picks = new Set(was.picks);
+      const own = el('input', { class: `cp-input${was.text ? ' on' : ''}`, type: 'text', maxlength: '80', placeholder: 'Type your own note', 'aria-label': 'Your own note', enterkeyhint: 'done', value: was.text });
+      const pick = p => el('button', { type: 'button', class: 'cp-pick', 'aria-pressed': String(picks.has(p)), onclick: e => { if (picks.has(p)) picks.delete(p); else picks.add(p); e.currentTarget.setAttribute('aria-pressed', String(picks.has(p))); } }, p);
+      const save = () => {
+        const text = own.value.replace(/\s+/g, ' ').trim(), list = PICKS.filter(p => picks.has(p));
+        if (list.length || text) s.notes.set(id, { picks: list, text }); else s.notes.delete(id);
+        close(layer); noteChips(); for (const l of layers) l._refresh?.();
+      };
+      own.addEventListener('input', () => own.classList.toggle('on', Boolean(own.value.trim())));
+      own.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+      const layer = sheet('cp-help cp-form cp-notes', sheetHead(`Note for ${d.name}`, 'Prints on the KOT under this dish'), el('div', { class: 'cp-picks' }, PICKS.map(pick)), own,
+        button('cp-go', 'Save note', save), backBtn(() => close(layer)));
+      open(layer);
+    }
+    // (a round's dishes: the dish's line, its note under it; on Send to kitchen "+ Note" too, and a tap on the dish changes
+    // how many)
+    const capRows = (items, edit) => el('div', { class: 'cp-rows' }, items.map(({ d, q, note }) => el('div', { class: `cp-caprow${edit || note ? '' : ' bare'}` },
+      el('div', { class: 'cp-row', onclick: edit ? () => dishSheet(d.id) : null }, photo(d, 'row'), el('p', { class: 'cp-rname' }, mark(d), el('span', {}, d.name)), el('span', { class: 'cp-x' }, `× ${q}`), price(Math.round(d.price * 100) * q)),
+      edit ? noteChip(d.id) : note ? el('span', { class: 'cp-nchip on' }, icon('pencil'), el('span', {}, note)) : null)));
+    // (the round this one will be on the table's open order: Round 1 for a new order)
+    const roundNo = () => (o.bill?.rounds?.length || 0) + 1;
+
+    // Send to kitchen (instead of checkout): Round 1 · Dine-in, Server ‹the order's server›, Guests; this round's dishes and
+    // their notes; this round with GST and what the table owes after it; no payment, collected at the counter (J3). A
+    // whole event's: Dine-in or Takeaway, the customer's name and phone (the KOT needs them)
+    function sendPage() {
+      if (!captain || !lines().length) return;
+      const ev = o.event || 'Event', place = o.place || where(), whole = kind === 'event', server = first(o.bill?.server) || captain;
+      // (Guests: the table's so far, or its seats; as the captain set them for this round)
+      if (!s.guestsSet) s.guests = Math.min(99, Math.max(1, Number(o.bill?.guests) || Number(o.seats) || 2));
+      const gq = el('b', { class: 'cp-q' }), gshow = () => { gq.textContent = String(s.guests); gless.disabled = s.guests <= 1; };
+      const gless = el('button', { type: 'button', class: 'cp-step', 'aria-label': 'One guest less', onclick: () => { s.guests = Math.max(1, s.guests - 1); s.guestsSet = true; gshow(); } }, icon('minus'));
+      const gmore = el('button', { type: 'button', class: 'cp-step', 'aria-label': 'One guest more', onclick: () => { s.guests = Math.min(99, s.guests + 1); s.guestsSet = true; gshow(); } }, icon('plus'));
+      gshow();
+      const field = (text, input, after) => el('div', { class: 'cp-field' }, label(text), input, after);
+      const name = el('input', { class: 'cp-input', type: 'text', autocomplete: 'off', autocapitalize: 'words', maxlength: '40', placeholder: 'For the KOT and the counter', value: s.name });
+      const phoneIn = el('input', { class: 'cp-pin', type: 'tel', inputmode: 'numeric', autocomplete: 'off', maxlength: '11', placeholder: '10-digit mobile number', value: pretty(s.phone) });
+      const phoneBox = el('label', { class: 'cp-phone' }, el('span', { class: 'cp-cc' }, '+91'), phoneIn), phoneErr = el('p', { class: 'cp-err', hidden: true }, 'Enter a valid 10-digit mobile number');
+      const hows = whole && o.eventMode !== 'takeaway' ? ['Dine-in', 'Takeaway'].map(h => el('button', { type: 'button', class: 'cp-how', 'data-how': h, 'aria-pressed': String(s.how === h), onclick: () => { s.how = h; for (const x of hows) x.setAttribute('aria-pressed', String(x.dataset.how === h)); check(); } },
+        el('b', {}, h), el('small', {}, h === 'Dine-in' ? 'On a plate, eat here' : 'Packed to go'))) : [];
+      const listBox = el('div', {}), sumBox = el('div', {}), go = button('cp-go', 'Send to kitchen', () => { if (!go.disabled) sendRound(); }), why = el('p', { class: 'cp-why' });
+      const check = () => {
+        s.name = name.value.trim(); s.phone = digits(phoneIn.value);
+        const ok = !whole || Boolean(s.name && validPhone(s.phone) && s.how);
+        phoneErr.hidden = !(s.touched.phone && s.phone && !validPhone(s.phone));
+        phoneBox.classList.toggle('bad', !phoneErr.hidden); phoneBox.classList.toggle('on', Boolean(s.phone)); name.classList.toggle('on', Boolean(s.name));
+        go.disabled = !ok;
+        why.textContent = ok ? 'No payment here · collected at the counter' : 'Choose Dine-in or Takeaway, and add the customer’s name and a valid mobile number';
+      };
+      phoneIn.addEventListener('input', () => { const end = phoneIn.selectionStart === phoneIn.value.length; phoneIn.value = pretty(phoneIn.value); if (end) phoneIn.setSelectionRange(phoneIn.value.length, phoneIn.value.length); check(); });
+      phoneIn.addEventListener('blur', () => { s.touched.phone = true; check(); });
+      name.addEventListener('input', check);
+      const draw = () => {
+        const ls = lines(); if (!ls.length) { close(layer); return; }
+        const b = bill(ls, o.taxRate), what = whole ? 'This order' : 'This round';
+        listBox.replaceChildren(label(`${what} · ${plural(b.items, 'item', 'items')}`), capRows(ls.map(l => ({ ...l, note: noteOf(l.d.id) })), true));
+        sumBox.replaceChildren(el('div', { class: 'cp-box cp-capsum' }, el('p', {}, el('span', {}, `${what} · incl. GST`), el('b', {}, fmt(b.toPay))),
+          el('p', { class: 'cp-ptot' }, el('span', {}, whole ? 'Due at the counter' : `${place} · Due after this`), el('span', {}, fmt((whole ? 0 : tableDue()) + b.toPay)))));
+      };
+      const layer = pageLayer('cp-checkout cp-sendpg', head('Send to kitchen'), el('div', { class: 'cp-scroll' },
+        el('div', { class: 'cp-card cp-rcard' }, el('div', { class: 'cp-ctxt' }, el('p', { class: 'cp-clabel' }, kind === 'event-table' ? `${ev} · Round ${roundNo()}` : whole ? `${ev} · Event order` : `Round ${roundNo()} · Dine-in`),
+          el('p', { class: 'cp-ctitle2' }, `Server ${server}`)), whole ? null : el('div', { class: 'cp-guests' }, el('div', { class: 'cp-stepper' }, gless, gq, gmore), el('small', {}, 'Guests'))),
+        hows.length ? field('How do you want it?', el('div', { class: 'cp-hows' }, hows)) : null,
+        whole ? field('Customer’s name', name) : null, whole ? field('Phone', phoneBox, phoneErr) : null,
+        listBox, sumBox),
+      el('footer', { class: 'cp-foot' }, go, why));
+      layer._refresh = draw; draw(); check();
+      open(layer);
+    }
+    // (to the restaurant: the round joins the table's open order, or starts one, and its KOT prints with the notes. Not
+    // reached, or a dish sold out meanwhile: it stays here, to send again)
+    async function sendRound() {
+      const ls = lines(); if (s.sending || !ls.length) return;
+      const whole = kind === 'event', place = o.place || where(), items = ls.map(l => ({ ...l, note: noteOf(l.d.id) })), b = bill(ls, o.taxRate), n = roundNo();
+      const round = { code: o.code || null, kind, captain: String(o.captain).replace(/\s+/g, ' ').trim(), guests: whole ? 0 : s.guests, lines: items.map(x => ({ id: x.d.id, qty: x.q, ...(x.note ? { note: x.note } : {}) })),
+        ...(whole ? { customer: { name: s.name, mobile: digits(s.phone), code: '91' }, how: s.how === 'Takeaway' ? 'takeaway' : 'dine-in' } : {}) };
+      s.sending = true;
+      const veil = open(el('div', { class: 'cp-layer cp-veil', role: 'status', 'aria-live': 'polite' }, el('div', { class: 'cp-vbox' }, el('span', { class: 'cp-spin', 'aria-hidden': 'true' }),
+        el('p', { class: 'cp-vtitle' }, 'Sending to the kitchen…'), el('p', { class: 'cp-vsub' }, whole ? `${o.event || 'Event'} · ${restaurant}` : `${place} · Round ${n}`))));
+      let r = null;
+      try { r = typeof o.onRound === 'function' ? await o.onRound(round) : null; } catch { r = null; }
+      s.sending = false; drop(veil);
+      if (!r?.ok) {
+        const gone = Array.isArray(r?.dishes) ? r.dishes.filter(x => typeof x === 'string').join(', ') : '';
+        toast('info', 'cancel', 'Not sent to the kitchen', r?.why === 'sold-out' && gone ? `${gone} sold out · remove it to send` : `Couldn’t reach ${restaurant} · try again`);
+        return;
+      }
+      // (the table's open order as it is now, until the restaurant's copy comes: this round on it, due)
+      const before = whole ? [] : (o.bill?.uid && r.uid && o.bill.uid !== r.uid ? [] : o.bill?.rounds || []);
+      if (!whole) {
+        const was = o.bill && (!r.uid || o.bill.uid === r.uid) ? o.bill : null, paid = Number(was?.paid) || 0, due = Number(r.due) || 0;
+        const mine = { n: Number(r.round) || n, by: first(r.by) || captain, qr: false, at: Date.now(), lines: items.map(x => ({ id: x.d.id, name: x.d.name, qty: x.q, price: x.d.price, veg: x.d.veg, photo: x.d.photo })) };
+        o.bill = { payments: [], ...(was || {}), uid: r.uid || was?.uid || null, number: r.number ?? was?.number, rounds: [...before.filter(x => x.n !== mine.n), mine], paid, due, total: paid + due,
+          guests: Number(r.guests) || s.guests, server: first(r.server) || first(was?.server) || captain };
+      }
+      s.cart.clear(); s.notes.clear(); s.guestsSet = false; setCart();
+      closeAll(true); sentPage(r, items, b, before);
+    }
+    // Sent to the kitchen: "Table 7 · Round 1 · by ‹first name›", the table's bill (each round paid or due, what it
+    // owes), this round's dishes and notes; Back to my tables · Print bill (on the restaurant's bill printer; settling
+    // stays at the Counter, J4) · Add more (the next round joins this bill until it's paid). A whole event's: the
+    // customer, their phone and how, "Pay at the counter"
+    function sentPage(r, items, b, before) {
+      const whole = kind === 'event', place = o.place || where(), by = first(r.by) || captain, n = Number(r.round) || 1, count = items.reduce((a, x) => a + x.q, 0);
+      const due = Number.isFinite(Number(r.due)) ? Number(r.due) : b.toPay;
+      const rows = whole ? [[`${[s.name, s.phone ? `+91 ${pretty(s.phone)}` : '', s.how || 'Dine-in'].filter(Boolean).join(' · ')} · due`, b.toPay]]
+        : [...before.filter(x => x.n < n).map(x => [`Round ${x.n} · ${x.qr ? 'QR · paid' : `${x.by || 'Staff'} · due`}`, roundTotal(x)]), [`Round ${n} · ${by} · due`, b.toPay]];
+      const addMore = () => closeAll();
+      const printBill = async () => {
+        let ok = false;
+        try { ok = Boolean((typeof o.onPrintBill === 'function' ? await o.onPrintBill({ code: o.code || null, uid: r.uid || null }) : null)?.ok); } catch { ok = false; }
+        if (ok) toast('accent', 'receipt', 'Bill sent to the printer', `${whole ? `Order #${r.number}` : `${place} bill`} · Due ${fmt(due)}`);
+        else toast('info', 'cancel', 'The bill didn’t print', 'Try again, or print it at the counter');
+      };
+      const layer = pageLayer('cp-done cp-sentpg', el('div', { class: 'cp-scroll' },
+        el('div', { class: 'cp-hero' }, el('span', { class: 'cp-okdot big' }, icon('check')), el('div', {}, el('h2', { class: 'cp-htitle' }, 'Sent to the kitchen'),
+          el('p', { class: 'cp-hsub' }, (whole ? [o.event || 'Event', `Order #${r.number}`, `by ${by}`] : [place, `Round ${n}`, `by ${by}`]).join(' · ')))),
+        el('div', { class: 'cp-box cp-capsum' }, rows.map(([text, a]) => el('p', {}, el('span', {}, text), el('b', {}, fmt(a)))),
+          el('p', { class: 'cp-ptot' }, el('span', {}, whole ? 'Pay at the counter' : `${place} bill`), el('span', {}, `Due ${fmt(due)}`))),
+        label(`${whole ? `Order #${r.number}` : `Round ${n}`} · ${plural(count, 'item', 'items')}`), capRows(items, false),
+        whole ? null : el('p', { class: 'cp-noteline cp-guestline' }, `Guests: ${Number(r.guests) || s.guests} · the table’s next rounds join this bill until it’s paid.`)),
+      el('footer', { class: 'cp-foot cp-capfoot' }, button('cp-go', 'Back to my tables', () => (typeof o.onTables === 'function' ? o.onTables() : closeAll())),
+        el('div', { class: 'cp-two' }, button('cp-ghost', 'Print bill', printBill), button('cp-ghost', 'Add more', addMore))));
+      layer._back = addMore;
+      open(layer);
+    }
+
     // ---------- the Help bell's hint, the first time this phone opens a table's menu (C5) ----------
     // ("Need help? Tap here" above the bell; it goes at the first tap anywhere or after 5 seconds, and never shows again
     // on this phone. Only on the QR link's page: options.hint)
     let hint = null;
     function bellHint() {
-      if (!o.hint || !dineIn || !canOrder() || store('restro.cp.bellHint')) return;
+      if (!o.hint || !dineIn || captain || !canOrder() || store('restro.cp.bellHint')) return;
       store('restro.cp.bellHint', 1);
       hint = el('p', { class: 'cp-bhint', role: 'note' }, 'Need help? Tap here');
       const go = () => {
@@ -616,18 +787,22 @@
     // (no ordering: the Menu QR, paused, a closed QR: the menu to look at, as the Menu QR's, with the QR's own pill: G)
     function build() {
       const old = root, top = old?.querySelector('.cm-scroll')?.scrollTop || 0, off = !canOrder();
-      root = CM().page({ template: o.template, accent: o.accent, kind: off ? 'menu' : kind, pill: o.place || where(), restaurant, logo: o.logo, categories: cats, cart: off ? {} : cartObj(), full: o.full, status: o.status,
-        onDish: id => dishSheet(id), onAdd: id => (s.cart.get(id) ? dishSheet(id) : add(id)), onMenu: menuList, onSearch: search, onCart: cartSheet, onBell: helpSheet });
+      // (captain mode: its bar over the top of every page, no Help bell, the cart's View cart › opens Send to kitchen, J3)
+      root = CM().page({ template: o.template, accent: o.accent, kind: off ? 'menu' : kind, pill: o.place || where(), restaurant, logo: o.logo, categories: cats, cart: off ? {} : cartObj(), full: o.full, status: o.status && !captain,
+        bell: !captain, inset: captain ? CAPBAR : 0,
+        onDish: id => dishSheet(id), onAdd: id => (s.cart.get(id) ? dishSheet(id) : add(id)), onMenu: menuList, onSearch: search, onCart: captain ? sendPage : cartSheet, onBell: helpSheet });
       root.classList.add('cp-root');
+      if (captain) root.classList.add('cp-captain');
       if (off && !view) root.classList.add('cp-off');
       if (hint && dineIn && !off) root.append(hint); else hint = null;
       // (paused: the banner where the Menu button sits, as drawn)
       if (paused) { root.classList.add('cp-pausedpg'); root.append(pausedBar()); }
-      const taken = dineIn && !off ? takenNow() : null;
+      const taken = dineIn && !off && !captain ? takenNow() : null;
       if (taken) root.append(onTheWay(taken));
+      if (captain) root.append(capBar());
       if (old) { root.append(...layers); old.replaceWith(root); } else host.append(root);
       root.querySelector('.cm-scroll').scrollTop = top; CM().fit(root);
-      dueBar(); message();
+      dueBar(); noteChips(); message();
     }
     build(); bellHint();
     // (the restaurant changed its menu, a dish's sold out or the design: the cart keeps what can still be ordered; a
@@ -635,7 +810,7 @@
     function update(next) {
       setOptions({ ...o, ...next });
       if (!blocked) seeMenu = false;
-      for (const id of [...s.cart.keys()]) if (!dishes.has(id) || dishes.get(id).out) s.cart.delete(id);
+      for (const id of [...s.cart.keys()]) if (!dishes.has(id) || dishes.get(id).out) { s.cart.delete(id); s.notes.delete(id); }
       // (the cloud says a captain took a request: { id, takenBy, takenAt }, H1)
       if (Array.isArray(next?.taken) && next.taken.length) {
         const list = mineOf(REQ_KEY);

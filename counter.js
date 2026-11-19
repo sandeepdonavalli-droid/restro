@@ -1412,7 +1412,10 @@
       // (Update Pack 7, K3) an order placed by QR: "QR · Paid · 7:31 PM" (its KOT prints once it is paid), the event's day
       // too when it runs over several days; a later round, "Round 2 · QR · Paid · 7:40 PM"
       : o.qr === true || k.qr === true ? [round ? `Round ${round}` : '', 'QR', 'Paid', eventDays(o) ? slipDay(k.at || Date.now()) : '', printed]
-      : type === 'dine-in' || usesTable(o) ? [round ? `Round ${round}` : '', o.guests ? plural(o.guests, 'guest') : '', printed, server ? `Server: ${server}` : '']
+      // (an event table's order by a captain too, Update Pack 7 J; a round a captain sent who isn't the order's server:
+      // "by ‹first name›", I1)
+      : type === 'dine-in' || usesTable(o) || eventTableOf(o) ? [round ? `Round ${round}` : '', o.guests ? plural(o.guests, 'guest') : '', eventDays(o) ? slipDay(k.at || Date.now()) : '', printed,
+        k.captain === true && firstOf(k.by) && firstOf(k.by) !== server ? `by ${firstOf(k.by)}` : '', server ? `Server: ${server}` : '']
       // (a pager shows in the first row; no pager, nothing is said of it: owner, 13 Nov 2026)
       : [round ? `Round ${round}` : '', printed, server];
     return {
@@ -2761,7 +2764,7 @@
   // (Update Pack 5: a QR order's own methods; paid by QR and not matched yet, H1: "PAID · QR")
   const atPayment = () => window.RestroPrefs?.get?.('billNumber')?.at === 'payment';
   // (receipt.js: the title, date and time, REPRINT box, PAID boxes, DUE box and a refund, as on the customer's e-receipt)
-  const billDoc = (o, kind, prints, rec = null, pre = false) => window.RestroReceipt.doc(asKept(o), kind, { ...billCtx(), prints, rec, pre, by: firstOf(staffName()) });
+  const billDoc = (o, kind, prints, rec = null, pre = false, who = null) => window.RestroReceipt.doc(asKept(o), kind, { ...billCtx(), prints, rec, pre, by: firstOf(who || staffName()) });
   // The receipt printers (Settings › Printers: role Bills or Both), each with its copies of each bill (owner, 16 Nov
   // 2026: Copies per bill); the app prints on this device's own
   const billPrinters = () => Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'bills' || p.role === 'both'))
@@ -2808,8 +2811,9 @@
   }
   // A saved order's bill (not paid yet) or receipt (paid), from Orders: resolves { ok, kind, reprint }. `doc`: the order
   // as Orders has it, for one older than the days this device keeps (read from the cloud, Update Pack 5): printing it
-  // brings it back onto this device with the print noted, and sync takes the note to the cloud.
-  async function printSaved(uid, doc = null) {
+  // brings it back onto this device with the print noted, and sync takes the note to the cloud. `by`: who printed it,
+  // when not the staff signed in here (a captain's Print bill, Update Pack 7 J4).
+  async function printSaved(uid, doc = null, by = null) {
     const copy = () => (doc && typeof doc === 'object' && idOf(doc) === uid && Array.isArray(doc.lines) ? JSON.parse(JSON.stringify(doc)) : null);
     let list = loadOrders(), rec = list.find(o => idOf(o) === uid) || copy(); if (!rec) return { ok: false };
     const keep = (all, r) => { if (!all.some(o => idOf(o) === uid)) all.push(r); return all; };
@@ -2825,11 +2829,11 @@
       if (!rec.billNo) { rec.billNo = t.number; rec.billYear = t.year; storeOrders(keep(list, rec)); if (order.uid === uid) keepOpened(rec); }
     }
     const kind = refund ? 'refund' : rec.paidAt ? 'receipt' : 'bill', key = refund ? 'refundSlips' : kind === 'receipt' ? 'receipts' : 'bills', prints = Array.isArray(rec[key]) ? rec[key] : [];
-    const bill = { ...billDoc(restoreOrder(rec), kind, prints, rec, pre), bill: billLabel(rec.billNo) };
+    const bill = { ...billDoc(restoreOrder(rec), kind, prints, rec, pre, by), bill: billLabel(rec.billNo) };
     const ok = await deliverBill(bill);
     if (ok) {
       const now = loadOrders(), r = now.find(o => idOf(o) === uid) || copy();
-      if (r) { r[key] = [...(Array.isArray(r[key]) ? r[key] : []), { at: Date.now(), by: staffName(), total: bill.total, ...(pre ? { tax: false } : {}) }].slice(-20); storeOrders(keep(now, r)); if (order.uid === uid) keepOpened(r); }
+      if (r) { r[key] = [...(Array.isArray(r[key]) ? r[key] : []), { at: Date.now(), by: by || staffName(), total: bill.total, ...(pre ? { tax: false } : {}) }].slice(-20); storeOrders(keep(now, r)); if (order.uid === uid) keepOpened(r); }
     }
     return { ok, kind, reprint: Boolean(bill.reprint) };
   }
@@ -3965,6 +3969,115 @@
     const r = await sendSlip(kitchenSlip(rec, kot), { uid, id: kot.id });
     return { ...r, no: kot.no, kot: kot.id, count: kot.lines.reduce((n, l) => n + l.qty, 0) };
   }
+  // ---------- captain mode (Update Pack 7, J): a captain's round, and the bill printed for a captain ----------
+  // (where a QR's rounds go: a Table QR's table, an event table, or a whole event (QR Studio's restro.qr.v1 and
+  // restro.events.v1); a replaced or deleted QR, a Takeaway or Menu QR, or an event's Menu only QR: null)
+  function captainPlace(code) {
+    if (typeof code !== 'string' || !code) return null;
+    const qrs = load('restro.qr.v1', []), qr = (Array.isArray(qrs) ? qrs : []).find(q => q && q.kind === 'table' && q.code === code && typeof q.table === 'string' && q.table);
+    if (qr) return { kind: 'table', table: qr.table };
+    const events = load('restro.events.v1', []);
+    for (const e of Array.isArray(events) ? events : []) {
+      if (!e || typeof e.id !== 'string') continue;
+      if (e.qrs === 'whole' && e.code === code && e.mode !== 'menu') return { kind: 'event', e };
+      const t = e.qrs === 'tables' ? (Array.isArray(e.tables) ? e.tables : []).find(x => x && x.code === code) : null;
+      if (t) return { kind: 'event-table', e, table: String(e.tablesFrom === 'floor' ? t.floor || t.id : t.name), floor: e.tablesFrom === 'floor' };
+    }
+    return null;
+  }
+  // (an event's dish as the event sells it, Update Pack 6 F: its event price and GST, an event-only dish's own name)
+  function eventDish(e, id) {
+    const it = (Array.isArray(e.menu?.items) ? e.menu.items : []).map(i => (typeof i === 'string' ? { id: i } : i)).find(i => i?.id === id);
+    const gst = Math.round(menu.taxRate * 10000) / 100;
+    if (it && items.has(id)) { const m = items.get(id); return cleanEv({ name: m.name, price: Number.isFinite(it.price) ? it.price : m.price, gst, veg: m.veg }, m); }
+    const own = (Array.isArray(e.menu?.own) ? e.menu.own : []).find(d => d && d.id === id);
+    if (!own) return null;
+    const g = own.gst === '' || own.gst == null ? NaN : Number(own.gst);
+    return cleanEv({ name: own.name, price: Number(own.price), gst: Number.isFinite(g) ? g : gst, veg: own.veg }, null);
+  }
+  // A round from captain mode (a Table QR, an event table's or a whole event's, opened in the Captain app: on a phone
+  // through the cloud, or on this device; customer-pages.js sends it, ANDROID-BRIDGE.md, RESTROCaptain).
+  // round: { code (the QR's), captain (the captain's name), guests, lines: [{ id, qty, note }], and for a whole event
+  // customer: { name, mobile } and how ('dine-in' | 'takeaway') }.
+  // - It joins the table's open order while anything on it is due (I1), or starts a new one, the captain its server:
+  //   the first captain stays the server (J4). Due: never paid here; settled at the Counter, where discounts, voids and
+  //   removing a dish are done too (J4). A whole event's round is an order of its own, with the customer (the KOT needs
+  //   them, J3).
+  // - Its KOT goes now, with each dish's note under it, "by" the captain (I1: every round shows who sent it).
+  // - A staff order (J4): QR ordering's pause, its hours or its switch don't stop it; a dish sold out, a QR that no
+  //   longer works, an event not on, or no order number from the main system or the cloud (other tablets) does.
+  // Resolves { ok: true, uid, number, round, by, server (first names), guests, total, paid, due (paise), kot (its
+  // number) } or { ok: false, why: 'captain' | 'qr' | 'event' | 'dish' | 'sold-out' | 'customer' | 'number', dishes }.
+  async function captainRound(r) {
+    const captain = typeof r?.captain === 'string' ? r.captain.replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+    if (!captain) return { ok: false, why: 'captain' };
+    const now = Date.now(), place = captainPlace(r.code); if (!place) return { ok: false, why: 'qr' };
+    const e = place.e || null;
+    if (e && !(now >= Number(e.start) && now < Math.min(Number(e.end), Number(e.endedAt) || Infinity))) return { ok: false, why: 'event' };
+    const want = (Array.isArray(r.lines) ? r.lines : []).filter(l => l && typeof l.id === 'string' && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 100).slice(0, 60);
+    if (!want.length) return { ok: false, why: 'dish' };
+    const type = place.kind === 'table' ? 'dine-in' : 'event', add = [], gone = [];
+    for (const l of want) {
+      const ev = e ? eventDish(e, l.id) : null, m = items.get(l.id);
+      if (e ? !ev : !m) return { ok: false, why: 'dish' };
+      if (soldOut(l.id) || (e && e.soldOut && e.soldOut[l.id])) { gone.push(ev ? ev.name : m.name); continue; }
+      const note = cleanNote(l.note).slice(0, 120);
+      add.push({ id: l.id, name: ev ? ev.name : m.name, price: ev ? ev.price : m.price, qty: l.qty, type, ...(ev ? { ev } : {}), ...(note ? { note } : {}) });
+    }
+    if (gone.length) return { ok: false, why: 'sold-out', dishes: gone };
+    // (a whole event's: the customer's name and a valid mobile number, D3, and Dine-in or Takeaway)
+    const whole = place.kind === 'event', how = r.how === 'takeaway' ? 'takeaway' : 'dine-in';
+    const customer = whole ? guestOf({ name: String(r.customer?.name || '').replace(/\s+/g, ' ').trim(), mobile: String(r.customer?.mobile || '').replace(/\D/g, ''), code: '91' }) : null;
+    if (whole && !(customer && /^[6-9]\d{9}$/.test(customer.mobile))) return { ok: false, why: 'customer' };
+    const guests = whole ? 0 : cleanGuests(r.guests);
+    const forPlace = o => !o.paidAt && !qrHeld(o) && (place.kind === 'table' ? o.table === place.table && usesTable(o) : o.type === 'event' && o.event?.id === e.id && String(o.event?.table ?? '') === place.table);
+    // (a new order's number from the main system or the cloud, with other tablets, as Save takes one: fire())
+    const sync = window.RestroSync;
+    let given = null;
+    if (whole || !loadOrders().some(forPlace)) {
+      if (sync && !sync.canFire()) return { ok: false, why: 'number' };
+      if (sync) { try { given = await sync.takeNumber(); } catch { given = null; } if (!given) return { ok: false, why: 'number' }; }
+    }
+    const list = loadOrders();
+    let entry = whole ? null : list.find(forPlace) || null;
+    if (!entry) {
+      entry = { uid: sync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number: given ? given.number : nextNumber(), type, split: false, table: type === 'dine-in' ? place.table : '', customer,
+        pager: 0, readyAt: null, kotMode: null, prepMin: null,
+        ...(e ? { event: { id: e.id, name: String(e.name || 'Event'), mode: whole ? how : 'dine-in', table: whole ? null : place.table, ...(place.floor ? { floor: true } : {}) } } : {}),
+        lines: [], ...(guests ? { guests } : {}), createdAt: now, savedAt: now, day: given?.day || sync?.today(), sent: {}, sentAt: null, kots: [], method: null, received: null, change: null, paidAt: null,
+        server: captain, serverId: null, events: [{ id: newEventId(), at: now, kind: 'open', by: captain, type, table: type === 'dine-in' ? place.table : '', guests, customer: customer?.name || '' }],
+        ...(thisDevice() ? { savedOn: thisDevice() } : {}) };
+      list.push(entry);
+    } else if (guests) entry.guests = guests;
+    entry.lines = [...entry.lines, ...add];
+    Object.assign(entry, totalsOf(restoreOrder(entry)));
+    // (the round's KOT: its dishes as sent, each with its note, by the captain)
+    if (!entry.sent || typeof entry.sent !== 'object') entry.sent = {};
+    for (const l of add) { const k = kitchenKey(l.id, l.type, []); entry.sent[k] = (Number(entry.sent[k]) || 0) + l.qty; }
+    const kot = { id: newKotId(), at: now, kind: 'kot', no: null, lines: add.map(l => ({ id: l.id, name: l.name, qty: l.qty, type: l.type, ...(l.note ? { note: l.note } : {}) })), ...(entry.priority ? { priority: true } : {}), by: captain, captain: true };
+    entry.sentAt = entry.sentAt || now; entry.kots = [...(Array.isArray(entry.kots) ? entry.kots : []), kot].slice(-60);
+    entry.kitchenAt = entry.kitchenDoneAt ? now : entry.kitchenAt || entry.sentAt; delete entry.kitchenDoneAt; entry.savedAt = now;
+    storeOrders(list);
+    // (the order on screen here: unchanged, it shows the round; with changes here, Save or Pay keeps both, as for a change
+    // from another tablet)
+    if (order.uid === entry.uid) followOpenOrder();
+    if (dialog.open) render();
+    const no = await printKot(entry, kot);
+    const saved = loadOrders().find(o => idOf(o) === entry.uid) || entry, paid = paidSoFar(saved);
+    return { ok: true, uid: saved.uid, number: saved.number, round: kotsOf(saved).length, by: firstOf(captain), server: firstOf(saved.server), guests: saved.guests || 0, total: saved.total, paid, due: Math.max(0, saved.total - paid), kot: no || null };
+  }
+  // Print bill from captain mode (J4): the table's open order (or a whole event's order, by its uid) printed on this
+  // device's bill printer, as Orders' Bill prints it, the captain on the print. Settling stays at the Counter. Resolves
+  // { ok, why }.
+  async function captainBill(x) {
+    const place = captainPlace(x?.code); if (!place) return { ok: false, why: 'qr' };
+    const captain = typeof x?.captain === 'string' ? x.captain.replace(/\s+/g, ' ').trim().slice(0, 60) : '', list = loadOrders();
+    const rec = typeof x?.uid === 'string' && x.uid ? list.find(o => idOf(o) === x.uid && !o.paidAt)
+      : place.kind === 'event' ? null : list.find(o => !o.paidAt && !qrHeld(o) && (place.kind === 'table' ? o.table === place.table && usesTable(o) : o.type === 'event' && o.event?.id === place.e.id && String(o.event?.table ?? '') === place.table));
+    if (!rec) return { ok: false, why: 'none' };
+    const r = await printSaved(idOf(rec), null, captain || null);
+    return { ok: Boolean(r.ok), why: r.ok ? '' : r.why || 'printer' };
+  }
   // (Update Pack 5, H1) Customer paid? answered for a Pending QR order (Orders, or the Counter when its table is picked):
   // 'paid' (Customer paid · print KOT: paid when the customer paid, qrPay 'matching' until the cloud matches the payment,
   // and its KOT goes now) or 'refund' (Cancel and refund: qrPay 'refund', Closed, refunded by the cloud once online).
@@ -4086,6 +4199,8 @@
     kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type), kitchenTime: o => kitchenTime(o),
     // (Update Pack 5, H1) a Pending QR order: Customer paid? answered, and the 30 s mark
     qrChoice, qrMark, qrFailSeen,
+    // (Update Pack 7, J) captain mode: a captain's round, and Print bill
+    captainRound, captainBill,
     // (a message or buzz that went, or didn't: Orders' line under Notify or Buzz green, or red until one goes)
     markNotified: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', true), markBuzzed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', true),
     markNotifyFailed: uid => markTry(uid, 'notifiedAt', 'notifyFailedAt', false), markBuzzFailed: uid => markTry(uid, 'buzzedAt', 'buzzFailedAt', false),

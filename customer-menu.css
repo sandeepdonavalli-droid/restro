@@ -44,7 +44,7 @@
 
 /* The category bar (C1): sticks to the top, the current one marked; search at its right end, in the same place in every
    template (C2) */
-.cm-cats{position:sticky;z-index:3;top:0;height:44px;display:flex;align-items:stretch;background:var(--bg)}
+.cm-cats{position:sticky;z-index:3;top:var(--cm-inset,0px);height:44px;display:flex;align-items:stretch;background:var(--bg)}
 .cm-tabs{flex:1;min-width:0;display:flex;overflow-x:auto;scrollbar-width:none}
 .cm-tabs::-webkit-scrollbar{display:none}
 .cm-tab{position:relative;flex:none;white-space:nowrap}

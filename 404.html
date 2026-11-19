@@ -71,6 +71,14 @@ body.menu{background:var(--page-bg,#F4F5F7)}
     box.append(el('b', null, name), el('h1', null, 'Our menu is coming soon.'), el('p', null, 'Please ask staff.'));
     page.replaceChildren(box);
   }
+  // Captain mode (Update Pack 7, J): the Captain app opens a QR's link in its own window with RESTROCaptain
+  // (ANDROID-BRIDGE.md): the captain's name, and the app's ways to send a round to the restaurant, print the table's bill
+  // and go back to the captain's tables. A customer's phone has none, so it gets the customer's pages.
+  const cap = (() => { const c = window.RESTROCaptain; return c && typeof c === 'object' && typeof c.name === 'string' && c.name.trim() ? c : null; })();
+  const captain = !cap ? {} : { captain: cap.name.trim(),
+    onRound: r => Promise.resolve(typeof cap.sendRound === 'function' ? cap.sendRound(r) : null).then(a => { setTimeout(show, 0); return a; }),
+    onPrintBill: x => Promise.resolve(typeof cap.printBill === 'function' ? cap.printBill({ ...x, captain: cap.name.trim() }) : null),
+    onTables: () => { if (typeof cap.tables === 'function') cap.tables(); } };
   // The menu and its pages, in the restaurant's design; again whenever the restaurant changes it
   let shown = null, last = '';
   function show() {
@@ -81,7 +89,7 @@ body.menu{background:var(--page-bg,#F4F5F7)}
     document.title = data.restaurant;
     if (shown) { shown.update(data); } else {
       page.replaceChildren(); document.body.classList.add('menu');
-      shown = window.RestroCustomerPages.mount(page, { ...data, full: true, history: true, hint: true });
+      shown = window.RestroCustomerPages.mount(page, { ...data, ...captain, full: true, history: true, hint: !captain.captain });
     }
     const bg = getComputedStyle(shown.root).backgroundColor;
     document.body.style.setProperty('--page-bg', bg); theme(bg);
