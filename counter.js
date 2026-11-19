@@ -40,8 +40,22 @@
     return { name: typeof c.name === 'string' ? c.name.replace(/\s+/g, ' ').trim().slice(0, 60) : '', veg: c.veg === true ? true : c.veg === false ? false : null, price, cat: categoryById.has(c.cat) ? c.cat : null };
   };
   const newCustomId = () => { let id; do id = `cu-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`; while (items.has(id)); return id; };
-  // A line's dish: the menu's, or a custom item's as if it were one
-  const itemOf = line => (line.custom ? { id: line.id, name: line.custom.name || 'Custom item', price: line.custom.price, veg: line.custom.veg, custom: true } : items.get(line.id));
+  // An event's dish as the customer ordered it (Update Pack 6 F, 7 D4): an event order's lines come from the cloud with
+  // `ev: { name, price, gst, veg }`, the dish as that event sold it: its price for the event (rupees, for one), its GST
+  // (percent: the menu's, or an event-only dish's own) and, for an event-only dish (not on the menu), its name and veg
+  // mark. The Counter keeps them, so the order, its bill and its receipt say what the customer ordered and paid for.
+  const cleanEv = (ev, item) => {
+    if (!ev || typeof ev !== 'object') return null;
+    const price = Math.round(Number(ev.price) * 100) / 100, gst = Number(ev.gst);
+    const name = typeof ev.name === 'string' ? ev.name.replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+    if (!(price >= 0 && price <= 99999) || !(gst >= 0 && gst <= 100) || (!item && !name)) return null;
+    return { name: name || item.name, price, gst, veg: ev.veg === true ? true : ev.veg === false ? false : item ? item.veg : null };
+  };
+  // A line's dish: the menu's, or a custom item's as if it were one, or an event's as it was ordered
+  const itemOf = line => (line.custom ? { id: line.id, name: line.custom.name || 'Custom item', price: line.custom.price, veg: line.custom.veg, custom: true }
+    : line.ev ? { ...(items.get(line.id) || { id: line.id }), name: line.ev.name, price: line.ev.price, veg: line.ev.veg, ev: true } : items.get(line.id));
+  // A line's GST rate: an event's dish its own, every other the menu's (bill.js)
+  const rateOf = line => (line.ev ? line.ev.gst / 100 : menu.taxRate);
   // One of a line's item with its add-ons (rupees), and a choice as it shows on its pill ("Extra gravy +₹40"). A choice
   // that sets the price (Update 7: "Half") is the dish's price; add-ons still go on top.
   const eachOf = line => {
@@ -219,10 +233,12 @@
       server: typeof o.server === 'string' && o.server ? o.server.slice(0, 60) : null, serverId: typeof o.serverId === 'string' ? o.serverId : null,
       merged: (Array.isArray(o.merged) ? o.merged : []).filter(u => typeof u === 'string').slice(0, 20), events: cleanEvents(o.events),
       ...(Array.isArray(o.bills) && o.bills.length ? { bills: o.bills.slice(-20) } : {}), ...(Number.isInteger(o.billNo) && o.billNo > 0 && typeof o.billYear === 'string' ? { billNo: o.billNo, billYear: o.billYear } : {}),
-      lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && (items.has(l.id) || (typeof l.id === 'string' && cleanCustom(l.custom))) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
+      // (an event's order: the dishes it came with as they were ordered, ev; a dish added on the Counter, here, is the menu's)
+      lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && (items.has(l.id) || (typeof l.id === 'string' && (cleanCustom(l.custom) || (type === 'event' && l.here !== true && cleanEv(l.ev, null))))) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
         .map(l => {
-          const custom = items.has(l.id) ? null : cleanCustom(l.custom), off = window.RestroBill.pct(l.off), kit = cleanKit(l.id, l.kit);
-          return { id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type, mods: custom ? [] : cleanMods(l.id, l.mods), note: cleanNote(l.note), ...(custom ? { custom } : {}),
+          const ev = type === 'event' && l.here !== true && typeof l.id === 'string' ? cleanEv(l.ev, items.get(l.id)) : null;
+          const custom = items.has(l.id) || ev ? null : cleanCustom(l.custom), off = window.RestroBill.pct(l.off), kit = cleanKit(l.id, l.kit);
+          return { id: l.id, qty: l.qty, type: TYPES.includes(l.type) ? l.type : type, mods: custom || (ev && !items.has(l.id)) ? [] : cleanMods(l.id, l.mods), note: cleanNote(l.note), ...(custom ? { custom } : {}), ...(ev ? { ev } : {}),
             ...(off ? { off, ...(off === 100 && cleanReason(l.offReason) ? { offReason: cleanReason(l.offReason) } : {}) } : {}), ...(kit.length ? { kit } : {}), ...(l.here === true ? { here: true } : {}) };
         }) };
   };
@@ -303,10 +319,12 @@
   // charge (dine-in) on what is left; the packaging and delivery charges (Settings › Billing & charges); CGST and SGST on
   // all of that; the total to pay rounded to the nearest rupee (the round off is on the bill). (tax: CGST and SGST.)
   const GST = window.RestroBill.labels(menu.taxRate);
+  // The GST on an order, rate by rate (one rate: the menu's), each with its labels ("CGST 2.5%")
+  const taxLines = t => (t.taxes?.length ? t.taxes : [{ rate: menu.taxRate, cgst: t.cgst, sgst: t.sgst }]).map(x => ({ ...x, labels: window.RestroBill.labels(x.rate) }));
   const billing = () => window.RestroPrefs?.get('billing') || {};
   const packagingOf = id => Number(items.get(id)?.packaging) || 0; // (a dish's own, set on the dish in Inventory)
   const totalsOf = o => {
-    const type = o.type || DEFAULT_TYPE, lines = o.lines.map(l => ({ id: l.id, each: eachOf(l) * 100, qty: l.qty, off: l.off }));
+    const type = o.type || DEFAULT_TYPE, lines = o.lines.map(l => ({ id: l.id, each: eachOf(l) * 100, qty: l.qty, off: l.off, rate: rateOf(l) }));
     const charges = window.RestroBill.charges(type, lines, billing(), packagingOf);
     return { ...window.RestroBill.order({ lines, type, discountPct: o.discountPct, servicePct: o.servicePct, ...charges }, menu.taxRate), count: o.lines.reduce((n, l) => n + l.qty, 0) };
   };
@@ -808,7 +826,7 @@
   const savedOf = list => (order.uid ? list.find(o => idOf(o) === order.uid && !o.paidAt) : order.number ? list.find(o => o.number === order.number && !o.paidAt) : null);
   // A saved order's sums from its own lines (as sync.js works them out): after a void is written to it
   function recordSums(rec) {
-    const type = rec.type || DEFAULT_TYPE, lines = rec.lines.map(l => ({ id: l.id, each: Math.round(l.price * 100), qty: l.qty, off: l.off }));
+    const type = rec.type || DEFAULT_TYPE, lines = rec.lines.map(l => ({ id: l.id, each: Math.round(l.price * 100), qty: l.qty, off: l.off, ...(Number.isFinite(l.ev?.gst) ? { rate: l.ev.gst / 100 } : {}) }));
     const charges = window.RestroBill.charges(type, lines, billing(), packagingOf);
     return { ...window.RestroBill.order({ lines, type, discountPct: rec.discountPct, servicePct: rec.servicePct, ...charges }, menu.taxRate), count: rec.lines.reduce((n, l) => n + l.qty, 0) };
   }
@@ -837,7 +855,7 @@
       // each line's price is one with its add-ons (a choice that sets the price: that price); its choices and note; its
       // dish discount (Update 7); a custom item keeps what was typed for it (Counter Update 5), so the order opens again
       // with it
-      lines: order.lines.map(l => ({ id: l.id, name: itemOf(l).name, price: eachOf(l), qty: l.qty, type: lineType(l), ...(l.here ? { here: true } : {}), ...(l.custom ? { custom: { ...l.custom } } : {}),
+      lines: order.lines.map(l => ({ id: l.id, name: itemOf(l).name, price: eachOf(l), qty: l.qty, type: lineType(l), ...(l.here ? { here: true } : {}), ...(l.custom ? { custom: { ...l.custom } } : {}), ...(l.ev ? { ev: { ...l.ev } } : {}),
         ...(l.mods?.length ? { mods: modObjs(l.mods) } : {}), ...(l.note ? { note: l.note } : {}),
         ...(l.off ? { off: l.off, ...(l.offReason ? { offReason: l.offReason } : {}) } : {}) })), ...totals(),
       // Update 7: the order note (on every KOT), priority (kitchen only), the guest count
@@ -1821,7 +1839,8 @@
         t.servicePct ? sum([`Service charge ${t.servicePct}% `, el('i', {}, '(optional)')], amount(t.service), 'scx') : null,
         t.packaging ? sum('Packaging charge', amount(t.packaging)) : null,
         t.delivery ? sum('Delivery charge', amount(t.delivery)) : null,
-        sum([`${GST.gst} `, el('i', { 'data-short': `(CGST ${amount(t.cgst)} + SGST ${amount(t.sgst)})` }, `(${GST.cgst} ${amount(t.cgst)} + ${GST.sgst} ${amount(t.sgst)})`)], amount(t.tax), 'gst'),
+        // (an event's dishes at another GST rate: a row for each rate, Update Pack 7 D4)
+        taxLines(t).map(x => sum([`${x.labels.gst} `, el('i', { 'data-short': `(CGST ${amount(x.cgst)} + SGST ${amount(x.sgst)})` }, `(${x.labels.cgst} ${amount(x.cgst)} + ${x.labels.sgst} ${amount(x.sgst)})`)], amount(x.cgst + x.sgst), 'gst')),
         t.roundOff ? sum('Round off', `${t.roundOff < 0 ? '−' : '+'}${amount(Math.abs(t.roundOff))}`, 'ro') : null),
       el('div', { class: 'cx-act' },
         el('button', { type: 'button', class: 'cx-save', disabled: !t.count, onclick: saveOrder }, mi('receipt_long', 26), 'Save'),
@@ -2750,7 +2769,9 @@
       subtotal: t.subtotal / 100, discount: t.discountPct ? { label: `Discount ${t.discountPct}%`, percent: t.discountPct, amount: t.discount / 100 } : null,
       serviceCharge: t.servicePct ? { label: `Service charge ${t.servicePct}% (optional)`, percent: t.servicePct, amount: t.service / 100 } : null,
       packaging: t.packaging ? { label: 'Packaging charge', amount: t.packaging / 100 } : null, delivery: t.delivery ? { label: 'Delivery charge', amount: t.delivery / 100 } : null,
-      taxes: [{ label: GST.cgst, amount: t.cgst / 100 }, { label: GST.sgst, amount: t.sgst / 100 }], tax: t.tax / 100, taxLabel: menu.taxLabel,
+      // (CGST and SGST for each GST rate on the bill, lowest first: Update Pack 7 D4)
+      taxes: taxLines(t).flatMap(x => [{ label: x.labels.cgst, amount: x.cgst / 100 }, { label: x.labels.sgst, amount: x.sgst / 100 }]), tax: t.tax / 100,
+      taxLabel: taxLines(t).length > 1 ? 'GST' : taxLines(t)[0]?.labels.gst || menu.taxLabel,
       roundOff: t.roundOff / 100, total: t.total / 100,
       footer: [t.servicePct ? SERVICE_FOOTER : '', biz.footer || ''].filter(Boolean)
     };
@@ -3858,10 +3879,12 @@
   // GST on one line (Update 7): "GST 5% (CGST 2.5% ₹x + SGST 2.5% ₹x)"; when it doesn't fit (very large bills), without
   // the percentages in the brackets: "GST 5% (CGST ₹x + SGST ₹x)". Never on two lines.
   function fitGst() {
-    const row = dialog.querySelector('.cx-tl.gst'), label = row?.querySelector('span'), inner = label?.querySelector('i'), value = row?.querySelector('b');
-    if (!row || !inner) return;
-    const room = row.clientWidth - value.offsetWidth - parseFloat(getComputedStyle(row).columnGap || 0);
-    if (label.scrollWidth > room && inner.dataset.short) inner.textContent = inner.dataset.short;
+    for (const row of dialog.querySelectorAll('.cx-tl.gst')) {
+      const label = row.querySelector('span'), inner = label?.querySelector('i'), value = row.querySelector('b');
+      if (!inner) continue;
+      const room = row.clientWidth - value.offsetWidth - parseFloat(getComputedStyle(row).columnGap || 0);
+      if (label.scrollWidth > room && inner.dataset.short) inner.textContent = inner.dataset.short;
+    }
   }
 
   function goBack() {

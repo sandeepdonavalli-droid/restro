@@ -337,7 +337,8 @@
     const rate = window.RestroMenu?.taxRate ?? (doc.subtotal ? doc.tax / doc.subtotal : 0);
     // (bill.js, Counter Update 7: dish discounts, the order discount, the service charge, packaging and delivery, CGST
     // and SGST, the total to the nearest rupee)
-    const lines = doc.lines.map(l => ({ each: Math.round(l.price * 100), qty: l.qty, off: l.off }));
+    // (an event's dish keeps its own GST, ev.gst: Update Pack 7 D4)
+    const lines = doc.lines.map(l => ({ each: Math.round(l.price * 100), qty: l.qty, off: l.off, ...(Number.isFinite(l?.ev?.gst) ? { rate: l.ev.gst / 100 } : {}) }));
     const sums = window.RestroBill ? window.RestroBill.order({ lines, type: doc.type, discountPct: doc.discountPct, servicePct: doc.servicePct, packaging: doc.packaging, delivery: doc.delivery }, rate)
       : (() => { const subtotal = lines.reduce((s, l) => s + l.each * l.qty, 0); return { subtotal, tax: Math.round(subtotal * rate), total: subtotal + Math.round(subtotal * rate) }; })();
     const out = { ...doc, ...sums, count: doc.lines.reduce((n, l) => n + l.qty, 0) };

@@ -6,7 +6,8 @@
 // 2. The order discount: a percentage of the subtotal (1 to 100).
 // 3. The service charge (dine-in only, never automatic): a percentage of what is left after the discount.
 // 4. The packaging charge (takeaway, delivery, phone: as set in Settings) and the delivery charge (delivery only).
-// 5. GST on all of that, as CGST and SGST, half the rate each (5%: 2.5% + 2.5%), each rounded to the paisa.
+// 5. GST on all of that, as CGST and SGST, half the rate each (5%: 2.5% + 2.5%), each rounded to the paisa. Dishes at
+//    another rate (an event's own dishes, Update Pack 7 D4) get CGST and SGST of their own, at their rate.
 // 6. The total to pay, rounded to the nearest rupee (50 paise and up go up); the difference is the round off.
 (() => {
   // a / b rounded half up, in whole numbers (exact: no floating point on the way)
@@ -20,24 +21,37 @@
   // A line's dish discount in paise: its gross (price × quantity) × the percentage
   const lineOff = (gross, p) => (pct(p) ? half(gross * pct(p), 100) : 0);
 
-  // o: { lines: [{ each (paise for one, add-ons in), qty, off (dish discount %) }], type, discountPct, servicePct,
+  // o: { lines: [{ each (paise for one, add-ons in), qty, off (dish discount %), rate }], type, discountPct, servicePct,
   //      packaging, delivery (paise) }
+  // A line's `rate` is its own GST rate (0.18: an event-only dish's, Update Pack 7 D4); without one, the order's
+  // (taxRate). With more than one rate, each rate's dishes take their share of the order discount and the service
+  // charge, and get their own CGST and SGST (each to the paisa): `taxes`, one { rate, cgst, sgst } for each rate, lowest
+  // first. Packaging and delivery go with the order's rate. With one rate it all works out as before.
   function order(o, taxRate) {
-    const lines = Array.isArray(o?.lines) ? o.lines : [];
+    const lines = Array.isArray(o?.lines) ? o.lines : [], base = halfOf(taxRate);
     let gross = 0, dishDiscount = 0, comp = 0;
+    const nets = new Map(); // half the rate (hundredths of a percent) -> its dishes after their dish discounts
     for (const l of lines) {
       const g = Math.round(Number(l.each) || 0) * (Number(l.qty) || 0), off = lineOff(g, l.off);
       gross += g; dishDiscount += off; if (pct(l.off) === 100) comp += off;
+      const h = Number.isFinite(l.rate) && l.rate >= 0 && l.rate <= 1 ? halfOf(l.rate) : base;
+      nets.set(h, (nets.get(h) || 0) + g - off);
     }
     const subtotal = gross - dishDiscount, p = pct(o?.discountPct);
-    const discount = p ? half(subtotal * p, 100) : 0, after = subtotal - discount;
     const sp = o?.type === 'dine-in' ? rate(o?.servicePct) : null;
-    const service = sp ? half(after * Math.round(sp * 10), 1000) : 0;
     const packaging = o?.type && o.type !== 'dine-in' ? Math.max(0, Math.round(Number(o?.packaging) || 0)) : 0;
     const delivery = o?.type === 'delivery' ? Math.max(0, Math.round(Number(o?.delivery) || 0)) : 0;
-    const taxable = after + service + packaging + delivery, h = halfOf(taxRate);
-    const cgst = half(taxable * h, 10000), sgst = cgst, exact = taxable + cgst + sgst, total = half(exact, 100) * 100;
-    return { gross, dishDiscount, complimentary: comp, subtotal, discountPct: p, discount, servicePct: sp, service, packaging, delivery, taxable, cgst, sgst, tax: cgst + sgst, exact, roundOff: total - exact, total };
+    if ((packaging || delivery) && !nets.has(base)) nets.set(base, 0);
+    let discount = 0, service = 0, taxable = 0, cgst = 0;
+    const taxes = [];
+    for (const [h, net] of [...nets].sort((a, b) => a[0] - b[0])) {
+      const d = p ? half(net * p, 100) : 0, after = net - d, s = sp ? half(after * Math.round(sp * 10), 1000) : 0;
+      const t = after + s + (h === base ? packaging + delivery : 0), c = half(t * h, 10000);
+      discount += d; service += s; taxable += t; cgst += c;
+      if (h > 0) taxes.push({ rate: h * 2 / 10000, cgst: c, sgst: c });
+    }
+    const sgst = cgst, exact = taxable + cgst + sgst, total = half(exact, 100) * 100;
+    return { gross, dishDiscount, complimentary: comp, subtotal, discountPct: p, discount, servicePct: sp, service, packaging, delivery, taxable, cgst, sgst, tax: cgst + sgst, taxes, exact, roundOff: total - exact, total };
   }
   // The earlier form (Counter Update 6): a subtotal, the order discount and the GST rate
   const totals = (subtotal, discountPct, taxRate) => order({ lines: [{ each: subtotal, qty: 1 }], discountPct }, taxRate);

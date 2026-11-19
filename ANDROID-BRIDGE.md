@@ -468,6 +468,13 @@ Where the names show and what staff can do:
   `table` the event table on a per-table QR (`"3"`, or a Floor table's permanent id with `floor: true`), `null`
   otherwise; one QR for the whole event also has `customer: { name, mobile }` (always asked). Paid first, as every QR
   order. Event orders are normal orders: in Orders and in every total.
+- **Its dishes, as the customer ordered them** (Update Pack 6 F, 7 D4; owner, 18 Nov 2026): each line, besides `id`,
+  `name`, `price` and `qty`, carries `ev: { name, price, gst, veg }`: the dish as the event sold it, `price` the
+  event's price for one (rupees: Veg biryani ₹199 at the event, ₹220 on the menu), `gst` its GST in percent (the
+  menu's, or an event-only dish's own, as typed in New event), and for an event-only dish (its id isn't on the menu)
+  its name and veg mark. The Counter's order panel, Pay, the KOT, the bill, the receipt and Orders use these, never
+  the menu's; GST is worked out for each rate (CGST and SGST for each). A dish added on the Counter (`here: true`) is
+  the menu's, at the menu's price and GST. An event-only dish never goes into the menu, Availability or Inventory.
 - **Orders** (`OE1`, Classic Light drawn; the same in all 12 layouts): the Event tile (above) and **Event** with the QR
   tag; then **"Live music night · Dine-in"** (or Takeaway), and under it the customer and their phone ("‹customer› ·
   ‹phone›") or "Event table 3". **Notify** is greyed on an event's order, as drawn (staff call the name). Split's
@@ -1384,10 +1391,11 @@ Print it as `25_printed-bill` (Counter Update 7, the customer's copy, the same f
 - **Sums, in this order:** Subtotal (`subtotal`: after the dish discounts); the order discount (`discount`:
   `{ label, percent, amount }`, `"Discount 10%"`, printed as −84.40); the service charge (`serviceCharge`:
   `{ label, percent, amount }`, `"Service charge 5% (optional)"`); `packaging` and `delivery` (`{ label, amount }`);
-  each of `taxes` on its own line (`"CGST 2.5%"` and `"SGST 2.5%"`, with their amounts); `roundOff` when it isn't 0
+  each of `taxes` on its own line (`"CGST 2.5%"` and `"SGST 2.5%"`, with their amounts; an order with dishes at more
+  than one GST rate, an event's own, has CGST and SGST for each rate, lowest first: Update Pack 7 D4); `roundOff` when it isn't 0
   (`"Round off −0.46"`; `+` when it rounds up); then **GRAND TOTAL** `total` (to the rupee). `discount`,
   `serviceCharge`, `packaging` and `delivery` are `null` when the order hasn't got them; `roundOff` is 0. (`tax` and
-  `taxLabel` are the two taxes together, `"GST 5%"`.)
+  `taxLabel` are the two taxes together, `"GST 5%"`, or `"GST"` with more than one rate.)
 - **Footer:** each of `footer` on its own line, centred: the service-charge line when there is a service charge
   (`"Service charge is optional — ask us to remove it."`), then the bill footer
   (`"Thank you! Visit again."`, Settings › Business details).

@@ -918,9 +918,15 @@
     const lines = Array.isArray(o.lines) ? o.lines : [], items = lines.reduce((n, l) => n + (Number(l.qty) || 0), 0);
     const sub = Number.isFinite(o.subtotal) ? o.subtotal : lines.reduce((n, l) => n + Math.round(l.price * 100) * l.qty, 0);
     const rate = window.RestroMenu?.taxRate ?? 0.05, labels = window.RestroBill?.labels(rate) || { cgst: 'CGST 2.5%', sgst: 'SGST 2.5%', gst: 'GST 5%' };
-    const b = window.RestroBill?.order({ lines: [{ each: sub, qty: 1 }], type: o.type, discountPct: o.discountPct, servicePct: o.servicePct, packaging: o.packaging, delivery: o.delivery }, rate);
+    // (an event's dishes keep their own GST, ev.gst: worked out from the lines, CGST and SGST for each rate, D4)
+    const own = lines.some(l => Number.isFinite(l?.ev?.gst) && l.ev.gst / 100 !== rate);
+    const b = window.RestroBill?.order({ lines: own ? lines.map(l => ({ each: Math.round(l.price * 100), qty: l.qty, off: l.off, ...(Number.isFinite(l?.ev?.gst) ? { rate: l.ev.gst / 100 } : {}) })) : [{ each: sub, qty: 1 }],
+      type: o.type, discountPct: o.discountPct, servicePct: o.servicePct, packaging: o.packaging, delivery: o.delivery }, rate);
     return { items, sub, labels, b };
   }
+  // The GST lines, rate by rate (one rate: the menu's): [{ labels, cgst, sgst }]
+  const taxRows = b => (b?.taxes?.length ? b.taxes : [{ rate: window.RestroMenu?.taxRate ?? 0.05, cgst: b?.cgst || 0, sgst: b?.sgst || 0 }])
+    .map(x => ({ ...x, labels: window.RestroBill?.labels(x.rate) || { cgst: 'CGST', sgst: 'SGST', gst: 'GST' } }));
   function detailEl(r) {
     const o = r.o, { items, sub, labels, b } = sumsOf(o), queued = r.kot.look === 'q';
     // (a word found in the name or table is marked in the list, not in this title; a number found is marked in both: F2, K4)
@@ -951,7 +957,7 @@
         ...(b?.discount ? sumRow(`Discount ${b.discountPct}%`, `−${money(b.discount)}`) : []),
         ...(b?.service ? sumRow(`Service charge ${b.servicePct}% (optional)`, money(b.service)) : []),
         ...(b?.packaging ? sumRow('Packaging', money(b.packaging)) : []), ...(b?.delivery ? sumRow('Delivery charge', money(b.delivery)) : []),
-        ...(b ? sumRow(`${labels.gst} (${labels.cgst} ${money(b.cgst)} + ${labels.sgst} ${money(b.sgst)})`, money(b.tax)) : []),
+        ...(b ? taxRows(b).flatMap(x => sumRow(`${x.labels.gst} (${x.labels.cgst} ${money(x.cgst)} + ${x.labels.sgst} ${money(x.sgst)})`, money(x.cgst + x.sgst))) : []),
         ...(b?.roundOff ? sumRow('Round off', `${b.roundOff < 0 ? '−' : '+'}${money(Math.abs(b.roundOff))}`) : []),
         ...sumRow('Total', money(Number(o.total) || 0), 'g')),
       el('div', { class: 'or-acts' }, buttons(r), el('button', { type: 'button', class: 'or-open', onclick: () => tapRow(r, true) }, 'Open', icon('chevron'))));
@@ -1734,7 +1740,9 @@
           ...(o.servicePct && Number(o.service) ? row(`Service charge ${o.servicePct}% (optional)`, money(o.service)) : []),
           ...(Number(o.packaging) ? row('Packaging charge', money(o.packaging)) : []),
           ...(Number(o.delivery) ? row('Delivery charge', money(o.delivery)) : []),
-          ...(split ? [...row(gst.cgst, money(o.cgst)), ...row(gst.sgst, money(o.sgst))] : row(rate ? `GST ${rate}%` : 'GST', money(o.tax || 0))),
+          // (more than one GST rate, an event's own dishes: CGST and SGST for each, D4)
+          ...(Array.isArray(o.taxes) && o.taxes.length > 1 ? taxRows(o).flatMap(x => [...row(x.labels.cgst, money(x.cgst)), ...row(x.labels.sgst, money(x.sgst))])
+            : split ? [...row(gst.cgst, money(o.cgst)), ...row(gst.sgst, money(o.sgst))] : row(rate ? `GST ${rate}%` : 'GST', money(o.tax || 0))),
           ...(Number(o.roundOff) ? row('Round off', `${o.roundOff < 0 ? '−' : '+'}${money(Math.abs(o.roundOff))}`) : []),
           ...row('Total', money(o.total), 'tot'),
           ...(cash ? [...row('Cash received', money(o.received)), ...row('Change given', money(o.change || 0))] : [])),

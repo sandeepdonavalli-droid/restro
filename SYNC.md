@@ -194,7 +194,8 @@ A merge starts from the version both sides started from:
 - **A QR payment the cloud found missing** (`qrPay: 'failed'`, owner 13 Nov 2026). When a merge ends with it, the
   `paidAt` (and `method`, `received`, `change`) of a version from before it doesn't stay, over the payment rule above:
   the order is due again. A payment taken since takes `qrPay` off on its own side, so it stays.
-- **Totals.** The order's totals are worked out again from its lines.
+- **Totals.** The order's totals are worked out again from its lines, each dish at its GST (an event's dish at its own,
+  `ev.gst`: ANDROID-BRIDGE.md, Event orders).
 - **Deletion against an edit.** The later of the two wins.
 - **No common version.** If the same record was made on two tablets before they met, the later whole record wins.
 
