@@ -356,15 +356,32 @@ The cloud must:
 A customer's phone has no RESTRO in it, so the QR link's page (`404.html`, `customer-data.js`) needs the restaurant's
 public copy from the cloud: its name, its menu, what is sold out (`restro.menu.availability.v1`), its menu design
 (`restro.menuDesign.v1`), its events' dishes, prices, GST rates and sold out (`restro.events.v1`), which QR codes work
-(`restro.qr.v1` and the events'), QR ordering (`restro.qrOrdering.v1`) and its business hours. The tablet keeps it up
-to date as these change; the page reads it without a token and watches it live. It holds nothing about customers,
-staff or orders. Until the cloud exists, the page reads the same from this browser's own RESTRO, when there is one
-(ANDROID-BRIDGE.md, "Our website for now").
+(`restro.qr.v1` and the events'), QR ordering (`restro.qrOrdering.v1`), its business hours (`restro.hours.v1`) and
+what its receipts print at the top and bottom (`restro.business.v1`: address, GSTIN, FSSAI, footer). The tablet keeps
+it up to date as these change; the page reads it without a token and watches it live. It holds nothing about
+customers, staff or orders. Until the cloud exists, the page reads the same from this browser's own RESTRO, when there
+is one (ANDROID-BRIDGE.md, "Our website for now").
 
 | Method and path | Body | Answer |
 | --- | --- | --- |
 | `PUT /public` (the tablet, with its token) | the copy | `{ ok }` |
 | `GET <endpoint>/v1/menus/<restaurant>` (the QR page, no token) | none | the copy; WebSocket `/v1/menus/<restaurant>/live` for changes |
+
+### A table's QR (Update Pack 7, H and I3)
+
+A table's QR, or an event table's, also needs its table's open order (the bill page and the due bar), the Help bell's
+requests and the receipt by email. The QR's code is the key: a replaced or deleted code gets nothing.
+
+| Method and path (the QR page, no token) | Body | Answer |
+| --- | --- | --- |
+| `GET <endpoint>/v1/qr/<restaurant>/<code>/bill` | none | the table's open order, or `null`: `{ uid, number, total, paid, due, rounds: [{ n, by, qr, at, lines: [{ id, name, qty, price, veg }] }], payments: [{ method, amount, at }] }` (paise; `by` the first name, or `'QR'`) |
+| `POST <endpoint>/v1/qr/<restaurant>/<code>/requests` | `{ kind: 'waiter' \| 'water' \| 'bill' \| 'other', note }` | `{ id }`; it goes to every captain phone and the POS at once |
+| `DELETE <endpoint>/v1/qr/<restaurant>/<code>/requests` | none | Cancel request: every request from the table not taken yet |
+| `POST <endpoint>/v1/qr/<restaurant>/<code>/receipt` | `{ order, email }` | the backend emails the e-receipt (the printed receipt); `{ ok }` |
+| WebSocket `<endpoint>/v1/qr/<restaurant>/<code>/live` | | `{ taken: [{ id, takenBy, takenAt }] }` (the first captain's "On my way"), the bill as it changes, `{ paidOffline: { method } }` (E5: 30 s with no confirmation while the restaurant is offline) |
+
+Paying the table's bill uses the same payment provider as an order (D2), for what is due; the backend records it on the
+open order, which closes once fully paid (I1).
 
 ## Security
 

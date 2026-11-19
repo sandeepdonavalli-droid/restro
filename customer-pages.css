@@ -4,19 +4,27 @@
    videos). The rules below are Night's; each template sets its own in the variables (--cp-*) and a few rules of its
    own, at the end. */
 
+/* (the e-receipt saved as a photo is drawn in Inter, as the printed receipt: H2) */
+@font-face{font-family:'CP Receipt';font-style:normal;font-weight:100 900;font-display:swap;src:url(assets/fonts/inter-latin-wght-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+2212}
+@font-face{font-family:'CP Receipt';font-style:normal;font-weight:100 900;font-display:swap;src:url(assets/fonts/inter-latin-ext-wght-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+20A0-20C0}
+
 /* ---------- the menu filling the customer's screen (the QR link's page) ---------- */
 .cm.full{width:100%;max-width:560px;height:100vh;height:100dvh;margin:0 auto}
 
 /* ---------- layers over the menu: sheets (with the menu dimmed), the Menu list, pages, the sending veil ---------- */
+/* (one level for all of them: the one opened last is on top, so a sheet opened from a page shows over it) */
 .cp-layer{position:absolute;z-index:10;inset:0}
 .cp-dim{background:var(--cp-dim,rgba(0,0,0,.73));opacity:0;transition:opacity .2s ease}
 .cp-dim.in{opacity:1}
+.cp-dim.cp-hdim{background:rgba(0,0,0,.55)}
 .cp-sheet{position:absolute;left:0;right:0;bottom:0;max-height:calc(100% - 48px);overflow-y:auto;overscroll-behavior:contain;padding:0 20px 22px;border-top:1px solid var(--cp-sheet-line,#36312A);border-radius:var(--cp-sheet-r,22px) var(--cp-sheet-r,22px) 0 0;background:var(--cp-sheet,#11100C);color:var(--ink);transform:translateY(100%);transition:transform .25s ease;scrollbar-width:none}
 .cp-sheet::-webkit-scrollbar{display:none}
 .cp-dim.in .cp-sheet{transform:none}
 .cp-grab{display:block;width:44px;height:4px;margin:15px auto 13px;border-radius:2px;background:var(--cp-grab,#3A332A)}
-.cp-page{z-index:20;display:flex;flex-direction:column;background:var(--bg);color:var(--ink)}
-.cm-t-chalkboard .cp-page,.cm-t-chalkboard .cp-sheet{background-image:var(--dots)}
+.cp-page{display:flex;flex-direction:column;background:var(--bg);color:var(--ink)}
+/* (Chalkboard: the board's dots on its pages and under Order placed's buttons; not on the sheets or under checkout's Pay) */
+.cm-t-chalkboard .cp-page:not(.cp-pay){background:var(--dots),var(--bg)}
+.cm-t-chalkboard .cp-bar{background:none}
 .cp-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:0 18px 24px;scrollbar-width:none}
 .cp-scroll::-webkit-scrollbar{display:none}
 :where(.cm .cp-layer) :is(h2,h3,p){margin:0;font:inherit}
@@ -31,7 +39,7 @@
 .cp-title{font:var(--cp-display);font-size:var(--cp-title-size,24.5px);line-height:1.2;letter-spacing:var(--cp-display-ls,0);color:var(--ink)}
 
 /* (a section's small heading: "Your order · 5 items", "Note for the kitchen · optional") */
-.cp-label{margin:15px 0 4px;color:var(--cp-lab,var(--acc));font:var(--cp-label-font,700 11.1px/14px 'DM Sans','CM Rupee',sans-serif);letter-spacing:var(--cp-label-ls,.19em);text-transform:var(--cp-label-tt,uppercase)}
+.cp-label{margin:15px 0 4px;color:var(--cp-lab,var(--acc));font:var(--cp-label-font,700 11.1px/14px 'DM Sans','CM Rupee',sans-serif);letter-spacing:var(--cp-label-ls,.17em);text-transform:var(--cp-label-tt,uppercase)}
 .cp-label small{color:var(--mute);font:400 12px/1 'DM Sans','CM Rupee',sans-serif;letter-spacing:0;text-transform:none}
 
 /* (a dish in a list: its photo, mark, name, × quantity, amount) */
@@ -70,7 +78,8 @@
 .cp-step .ci{width:15px;height:15px;stroke-width:2.4}
 .cp-q{font-size:19px;font-weight:600;line-height:1}
 .cp-dfoot .cp-go{flex:1;height:50px;font-size:14.8px}
-.cp-ask{margin-top:18px;padding:11px 12px;border:1px solid var(--cp-field-line,#3B372F);border-radius:var(--cp-field-r,10px);color:var(--cp-soft,#B5AFA2);font-size:12.5px}
+/* (the same rounded box in every template, as drawn) */
+.cp-ask{margin-top:18px;padding:11px 12px;border:1px solid var(--cp-ask-line,#32312D);border-radius:11px;background:var(--cp-ask-bg,#19160F);color:var(--cp-soft,#B5AFA2);font-size:12.5px;line-height:16.5px}
 /* (a sold-out dish, as in the list (C4): its photo grey, and "Sold out" in the list's colours where Add goes) */
 .cp-dish.out .cp-ph.big{filter:grayscale(1);opacity:.55}
 .cm-t-fresh-grid .cp-dish.out .cp-ph.big{filter:grayscale(1) brightness(.85);opacity:1}
@@ -86,7 +95,6 @@
 .cm-t-minimal{--cp-hint-r:0}
 
 /* ---------- the Menu list: above the Menu button ---------- */
-.cp-pop{z-index:12}
 .cp-mlist{position:absolute;right:15px;bottom:134px;width:222px;max-height:calc(100% - 150px);overflow-y:auto;padding:14px 0 8.5px;border:1px solid var(--cp-pop-line,#2E2B25);border-radius:var(--cp-pop-r,16px);background:var(--cp-pop,#191814);box-shadow:0 10px 28px rgba(0,0,0,.3);scrollbar-width:none}
 .cm.view .cp-mlist{bottom:69px}
 .cp-mlabel{height:16px;margin:0 0 6.5px;padding:0 19.5px;color:var(--cp-lab,var(--acc));font-size:11px;font-weight:700;letter-spacing:.2em;line-height:16px}
@@ -184,23 +192,34 @@
 .cp-band::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.66),rgba(0,0,0,.3) 70%,rgba(0,0,0,.2))}
 .cp-band .cm-hrow{right:18px}
 .cp-band .cm-name{top:42px}
-.cp-band .cm-pill{top:42px;height:28px;padding:0 13px;font-size:14px;border-radius:14px}
+.cp-band .cm-pill{top:var(--cp-bp-top,42px);height:var(--cp-bp-h,29px);padding:0 var(--cp-bp-pad,11px);font-size:var(--cp-bp-fs,13px);border-radius:var(--cp-bp-r,14.5px)}
 .cp-hero{display:flex;align-items:center;gap:14px;margin-top:18px}
-.cp-done .cp-hero + .cp-label,.cp-done .cp-status .cp-label{margin-top:17px}
+.cp-done .cp-hero + .cp-label{margin-top:17px}
 .cp-okdot.big{flex:none;width:54px;height:54px}
 .cp-okdot.big .ci{width:24px;height:24px;stroke-width:2.4}
 .cp-xdot{flex:none;display:grid;place-items:center;width:54px;height:54px;border:1.5px solid var(--cp-xdot-line,#6B2E2A);border-radius:var(--cp-dot-r,50%);background:var(--cp-xdot,#2A1513);color:var(--cp-xdot-ink,#E0675C)}
-.cp-xdot .ci{width:22px;height:22px;stroke-width:2.4}
+.cp-xdot .ci{width:32px;height:32px;stroke-width:1.9}
 .cp-htitle{font:var(--cp-display);font-size:var(--cp-htitle-size,25px);line-height:26px;letter-spacing:var(--cp-display-ls,0)}
 .cp-hsub{margin-top:3.5px;color:var(--cp-soft,#B5AE9B);font-size:13px;line-height:1.35}
 .cp-number{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding:13px 14px;border:var(--cp-card-bw,1px) solid var(--cp-card-line,#2E2B25);border-radius:var(--cp-card-r,14px);background:var(--cp-card,#151412)}
-.cp-number b{font:var(--cp-display);font-size:30px;line-height:1;letter-spacing:var(--cp-display-ls,0);color:var(--ink)}
-.cp-status .cp-label{margin-top:22px}
-.cp-sstep{display:flex;gap:14px;padding:6px 0}
-.cp-sstep i{flex:none;width:16px;height:16px;margin-top:2px;border:1.5px solid var(--cp-field-line,#3B372F);border-radius:var(--cp-dot-r,50%)}
-.cp-sstep.done i{border:0;background:var(--cp-ok,var(--cp-go,var(--acc)))}
-.cp-sstep p{display:flex;flex-direction:column;gap:3px;font-size:15px}
-.cp-sstep small{color:var(--mute);font-size:12px}
+.cp-number b{font:var(--cp-display);font-size:var(--cp-num-size,30.65px);line-height:var(--cp-num-lh,35.5px);letter-spacing:var(--cp-display-ls,0);color:var(--ink)}
+.cp-number .cp-csub{margin-top:3.5px;font-size:13.5px;line-height:18px}
+/* (Takeaway and the whole event: the big number to show at the counter, E2) */
+.cp-number.big{margin-top:12px}
+.cp-number.big b{font-size:var(--cp-bignum-size,32.6px);line-height:var(--cp-bignum-lh,38.5px)}
+/* (E1: the steps reached in the template's colour, the latest bold with a halo; the ones to come hollow and grey) */
+.cp-status .cp-label{margin-top:15.5px}
+.cp-done .cp-hero + .cp-status .cp-label{margin-top:17px}
+.cp-status .cp-label + .cp-sstep{margin-top:8.5px}
+.cp-status + .cp-label{margin-top:10.5px}
+.cp-sstep{display:flex;gap:12.5px;padding-bottom:10px}
+.cp-sstep i{flex:none;position:relative;width:16px;height:16px;margin-top:2.25px;border:1.5px solid var(--cp-field-line,#3B372F);border-radius:var(--cp-dot-r,50%);color:var(--cp-ok,var(--cp-go,var(--acc)))}
+.cp-sstep:is(.done,.now) i{border:0;background:currentColor}
+.cp-sstep.now i::before{content:'';position:absolute;inset:-4px;border-radius:inherit;background:currentColor;opacity:.2}
+.cp-sstep p{display:flex;flex-direction:column;color:var(--mute);font-size:15.2px;line-height:20px}
+.cp-sstep.done p{color:var(--cp-soft,#B5AE9B)}
+.cp-sstep.now p{color:var(--ink);font-weight:700}
+.cp-sstep small{color:var(--mute);font-size:12px;font-weight:400;line-height:16px}
 .cp-noteline{margin-top:7px;color:var(--cp-soft,#B5AE9B);font-size:13.5px;font-style:italic}
 .cp-box{margin-top:10px;padding:11px 13px 10px;border:var(--cp-card-bw,1px) solid var(--cp-card-line,#3B3529);border-radius:var(--cp-card-r,14px);background:var(--cp-card,#151412);color:var(--cp-box-ink,var(--cp-soft,#B5AE9B));font-size:13.5px;line-height:19.5px}
 .cp-hero + .cp-box{margin-top:13px}
@@ -232,7 +251,7 @@
   --cp-soft:#6A4E3A;--cp-sheet:#FFF8F0;--cp-grab:#EBDDCD;--cp-pop-line:#F1E3D6;--cp-more-line:var(--dark);--cp-more-ink:var(--dark);--cp-bell-line:#F1E3D6;--cp-bell-ink:var(--dark);--cp-ok:var(--dark);--cp-on-ok:#FFF9F1;--cp-step-ink:var(--dark);--cp-topay-line:#EBD9C5}
 .cm-t-cafe.own-acc{--cp-go:var(--acc);--cp-on-go:var(--on-acc);--cp-on-line:var(--acc);--cp-pill-line:var(--acc);--cp-pill-ink:var(--acc);--cp-more-line:var(--acc);--cp-more-ink:var(--acc);--cp-bell-ink:var(--acc);--cp-ok:var(--acc);--cp-on-ok:var(--on-acc);--cp-step-ink:var(--acc)}
 .cm-t-classic-list{--cp-card:#FAFAFA;--cp-back-line:#E4E4E6;--cp-card-line:#E5E5E7;--cp-field-line:#E5E5E7;--cp-soft:#515157;--cp-btn-r:12px;--cp-chip-r:14px;--cp-sheet:#FFFFFF;--cp-grab:#E2E2E4;--cp-pop-line:#F0F0F0;--cp-pop-r:14px;
-  --cp-more-line:var(--ink);--cp-more-ink:var(--ink);--cp-bell-line:#F0F0F0;--cp-row-line:#F0EEEF;--cp-topay-line:#161618;--cp-row-h:37px}
+  --cp-more-line:var(--ink);--cp-more-ink:var(--ink);--cp-bell-line:#F0F0F0;--cp-row-line:#F0EEEF;--cp-topay-line:#F1F1F3;--cp-row-h:37px}
 .cm-t-minimal{--cp-back-r:0;--cp-back-bw:1.5px;--cp-back-line:#0A0A0A;--cp-card-bw:1.5px;--cp-card-line:#0A0A0A;--cp-card-r:0;--cp-field-line:#0A0A0A;--cp-field-r:0;--cp-pill-r:0;--cp-btn-r:0;--cp-chip-r:0;--cp-lab:var(--ink);
   --cp-soft:#3E3E3C;--cp-sheet:#FFFFFF;--cp-sheet-r:0;--cp-grab:#D4D4D2;--cp-pop-line:#0A0A0A;--cp-pop-r:0;--cp-more-line:#0A0A0A;--cp-more-ink:#0A0A0A;--cp-bell-r:0;--cp-bell-line:#0A0A0A;--cp-bell-shadow:none;
   --cp-dot-r:0;--cp-row-line:#E4E5E0;--cp-topay-line:#0A0A0A;--cp-row-h:37px;--cp-xdot-line:#D62829;--cp-xdot-ink:#D62829}
@@ -255,7 +274,7 @@
   --cp-label-font:700 13.5px/17px 'DM Sans','CM Rupee',sans-serif;--cp-label-ls:0;--cp-label-tt:none;--cp-clabel-ls:0;
   --cp-back-r:8px;--cp-back-bw:1px;--cp-back-line:#464C48;--cp-card:#222D27;--cp-card-line:#4C5550;--cp-card-r:8px;--cp-field:transparent;--cp-field-line:#4C5550;--cp-field-r:8px;--cp-pill-r:8px;--cp-pill-bg:var(--acc);--cp-pill-ink:var(--on-acc);
   --cp-btn-r:8px;--cp-chip-r:6px;--cp-soft:#C8D1CD;--cp-sheet:#1F2925;--cp-sheet-line:#3B453D;--cp-sheet-r:18px;--cp-grab:#4A544E;--cp-pop:#26332C;--cp-pop-line:#434945;--cp-pop-r:10px;
-  --cp-off:#2C3732;--cp-off-ink:#7D8782;--cp-veil:rgba(27,36,33,.9);--cp-bell:#26332C;--cp-bell-line:#3F4541;--cp-dot-r:50%;--cp-row-line:#3B453D;--cp-row-h:41px;--cp-xdot:#2A1A17;--cp-xdot-line:#7A3530;--cp-xdot-ink:#F07A6E;--cp-foot-img:var(--dots)}
+  --cp-off:#2C3732;--cp-off-ink:#7D8782;--cp-veil:rgba(27,36,33,.9);--cp-bell:#26332C;--cp-bell-line:#3F4541;--cp-dot-r:50%;--cp-row-line:#3B453D;--cp-row-h:41px;--cp-xdot:#2A1A17;--cp-xdot-line:#7A3530;--cp-xdot-ink:#F07A6E}
 .cm-t-chalkboard .cp-x{font-size:13px}
 .cm-t-chalkboard{--cp-ct-lh:28px;--cp-ct-mt:3px;--cp-cs-mt:3px;--cp-ct-ls:0;--cp-row-size:15.25px}
 .cm-t-night{--cp-ct-lh:26.5px;--cp-ct-mt:3.5px;--cp-cs-mt:2px}
@@ -265,3 +284,139 @@
 
 /* ---------- a template without dish photos: lists without them ---------- */
 :is(.cm-t-chalkboard,.cm-t-classic-list,.cm-t-minimal) .cp-crow{min-height:52px}
+
+/* ======================================================================================================================
+   The Help bell, receipts, the table's bill, the messages, sold out while paying, paid while offline (Update Pack 7: G, H,
+   I3, E4, E5). Night's sizes and colours below; each template's in its variables after them.
+   ====================================================================================================================== */
+
+/* ---------- the Help bell's sheet (H1) and the receipt sheets (H3): the card's colours, rows with an icon in a circle ---------- */
+.cm .cp-sheet.cp-help{padding:0 18px 16px;border-top:1px solid var(--cp-card-line,#3B3529);border-radius:var(--cp-hs-r,16px) var(--cp-hs-r,16px) 0 0;background:var(--cp-card,#151412)}
+.cp-help .cp-grab{width:40px;height:4px;margin:10px auto 0;background:var(--cp-card-line,#3B3529)}
+.cp-stitle{margin-top:var(--cp-st-mt,11.5px);font:var(--cp-display);font-size:var(--cp-st-size,23.5px);line-height:var(--cp-st-lh,31px);letter-spacing:var(--cp-st-ls,0);color:var(--ink)}
+.cp-shsub{margin-top:4.5px;color:var(--cp-soft,#B5AE9B);font-size:13.5px;line-height:18px}
+.cp-hrows{margin-top:7px}
+.cm .cp-hrow{display:flex;align-items:center;gap:14.5px;width:100%;height:60px;border-bottom:1px solid var(--cp-row-line,var(--line));color:var(--ink);text-align:left}
+.cm .cp-hrow:disabled{opacity:.45}
+/* (the circle: the template's colour at 13%, its icon in the colour) */
+.cp-hic,.cp-tic{flex:none;position:relative;display:grid;place-items:center;width:40px;height:40px;border-radius:var(--cp-dot-r,50%);color:var(--cp-hic-ink,var(--acc))}
+.cp-hic::before,.cp-tic::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--cp-hic-tint,currentColor);opacity:.13}
+:is(.cp-hic,.cp-tic) .ci{position:relative;width:23px;height:23px;stroke-width:1.85}
+.cp-htx{flex:1;min-width:0}
+.cp-htx b{display:block;font-size:16px;font-weight:700;line-height:20px}
+.cp-htx small{display:block;margin-top:1px;color:var(--cp-soft,#B5AE9B);font-size:12.4px;line-height:16px}
+/* (two lines sit a pixel lower, as drawn) */
+.cp-htx small,.cp-htx b:not(:only-child){position:relative;top:1px}
+.cm .cp-backbtn{gap:7.5px;height:50px;margin-top:12px;font-size:15.5px}
+.cp-backbtn .ci{width:20px;height:20px;stroke-width:2.1}
+.cp-backbtn span{position:relative;top:1.5px}
+/* (one field: Other help's note, the receipt's email address) */
+.cp-form .cp-input{margin-top:9px}
+.cm .cp-form .cp-go{height:52px;margin-top:14px;padding-top:2.5px;font-size:16px}
+.cp-form .cp-input.on{border-color:var(--cp-on-line,var(--acc))}
+
+/* ---------- a toast above the bottom bar (H1, H3), and "‹first name› is on the way" ---------- */
+.cp-toast{position:absolute;z-index:9;left:12px;right:12px;bottom:84px;display:flex;align-items:center;gap:12px;min-height:66px;padding:11px 14px 9px;border-radius:var(--cp-toast-r,14px);background:var(--cp-card,#151412);color:var(--ink);box-shadow:0 0 0 1.5px var(--cp-card-line,#3B3529),0 8px 30px rgba(0,0,0,.3);animation:cp-toast-in .2s ease both}
+.cp-toast.accent{background:var(--cp-go,var(--acc));color:var(--cp-on-go,var(--on-acc));box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.cp-toast.accent .cp-tic{color:inherit}
+.cp-toast.accent .cp-tic::before{background:#FFFFFF;opacity:.2}
+.cp-toast.out{opacity:0;transition:opacity .25s ease}
+@keyframes cp-toast-in{from{opacity:0;transform:translateY(6px)}}
+.cp-ttx{flex:1;min-width:0}
+.cp-ttx b{display:block;font-size:15.5px;font-weight:700;line-height:20px}
+.cp-ttx small{display:block;margin-top:1.5px;color:var(--cp-soft,#B5AE9B);font-size:13px;line-height:18px}
+.cp-toast.accent .cp-ttx small{color:inherit;opacity:.85}
+
+/* ---------- paused (G): a banner where the Menu button sits ---------- */
+.cp-pausedpg .cm-menu{display:none}
+.cp-paused{position:absolute;z-index:5;left:12px;right:12px;bottom:14px;display:flex;align-items:center;gap:12px;height:68px;padding:0 16px;border-radius:var(--cp-toast-r,16px);background:var(--cp-card,#151412);color:var(--ink);box-shadow:0 0 0 1.5px var(--cp-go,var(--acc)),0 8px 30px rgba(0,0,0,.18)}
+.cp-pic{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:var(--cp-dot-r,50%);background:var(--cp-go,var(--acc));color:var(--cp-on-go,var(--on-acc))}
+.cp-pic .ci{width:20px;height:20px;fill:currentColor;stroke:none}
+.cp-paused .cp-ttx b{font-size:15px}
+.cp-paused .cp-ttx small{font-size:13.5px}
+
+/* ---------- instead of the menu (G): closed, a break, weekly off, a QR that no longer works, an event not on ---------- */
+.cp-msgpg .cp-scroll{padding-bottom:16px}
+.cp-msg{display:flex;flex-direction:column;align-items:center;padding:30px 0 0;text-align:center}
+.cp-micon{flex:none;display:grid;place-items:center;width:64px;height:64px;border:1.5px solid var(--cp-card-line,#3B3529);border-radius:var(--cp-dot-r,50%);background:var(--cp-card,#151412);color:var(--cp-ok,var(--cp-go,var(--acc)))}
+.cp-micon .ci{width:29px;height:29px;stroke-width:1.85}
+.cp-mtitle{max-width:304px;margin-top:var(--cp-mt-mt,16px);font:var(--cp-display);font-size:var(--cp-mt-size,25.7px);line-height:30px;letter-spacing:var(--cp-st-ls,0);color:var(--ink)}
+.cp-mtitle .cp-qr{font-family:'DM Sans','CM Rupee',sans-serif;font-size:25px;font-style:normal;font-weight:700;line-height:28px}
+.cp-msub{margin-top:var(--cp-ms-mt,11.5px);color:var(--cp-soft,#B5AE9B);font-size:15px;line-height:20px}
+.cp-mnote{margin-top:23.5px;color:var(--mute);font-size:12.5px;line-height:17px}
+.cp-mnote.thanks{margin-top:19px;font-size:13px}
+.cp-msgpg .cp-foot{height:auto;padding:0 16px 16px}
+.cm .cp-seemenu{height:48px;font-size:15px}
+
+/* ---------- sold out while paying (E4): the amber note, the dish struck through ---------- */
+.cp-refund{margin-top:14px;padding:9.5px 13px 11px;border:1px solid var(--cp-amb-line,#7D622B);border-radius:var(--cp-card-r,14px);background:var(--cp-amb,#3A2A08);color:var(--cp-soft,#B5AE9B);font-size:13px;line-height:19.5px}
+.cp-rtitle{color:var(--cp-amb-ink,#FED179);font-size:14.5px;font-weight:700;line-height:20px}
+.cp-refund .cp-rtitle + p{margin-top:1.5px}
+.cp-row.gone{opacity:.5}
+.cp-row.gone .cp-rname span{text-decoration:line-through;text-decoration-thickness:1.5px}
+
+/* ---------- paid while the restaurant is offline (E5): green tick, "Show this screen to our staff" ---------- */
+.cp-okdot.paid{border:1.5px solid var(--cp-paid-line,#3E7B59);background:var(--cp-paid,#123C24);color:var(--cp-paid-ink,#8EE5B2)}
+.cp-refund.cp-showstaff{margin-top:16px;padding:14.5px 16px 13.5px;border:0;background:var(--cp-go,var(--acc));color:var(--cp-on-go,var(--on-acc));font-size:13.5px;line-height:20px}
+.cp-showstaff .cp-rtitle{color:inherit;font-size:18px;line-height:22px}
+.cp-refund.cp-showstaff .cp-rtitle + p{margin-top:5.5px;opacity:.85}
+.cp-offline .cp-number{margin-top:10.5px}
+.cp-offline .cp-totals{margin-top:12px}
+:is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-classic-list,.cm-t-minimal){--cp-num-lh:34.5px}
+
+/* ---------- the table's bill (I3): the paid rounds greyed, what's due, paying it; paid ---------- */
+.cp-box.cp-paidr{padding:14px 13px var(--cp-pr-pb,16px);color:var(--mute)}
+.cp-prow{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;line-height:18px}
+.cp-prow span:first-child{display:flex;align-items:center;gap:2px}
+.cp-prow .ci{width:15px;height:15px;margin-left:-1.5px;stroke-width:2}
+.cp-pnames{margin-top:7.5px;font-size:12.5px;line-height:16px}
+.cp-billpg .cp-card{padding-bottom:var(--cp-bc-pb,10.5px)}
+.cp-billpg .cp-totals{margin-top:12.5px}
+.cp-billpg .cp-totals .cp-topay{margin-top:6.5px;padding-top:8px}
+.cp-box.cp-paidsum{margin-top:14px;padding:8.5px 13px 9.5px;color:var(--mute);font-size:13.5px;line-height:23px}
+.cp-paidsum p{display:flex;justify-content:space-between;gap:10px}
+.cp-paidsum .cp-ptot{margin-top:4.5px;padding-top:3px;border-top:1px solid var(--cp-row-line,var(--line));color:var(--ink);font-weight:700}
+.cp-noteline.cp-needrc{margin-top:8.5px;color:var(--cp-soft,#B5AE9B);font-size:13.5px;font-style:normal;line-height:18px}
+.cp-needrc + .cp-label{margin-top:14px}
+
+/* ---------- each template ---------- */
+.cm-t-night{--cp-hs-r:16px;--cp-toast-r:14px;--cp-pr-pb:15px}
+:is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-classic-list,.cm-t-minimal){--cp-st-size:23.2px;--cp-st-lh:30px;--cp-mt-size:25.3px;
+  --cp-amb:#FFF6ED;--cp-amb-line:#DBB6A3;--cp-amb-ink:#9B3514;--cp-paid:#E8F5EC;--cp-paid-line:#95B8A2;--cp-paid-ink:#0D602C}
+.cm-t-fresh-grid{--cp-hs-r:24px;--cp-toast-r:16px}
+.cm-t-cafe{--cp-hs-r:24px;--cp-toast-r:16px;--cp-hic-tint:var(--dark)}
+.cm-t-classic-list{--cp-hs-r:16px;--cp-toast-r:14px}
+.cm-t-minimal{--cp-hs-r:0;--cp-toast-r:0}
+.cm-t-editorial :is(.cp-stitle,.cp-mtitle){font-weight:700}
+.cm-t-editorial{--cp-hs-r:3px;--cp-toast-r:3px;--cp-bc-pb:9.5px;--cp-st-size:23.1px;--cp-st-lh:28px;--cp-mt-size:25px;
+  --cp-amb:#FFF6ED;--cp-amb-line:#DBB6A3;--cp-amb-ink:#9B3514;--cp-paid:#E8F5EC;--cp-paid-line:#95B8A2;--cp-paid-ink:#0D602C}
+.cm-t-chalkboard{--cp-hs-r:12px;--cp-toast-r:12px;--cp-bc-pb:11.5px;--cp-st-size:23px;--cp-st-lh:34px;--cp-mt-size:25px}
+.cm-t-chalkboard .cp-number b{letter-spacing:0}
+/* (the number's line as drawn in each font: Yatra One's taller, Cormorant's shorter) */
+.cm-t-chalkboard{--cp-num-lh:40.5px;--cp-bignum-lh:43.5px}
+.cm-t-editorial{--cp-num-lh:32.5px;--cp-bignum-lh:36.5px}
+.cm-t-editorial .cp-number{padding:12px 14px}
+
+/* ---------- the band on Order placed and the messages: its pill as drawn in each template (E, G) ---------- */
+.cm-t-cafe{--cp-bp-h:27px;--cp-bp-pad:11.5px;--cp-bp-r:13.5px}
+.cm-t-editorial{--cp-bp-top:43px;--cp-bp-pad:11.75px;--cp-bp-fs:12.6px;--cp-bp-r:0}
+.cm-t-chalkboard{--cp-bp-top:46px;--cp-bp-pad:10.75px;--cp-bp-fs:13.4px;--cp-bp-r:7px}
+.cm-t-classic-list{--cp-bp-top:43px;--cp-bp-h:27px;--cp-bp-pad:11.5px;--cp-bp-r:7px}
+.cm-t-minimal{--cp-bp-top:44px;--cp-bp-h:27px;--cp-bp-pad:11.5px;--cp-bp-r:0}
+/* (the Menu QR's "To order, please ask our staff." box, C6) */
+.cm-t-fresh-grid{--cp-ask-line:#D4D3CF;--cp-ask-bg:#F6F3EE}
+.cm-t-cafe{--cp-ask-line:#DCD4D1;--cp-ask-bg:#FEF4EB}
+.cm-t-editorial{--cp-ask-line:#D4CDC7;--cp-ask-bg:#F6EEE3}
+.cm-t-chalkboard{--cp-ask-line:#3E4440;--cp-ask-bg:#1E2923}
+.cm-t-classic-list{--cp-ask-line:#D9D9D9;--cp-ask-bg:#F9F9FB}
+.cm-t-minimal{--cp-ask-line:#D6D6D4;--cp-ask-bg:#F9F9F7}
+/* ---------- Editorial: its titles bold, as every screen draws them; the dish photo in a white frame ---------- */
+.cm-t-editorial{--cp-display:700 24px/1.2 'Cormorant Garamond','CM Rupee',serif;--cp-title-size:24.2px;--cp-card-size:19px;--cp-ctitle-size:24px;--cp-htitle-size:24px;--cp-dname-size:28px}
+.cm-t-editorial .cp-dish .cp-ph.big{border:0;box-shadow:0 0 0 6px #FFFFFF,0 3px 14px 6px rgba(60,45,30,.1)}
+/* ---------- "Payment didn't go through" (E3): the cross in a red-tinted circle, as drawn ---------- */
+.cm-t-night,.cm-t-chalkboard{--cp-xdot:#391515;--cp-xdot-line:#7B4140;--cp-xdot-ink:#FD9B9B}
+:is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-editorial,.cm-t-classic-list,.cm-t-minimal){--cp-xdot:#FEF2F2;--cp-xdot-line:#E7ABAB;--cp-xdot-ink:#BB1E1F}
+/* (the message title a pixel and a half lower in the templates other than Night, as drawn) */
+:is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-classic-list,.cm-t-minimal){--cp-mt-mt:16.75px;--cp-ms-mt:10.75px}
+.cm-t-editorial{--cp-mt-mt:16.5px;--cp-ms-mt:11px}
+.cm-t-chalkboard{--cp-mt-mt:17.25px;--cp-ms-mt:10.25px}

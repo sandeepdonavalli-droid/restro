@@ -39,7 +39,21 @@
     search: '<circle cx="10.5" cy="10.5" r="6.3"/><path d="m15.3 15.3 4.7 4.7"/>',
     bell: '<path d="M6.5 11a5.5 5.5 0 0 1 11 0v4.4l1.3 1.85H5.2l1.3-1.85z"/><path d="M9.6 19.3a2.4 2.4 0 0 0 4.8 0"/>',
     receipt: '<path d="M6.5 3.5h11v17l-2.75-1.6-2.75 1.6-2.75-1.6-2.75 1.6z"/><path d="M9.5 8.5h5M9.5 12h5"/>',
-    bag: '<path d="M5.8 8.5h12.4l-.9 11.2a1 1 0 0 1-1 .9H7.7a1 1 0 0 1-1-.9z"/><path d="M9.2 10.5V7.2a2.8 2.8 0 0 1 5.6 0v3.3"/>'
+    bag: '<path d="M5.8 8.5h12.4l-.9 11.2a1 1 0 0 1-1 .9H7.7a1 1 0 0 1-1-.9z"/><path d="M9.2 10.5V7.2a2.8 2.8 0 0 1 5.6 0v3.3"/>',
+    // (the Help bell's sheet, receipts and the messages: Update Pack 7, G, H)
+    waiter: '<circle cx="12" cy="8.3" r="3.5"/><path d="M5.7 19.6a6.3 6.3 0 0 1 12.6 0"/>',
+    water: '<path d="M7 4.5h10l-1.4 14.9a1.2 1.2 0 0 1-1.2 1.1H9.6a1.2 1.2 0 0 1-1.2-1.1z"/><path d="M7.5 9.6h9"/>',
+    cancel: '<circle cx="12" cy="12" r="8.3"/><path d="m9.3 9.3 5.4 5.4M14.7 9.3l-5.4 5.4"/>',
+    chat: '<path d="M5.2 5.3h13.6a1.2 1.2 0 0 1 1.2 1.2v9a1.2 1.2 0 0 1-1.2 1.2H10.5L6.4 20v-3.3H5.2A1.2 1.2 0 0 1 4 15.5v-9a1.2 1.2 0 0 1 1.2-1.2z"/><path d="M8.6 11h.1M12 11h.1M15.4 11h.1"/>',
+    arrow: '<path d="M19 12H5.5M11 6.2 5.2 12l5.8 5.8"/>',
+    photo: '<rect x="4" y="5" width="16" height="14" rx="2.2"/><circle cx="9.2" cy="10" r="1.6"/><path d="m4.6 17.2 4.6-4.4 3.4 3.2 2.4-2.2 4.4 4"/>',
+    mail: '<rect x="3.6" y="5.8" width="16.8" height="12.6" rx="2"/><path d="m4.4 7.2 7.6 6 7.6-6"/>',
+    pause: '<rect x="6.4" y="5.1" width="3.5" height="13.8" rx="1.6"/><rect x="14.1" y="5.1" width="3.5" height="13.8" rx="1.6"/>',
+    moon: '<path d="M19 14.6A7.4 7.4 0 0 1 9.4 5a7.4 7.4 0 1 0 9.6 9.6z"/>',
+    clock: '<circle cx="12" cy="12" r="8.3"/><path d="M12 7.6V12l3 1.9"/>',
+    // (a QR that no longer works: three of its corner squares, struck through)
+    qroff: '<rect x="4.6" y="4.6" width="5.6" height="5.6" rx="1.1"/><rect x="13.8" y="4.6" width="5.6" height="5.6" rx="1.1"/><rect x="4.6" y="13.8" width="5.6" height="5.6" rx="1.1"/><path d="m3.6 3.6 16.8 16.8"/>',
+    calendar: '<rect x="3.6" y="5.6" width="16.8" height="14.4" rx="2.2"/><path d="M3.6 10.2h16.8M8.5 3.6v3.8M15.5 3.6v3.8M9 15h6"/>'
   };
   function icon(name) {
     const s = document.createElementNS(NS, 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');
@@ -61,6 +75,14 @@
   }
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const clock = d => `${(d.getHours() % 12) || 12}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+  const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // "Fri 13 Nov"; "today", "tomorrow" or the weekday ("Wednesday") for an opening time (G)
+  const dayDate = t => { const d = new Date(t); return `${WEEKDAYS[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+  const dayWord = t => {
+    const d = new Date(t), now = new Date(), days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+    return days === 0 ? 'today' : days === 1 ? 'tomorrow' : days < 7 ? WEEKDAYS[d.getDay()] : `on ${dayDate(t)}`;
+  };
   // A mobile number as it shows: "9xxxx xxxxx" (D3: India only, 10 digits from 6, 7, 8 or 9)
   const digits = v => String(v || '').replace(/\D/g, '').slice(0, 10);
   const pretty = v => { const d = digits(v); return d.length > 5 ? `${d.slice(0, 5)} ${d.slice(5)}` : d; };
@@ -68,11 +90,13 @@
   const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch { return null; } return v; };
 
   function mount(host, opts) {
-    let o, kind, view, dineIn, restaurant, cats, dishes, t;
-    // (the options; again on update: the menu, sold out and the design as the restaurant changes them)
+    let o, kind, view, dineIn, restaurant, cats, dishes, t, paused, blocked;
+    // (the options; again on update: the menu, sold out and the design as the restaurant changes them; paused or a
+    // message instead of the menu, G)
     const setOptions = next => {
       o = { kind: 'table', taxRate: 0.05, kds: false, eventMode: 'both', ...next };
       kind = o.kind; view = kind === 'menu'; dineIn = kind === 'table' || kind === 'event-table';
+      paused = !view && o.state?.paused === true; blocked = ['dead', 'closed', 'upcoming', 'ended'].includes(o.state?.page) ? o.state : null;
       restaurant = String(o.restaurant || '').toLocaleUpperCase('en-IN');
       cats = (o.categories || []).filter(c => c.items?.length); dishes = new Map(cats.flatMap(c => c.items.map(d => [d.id, { ...d, cat: c.name }])));
       t = CM().templates.find(x => x.id === o.template) || CM().templates[0];
@@ -112,7 +136,8 @@
 
     const sheet = (cls, ...kids) => {
       const box = el('div', { class: `cp-sheet ${cls}`, role: 'dialog', 'aria-modal': 'true' }, el('span', { class: 'cp-grab', 'aria-hidden': 'true' }), kids);
-      const layer = el('div', { class: 'cp-layer cp-dim', onclick: e => { if (e.target === e.currentTarget) close(layer); } }, box);
+      // (the Help bell's and the receipt's sheets dim the page behind less: H)
+      const layer = el('div', { class: `cp-layer cp-dim${cls.startsWith('cp-help') ? ' cp-hdim' : ''}`, onclick: e => { if (e.target === e.currentTarget) close(layer); } }, box);
       return layer;
     };
     const pageLayer = (cls, ...kids) => el('div', { class: `cp-layer cp-page ${cls}` }, kids);
@@ -125,9 +150,12 @@
     const photo = (d, cls) => (t.photos ? (d.photo ? el('span', { class: `cp-ph ${cls}`, style: `background-image:url("${String(d.photo).replace(/"/g, '%22')}")` }) : el('span', { class: `cp-ph none ${cls}` }, CM().icon('dish'))) : null);
 
     // ---------- the menu ----------
-    const setCart = () => CM().setCart(root, cartObj());
+    // (ordering is on: not the Menu QR, not paused, not a closed QR's menu: G)
+    let seeMenu = false;
+    const canOrder = () => !view && !paused && !blocked;
+    const setCart = () => { CM().setCart(root, cartObj()); dueBar(); };
     function add(id, q = 1) {
-      const d = dishes.get(id); if (!d || d.out || view) return;
+      const d = dishes.get(id); if (!d || d.out || !canOrder()) return;
       const n = Math.max(0, (s.cart.get(id) || 0) + q); if (n) s.cart.set(id, n); else s.cart.delete(id);
       setCart(); for (const l of layers) l._refresh?.();
     }
@@ -144,7 +172,7 @@
       const plus = el('button', { type: 'button', class: 'cp-step', 'aria-label': 'One more', onclick: () => { q = Math.min(99, q + 1); show(); } }, icon('plus'));
       const show = () => { qty.textContent = String(q); go.textContent = !q ? 'Remove' : `${had ? 'Update' : 'Add'} · ${fmt(q * each)}`; };
       show();
-      const foot = view ? el('p', { class: 'cp-ask' }, 'To order, please ask our staff.')
+      const foot = !canOrder() ? el('p', { class: 'cp-ask' }, 'To order, please ask our staff.')
         : d.out ? el('p', { class: 'cp-sold' }, 'Sold out') : el('div', { class: 'cp-dfoot' }, el('div', { class: 'cp-stepper' }, minus, qty, plus), go);
       const layer = sheet(`cp-dish${d.out ? ' out' : ''}`, photo(d, 'big'), el('h3', { class: 'cp-dname' }, mark(d), el('span', {}, d.name)), d.about || d.desc ? el('p', { class: 'cp-dabout' }, d.about || d.desc) : null, foot);
       go.addEventListener('click', () => { close(layer); add(id, q - had); });
@@ -171,7 +199,8 @@
           q ? label(plural(found.length, 'dish', 'dishes')) : null,
           ...found.map(d => {
             const n = s.cart.get(d.id) || 0;
-            const btn = view ? null : d.out ? el('span', { class: 'cm-add out' }, el('span', { class: 'cm-add-t' }, 'Sold out'))
+            // (sold out: its tag, on every QR, C4; no + Add where ordering is off: the Menu QR, paused, closed)
+            const btn = d.out ? el('span', { class: 'cm-add out' }, el('span', { class: 'cm-add-t' }, 'Sold out')) : !canOrder() ? null
               : el('button', { type: 'button', class: `cp-sadd${n ? ' on' : ''}`, onclick: e => { e.stopPropagation(); if (n) dishSheet(d.id); else add(d.id); } }, n ? ['Added', icon('check')] : ['+ Add']);
             return el('div', { class: `cp-srow${d.out ? ' out' : ''}`, onclick: () => dishSheet(d.id) }, photo(d, 'small'),
               el('div', { class: 'cp-stext' }, el('p', { class: 'cp-sname' }, mark(d), el('b', {}, d.name)), el('p', { class: 'cp-ssub' }, `${d.cat} · ${fmt(Math.round(d.price * 100))}`)), btn);
@@ -187,13 +216,13 @@
 
     // ---------- the cart: "Your order · Table 7" (C1, D1) ----------
     const where = () => (kind === 'takeaway' ? 'Takeaway' : kind === 'event' ? 'Event' : o.place || 'Table');
-    function totals(b, payLine) {
+    function totals(b, payLine, last = 'To pay', first = 'Item total') {
       const paise = b.roundOff !== 0;
       return el('div', { class: 'cp-totals' },
-        el('p', {}, el('span', {}, 'Item total'), el('span', {}, fmt(b.itemTotal, paise))),
+        el('p', {}, el('span', {}, first), el('span', {}, fmt(b.itemTotal, paise))),
         b.taxes.map(x => ['CGST', 'SGST'].map(n => el('p', {}, el('span', {}, `${n} ${tax(x.rate)}`), el('span', {}, fmt(x.half, true))))),
         b.roundOff ? el('p', {}, el('span', {}, 'Round off'), el('span', {}, `${b.roundOff > 0 ? '+' : '−'} ${fmt(Math.abs(b.roundOff), true)}`)) : null,
-        payLine ? el('p', { class: 'cp-topay' }, el('span', {}, 'To pay'), el('span', {}, fmt(b.toPay))) : null);
+        payLine ? el('p', { class: 'cp-topay' }, el('span', {}, last), el('span', {}, fmt(b.toPay))) : null);
     }
     function cartSheet() {
       const body = el('div', { class: 'cp-cbody' });
@@ -264,13 +293,14 @@
       layer._refresh = draw; draw(); check();
       open(layer);
     }
-    function orderRows(ls) {
-      return el('div', { class: 'cp-rows' }, ls.map(({ d, q }) => el('div', { class: 'cp-row' },
+    function orderRows(ls, gone = []) {
+      return el('div', { class: 'cp-rows' }, ls.map(({ d, q }) => el('div', { class: `cp-row${gone.some(g => g.d.id === d.id) ? ' gone' : ''}` },
         photo(d, 'row'), el('p', { class: 'cp-rname' }, mark(d), el('span', {}, d.name)), el('span', { class: 'cp-x' }, `× ${q}`), price(Math.round(d.price * 100) * q))));
     }
 
     // ---------- sending the order, then the payment step (D5, D2) ----------
     function send(b) {
+      b = { ...b, lines: lines() };
       const veil = el('div', { class: 'cp-layer cp-veil', role: 'status', 'aria-live': 'polite' });
       const say = (sign, title) => veil.replaceChildren(el('div', { class: 'cp-vbox' }, sign, el('p', { class: 'cp-vtitle' }, title), el('p', { class: 'cp-vsub' }, 'Your payment opens next.')));
       say(el('span', { class: 'cp-spin', 'aria-hidden': 'true' }), `Sending your order to ${restaurant}…`);
@@ -281,12 +311,13 @@
     // (the payment provider's own page goes here once one is connected: UPI and cards only, D2. Until then this plain
     // step takes no money; Cancel, or the phone's Back, is a cancelled payment: E3)
     function payStep(b) {
-      const cancel = () => { closeAll(true); failed(b); }, paid = method => { closeAll(true); placed(b, method); };
+      s.last = b;
+      const cancel = () => { closeAll(true); if (b.billFor) billPage(); else failed(b); }, paid = method => { closeAll(true); if (b.billFor) billPaid(b, method); else placed(b, method); };
       const layer = el('div', { class: 'cp-layer cp-page cp-pay' },
         el('header', { class: 'cp-phead' }, el('button', { type: 'button', class: 'cp-pback', 'aria-label': 'Cancel', onclick: cancel }, icon('back')), el('b', {}, 'Payment')),
         el('div', { class: 'cp-pbody' },
           // (whose order: a takeaway or event customer's name with their phone, D3, as the phone videos)
-          el('div', { class: 'cp-pcard' }, el('div', {}, el('b', {}, restaurant), el('small', {}, kind === 'takeaway' ? `Takeaway · ${who()}` : kind === 'event' ? `${o.event || 'Event'} · ${who()}` : `Order for ${o.place || 'your table'}`)), el('strong', {}, fmt(b.toPay))),
+          el('div', { class: 'cp-pcard' }, el('div', {}, el('b', {}, restaurant), el('small', {}, b.billFor ? `${o.place || where()} bill` : kind === 'takeaway' ? `Takeaway · ${who()}` : kind === 'event' ? `${o.event || 'Event'} · ${who()}` : `Order for ${o.place || 'your table'}`)), el('strong', {}, fmt(b.toPay))),
           el('p', { class: 'cp-pnote' }, 'Payments aren’t switched on yet. No money is taken, and the restaurant doesn’t get this order.'),
           el('button', { type: 'button', class: 'cp-pbtn', onclick: () => paid('UPI') }, `Pay by UPI · ${fmt(b.toPay)}`),
           el('button', { type: 'button', class: 'cp-pbtn', onclick: () => paid('Card') }, `Pay by card · ${fmt(b.toPay)}`),
@@ -296,30 +327,43 @@
     }
 
     // ---------- Order placed (E1, E2) and "Payment didn't go through" (E3) ----------
-    const band = () => el('header', { class: 'cp-band', style: o.logo ? `background-image:url("${String(o.logo).replace(/"/g, '%22')}")` : null },
-      el('div', { class: 'cm-hrow' }, el('h1', { class: 'cm-name' }, restaurant), el('span', { class: 'cm-pill' }, o.place || where())));
+    const band = (pill = true) => el('header', { class: 'cp-band', style: o.logo ? `background-image:url("${String(o.logo).replace(/"/g, '%22')}")` : null },
+      el('div', { class: 'cm-hrow' }, el('h1', { class: 'cm-name' }, restaurant), pill ? el('span', { class: 'cm-pill' }, o.place || where()) : null));
+    const bellButton = () => el('button', { type: 'button', class: 'cp-round', 'aria-label': 'Help', onclick: helpSheet }, icon('bell'));
     const nextNumber = () => { const n = (Number(store('restro.cp.lastOrder')) || 1000) + 1; store('restro.cp.lastOrder', n); return n; };
     function placed(b, method) {
-      const ls = lines(), at = new Date(), number = nextNumber();
-      const sub = kind === 'takeaway' ? `${who()} · Paid ${fmt(b.toPay)}`
+      const ls = b.lines || lines(), at = new Date(), number = nextNumber();
+      // (E4: a dish that sold out while the customer paid is refunded by itself, its amount with GST; the rest goes on)
+      const gone = ls.filter(l => dishes.get(l.d.id)?.out), back = gone.length ? bill(gone, o.taxRate) : null, refund = back?.toPay || 0;
+      const sub = (kind === 'takeaway' ? `${who()} · Paid ${fmt(b.toPay)}`
         : kind === 'event' ? `${who()} · ${o.event || 'Event'} · ${s.how || 'Dine-in'}`
           : kind === 'event-table' ? `Order #${number} · ${o.event || 'Event'} · Paid ${fmt(b.toPay)}`
-            : `Order #${number} · Paid ${fmt(b.toPay)} · ${method}`;
+            : `Order #${number} · Paid ${fmt(b.toPay)}${refund ? '' : ` · ${method}`}`) + (refund ? ` · Refund ${fmt(refund)}` : '');
+      const order = { at: at.getTime(), number, uid: null, method, paid: b.toPay, refund, who: who(),
+        type: kind === 'takeaway' ? `Takeaway · ${who()}` : kind === 'event' ? `${o.event || 'Event'} · ${s.how || 'Dine-in'} · ${who()}` : `Dine-in · ${o.place || where()}`,
+        lines: ls.map(l => ({ name: l.d.name, qty: l.q, price: l.d.price, gst: l.d.gst, gone: gone.includes(l) })), bill: { itemTotal: b.itemTotal, taxes: b.taxes, roundOff: b.roundOff, toPay: b.toPay } };
+      keepMine(ORD_KEY, [...mineOf(ORD_KEY), order]);
       // (the order's status only with a kitchen display: E1)
       const steps = o.kds ? el('div', { class: 'cp-status' }, label('Status'), [['Sent to the kitchen', clock(at)], ['Cooking', null], [dineIn ? 'Ready · we bring it to your table' : 'Ready · collect at the counter', null]]
-        .map(([text, time], i) => el('div', { class: `cp-sstep${i === 0 ? ' done' : ''}` }, el('i', {}), el('p', {}, el('span', {}, text), time ? el('small', {}, time) : null)))) : null;
+        // (the steps reached so far, the latest bold: just sent, "Sent to the kitchen"; the kitchen display moves it on)
+        .map(([text, time], i, all) => { const now = all.filter(x => x[1]).length - 1; return el('div', { class: `cp-sstep${i < now ? ' done' : i === now ? ' now' : ''}` }, el('i', {}), el('p', {}, el('span', {}, text), time ? el('small', {}, time) : null)); })) : null;
       const more = () => { s.cart.clear(); s.note = ''; setCart(); closeAll(); };
       const layer = pageLayer('cp-done', el('div', { class: 'cp-scroll' }, band(),
         el('div', { class: 'cp-hero' }, el('span', { class: 'cp-okdot big' }, icon('check')), el('div', {}, el('h2', { class: 'cp-htitle' }, 'Order placed'), el('p', { class: 'cp-hsub' }, sub))),
-        !dineIn ? el('div', { class: 'cp-number' }, el('div', {}, el('p', { class: 'cp-clabel' }, 'Your order number'), el('p', { class: 'cp-csub' }, 'Show this at the counter')), el('b', {}, `#${number}`)) : null,
-        steps, label('Your order'), orderRows(ls), s.note ? el('p', { class: 'cp-noteline' }, `Note for the kitchen: “${s.note}”`) : null),
-      el('footer', { class: 'cp-bar' }, dineIn ? el('button', { type: 'button', class: 'cp-round', 'aria-label': 'Help' }, icon('bell')) : el('button', { type: 'button', class: 'cp-receipt' }, icon('receipt'), 'Receipt'),
+        gone.length ? el('div', { class: 'cp-refund' }, el('p', { class: 'cp-rtitle' }, `${gone.map(l => l.d.name).join(', ')} sold out as you paid`),
+          el('p', {}, `${fmt(refund)} (${fmt(back.itemTotal)} + GST) is refunded to your ${method === 'Card' ? 'card' : 'UPI'} by itself. It usually shows in 3–5 days. The rest of your order is on its way.`)) : null,
+        !dineIn ? el('div', { class: 'cp-number big' }, el('div', {}, el('p', { class: 'cp-clabel' }, 'Your order number'), el('p', { class: 'cp-csub' }, 'Show this at the counter')), el('b', {}, `#${number}`)) : null,
+        steps, label('Your order'), orderRows(ls, gone), s.note ? el('p', { class: 'cp-noteline' }, `Note for the kitchen: “${s.note}”`) : null),
+      el('footer', { class: 'cp-bar' }, dineIn ? bellButton() : el('button', { type: 'button', class: 'cp-receipt', onclick: () => receiptSheet(order) }, icon('receipt'), 'Receipt'),
         button('cp-more', 'Order more', more)));
+      // (a request a captain took: "‹first name› is on the way", H1)
+      const draw = () => { layer.querySelector(':scope > .cp-onway')?.remove(); const r = dineIn ? takenNow() : null; if (r) layer.append(onTheWay(r)); };
+      layer._refresh = draw; draw();
       layer._back = more;
       open(layer);
     }
     function failed(b) {
-      const ls = lines();
+      const ls = b.lines || lines();
       const layer = pageLayer('cp-fail', el('div', { class: 'cp-scroll' }, band(),
         el('div', { class: 'cp-hero' }, el('span', { class: 'cp-xdot' }, icon('cross')), el('div', {}, el('h2', { class: 'cp-htitle' }, 'Payment didn’t go through'), el('p', { class: 'cp-hsub' }, 'This order isn’t paid yet.'))),
         el('div', { class: 'cp-box' }, el('p', { class: 'cp-clabel' }, 'What happened'), el('p', {}, 'The payment was cancelled or your bank declined it. If money left your account, your bank sends it back by itself.')),
@@ -330,12 +374,260 @@
       open(layer);
     }
 
+    // ---------- what this phone keeps of its own, for a day: its help requests, its paid orders, a table's bill paid
+    // here (never the restaurant's data; nothing leaves the phone until the cloud: SYNC.md) ----------
+    const REQ_KEY = 'restro.cp.requests.v1', ORD_KEY = 'restro.cp.orders.v1', BILLS_KEY = 'restro.cp.billsPaid.v1', DAY = 86400000;
+    const qrKey = () => o.key || `${kind}:${o.place || ''}`;
+    const mineOf = k => { const all = store(k), list = all && typeof all === 'object' && Array.isArray(all[qrKey()]) ? all[qrKey()] : []; return list.filter(x => x && Number(x.at) > Date.now() - DAY); };
+    const keepMine = (k, list) => { const all = store(k); store(k, { ...(all && typeof all === 'object' && !Array.isArray(all) ? all : {}), [qrKey()]: list }); };
+
+    // ---------- a toast above the bottom bar: a request sent or cancelled (H1), a receipt saved or sent (H3) ----------
+    let toastEl = null, toastTimer = 0;
+    function toast(tone, ic, title, sub) {
+      toastEl?.remove(); clearTimeout(toastTimer);
+      const page = layers.filter(l => l.classList.contains('cp-page')).at(-1), mine = el('div', { class: `cp-toast ${tone}${page ? '' : ' on-menu'}`, role: 'status', 'aria-live': 'polite' },
+        el('span', { class: 'cp-tic' }, icon(ic)), el('p', { class: 'cp-ttx' }, el('b', {}, title), el('small', {}, sub)));
+      toastEl = mine; (page || root).append(mine);
+      toastTimer = setTimeout(() => { mine.classList.add('out'); setTimeout(() => mine.remove(), 250); if (toastEl === mine) toastEl = null; }, 4000);
+    }
+
+    // ---------- the Help bell (H1): a table's QRs, dine-in, on the menu and on Order placed ----------
+    const ASKS = { waiter: ['Call a waiter', 'waiter'], water: ['Water', 'water'], bill: ['Ask for the bill', 'receipt'], other: ['Other help', 'chat'] };
+    const waitingAsks = () => mineOf(REQ_KEY).filter(r => !r.takenBy && !r.cancelled);
+    // (a captain tapped "On my way": "‹first name› is on the way · Water · 7:42 PM", for 10 minutes; the cloud tells the phone)
+    const takenNow = () => mineOf(REQ_KEY).filter(r => r.takenBy && Date.now() - (Number(r.takenAt) || 0) < 600000).sort((a, b) => a.takenAt - b.takenAt).at(-1) || null;
+    const onTheWay = r => el('div', { class: 'cp-toast accent cp-onway', role: 'status' }, el('span', { class: 'cp-tic' }, icon('check')),
+      el('p', { class: 'cp-ttx' }, el('b', {}, `${r.takenBy} is on the way`), el('small', {}, `${r.label} · ${clock(new Date(r.takenAt))}`)));
+    function ask(k, note = '') {
+      const list = mineOf(REQ_KEY), now = Date.now();
+      // (rung again within 5 minutes and not taken: it is with the staff already; after 5 minutes it goes out to
+      // everyone again)
+      const same = list.find(r => r.kind === k && !r.takenBy && !r.cancelled && now - r.at < 300000 && (r.note || '') === note);
+      if (!same) { list.push({ id: `rq${now.toString(36)}${Math.random().toString(36).slice(2, 6)}`, kind: k, label: ASKS[k][0], note, at: now }); keepMine(REQ_KEY, list); }
+      toast('info', ASKS[k][1], `${ASKS[k][0]} · request sent`, `We’ve told the staff. ${clock(new Date(same ? same.at : now))}`);
+    }
+    // (every request from this table no captain has taken yet: H1)
+    function cancelAsks() {
+      const list = mineOf(REQ_KEY), w = list.filter(r => !r.takenBy && !r.cancelled); if (!w.length) return;
+      for (const r of w) r.cancelled = Date.now();
+      keepMine(REQ_KEY, list);
+      toast('info', 'cancel', 'Request cancelled', `${w.map(r => r.label).join(', ')} · the staff won’t come for it.`);
+    }
+    // (a sheet's rows: an icon in a circle, the words, a line under them; greyed, never hidden)
+    const hrow = (ic, title, sub, go, off) => el('button', { type: 'button', class: `cp-hrow${off ? ' off' : ''}`, disabled: off || null, onclick: go },
+      el('span', { class: 'cp-hic' }, icon(ic)), el('span', { class: 'cp-htx' }, el('b', {}, title), sub ? el('small', {}, sub) : null));
+    const backBtn = go => el('button', { type: 'button', class: 'cp-btn cp-ghost cp-backbtn', onclick: go }, icon('arrow'), el('span', {}, 'Back'));
+    const sheetHead = (title, sub) => [el('h3', { class: 'cp-stitle' }, title), el('p', { class: 'cp-shsub' }, sub)];
+    function helpSheet() {
+      const w = waitingAsks(), paid = paidSoFar();
+      const layer = sheet('cp-help', sheetHead('How can we help?', `${o.place || where()} · the staff get it right away`),
+        el('div', { class: 'cp-hrows' },
+          ['waiter', 'water', 'bill'].map(k => hrow(ASKS[k][1], ASKS[k][0], null, () => { close(layer); ask(k); })),
+          hrow('receipt', 'Get a receipt', paid ? `Paid so far ${fmt(paid)}` : 'Nothing paid yet', () => { drop(layer); receiptSheet(null); }, !paid),
+          hrow('cancel', 'Cancel request', w.length ? `${w.map(r => r.label).join(', ')} · sent ${clock(new Date(w[0].at))} · not taken yet` : 'No request waiting', () => { close(layer); cancelAsks(); }, !w.length),
+          hrow('chat', 'Other help', 'Type a short note', () => { drop(layer); formSheet('Other help', `${o.place || where()} · the staff get it right away`,
+            el('input', { class: 'cp-input', type: 'text', maxlength: '120', placeholder: 'Type a short note', 'aria-label': 'Your note', enterkeyhint: 'send' }), 'Send', v => Boolean(v), v => ask('other', v)); })),
+        backBtn(() => close(layer)));
+      open(layer);
+    }
+    // (a sheet with one field: Other help's note, a receipt's email address)
+    function formSheet(title, sub, field, action, ok, done) {
+      const send = el('button', { type: 'button', class: 'cp-btn cp-go', disabled: true }, action);
+      field.addEventListener('input', () => { const v = field.value.trim(); send.disabled = !ok(v); field.classList.toggle('on', Boolean(v)); });
+      field.addEventListener('keydown', e => { if (e.key === 'Enter' && !send.disabled) send.click(); });
+      const layer = sheet('cp-help cp-form', sheetHead(title, sub), field, send, backBtn(() => close(layer)));
+      send.addEventListener('click', () => { const v = field.value.trim(); if (!ok(v)) return; close(layer); done(v); });
+      open(layer, field);
+    }
+
+    // ---------- receipts (H2, H3): the printed receipt, as a photo or by email ----------
+    // (Takeaway and a whole event: the order placed; a table: its open order and this phone's orders paid there today)
+    // (an order that joined the table's open order is in its payments already: the cloud gives the order's uid; until
+    // then nothing reaches the restaurant, so none has one)
+    const phoneOrders = () => mineOf(ORD_KEY).filter(x => !o.bill || !x.uid || x.uid !== o.bill.uid);
+    const billsPaid = () => { const m = store(BILLS_KEY); return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; };
+    const billPaidHere = () => (o.bill ? Number(billsPaid()[o.bill.uid]?.amount) || 0 : 0);
+    const tableDue = () => (o.bill ? Math.max(0, o.bill.due - billPaidHere()) : 0);
+    const paidSoFar = () => (o.bill ? o.bill.paid + billPaidHere() : 0) + phoneOrders().reduce((n, x) => n + (Number(x.paid) || 0) - (Number(x.refund) || 0), 0);
+    function receiptSheet(order) {
+      const sub = order ? [`Order #${order.number}`, fmt(order.paid), order.who].filter(Boolean).join(' · ')
+        : `${o.place || where()} · paid so far ${fmt(paidSoFar())}${tableDue() ? ` · ${fmt(tableDue())} still due` : ''}`;
+      const layer = sheet('cp-help', sheetHead('Your receipt', sub), el('div', { class: 'cp-hrows' },
+        hrow('photo', 'Save as photo', 'Goes to your phone’s photos', () => { close(layer); savePhoto(order); }),
+        hrow('mail', 'Email', 'Type your email address', () => { drop(layer); formSheet('Email your receipt', sub,
+          el('input', { class: 'cp-input', type: 'email', inputmode: 'email', autocomplete: 'email', maxlength: '120', placeholder: 'Type your email address', 'aria-label': 'Your email address', enterkeyhint: 'send' }),
+          'Send receipt', v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v), v => toast('accent', 'mail', 'Receipt sent', `To ${v}`)); })),
+        backBtn(() => close(layer)));
+      open(layer);
+    }
+    const stamp = t => { const d = new Date(t); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} ${clock(d)}`; };
+    // (one receipt: a phone's order, or a table's open order with its payments and what is still due)
+    // (a dish refunded as it sold out while paying, E4, isn't sold: off the bill, with its refund in a box of its own)
+    const receiptOf = x => { const kept = x.lines.filter(l => !l.gone);
+      return { number: x.number, at: x.at, type: x.type, right: 'QR order', lines: kept.map(l => ({ qty: l.qty, name: l.name, amount: Math.round(l.price * 100) * l.qty })),
+        bill: x.refund ? bill(kept.map(l => ({ d: { price: l.price, gst: l.gst }, q: l.qty })), o.taxRate) : x.bill, payments: [{ method: x.method, amount: x.paid, at: x.at }], refund: x.refund || 0, due: 0 }; };
+    function tableReceipts() {
+      const out = [];
+      if (o.bill) {
+        const all = o.bill.rounds.flatMap(r => r.lines), b = bill(all.map(l => ({ d: l, q: l.qty })), o.taxRate), here = billsPaid()[o.bill.uid];
+        // (a dish in more than one round once, as the printed receipt: "2 × Masala dosa")
+        const lines = []; for (const l of all) { const m = lines.find(x => x.id === l.id && x.price === l.price && x.name === l.name); if (m) m.qty += l.qty; else lines.push({ ...l }); }
+        out.push({ number: o.bill.number, at: Date.now(), type: [`Dine-in · ${o.place || where()}`, o.bill.guests ? plural(o.bill.guests, 'guest', 'guests') : ''].filter(Boolean).join(' · '), right: o.bill.server ? `Server: ${o.bill.server}` : '', lines: lines.map(l => ({ qty: l.qty, name: l.name, amount: Math.round(l.price * 100) * l.qty })),
+          bill: { ...b, toPay: o.bill.total }, payments: [...o.bill.payments, ...(here?.amount ? [{ method: here.method, amount: here.amount, at: here.at }] : [])], refund: 0, due: tableDue() });
+      }
+      return [...out, ...phoneOrders().map(receiptOf)];
+    }
+    // (drawn as the printed receipt: Inter, black on white, dashes between its parts)
+    // (drawn as the printed receipt, as Update Pack 7's e-receipts: Inter, black on white, 808 wide; sizes and spacing
+    // as drawn)
+    async function drawReceipt(r) {
+      try { await Promise.all(['400 25px "CP Receipt"', '700 25px "CP Receipt"'].map(f => document.fonts.load(f))); } catch {}
+      const W = 808, P = 40, INK = '#111111', F = (w, px) => `${w} ${px}px "CP Receipt", "DM Sans", sans-serif`;
+      const cv = document.createElement('canvas'), c = cv.getContext('2d');
+      // (too wide for the paper: a name smaller, a dish's name cut with "…")
+      const fitFont = (s, w, px, max) => { c.font = F(w, px); const k = c.measureText(s).width; return k > max ? F(w, Math.floor(px * max / k * 10) / 10) : F(w, px); };
+      const cut = (s, font, max) => { c.font = font; if (c.measureText(s).width <= max) return s; let t = s; while (t.length > 1 && c.measureText(`${t}…`).width > max) t = t.slice(0, -1); return `${t.trimEnd()}…`; };
+      const money2 = p => (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const run = draw => {
+        let y = 0;
+        const text = (s, x, base, font, align = 'left', color = INK) => { if (!draw) return; c.font = font; c.textAlign = align; c.fillStyle = color; c.fillText(s, x, base); };
+        // (a line: its words on the left, the amount on the right, on a baseline `gap` below the last)
+        const lr = (a, b, font, gap) => { y += gap; c.font = font; const bw = b ? c.measureText(b).width + 24 : 0; text(cut(a, font, W - 2 * P - bw), P, y, font); if (b) text(b, W - P, y, font, 'right'); };
+        const mid = (s, font, gap) => { y += gap; text(s, W / 2, y, font, 'center'); };
+        // (dashes between the parts: 12 long, 4 thick every 20; 6 thick every 18 above the grand total; y is its top)
+        const dash = (gap, h = 4, every = 20) => { y += gap; if (draw) { c.fillStyle = INK; for (let x = P; x < W - P; x += every) c.fillRect(x, y, Math.min(12, W - P - x), h); } };
+        // (a payment's box, 116 tall: PAID with a 4 px line; DUE filled black)
+        const box = (a, b, dark, gap) => { y += gap; if (draw) { c.fillStyle = INK; if (dark) c.fillRect(P, y, W - 2 * P, 116); else { c.lineWidth = 4; c.strokeStyle = INK; c.strokeRect(P + 2, y + 2, W - 2 * P - 4, 112); } }
+          text(a, W / 2, y + 50, F(700, 32.5), 'center', dark ? '#FFFFFF' : INK); text(b, W / 2, y + 89.5, F(400, 25), 'center', dark ? '#FFFFFF' : INK); y += 116; };
+        y = 85; text(restaurant, W / 2, y, fitFont(restaurant, 700, 46, W - 2 * P), 'center');
+        if (o.business?.address) mid(cut(o.business.address, F(400, 25), W - 2 * P), F(400, 25), 42);
+        const ids = [o.business?.gstin ? `GSTIN ${o.business.gstin}` : '', o.business?.fssai ? `FSSAI ${o.business.fssai}` : ''].filter(Boolean).join(' · ');
+        if (ids) mid(ids, F(400, 25), 36.5);
+        dash(36.5); mid('TAX INVOICE · RECEIPT', F(700, 30.4), 58);
+        lr(`Order #${r.number}`, stamp(r.at), F(400, 25), 39.5);
+        lr(r.type, r.right, F(400, 25), 39.5);
+        dash(33);
+        let gap = 57; for (const l of r.lines) { lr(`${l.qty} × ${l.name}`, money2(l.amount), F(400, 30), gap); gap = 52; }
+        dash(33);
+        lr('Subtotal', money2(r.bill.itemTotal), F(400, 30), 58);
+        for (const x of r.bill.taxes || []) for (const n of ['CGST', 'SGST']) lr(`${n} ${tax(x.rate)}`, money2(x.half), F(400, 30), 52);
+        if (r.bill.roundOff) lr('Round off', `${r.bill.roundOff > 0 ? '+' : '−'}${money2(Math.abs(r.bill.roundOff))}`, F(400, 30), 52);
+        dash(32, 6, 18);
+        lr('GRAND TOTAL', fmt(r.bill.toPay), F(700, 42.5), 68);
+        dash(36);
+        let next = 28;
+        const how = m => (/card/i.test(m) ? 'Card' : /cash/i.test(m) ? 'Cash' : 'UPI');
+        for (const p of r.payments) { box(`PAID · ${how(p.method)} ${fmt(p.amount)}`, [stamp(p.at || r.at), p.ref ? `Ref ${p.ref}` : ''].filter(Boolean).join(' · '), false, next); next = 20; }
+        // (E4: what sold out as the customer paid comes back by itself; it isn't on the bill above)
+        if (r.refund) { box(`REFUND · ${how(r.payments[0]?.method)} ${fmt(r.refund)}`, 'Sold out as you paid · back in 3–5 days', false, next); next = 20; }
+        if (r.due) box(`DUE ${fmt(r.due)}`, 'Pay on your phone or at the counter', true, next === 28 ? 28 : 16);
+        if (o.business?.footer) mid(cut(o.business.footer, F(400, 25), W - 2 * P), F(400, 25), 43);
+        return Math.ceil(y + 50);
+      };
+      cv.width = W; cv.height = run(false); c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, W, cv.height); run(true);
+      return cv;
+    }
+    async function savePhoto(order) {
+      const list = order ? [receiptOf(order)] : tableReceipts(); if (!list.length) return;
+      const pics = []; for (const r of list) pics.push(await drawReceipt(r));
+      const gap = 24, cv = document.createElement('canvas'), c = cv.getContext('2d');
+      cv.width = 808; cv.height = pics.reduce((n, p) => n + p.height, 0) + gap * (pics.length - 1);
+      c.fillStyle = '#E8E6E1'; c.fillRect(0, 0, cv.width, cv.height);
+      let y = 0; for (const p of pics) { c.drawImage(p, 0, y); y += p.height + gap; }
+      const a = el('a', { href: cv.toDataURL('image/png'), download: `${restaurant.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'restaurant'}-receipt.png` });
+      document.body.append(a); a.click(); a.remove();
+      toast('accent', 'photo', 'Receipt saved', 'In your phone’s photos');
+    }
+
+    // ---------- the table's bill (I3): its bar on the menu, its page, paying it on the phone ----------
+    // (while the cart is empty and the table's open order has something due: "Table 7 · ₹798 due · Pay bill ›")
+    function dueBar() {
+      root?.querySelector(':scope > .cp-due')?.remove();
+      const due = tableDue();
+      if (!dineIn || !canOrder() || s.cart.size || !due) return;
+      root.querySelector(':scope > .cm-menu')?.after(el('button', { type: 'button', class: 'cm-cart cp-due', onclick: billPage }, el('b', {}, `${o.place || where()} · ${fmt(due)} due`), el('span', {}, 'Pay bill ›')));
+    }
+    const roundTotal = r => bill(r.lines.map(l => ({ d: l, q: l.qty })), o.taxRate).toPay;
+    const dishNames = r => r.lines.map(l => (l.qty > 1 ? `${l.name} ×${l.qty}` : l.name)).join(' · ');
+    function billPage() {
+      const B = o.bill; if (!B) return;
+      const place = o.place || where(), due = tableDue(), dueRounds = B.rounds.filter(r => !r.qr), paidRounds = B.rounds.filter(r => r.qr);
+      const dueLines = dueRounds.flatMap(r => r.lines.map(l => ({ d: l, q: l.qty }))), b = bill(dueLines, o.taxRate);
+      const layer = pageLayer('cp-checkout cp-billpg', head(`${place} bill`), el('div', { class: 'cp-scroll' },
+        el('div', { class: 'cp-card' }, el('div', { class: 'cp-ctxt' }, el('p', { class: 'cp-clabel' }, 'Open bill'), el('p', { class: 'cp-ctitle2' }, `${place} · Dine-in`)), el('span', { class: 'cp-pill' }, place)),
+        paidRounds.length ? el('div', { class: 'cp-box cp-paidr' }, paidRounds.map(r => [el('p', { class: 'cp-prow' }, el('span', {}, icon('check'), `Round ${r.n} · paid by QR${r.at ? ` · ${clock(new Date(r.at))}` : ''}`), el('span', {}, fmt(roundTotal(r)))),
+          el('p', { class: 'cp-pnames' }, dishNames(r))])) : null,
+        dueRounds.map(r => [label(`Still due · Round ${r.n}${r.by && r.by !== 'QR' ? ` · ordered by ${r.by}` : ''}`), orderRows(r.lines.map(l => ({ d: l, q: l.qty })))]),
+        el('div', { class: 'cp-totals' }, el('p', {}, el('span', {}, 'Items'), el('span', {}, fmt(b.itemTotal))),
+          b.taxes.map(x => ['CGST', 'SGST'].map(n => el('p', {}, el('span', {}, `${n} ${tax(x.rate)}`), el('span', {}, fmt(x.half, true))))),
+          el('p', { class: 'cp-topay' }, el('span', {}, 'Due now'), el('span', {}, fmt(due))))),
+      el('footer', { class: 'cp-foot' }, button('cp-go', `Pay ${fmt(due)}`, () => { drop(layer); payStep({ ...b, toPay: due, lines: dueLines, billFor: true }); }), el('p', { class: 'cp-why' }, 'Or pay at the counter as usual.')));
+      open(layer);
+    }
+    function billPaid(b, method) {
+      const B = o.bill; if (!B) return;
+      const m = billsPaid(); m[B.uid] = { amount: (Number(m[B.uid]?.amount) || 0) + b.toPay, method, at: Date.now() }; store(BILLS_KEY, m);
+      const place = o.place || where(), dueRounds = B.rounds.filter(r => !r.qr), paidRounds = B.rounds.filter(r => r.qr);
+      const more = () => { s.cart.clear(); s.note = ''; setCart(); closeAll(); };
+      const layer = pageLayer('cp-done cp-billdone', el('div', { class: 'cp-scroll' }, band(),
+        el('div', { class: 'cp-hero' }, el('span', { class: 'cp-okdot big' }, icon('check')), el('div', {}, el('h2', { class: 'cp-htitle' }, `${place} bill paid`), el('p', { class: 'cp-hsub' }, `Paid ${fmt(b.toPay)} · ${method} · nothing due now`))),
+        el('div', { class: 'cp-box cp-paidsum' },
+          dueRounds.map(r => el('p', {}, el('span', {}, `Round ${r.n}${r.by && r.by !== 'QR' ? ` · ${r.by}` : ''} · paid just now`), el('span', {}, fmt(dueRounds.length > 1 ? roundTotal(r) : b.toPay)))),
+          paidRounds.map(r => el('p', {}, el('span', {}, `Round ${r.n} · paid by QR`), el('span', {}, fmt(roundTotal(r))))),
+          el('p', { class: 'cp-ptot' }, el('span', {}, `${place} · total paid`), el('span', {}, fmt(B.paid + billPaidHere())))),
+        el('p', { class: 'cp-noteline cp-needrc' }, 'Need a receipt? Tap the bell, then “Get a receipt”.'),
+        label(`Paid just now · ${dueRounds.map(r => `Round ${r.n}`).join(', ')}`), orderRows(b.lines || [])),
+      el('footer', { class: 'cp-bar' }, bellButton(), button('cp-more', 'Order more', more)));
+      layer._back = more;
+      open(layer);
+    }
+
+    // ---------- instead of the menu (G): closed, a QR that no longer works, an event not on yet or ended ----------
+    // (a closed QR's "See the menu": the menu to look at, no ordering, C6)
+    let msgLayer = null;
+    function message() {
+      msgLayer?.remove(); msgLayer = null;
+      if (!blocked || seeMenu) return;
+      const st = blocked, at = Number(st.opens || st.at) || 0, when = at ? `${dayWord(at)} at ${clock(new Date(at))}` : '';
+      // (the QR's pill stays, an event's too; a QR that no longer works has none: G)
+      let ic = 'moon', title, sub = '', note = '', see = false, pill = true, thanks = false;
+      if (st.page === 'dead') { ic = 'qroff'; title = ['This ', el('b', { class: 'cp-qr' }, 'QR'), ' no longer works.']; sub = 'Please ask staff.'; pill = false; }
+      else if (st.page === 'closed') {
+        see = true; note = 'You can still look at the menu and prices.';
+        if (st.why === 'break') { ic = 'clock'; title = 'We’re closed for a break.'; sub = when && `We open again ${when}.`; }
+        else if (st.why === 'weekly') { title = 'We’re closed today.'; sub = when && `We open ${when}.`; }
+        else { title = 'We’re closed for today.'; sub = when && `We open ${when}.`; }
+      } else if (st.page === 'upcoming') { ic = 'calendar'; title = `This event ${st.again ? 'opens again' : 'begins'} on ${dayDate(at)} at ${clock(new Date(at))}.`; sub = o.event || ''; }
+      else { ic = 'calendar'; title = 'This event has ended.'; sub = `${o.event || 'Event'} · ${dayDate(at || Date.now())}`; note = 'Thank you for coming.'; thanks = true; }
+      msgLayer = el('div', { class: 'cp-layer cp-page cp-msgpg' }, el('div', { class: 'cp-scroll' }, band(pill),
+        el('div', { class: 'cp-msg' }, el('span', { class: 'cp-micon' }, icon(ic)), el('h2', { class: 'cp-mtitle' }, title), sub ? el('p', { class: 'cp-msub' }, sub) : null, note ? el('p', { class: `cp-mnote${thanks ? ' thanks' : ''}` }, note) : null)),
+      see ? el('footer', { class: 'cp-foot' }, button('cp-ghost cp-seemenu', 'See the menu', () => { seeMenu = true; build(); })) : null);
+      root.append(msgLayer); CM().fit(msgLayer);
+    }
+    // (paused, by hand or after the last order time: the menu stays, with this at the bottom; no ordering, G)
+    const pausedBar = () => el('div', { class: 'cp-paused', role: 'status' }, el('span', { class: 'cp-pic' }, icon('pause')),
+      el('p', { class: 'cp-ttx' }, el('b', {}, 'QR ordering is paused.'), el('small', {}, 'Please reach out to staff.')));
+
+    // ---------- paid while the restaurant is offline (E5, Pack 5 Pending): after 30 s with no confirmation, the cloud
+    // tells the phone; staff confirm the order by hand ----------
+    function paidOffline(b, method = 'UPI') {
+      const ls = b.lines || lines(), at = new Date(), number = nextNumber();
+      closeAll(true);
+      const layer = pageLayer('cp-done cp-offline', el('div', { class: 'cp-scroll' }, band(),
+        el('div', { class: 'cp-hero' }, el('span', { class: 'cp-okdot big paid' }, icon('check')), el('div', {}, el('h2', { class: 'cp-htitle' }, `Paid · ${fmt(b.toPay)}`), el('p', { class: 'cp-hsub' }, `${method} · today at ${clock(at)} · Successful`))),
+        el('div', { class: 'cp-refund cp-showstaff' }, el('p', { class: 'cp-rtitle' }, 'Show this screen to our staff'), el('p', {}, 'Our system is offline for a moment, so staff will confirm your order by hand. You don’t need to pay again.')),
+        el('div', { class: 'cp-number' }, el('div', {}, el('p', { class: 'cp-clabel' }, 'Order number'), el('p', { class: 'cp-csub' }, dineIn ? `${o.place || where()} · Dine-in` : 'Show this at the counter')), el('b', {}, `#${number}`)),
+        label('Your order'), orderRows(ls), totals(b, true, 'Paid')));
+      layer._back = () => { s.cart.clear(); s.note = ''; setCart(); closeAll(); };
+      open(layer);
+    }
+
     // ---------- the Help bell's hint, the first time this phone opens a table's menu (C5) ----------
     // ("Need help? Tap here" above the bell; it goes at the first tap anywhere or after 5 seconds, and never shows again
     // on this phone. Only on the QR link's page: options.hint)
     let hint = null;
     function bellHint() {
-      if (!o.hint || !dineIn || view || store('restro.cp.bellHint')) return;
+      if (!o.hint || !dineIn || !canOrder() || store('restro.cp.bellHint')) return;
       store('restro.cp.bellHint', 1);
       hint = el('p', { class: 'cp-bhint', role: 'note' }, 'Need help? Tap here');
       const go = () => {
@@ -352,24 +644,39 @@
     for (const [id, q] of Object.entries(o.cart || {})) if (dishes.has(id) && q > 0 && !dishes.get(id).out) s.cart.set(id, q);
     // (Add puts one in the cart; Added opens the dish page, to change how many. Drawn again on update, where it was,
     // with whatever is open kept open)
+    // (no ordering: the Menu QR, paused, a closed QR: the menu to look at, as the Menu QR's, with the QR's own pill: G)
     function build() {
-      const old = root, top = old?.querySelector('.cm-scroll')?.scrollTop || 0;
-      root = CM().page({ template: o.template, accent: o.accent, kind, pill: o.place || where(), restaurant, logo: o.logo, categories: cats, cart: cartObj(), full: o.full, status: o.status,
-        onDish: id => dishSheet(id), onAdd: id => (s.cart.get(id) ? dishSheet(id) : add(id)), onMenu: menuList, onSearch: search, onCart: cartSheet });
+      const old = root, top = old?.querySelector('.cm-scroll')?.scrollTop || 0, off = !canOrder();
+      root = CM().page({ template: o.template, accent: o.accent, kind: off ? 'menu' : kind, pill: o.place || where(), restaurant, logo: o.logo, categories: cats, cart: off ? {} : cartObj(), full: o.full, status: o.status,
+        onDish: id => dishSheet(id), onAdd: id => (s.cart.get(id) ? dishSheet(id) : add(id)), onMenu: menuList, onSearch: search, onCart: cartSheet, onBell: helpSheet });
       root.classList.add('cp-root');
-      if (hint && dineIn && !view) root.append(hint); else hint = null;
+      if (off && !view) root.classList.add('cp-off');
+      if (hint && dineIn && !off) root.append(hint); else hint = null;
+      // (paused: the banner where the Menu button sits, as drawn)
+      if (paused) { root.classList.add('cp-pausedpg'); root.append(pausedBar()); }
+      const taken = dineIn && !off ? takenNow() : null;
+      if (taken) root.append(onTheWay(taken));
       if (old) { root.append(...layers); old.replaceWith(root); } else host.append(root);
       root.querySelector('.cm-scroll').scrollTop = top; CM().fit(root);
+      dueBar(); message();
     }
     build(); bellHint();
     // (the restaurant changed its menu, a dish's sold out or the design: the cart keeps what can still be ordered; a
     // dish sold out since it was added leaves it, C4)
     function update(next) {
       setOptions({ ...o, ...next });
+      if (!blocked) seeMenu = false;
       for (const id of [...s.cart.keys()]) if (!dishes.has(id) || dishes.get(id).out) s.cart.delete(id);
+      // (the cloud says a captain took a request: { id, takenBy, takenAt }, H1)
+      if (Array.isArray(next?.taken) && next.taken.length) {
+        const list = mineOf(REQ_KEY);
+        for (const x of next.taken) { const r = list.find(y => y.id === x?.id); if (r && !r.cancelled) { r.takenBy = String(x.takenBy || '').split(/\s+/)[0]; r.takenAt = Number(x.takenAt) || Date.now(); } }
+        keepMine(REQ_KEY, list);
+      }
       build(); for (const l of layers) l._refresh?.();
     }
-    return { get root() { return root; }, update, destroy() { if (o.history) removeEventListener('popstate', onPop); root.remove(); } };
+    // (paidOffline: the cloud's "paid, but the restaurant is offline" for the order being paid, E5)
+    return { get root() { return root; }, update, paidOffline: method => s.last && paidOffline(s.last, method), destroy() { if (o.history) removeEventListener('popstate', onPop); root.remove(); } };
   }
   window.RestroCustomerPages = Object.freeze({ mount });
 })();

@@ -1227,7 +1227,12 @@ menu", "I want them to work as is"): Update Pack 7's customer pages, below. When
 - **What it shows, from where** (`customer-data.js`, `RestroCustomerData.read(link)`): the restaurant's name, its menu
   (`menu-data.js`, as on the Counter), what's sold out (`restro.menu.availability.v1`), its menu design
   (`restro.menuDesign.v1`: template, accent colour, logo photo) and, for an event's QR, the event's dishes, prices and
-  sold out (`restro.events.v1`, Update Pack 6 EV4 and 7 EV12).
+  sold out (`restro.events.v1`, Update Pack 6 EV4 and 7 EV12). Also (Update Pack 7, G, H, I3): whether the QR still
+  works (`restro.qr.v1`, an event's code), whether QR ordering is on, paused or closed and when it opens
+  (`restro.qrOrdering.v1` and the business hours, `restro.hours.v1`, through `prefs.js`, which the page loads too: the
+  same rules as QR Studio's card), an event's start and end, the receipt's address, GSTIN, FSSAI and footer
+  (`restro.business.v1`) and, for a table's QR or an event table's, the table's open order
+  (`restro.counter.orders.v1`: its rounds, who sent each, the first name or "QR", what is paid and what is due).
   - Today it reads them from **this browser's RESTRO**: the website's own storage, so only a browser where RESTRO runs
     for the same restaurant (its name gives the link's `<restaurant>`) has them, as the tablet's own browser. It is
     live: whatever RESTRO changes in another tab (a dish sold out, the template) shows at once (`watch`).
@@ -1249,16 +1254,53 @@ menu", "I want them to work as is"): Update Pack 7's customer pages, below. When
   order to ‹name›…" then "Order received by ‹name›" (D5); the payment step (a takeaway or event customer's name with
   their phone on it, D3); Order placed (E1, E2: with no kitchen display, no status; Takeaway and events: the order
   number to show at the counter); "Payment didn't go through" (E3: Try again, Back to cart). The phone's Back closes
-  whatever is open.
+  whatever is open. With a kitchen display, the status: the steps reached in the template's colour, the latest bold
+  with a halo ("Sent to the kitchen" just after ordering), the ones to come hollow and grey.
+- **The Help bell** (H1, a table's QR and an event table's, on the menu and on Order placed): "How can we help? ·
+  Table 7 · the staff get it right away": Call a waiter, Water, Ask for the bill, Get a receipt ("Paid so far ₹1,260",
+  greyed "Nothing paid yet"), Cancel request ("Water · sent 7:41 PM · not taken yet", greyed "No request waiting"),
+  Other help (a short note) and ← Back. Greyed rows stay. Sending one: "Water · request sent · We've told the staff.
+  7:41 PM" above the bottom bar; the same request again within 5 minutes isn't sent twice; after 5 minutes it goes out
+  again. Cancel request cancels every request not taken yet: "Request cancelled · Water · the staff won't come for
+  it." A request a captain took (the cloud tells the page: `update({ taken: [{ id, takenBy, takenAt }] })`) shows
+  "‹first name› is on the way · Water · 7:42 PM" for 10 minutes, the first name only. The phone keeps its requests for a day
+  (`restro.cp.requests.v1`, by the QR).
+- **Receipts** (H2, H3): Takeaway's and a whole event's Order placed have **Receipt** where a table's has the bell:
+  "Your receipt · Order #1046 · ₹1,407 · ‹name› · ‹phone›" with Save as photo and Email. A table's is the bell's Get a
+  receipt: the table's open order (its PAID boxes and a black "DUE ₹798 · Pay on your phone or at the counter") and
+  the orders paid from this phone today (`restro.cp.orders.v1`). **Save as photo** draws the receipt as the printed
+  one ("TAX INVOICE · RECEIPT", Inter, black on white) and saves it as a picture: "Receipt saved · In your phone's
+  photos". **Email**: "Email your receipt", the address and Send receipt: "Receipt sent · To ‹email›".
+- **The table's bill** (I3): while the table's open order has something due and the cart is empty, the bar reads
+  "Table 7 · ₹798 due · Pay bill ›" (dishes in the cart: the cart bar). "Table 7 bill": the paid rounds greyed in one
+  box, "Still due · Round 1 · ordered by ‹first name›" with its dishes, Items, CGST, SGST, Due now, Pay ₹798 (the same payment
+  step) and "Or pay at the counter as usual."; paid: "Table 7 bill paid · Paid ₹798 · UPI · nothing due now", the
+  rounds and the total paid, "Need a receipt? Tap the bell, then “Get a receipt”." What this phone paid is kept for a
+  day (`restro.cp.billsPaid.v1`, by the order's `uid`) until the cloud records it.
+- **Instead of ordering** (G), checked again each minute so opening and closing times come by themselves: paused (by
+  hand, for a while, or after the last order time): the menu without ordering and "QR ordering is paused. Please reach
+  out to staff." at the bottom, where the Menu button was. Closed: "We're closed for today. We open tomorrow at
+  11:00 AM." (after hours), "We're closed for a break. We open again today at 7:00 PM.", "We're closed today. We open
+  Wednesday at 11:00 AM." (a weekly day off), each with "You can still look at the menu and prices." and See the
+  menu (the menu with no ordering). A QR replaced or deleted: "This QR no longer works. Please ask staff." with no
+  pill and no buttons. An event: "This event begins on Fri 13 Nov at 6:00 PM." with its name, or "This event has
+  ended." with its name and date and "Thank you for coming.".
+- **Sold out while paying** (E4): Order placed with "Refund ₹168" in its line, the amber note "‹dish› sold out as you
+  paid · ₹168 (₹160 + GST) is refunded to your UPI by itself…" and the dish struck through.
+- **Paid while the restaurant is offline** (E5, Pack 5 Pending): the cloud calls the page's `paidOffline(method)` after
+  30 s with no confirmation: "Paid · ₹1,260 · UPI · today at 7:25 PM · Successful", the coloured box "Show this screen
+  to our staff…", the order number and the order.
 - **Not yet:** nothing leaves the phone. The restaurant doesn't get the order and no money is taken (owner, 18 Nov
   2026: "now no order comes in, and for now only for testing"), so the payment step is a plain page saying so, with
   Pay by UPI, Pay by card and Cancel (a cancelled payment: "Payment didn't go through"). With the cloud and a payment
   provider (D2) the order goes to the restaurant first and the provider's own page takes the payment. The order
-  number counts up on the phone (`restro.cp.lastOrder`, from #1001) until the cloud gives the real one. The Help bell,
-  Receipt, the table's bill, the closed and paused messages, sold out while paying and offline payments come next
-  (Update Pack 7, H, I3, G, E4, E5).
+  number counts up on the phone (`restro.cp.lastOrder`, from #1001) until the cloud gives the real one. The same for
+  the Help bell's requests, a receipt by email and paying the table's bill: shown as drawn, sent nowhere until the
+  cloud (SYNC.md, "A table's QR"). Paused by itself (no path to a working kitchen printer) needs the device's own
+  check, so the page shows it once the cloud tells it.
 - It holds no restaurant data of its own, keeps the customer's name and number only on the open page, and sends
-  nothing anywhere; it loads only RESTRO's own files from the site.
+  nothing anywhere; it loads only RESTRO's own files from the site. What the phone keeps (its requests, orders and
+  what it paid on a table's bill, each for a day) is its own, never the restaurant's.
 
 ### Sending the colour PDF: `RESTRODevice.qr.send({ to, size, language, cards })`
 

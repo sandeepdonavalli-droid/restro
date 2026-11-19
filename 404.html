@@ -72,9 +72,11 @@ body.menu{background:var(--page-bg,#F4F5F7)}
     page.replaceChildren(box);
   }
   // The menu and its pages, in the restaurant's design; again whenever the restaurant changes it
-  let shown = null;
+  let shown = null, last = '';
   function show() {
-    const data = window.RestroCustomerData?.read(link);
+    const data = window.RestroCustomerData?.read(link), sig = JSON.stringify(data);
+    if (shown && sig === last) return;
+    last = sig;
     if (!data || !data.template) { shown?.destroy(); shown = null; soon(data?.restaurant || nameFromLink); return; }
     document.title = data.restaurant;
     if (shown) { shown.update(data); } else {
@@ -89,11 +91,12 @@ body.menu{background:var(--page-bg,#F4F5F7)}
   for (const href of ['customer-menu.css?v=1', 'customer-pages.css?v=1']) {
     const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = base + href; document.head.append(css);
   }
-  const files = ['menu-data.js?v=6', 'customer-menu.js?v=1', 'customer-pages.js?v=1', 'customer-data.js?v=1'];
+  const files = ['menu-data.js?v=6', 'prefs.js?v=12', 'customer-menu.js?v=1', 'customer-pages.js?v=1', 'customer-data.js?v=1'];
   let left = files.length;
   for (const src of files) {
     const js = document.createElement('script'); js.src = base + src; js.async = false; js.charset = 'utf-8';
-    js.onload = () => { if (--left === 0) { show(); window.RestroCustomerData.watch(show); } };
+    // (again each minute too: opening and closing times, an event's start and end, come by themselves)
+    js.onload = () => { if (--left === 0) { show(); window.RestroCustomerData.watch(show); setInterval(show, 60000); } };
     js.onerror = () => soon(nameFromLink);
     document.head.append(js);
   }
