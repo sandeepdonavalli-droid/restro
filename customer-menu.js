@@ -10,7 +10,10 @@
 //       Table QRs only: H1); pill: the pill's words (Table 7, Takeaway, Menu); restaurant: its name, always shown in
 //       capitals; logo: the logo photo's address or null (B2); categories: [{ id, name, items: [{ id, name, desc, price
 //       (rupees), veg, photo, out }] }] (out: sold out, C4); cart: { ‹dish id›: quantity }; status: true draws a phone's
-//       status bar (QR Studio's preview); onDish(id): a dish tapped.
+//       status bar (QR Studio's preview); full: true fills the screen (the customer's phone) instead of a 360 x 760
+//       phone; onDish(id), onAdd(id), onMenu(), onSearch(), onBell(), onCart(): taps, for customer-pages.js.
+// - setCart(page, cart): the dishes' Add / Added and the cart bar, for a cart that changed.
+// - goTo(page, categoryId): scrolls to a category.
 // - fit(page): sets the restaurant's name to fit its row once the page is on screen (see fitNames); pages already on
 //   screen are fitted again by themselves when the fonts arrive.
 (() => {
@@ -57,49 +60,70 @@
     return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? '#14120E' : '#FFFFFF';
   }
 
+  // (what a page needs to redraw its buttons and cart bar: setCart)
+  const pages = new WeakMap();
   function page(o) {
     const t = TEMPLATES.find(x => x.id === o.template) || TEMPLATES[0], kind = o.kind || 'table', view = kind === 'menu';
-    const cats = (o.categories || []).filter(c => c.items?.length), cart = o.cart || {};
+    const cats = (o.categories || []).filter(c => c.items?.length);
     const bell = kind === 'table' || kind === 'event-table';
-    const root = el('div', { class: `cm cm-t-${t.id} k-${kind}${bell ? '' : ' no-bell'}${view ? ' view' : ''}` });
+    const root = el('div', { class: `cm cm-t-${t.id} k-${kind}${bell ? '' : ' no-bell'}${view ? ' view' : ''}${o.full ? ' full' : ''}` });
     if (o.accent && onAccent(o.accent)) { root.style.setProperty('--acc', o.accent); root.style.setProperty('--on-acc', onAccent(o.accent)); root.classList.add('own-acc'); }
+    // (a tap the page's owner listens for: onAdd, onDish, onMenu, onSearch, onBell, onCart)
+    const tap = (name, ...args) => (o[name] ? e => { e.stopPropagation(); o[name](...args); } : null);
     const top = el('header', { class: 'cm-top', style: o.logo ? `background-image:url("${String(o.logo).replace(/"/g, '%22')}")` : null },
       o.status ? el('div', { class: 'cm-status', 'aria-hidden': 'true' }, el('span', {}, '9:41'), el('i', {}, el('b'))) : null,
       el('div', { class: 'cm-hrow' }, el('h1', { class: 'cm-name' }, String(o.restaurant || '').toLocaleUpperCase('en-IN')), o.pill ? el('span', { class: 'cm-pill' }, o.pill) : null));
     const tabs = cats.map((c, i) => el('button', { type: 'button', class: `cm-tab${i === 0 ? ' on' : ''}`, 'data-cat': c.id }, c.name));
     const bar = el('nav', { class: 'cm-cats', 'aria-label': 'Categories' }, el('div', { class: 'cm-tabs' }, tabs),
-      el('button', { type: 'button', class: 'cm-search', 'aria-label': 'Search' }, icon('search')));
+      el('button', { type: 'button', class: 'cm-search', 'aria-label': 'Search', onclick: tap('onSearch') }, icon('search')));
+    // (the add button: "Add" and a plus, "Added" and a tick once in the cart; each template shows the words, the sign or
+    // both. A sold-out dish: "Sold out" in its place, and the dish greyed: C4)
+    const addButton = (d, n) => (d.out ? el('span', { class: 'cm-add out' }, el('span', { class: 'cm-add-t' }, 'Sold out')) : view ? null
+      : el('button', { type: 'button', class: `cm-add${n ? ' on' : ''}`, 'aria-label': n ? `${d.name} added` : `Add ${d.name}`, onclick: tap('onAdd', d.id) }, el('span', { class: 'cm-add-t' }, n ? 'Added' : 'Add'), icon(n ? 'check' : 'plus')));
     const dish = d => {
-      const n = cart[d.id] || 0, photo = t.photos && d.photo;
-      // (the add button: "Add" and a plus, "Added" and a tick once in the cart; each template shows the words, the
-      // sign or both. A sold-out dish: "Sold out" in its place, and the dish greyed: C4)
-      const add = d.out ? el('span', { class: 'cm-add out' }, el('span', { class: 'cm-add-t' }, 'Sold out')) : view ? null
-        : el('button', { type: 'button', class: `cm-add${n ? ' on' : ''}`, 'aria-label': n ? `${d.name} added` : `Add ${d.name}` }, el('span', { class: 'cm-add-t' }, n ? 'Added' : 'Add'), icon(n ? 'check' : 'plus'));
+      const photo = t.photos && d.photo;
       // (a template with photos keeps the photo's place for a dish without one yet, with a plain plate there)
       return el('div', { class: `cm-dish${d.out ? ' out' : ''}`, 'data-id': d.id, onclick: o.onDish ? () => o.onDish(d.id) : null },
         photo ? el('span', { class: 'cm-ph', style: `background-image:url("${String(d.photo).replace(/"/g, '%22')}")` }) : t.photos ? el('span', { class: 'cm-ph none' }, icon('dish')) : null,
         el('div', { class: 'cm-dt' }, el('p', { class: 'cm-dn' }, el('i', { class: `cm-mk${d.veg === false ? ' nv' : ''}`, 'aria-label': d.veg === false ? 'Non-veg' : 'Veg' }), el('b', {}, d.name)),
           d.desc ? el('p', { class: 'cm-dd' }, d.desc) : null),
-        el('div', { class: 'cm-dr' }, el('b', { class: 'cm-pr', 'aria-label': rupees(d.price) }, el('span', { class: 'cm-rs' }, '₹'), rupees(d.price).slice(1)), add));
+        el('div', { class: 'cm-dr' }, el('b', { class: 'cm-pr', 'aria-label': rupees(d.price) }, el('span', { class: 'cm-rs' }, '₹'), rupees(d.price).slice(1)), addButton(d, 0)));
     };
     const secs = cats.map(c => el('section', { class: 'cm-sec', 'data-cat': c.id }, el('h2', { class: 'cm-sh' }, el('span', {}, c.name), el('small', {}, plural(c.items.length, 'dish', 'dishes'))),
       el('div', { class: 'cm-list' }, c.items.map(dish))));
     const scroll = el('div', { class: 'cm-scroll' }, top, bar, el('main', { class: 'cm-body' }, secs));
-    root.append(scroll, el('button', { type: 'button', class: 'cm-menu' }, icon('menu'), 'Menu'));
-    if (!view) {
-      if (bell) root.append(el('button', { type: 'button', class: 'cm-bell', 'aria-label': 'Help' }, icon('bell')));
-      const items = Object.entries(cart).filter(([id]) => cats.some(c => c.items.some(d => d.id === id)));
-      const count = items.reduce((s, [, q]) => s + q, 0), total = items.reduce((s, [id, q]) => s + q * (cats.flatMap(c => c.items).find(d => d.id === id)?.price || 0), 0);
-      if (count) root.append(el('button', { type: 'button', class: 'cm-cart' }, el('b', {}, `${plural(count, 'item', 'items')} · ${rupees(total)}`), el('span', {}, 'View cart ›')));
-    }
+    root.append(scroll, el('button', { type: 'button', class: 'cm-menu', onclick: tap('onMenu') }, icon('menu'), 'Menu'));
+    if (!view && bell) root.append(el('button', { type: 'button', class: 'cm-bell', 'aria-label': 'Help', onclick: tap('onBell') }, icon('bell')));
+    const dishes = new Map(cats.flatMap(c => c.items).map(d => [d.id, d]));
+    pages.set(root, { view, dishes, addButton, cartBar: (count, total) => el('button', { type: 'button', class: 'cm-cart', onclick: tap('onCart') }, el('b', {}, `${plural(count, 'item', 'items')} · ${rupees(total)}`), el('span', {}, 'View cart ›')) });
+    setCart(root, o.cart || {});
     // (the category bar marks the category on show, and a tap goes to it)
     scroll.addEventListener('scroll', () => {
       const y = scroll.scrollTop + bar.offsetHeight + 2; let on = secs[0];
       for (const s of secs) if (s.offsetTop <= y) on = s;
       for (const b of tabs) b.classList.toggle('on', b.dataset.cat === on?.dataset.cat);
     }, { passive: true });
-    for (const b of tabs) b.addEventListener('click', () => { const s = secs.find(x => x.dataset.cat === b.dataset.cat); if (s) scroll.scrollTo({ top: s.offsetTop - bar.offsetHeight + 1 }); });
+    for (const b of tabs) b.addEventListener('click', () => goTo(root, b.dataset.cat));
     return root;
+  }
+  // The cart on a page drawn before: each dish's button (Add or Added) and the cart bar ("N items · ₹total · View cart ›",
+  // none while the cart is empty). cart: { ‹dish id›: quantity }
+  function setCart(root, cart) {
+    const p = pages.get(root); if (!p || p.view) return;
+    for (const row of root.querySelectorAll('.cm-dish[data-id]')) {
+      const d = p.dishes.get(row.dataset.id), old = row.querySelector('.cm-add');
+      if (!d || d.out || !old || old.classList.contains('on') === Boolean(cart[d.id])) continue;
+      old.replaceWith(p.addButton(d, cart[d.id] || 0));
+    }
+    const items = Object.entries(cart || {}).filter(([id, q]) => p.dishes.has(id) && q > 0);
+    const count = items.reduce((s, [, q]) => s + q, 0), total = items.reduce((s, [id, q]) => s + q * p.dishes.get(id).price, 0);
+    root.querySelector(':scope > .cm-cart')?.remove();
+    if (count) root.querySelector(':scope > .cm-menu').after(p.cartBar(count, total));
+  }
+  // Scrolls a page to a category, under the category bar
+  function goTo(root, catId) {
+    const scroll = root.querySelector('.cm-scroll'), bar = root.querySelector('.cm-cats'), s = root.querySelector(`.cm-sec[data-cat="${CSS.escape(catId)}"]`);
+    if (scroll && bar && s) scroll.scrollTo({ top: s.offsetTop - bar.offsetHeight + 1 });
   }
   // The restaurant's name, in capitals, fits beside the pill (the owner, 18 Nov 2026): at the template's size when it
   // fits; otherwise smaller, on one line, down to 60% of that size; a longer name goes onto two lines, as large as they
@@ -137,5 +161,5 @@
   }
   const fit = page => fitNames(page);
   document.fonts?.addEventListener?.('loadingdone', () => { for (const p of document.querySelectorAll('.cm')) fitNames(p); });
-  window.RestroCustomerMenu = Object.freeze({ templates: TEMPLATES, page, fit });
+  window.RestroCustomerMenu = Object.freeze({ templates: TEMPLATES, page, fit, setCart, goTo, icon, rupees });
 })();

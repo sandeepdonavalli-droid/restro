@@ -11,8 +11,8 @@
 //       and white, on the receipt printer), sentAt, sentBy (the colour PDF), quietOk (the quiet-QR warning hidden until
 //       then) }. The ...By fields hold the staff's names, and the screens show them in full (owner, 14 Nov 2026).
 //   Its link is https://<our website>/<path>. The domain is still to be decided (J); until then the links go to RESTRO's
-//   GitHub Pages site, whose 404.html shows the restaurant, the QR's table (or Takeaway, Menu) and "QR ordering is
-//   coming soon. Please order with staff." (owner, 14 Nov 2026).
+//   GitHub Pages site (owner, 14 Nov 2026), whose 404.html shows the customer the menu in the restaurant's menu design
+//   and its pages (customer-data.js, customer-pages.js; ANDROID-BRIDGE.md, "Our website for now").
 //   Replace gives the QR a new code (the old one stops working); Delete removes it. The cloud keeps which codes work.
 // - QR ordering: restro.qrOrdering.v1, the restaurant's (synced): { off: { until (ms; null: until turned on), choice,
 //   by, at } | null, late: { by, at } | null }. It follows the business hours and the last order time by itself (I3), and

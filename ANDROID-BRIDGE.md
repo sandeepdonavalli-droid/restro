@@ -785,7 +785,7 @@ Orders' Midnight.
   - `path`: `<restaurant>/<T7 | TK | MN>-<code>`; `<restaurant>` is the restaurant's name in small letters with "-"
     between words ("hotel-sri-sai"). The QR holds `https://<our website>/<path>`. The domain is still to be decided
     (J); until then our website is RESTRO's GitHub Pages site, `sandeepdonavalli-droid.github.io/restro`, whose page for
-    these links says QR ordering is coming soon (below, "Our website for now").
+    these links shows the customer's menu and pages (below, "Our website for now").
   - `name`: the table's name as on the card printed or sent last.
   - `printedAt` / `printedBy`: Print, black and white. `sentAt` / `sentBy`: Send, the colour PDF.
   - `createdBy`, `replacedBy`, `printedBy`, `sentBy` (and QR ordering's `by`, below): the staff's full names. QR Studio
@@ -980,7 +980,7 @@ Built 18 Nov 2026 in `qr-studio.js` (the page) and `customer-menu.js` / `custome
   photo checks in the cloud (Pack 5, 02_PHOTO-UPLOAD-SECURITY-SPEC), and the preview is sent by the cloud.
 - **B3:** while there is no template, making a QR (a table's, all tables', the Takeaway or Menu QR, a new event) says
   "Pick a menu design first" with Pick a template, which opens Menu design; nothing is made.
-- **The customers' menu** (`RestroCustomerMenu.page(options)`, the same page the customer pages will use): the
+- **The customers' menu** (`RestroCustomerMenu.page(options)`, the same page the QR link shows customers): the
   restaurant's photo and name on top with the pill (Table 7, Takeaway, Menu); the category bar sticks and marks the
   category on show, search at its end; the dishes as in the menu, with the dish's photo in the 4 photo templates (its
   place kept, with a plain plate, while a dish has none); a sold-out dish (the Availability app's Restaurant menu
@@ -997,9 +997,10 @@ Built 18 Nov 2026 in `qr-studio.js` (the page) and `customer-menu.js` / `custome
   at the least). Lines break between words. The first line's middle stays where the template has it. A name in words
   of up to 48 letters (the most Business details takes) fits whole in all 7 templates, whatever the pill; only one of
   words too long even for three small lines (48 W's, say) is broken inside a word, and cut with "…" after three lines.
-- **For the cloud (Phase 2):** a QR's page shows the restaurant's `template` with its `accent` and `logo`, the menu
-  and what is sold out, live; no template yet: the neutral page, "Our menu is coming soon. Please ask staff." (B3).
-  Changing the template never needs a reprint: the QRs keep their links.
+- **A QR's page** (below, "Our website for now") shows the restaurant's `template` with its `accent` and `logo`, the
+  menu and what is sold out, live; no template yet: the neutral page, "Our menu is coming soon. Please ask staff."
+  (B3). Today only in a browser where RESTRO runs; with the cloud (Phase 2), on any phone. Changing the template never
+  needs a reprint: the QRs keep their links.
 
 ### QR ordering (I1, I3)
 
@@ -1209,14 +1210,43 @@ Each card is `{ kind, restaurant, heading, qr, mark, title, lines, note, linkLab
 
 Until the domain is decided, the QRs hold `https://sandeepdonavalli-droid.github.io/restro/<restaurant>/<T7 | TK |
 MN>-<code>` (owner, 14 Nov 2026). There is no page at that address, so GitHub Pages serves the repository's `404.html`
-(with status 404, which browsers and phone cameras show as usual). It reads the link and shows the restaurant's name
-(from the link, in capitals: hotel-sri-sai shows "HOTEL SRI SAI"), the QR's "Table 7", "Takeaway" or "Menu" in the
-card's colour, and "QR ordering is coming soon. Please order with staff." An event's QR (`EV-<code>`) shows "Event", an
-event table's (`E3-<code>`) "Event table 3", in teal with the Event order type's icon (Update Pack 6; the event's own
-customer pages come later, K). Anything else shows "Page not found". It
-holds no data and sends nothing; it loads only Inter from the site. The menu, ordering, payment and the menu designs
-replace it with the cloud and the next set of designs; when the domain is chosen, `HOST` in `qr-studio.js` changes,
-and this page can send the cards already printed on to the new address.
+(with status 404, which browsers and phone cameras show as usual). It reads the link and shows the customer the
+restaurant's menu in its menu design, with everything on it working (owner, 18 Nov 2026: "the page has to read my
+menu", "I want them to work as is"): Update Pack 7's customer pages, below. When the domain is chosen, `HOST` in
+`qr-studio.js` changes, and this page can send the cards already printed on to the new address.
+
+- **The link:** `<restaurant>/T7-<code>` a table (the pill "Table 7"), `TK-` Takeaway, `MN-` the Menu QR, `EV-` a
+  whole event ("Event"), `E3-` an event table ("Event table 3"). Anything else shows "Page not found".
+- **What it shows, from where** (`customer-data.js`, `RestroCustomerData.read(link)`): the restaurant's name, its menu
+  (`menu-data.js`, as on the Counter), what's sold out (`restro.menu.availability.v1`), its menu design
+  (`restro.menuDesign.v1`: template, accent colour, logo photo) and, for an event's QR, the event's dishes, prices and
+  sold out (`restro.events.v1`, Update Pack 6 EV4 and 7 EV12).
+  - Today it reads them from **this browser's RESTRO**: the website's own storage, so only a browser where RESTRO runs
+    for the same restaurant (its name gives the link's `<restaurant>`) has them, as the tablet's own browser. It is
+    live: whatever RESTRO changes in another tab (a dish sold out, the template) shows at once (`watch`).
+  - With the cloud (Phase 2), the same from the **cloud's copy** of the restaurant, on any customer's phone: the
+    tablet keeps that copy up to date (SYNC.md, "The QR page's copy").
+  - Neither, or no menu design picked yet: B3's neutral page, the restaurant's name (from the link, in capitals:
+    hotel-sri-sai shows "HOTEL SRI SAI"), "Our menu is coming soon." and "Please ask staff.".
+- **The pages** (`customer-menu.js`, `customer-pages.js`, `customer-pages.css`; the same as QR Studio's previews): the
+  menu (C1) with Add / Added and the cart bar; tapping a dish, its dish page (photo, name, words, the stepper and "Add ·
+  ₹320"; a dish already in the cart opens at its quantity: "Update", or "Remove" at 0; the Menu QR's says "To order,
+  please ask our staff.", C6); the Menu button's list of categories with how many dishes; search (C2); the cart, "Your
+  order · Table 7", with the bill (D4: CGST and SGST to the paisa, then rounded to the rupee, "Round off" when it
+  isn't 0); checkout (D3: the table's card; Takeaway and a whole event's QR ask the name and a valid mobile number, an
+  event "How do you want it?" too, and Pay stays off until then; "Note for the kitchen"); "Sending your order to ‹name›…"
+  then "Order received by ‹name›" (D5); the payment step; Order placed (E1, E2: with no kitchen display, no status;
+  Takeaway and events: the order number to show at the counter); "Payment didn't go through" (E3: Try again, Back to
+  cart). The phone's Back closes whatever is open.
+- **Not yet:** nothing leaves the phone. The restaurant doesn't get the order and no money is taken (owner, 18 Nov
+  2026: "now no order comes in, and for now only for testing"), so the payment step is a plain page saying so, with
+  Pay by UPI, Pay by card and Cancel (a cancelled payment: "Payment didn't go through"). With the cloud and a payment
+  provider (D2) the order goes to the restaurant first and the provider's own page takes the payment. The order
+  number counts up on the phone (`restro.cp.lastOrder`, from #1001) until the cloud gives the real one. The Help bell,
+  Receipt, the table's bill, the closed and paused messages, sold out while paying and offline payments come next
+  (Update Pack 7, H, I3, G, E4, E5).
+- It holds no restaurant data of its own, keeps the customer's name and number only on the open page, and sends
+  nothing anywhere; it loads only RESTRO's own files from the site.
 
 ### Sending the colour PDF: `RESTRODevice.qr.send({ to, size, language, cards })`
 
