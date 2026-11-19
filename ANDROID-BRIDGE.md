@@ -1229,15 +1229,20 @@ menu", "I want them to work as is"): Update Pack 7's customer pages, below. When
   - Neither, or no menu design picked yet: B3's neutral page, the restaurant's name (from the link, in capitals:
     hotel-sri-sai shows "HOTEL SRI SAI"), "Our menu is coming soon." and "Please ask staff.".
 - **The pages** (`customer-menu.js`, `customer-pages.js`, `customer-pages.css`; the same as QR Studio's previews): the
-  menu (C1) with Add / Added and the cart bar; tapping a dish, its dish page (photo, name, words, the stepper and "Add ·
-  ₹320"; a dish already in the cart opens at its quantity: "Update", or "Remove" at 0; the Menu QR's says "To order,
-  please ask our staff.", C6); the Menu button's list of categories with how many dishes; search (C2); the cart, "Your
-  order · Table 7", with the bill (D4: CGST and SGST to the paisa, then rounded to the rupee, "Round off" when it
-  isn't 0); checkout (D3: the table's card; Takeaway and a whole event's QR ask the name and a valid mobile number, an
-  event "How do you want it?" too, and Pay stays off until then; "Note for the kitchen"); "Sending your order to ‹name›…"
-  then "Order received by ‹name›" (D5); the payment step; Order placed (E1, E2: with no kitchen display, no status;
-  Takeaway and events: the order number to show at the counter); "Payment didn't go through" (E3: Try again, Back to
-  cart). The phone's Back closes whatever is open.
+  menu (C1) with Add / Added and the cart bar, every + / Add with an invisible 44 px tap area (C3); the first time a
+  phone opens a Table QR or an event table's menu, "Need help? Tap here" above the Help bell, gone at the first tap or
+  after 5 seconds and never again on that phone (C5, `restro.cp.bellHint`); tapping a dish, its dish page (photo,
+  name, words, the stepper and "Add · ₹320"; a dish already in the cart opens at its quantity: "Update", or "Remove" at
+  0; a sold-out dish as in the list (C4): its photo grey and "Sold out" where Add goes, nothing to add; the Menu QR's
+  says "To order, please ask our staff.", C6); the Menu button's list of categories with how many dishes; search
+  (C2); the cart, "Your order · Table 7", with the bill (D4: CGST and SGST for each GST rate, an event-only dish at its
+  own, each to the paisa, then rounded to the rupee, "Round off" when it isn't 0; a dish that sells out while it is in
+  the cart leaves it); checkout (D3: the table's card; Takeaway and a whole event's QR ask the name and a valid mobile
+  number, an event "How do you want it?" too, and Pay stays off until then; "Note for the kitchen"); "Sending your
+  order to ‹name›…" then "Order received by ‹name›" (D5); the payment step (a takeaway or event customer's name with
+  their phone on it, D3); Order placed (E1, E2: with no kitchen display, no status; Takeaway and events: the order
+  number to show at the counter); "Payment didn't go through" (E3: Try again, Back to cart). The phone's Back closes
+  whatever is open.
 - **Not yet:** nothing leaves the phone. The restaurant doesn't get the order and no money is taken (owner, 18 Nov
   2026: "now no order comes in, and for now only for testing"), so the payment step is a plain page saying so, with
   Pay by UPI, Pay by card and Cancel (a cancelled payment: "Payment didn't go through"). With the cloud and a payment

@@ -6,10 +6,11 @@
 // - options: { template, accent, logo, restaurant, kind ('table' | 'takeaway' | 'menu' | 'event' | 'event-table'),
 //   place (the pill's words: 'Table 7', 'Takeaway', 'Menu', 'Event', 'Event table 3'), event (the event's name, for
 //   an event's QRs), categories (as RestroCustomerMenu.page: [{ id, name, items: [{ id, name, desc, about, price, veg,
-//   photo, out }] }]; about: the dish page's longer words), taxRate (0.05: CGST and SGST half each, D4), kds (true: the
-//   restaurant has a kitchen display, so Order placed shows the order's status: E1), history (true: the phone's Back
-//   closes what is open), full (true: fills the screen), cart ({ ‹dish id›: quantity } to start with), status (true:
-//   a phone's status bar on the menu, for a preview) }
+//   photo, out, gst }] }]; about: the dish page's longer words; gst: an event-only dish's own GST rate, 0.18), taxRate
+//   (0.05: CGST and SGST half each, D4), kds (true: the restaurant has a kitchen display, so Order placed shows the
+//   order's status: E1), history (true: the phone's Back closes what is open), full (true: fills the screen), hint
+//   (true: the Help bell's hint on a phone's first visit, C5), cart ({ ‹dish id›: quantity } to start with), status
+//   (true: a phone's status bar on the menu, for a preview) }
 // - Until the cloud takes orders and a payment provider is connected (D2, SYNC.md), nothing leaves the phone: Pay shows
 //   a plain payment step that takes no money, and the restaurant doesn't get the order (owner, 18 Nov 2026: "now no
 //   order comes in, and for now only for testing").
@@ -47,10 +48,16 @@
   // ---------- money, in paise (D4): CGST and SGST each to the paisa, then the total to the nearest rupee ----------
   const fmt = (p, paise) => `₹${(p / 100).toLocaleString('en-IN', { minimumFractionDigits: paise ? 2 : 0, maximumFractionDigits: 2 })}`;
   const tax = rate => `${+(rate * 50).toFixed(2)}%`;
+  // (GST per rate: the restaurant's, or an event-only dish's own, as dish.gst. Mixed rates: CGST and SGST for each,
+  // D4; half the rate each, rounded half up to the paisa, as bill.js)
   function bill(lines, rate) {
-    const items = lines.reduce((s, l) => s + l.q, 0), itemTotal = lines.reduce((s, l) => s + Math.round(l.d.price * 100) * l.q, 0);
-    const half = Math.round(itemTotal * rate / 2), sum = itemTotal + half * 2, toPay = Math.floor((sum + 50) / 100) * 100;
-    return { items, itemTotal, cgst: half, sgst: half, roundOff: toPay - sum, toPay };
+    const items = lines.reduce((s, l) => s + l.q, 0), byRate = new Map();
+    for (const l of lines) { const r = Number.isFinite(l.d.gst) ? l.d.gst : rate; byRate.set(r, (byRate.get(r) || 0) + Math.round(l.d.price * 100) * l.q); }
+    const taxes = [...byRate].filter(([r]) => r > 0).sort((a, b) => a[0] - b[0])
+      .map(([r, base]) => { const h = Math.round(r * 10000 / 2); return { rate: r, half: Math.floor((2 * base * h + 10000) / 20000) }; });
+    const itemTotal = [...byRate.values()].reduce((s, v) => s + v, 0), sum = itemTotal + taxes.reduce((s, x) => s + x.half * 2, 0);
+    const toPay = Math.floor((sum + 50) / 100) * 100;
+    return { items, itemTotal, taxes, roundOff: toPay - sum, toPay };
   }
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const clock = d => `${(d.getHours() % 12) || 12}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
@@ -76,6 +83,8 @@
     let root, layers = [];
     const cartObj = () => Object.fromEntries(s.cart);
     const lines = () => [...s.cart].map(([id, q]) => ({ d: dishes.get(id), q })).filter(l => l.d && l.q > 0);
+    // (a takeaway or event customer: their name with their phone, D3)
+    const who = () => (s.name && s.phone ? `${s.name} · +91 ${pretty(s.phone)}` : '');
 
     // ---------- the layers over the menu: sheets, the Menu list, pages, the sending veil ----------
     // (a stack; with options.history one history entry stands for "something is open", so the phone's Back closes the
@@ -124,7 +133,8 @@
     }
 
     // ---------- the dish page (C1; the Menu QR's: "To order, please ask our staff.", C6) ----------
-    // (a dish already in the cart opens at its quantity: Update, or Remove at 0)
+    // (a dish already in the cart opens at its quantity: Update, or Remove at 0. A sold-out dish as in the list, C4: its
+    // photo grey and "Sold out" where Add goes; it can't be added)
     function dishSheet(id) {
       const d = dishes.get(id); if (!d) return;
       const had = s.cart.get(id) || 0, each = Math.round(d.price * 100); let q = had || 1;
@@ -135,8 +145,8 @@
       const show = () => { qty.textContent = String(q); go.textContent = !q ? 'Remove' : `${had ? 'Update' : 'Add'} · ${fmt(q * each)}`; };
       show();
       const foot = view ? el('p', { class: 'cp-ask' }, 'To order, please ask our staff.')
-        : d.out ? el('p', { class: 'cp-ask' }, 'Sold out') : el('div', { class: 'cp-dfoot' }, el('div', { class: 'cp-stepper' }, minus, qty, plus), go);
-      const layer = sheet('cp-dish', photo(d, 'big'), el('h3', { class: 'cp-dname' }, mark(d), el('span', {}, d.name)), d.about || d.desc ? el('p', { class: 'cp-dabout' }, d.about || d.desc) : null, foot);
+        : d.out ? el('p', { class: 'cp-sold' }, 'Sold out') : el('div', { class: 'cp-dfoot' }, el('div', { class: 'cp-stepper' }, minus, qty, plus), go);
+      const layer = sheet(`cp-dish${d.out ? ' out' : ''}`, photo(d, 'big'), el('h3', { class: 'cp-dname' }, mark(d), el('span', {}, d.name)), d.about || d.desc ? el('p', { class: 'cp-dabout' }, d.about || d.desc) : null, foot);
       go.addEventListener('click', () => { close(layer); add(id, q - had); });
       open(layer);
     }
@@ -177,12 +187,11 @@
 
     // ---------- the cart: "Your order · Table 7" (C1, D1) ----------
     const where = () => (kind === 'takeaway' ? 'Takeaway' : kind === 'event' ? 'Event' : o.place || 'Table');
-    function totals(b, rate, payLine) {
+    function totals(b, payLine) {
       const paise = b.roundOff !== 0;
       return el('div', { class: 'cp-totals' },
         el('p', {}, el('span', {}, 'Item total'), el('span', {}, fmt(b.itemTotal, paise))),
-        el('p', {}, el('span', {}, `CGST ${tax(rate)}`), el('span', {}, fmt(b.cgst, true))),
-        el('p', {}, el('span', {}, `SGST ${tax(rate)}`), el('span', {}, fmt(b.sgst, true))),
+        b.taxes.map(x => ['CGST', 'SGST'].map(n => el('p', {}, el('span', {}, `${n} ${tax(x.rate)}`), el('span', {}, fmt(x.half, true))))),
         b.roundOff ? el('p', {}, el('span', {}, 'Round off'), el('span', {}, `${b.roundOff > 0 ? '+' : '−'} ${fmt(Math.abs(b.roundOff), true)}`)) : null,
         payLine ? el('p', { class: 'cp-topay' }, el('span', {}, 'To pay'), el('span', {}, fmt(b.toPay))) : null);
     }
@@ -196,7 +205,7 @@
           el('div', { class: 'cp-rows' }, ls.map(({ d, q }) => el('div', { class: 'cp-row cp-crow', onclick: () => dishSheet(d.id) }, photo(d, 'row'),
             el('div', { class: 'cp-ctext' }, el('p', { class: 'cp-rname' }, el('span', {}, d.name)), el('p', { class: 'cp-each' }, `${fmt(Math.round(d.price * 100))} each`)),
             el('span', { class: 'cp-x' }, `× ${q}`), price(Math.round(d.price * 100) * q)))),
-          totals(b, o.taxRate, true),
+          totals(b, true),
           button('cp-go', `Place order and pay · ${fmt(b.toPay)}`, () => { drop(layer); checkout(); }));
       };
       layer._refresh = draw; draw();
@@ -237,7 +246,7 @@
         const ls = lines(); if (!ls.length) { close(layer); return; }
         bl = bill(ls, o.taxRate);
         listBox.replaceChildren(label(`Your order · ${plural(bl.items, 'item', 'items')}`), orderRows(ls));
-        totalBox.replaceChildren(totals(bl, o.taxRate, true));
+        totalBox.replaceChildren(totals(bl, true));
         pay.textContent = `Pay ${fmt(bl.toPay)}`;
       };
       pay.addEventListener('click', () => { if (!pay.disabled && bl) send(bl); });
@@ -276,7 +285,8 @@
       const layer = el('div', { class: 'cp-layer cp-page cp-pay' },
         el('header', { class: 'cp-phead' }, el('button', { type: 'button', class: 'cp-pback', 'aria-label': 'Cancel', onclick: cancel }, icon('back')), el('b', {}, 'Payment')),
         el('div', { class: 'cp-pbody' },
-          el('div', { class: 'cp-pcard' }, el('div', {}, el('b', {}, restaurant), el('small', {}, kind === 'takeaway' ? 'Takeaway order' : kind === 'event' ? `${o.event || 'Event'} order` : `Order for ${o.place || 'your table'}`)), el('strong', {}, fmt(b.toPay))),
+          // (whose order: a takeaway or event customer's name with their phone, D3, as the phone videos)
+          el('div', { class: 'cp-pcard' }, el('div', {}, el('b', {}, restaurant), el('small', {}, kind === 'takeaway' ? `Takeaway · ${who()}` : kind === 'event' ? `${o.event || 'Event'} · ${who()}` : `Order for ${o.place || 'your table'}`)), el('strong', {}, fmt(b.toPay))),
           el('p', { class: 'cp-pnote' }, 'Payments aren’t switched on yet. No money is taken, and the restaurant doesn’t get this order.'),
           el('button', { type: 'button', class: 'cp-pbtn', onclick: () => paid('UPI') }, `Pay by UPI · ${fmt(b.toPay)}`),
           el('button', { type: 'button', class: 'cp-pbtn', onclick: () => paid('Card') }, `Pay by card · ${fmt(b.toPay)}`),
@@ -290,9 +300,9 @@
       el('div', { class: 'cm-hrow' }, el('h1', { class: 'cm-name' }, restaurant), el('span', { class: 'cm-pill' }, o.place || where())));
     const nextNumber = () => { const n = (Number(store('restro.cp.lastOrder')) || 1000) + 1; store('restro.cp.lastOrder', n); return n; };
     function placed(b, method) {
-      const ls = lines(), at = new Date(), number = nextNumber(), who = s.name && s.phone ? `${s.name} · +91 ${pretty(s.phone)}` : '';
-      const sub = kind === 'takeaway' ? `${who} · Paid ${fmt(b.toPay)}`
-        : kind === 'event' ? `${who} · ${o.event || 'Event'} · ${s.how || 'Dine-in'}`
+      const ls = lines(), at = new Date(), number = nextNumber();
+      const sub = kind === 'takeaway' ? `${who()} · Paid ${fmt(b.toPay)}`
+        : kind === 'event' ? `${who()} · ${o.event || 'Event'} · ${s.how || 'Dine-in'}`
           : kind === 'event-table' ? `Order #${number} · ${o.event || 'Event'} · Paid ${fmt(b.toPay)}`
             : `Order #${number} · Paid ${fmt(b.toPay)} · ${method}`;
       // (the order's status only with a kitchen display: E1)
@@ -320,6 +330,24 @@
       open(layer);
     }
 
+    // ---------- the Help bell's hint, the first time this phone opens a table's menu (C5) ----------
+    // ("Need help? Tap here" above the bell; it goes at the first tap anywhere or after 5 seconds, and never shows again
+    // on this phone. Only on the QR link's page: options.hint)
+    let hint = null;
+    function bellHint() {
+      if (!o.hint || !dineIn || view || store('restro.cp.bellHint')) return;
+      store('restro.cp.bellHint', 1);
+      hint = el('p', { class: 'cp-bhint', role: 'note' }, 'Need help? Tap here');
+      const go = () => {
+        removeEventListener('pointerdown', go, true); clearTimeout(timer);
+        const h = hint; hint = null; if (!h) return;
+        h.classList.add('out'); setTimeout(() => h.remove(), 250);
+      };
+      const timer = setTimeout(go, 5000);
+      addEventListener('pointerdown', go, true);
+      root.append(hint);
+    }
+
     // ---------- the menu page itself ----------
     for (const [id, q] of Object.entries(o.cart || {})) if (dishes.has(id) && q > 0 && !dishes.get(id).out) s.cart.set(id, q);
     // (Add puts one in the cart; Added opens the dish page, to change how many. Drawn again on update, where it was,
@@ -329,14 +357,16 @@
       root = CM().page({ template: o.template, accent: o.accent, kind, pill: o.place || where(), restaurant, logo: o.logo, categories: cats, cart: cartObj(), full: o.full, status: o.status,
         onDish: id => dishSheet(id), onAdd: id => (s.cart.get(id) ? dishSheet(id) : add(id)), onMenu: menuList, onSearch: search, onCart: cartSheet });
       root.classList.add('cp-root');
+      if (hint && dineIn && !view) root.append(hint); else hint = null;
       if (old) { root.append(...layers); old.replaceWith(root); } else host.append(root);
       root.querySelector('.cm-scroll').scrollTop = top; CM().fit(root);
     }
-    build();
-    // (the restaurant changed its menu, a dish's sold out or the design: the cart keeps what is still on the menu)
+    build(); bellHint();
+    // (the restaurant changed its menu, a dish's sold out or the design: the cart keeps what can still be ordered; a
+    // dish sold out since it was added leaves it, C4)
     function update(next) {
       setOptions({ ...o, ...next });
-      for (const id of [...s.cart.keys()]) if (!dishes.has(id)) s.cart.delete(id);
+      for (const id of [...s.cart.keys()]) if (!dishes.has(id) || dishes.get(id).out) s.cart.delete(id);
       build(); for (const l of layers) l._refresh?.();
     }
     return { get root() { return root; }, update, destroy() { if (o.history) removeEventListener('popstate', onPop); root.remove(); } };

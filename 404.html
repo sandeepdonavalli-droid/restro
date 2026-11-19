@@ -79,7 +79,7 @@ body.menu{background:var(--page-bg,#F4F5F7)}
     document.title = data.restaurant;
     if (shown) { shown.update(data); } else {
       page.replaceChildren(); document.body.classList.add('menu');
-      shown = window.RestroCustomerPages.mount(page, { ...data, full: true, history: true });
+      shown = window.RestroCustomerPages.mount(page, { ...data, full: true, history: true, hint: true });
     }
     const bg = getComputedStyle(shown.root).backgroundColor;
     document.body.style.setProperty('--page-bg', bg); theme(bg);

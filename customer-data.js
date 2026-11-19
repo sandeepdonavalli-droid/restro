@@ -31,20 +31,22 @@
       .filter(c => c.items.length);
   }
   // An event's menu (Update Pack 6, EV4): its dishes from the menu (at the event's price, when changed) and its own,
-  // each in its category; the event's own sold-out dishes too (EV12)
+  // each in its category, with its own GST rate (gst, 0.18; D4); the event's own sold-out dishes too (EV12)
   function eventMenu(e, soldOut) {
     const items = new Map((Array.isArray(e.menu?.items) ? e.menu.items : []).map(i => (typeof i === 'string' ? [i, {}] : [i?.id, i || {}])).filter(([id]) => typeof id === 'string'));
     const own = (Array.isArray(e.menu?.own) ? e.menu.own : []).filter(d => d && typeof d.id === 'string');
     const off = { ...(soldOut || {}), ...(e.soldOut && typeof e.soldOut === 'object' ? e.soldOut : {}) };
     const cats = menuOf(off, new Set(items.keys())).map(c => ({ ...c, items: c.items.map(d => (Number.isFinite(items.get(d.id)?.price) ? { ...d, price: items.get(d.id).price } : d)) }));
+    const gst = v => (v !== '' && v != null && Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 100 ? Number(v) / 100 : undefined);
+    const ownDish = d => ({ id: d.id, name: d.name, desc: '', about: '', price: d.price, veg: d.veg, photo: null, out: Boolean(off[d.id]), gst: gst(d.gst) });
     for (const c of window.RestroMenu?.categories || []) {
-      const mine = own.filter(d => d.cat === c.id).map(d => ({ id: d.id, name: d.name, desc: '', about: '', price: d.price, veg: d.veg, photo: null, out: Boolean(off[d.id]) }));
+      const mine = own.filter(d => d.cat === c.id).map(ownDish);
       if (!mine.length) continue;
       const at = cats.find(x => x.id === c.id);
       if (at) at.items.push(...mine); else cats.push({ id: c.id, name: c.name, items: mine });
     }
     const lost = own.filter(d => !(window.RestroMenu?.categories || []).some(c => c.id === d.cat));
-    if (lost.length) cats.push({ id: 'event-only', name: e.name || 'Event', items: lost.map(d => ({ id: d.id, name: d.name, desc: '', about: '', price: d.price, veg: d.veg, photo: null, out: Boolean(off[d.id]) })) });
+    if (lost.length) cats.push({ id: 'event-only', name: e.name || 'Event', items: lost.map(ownDish) });
     const order = (window.RestroMenu?.categories || []).map(c => c.id);
     return cats.sort((a, b) => (order.indexOf(a.id) + 1 || 1e3) - (order.indexOf(b.id) + 1 || 1e3));
   }

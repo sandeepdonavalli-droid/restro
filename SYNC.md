@@ -354,7 +354,7 @@ The cloud must:
 
 A customer's phone has no RESTRO in it, so the QR link's page (`404.html`, `customer-data.js`) needs the restaurant's
 public copy from the cloud: its name, its menu, what is sold out (`restro.menu.availability.v1`), its menu design
-(`restro.menuDesign.v1`), its events' dishes, prices and sold out (`restro.events.v1`), which QR codes work
+(`restro.menuDesign.v1`), its events' dishes, prices, GST rates and sold out (`restro.events.v1`), which QR codes work
 (`restro.qr.v1` and the events'), QR ordering (`restro.qrOrdering.v1`) and its business hours. The tablet keeps it up
 to date as these change; the page reads it without a token and watches it live. It holds nothing about customers,
 staff or orders. Until the cloud exists, the page reads the same from this browser's own RESTRO, when there is one

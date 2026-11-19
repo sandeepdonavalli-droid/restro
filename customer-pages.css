@@ -71,6 +71,19 @@
 .cp-q{font-size:19px;font-weight:600;line-height:1}
 .cp-dfoot .cp-go{flex:1;height:50px;font-size:14.8px}
 .cp-ask{margin-top:18px;padding:11px 12px;border:1px solid var(--cp-field-line,#3B372F);border-radius:var(--cp-field-r,10px);color:var(--cp-soft,#B5AFA2);font-size:12.5px}
+/* (a sold-out dish, as in the list (C4): its photo grey, and "Sold out" in the list's colours where Add goes) */
+.cp-dish.out .cp-ph.big{filter:grayscale(1);opacity:.55}
+.cm-t-fresh-grid .cp-dish.out .cp-ph.big{filter:grayscale(1) brightness(.85);opacity:1}
+.cm-t-editorial .cp-dish.out .cp-ph.big{opacity:.6}
+.cp-sold{display:flex;align-items:center;justify-content:center;height:50px;margin-top:18px;border-radius:var(--cp-btn-r,12px);background:var(--so-bg);color:var(--so-ink);font-size:14.8px;font-weight:700;line-height:1}
+
+/* ---------- the Help bell's hint, a phone's first visit (C5): above the bell, its tail at the bell's middle ---------- */
+.cm .cp-bhint{position:absolute;z-index:5;left:14px;bottom:80px;display:flex;align-items:center;height:38px;margin:0;padding:0 14px;border-radius:var(--cp-hint-r,12px);background:var(--cp-hint,var(--acc));color:var(--cp-hint-ink,var(--on-acc));font:700 14px/1 'DM Sans',sans-serif;letter-spacing:0;white-space:nowrap;filter:drop-shadow(0 7px 10px rgba(0,0,0,.35));pointer-events:none;animation:cp-hint-in .25s ease both}
+.cp-bhint::after{content:'';position:absolute;top:100%;left:15.5px;border:10.5px solid transparent;border-bottom:0;border-top-color:var(--cp-hint,var(--acc))}
+.cm .cp-bhint.out{opacity:0;transition:opacity .25s ease}
+@keyframes cp-hint-in{from{opacity:0;transform:translateY(4px)}}
+.cm-t-cafe:not(.own-acc){--cp-hint:var(--dark);--cp-hint-ink:#FFFAF2}
+.cm-t-minimal{--cp-hint-r:0}
 
 /* ---------- the Menu list: above the Menu button ---------- */
 .cp-pop{z-index:12}
@@ -94,9 +107,10 @@
 .cp-stext{flex:1;min-width:0}
 .cp-sname{display:flex;align-items:center;gap:7px;font:var(--cp-dish-font);font-size:var(--cp-srow-size,15.5px);line-height:1.3;letter-spacing:var(--cp-dish-ls,0)}
 .cp-ssub{margin-top:3px;color:var(--mute);font-size:12px}
-.cm .cp-sadd{flex:none;display:flex;align-items:center;gap:4px;height:28px;padding:0 11px;border:1.5px solid var(--cp-go,var(--acc));border-radius:var(--cp-chip-r,14px);color:var(--cp-chip-ink,var(--cp-go,var(--acc)));font-size:12.5px;font-weight:700}
+.cm .cp-sadd{flex:none;position:relative;display:flex;align-items:center;gap:4px;height:28px;padding:0 11px;border:1.5px solid var(--cp-go,var(--acc));border-radius:var(--cp-chip-r,14px);color:var(--cp-chip-ink,var(--cp-go,var(--acc)));font-size:12.5px;font-weight:700}
 .cm .cp-sadd.on{background:var(--cp-go,var(--acc));color:var(--cp-on-go,var(--on-acc))}
 .cp-sadd .ci{width:12px;height:12px;stroke-width:2.8}
+.cm .cp-sadd::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
 .cp-hint{margin-top:16px;color:var(--mute);font-size:12.5px;line-height:1.5}
 .cp-srow.out .cp-stext{opacity:.5}
 
@@ -114,13 +128,14 @@
 .cp-cart .cp-go{margin-top:16px;font-size:15px}
 
 /* ---------- checkout (D3) ---------- */
-.cp-card{display:flex;align-items:center;gap:10px;min-height:84px;margin-top:4px;padding:0 13px 0 13px;border:var(--cp-card-bw,1px) solid var(--cp-card-line,#3B3529);border-radius:var(--cp-card-r,14px);background:var(--cp-card,#151412);box-shadow:var(--cp-card-shadow,none)}
+/* (the card's words from its top, as drawn; a title on two lines makes it taller, the pill stays in the middle) */
+.cp-card{display:flex;align-items:center;gap:10px;margin-top:4px;padding:10.5px 13px 11.5px;border:var(--cp-card-bw,1px) solid var(--cp-card-line,#3B3529);border-radius:var(--cp-card-r,14px);background:var(--cp-card,#151412);box-shadow:var(--cp-card-shadow,none)}
 .cp-ctxt{flex:1;min-width:0}
 .cp-clabel{color:var(--cp-lab,var(--acc));font-size:10.4px;font-weight:700;letter-spacing:var(--cp-clabel-ls,.19em);line-height:13px;text-transform:var(--cp-label-tt,uppercase)}
-.cp-ctitle2{margin-top:5px;font:var(--cp-display);font-size:var(--cp-card-size,19.5px);line-height:22px;letter-spacing:var(--cp-display-ls,0)}
-.cp-csub{margin-top:4px;color:var(--mute);font-size:12px;line-height:15px}
-.cp-pill{flex:none;display:flex;align-items:center;gap:5px;height:29px;padding:0 13.5px;border:1.5px solid var(--cp-pill-line,var(--acc));border-radius:var(--cp-pill-r,14.5px);background:var(--cp-pill-bg,transparent);color:var(--cp-pill-ink,var(--acc));font-size:13px;font-weight:700;letter-spacing:var(--cp-pill-ls,0);white-space:nowrap}
-.cp-pill .ci{width:14px;height:14px}
+.cp-ctitle2{margin-top:var(--cp-ct-mt,3.5px);font:var(--cp-display);font-size:var(--cp-card-size,19.5px);line-height:var(--cp-ct-lh,25px);letter-spacing:var(--cp-ct-ls,var(--cp-display-ls,0))}
+.cp-csub{margin-top:var(--cp-cs-mt,3.5px);color:var(--mute);font-size:12px;line-height:15px}
+.cp-pill{flex:none;display:flex;align-items:center;gap:5px;height:29px;padding:0 12px;border:1.5px solid var(--cp-pill-line,var(--acc));border-radius:var(--cp-pill-r,14.5px);background:var(--cp-pill-bg,transparent);color:var(--cp-pill-ink,var(--acc));font-size:13px;font-weight:700;letter-spacing:var(--cp-pill-ls,0);white-space:nowrap}
+.cp-pill .ci{width:15px;height:15px}
 .cp-field .cp-label{margin-top:16px}
 .cp-input,.cp-phone{display:flex;align-items:center;width:100%;height:48px;padding:0 14px;border:1.5px solid var(--cp-field-line,#3B372F);border-radius:var(--cp-field-r,13px);background:var(--cp-field,#151412);font-size:14.5px}
 .cp-input:focus,.cp-phone:focus-within{border-color:var(--cp-on-line,var(--acc))}
@@ -209,6 +224,7 @@
   --cp-bell:#FFFFFF;--cp-bell-shadow:0 2px 8px rgba(28,25,23,.08);--cp-xdot:#FFFFFF;--cp-xdot-line:#F2B4AE;--cp-xdot-ink:#D22D26;--cp-box-ink:#3D3935;--cp-photo-line:transparent}
 :is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-classic-list,.cm-t-minimal) .cp-x{font-size:13px}
 :is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-classic-list,.cm-t-minimal) .cp-clabel{font-size:10.4px}
+:is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-classic-list,.cm-t-minimal){--cp-cs-mt:2.5px}
 :is(.cm-t-fresh-grid,.cm-t-cafe,.cm-t-classic-list,.cm-t-minimal) .cp-noteline{color:var(--mute)}
 .cm-t-fresh-grid{--cp-back-line:#E6E5E3;--cp-card-line:#E6E5E3;--cp-field-line:#E6E5E3;--cp-soft:#55524E;--cp-sheet:#F6F5F1;--cp-grab:#DCDAD5;--cp-pop-line:#E5E4E1;
   --cp-more-line:var(--ink);--cp-more-ink:var(--ink);--cp-bell-line:#E5E4E1;--cp-row-line:#E6E5E3;--cp-topay-line:#E0DFDB}
@@ -220,12 +236,15 @@
 .cm-t-minimal{--cp-back-r:0;--cp-back-bw:1.5px;--cp-back-line:#0A0A0A;--cp-card-bw:1.5px;--cp-card-line:#0A0A0A;--cp-card-r:0;--cp-field-line:#0A0A0A;--cp-field-r:0;--cp-pill-r:0;--cp-btn-r:0;--cp-chip-r:0;--cp-lab:var(--ink);
   --cp-soft:#3E3E3C;--cp-sheet:#FFFFFF;--cp-sheet-r:0;--cp-grab:#D4D4D2;--cp-pop-line:#0A0A0A;--cp-pop-r:0;--cp-more-line:#0A0A0A;--cp-more-ink:#0A0A0A;--cp-bell-r:0;--cp-bell-line:#0A0A0A;--cp-bell-shadow:none;
   --cp-dot-r:0;--cp-row-line:#E4E5E0;--cp-topay-line:#0A0A0A;--cp-row-h:37px;--cp-xdot-line:#D62829;--cp-xdot-ink:#D62829}
-:is(.cm-t-classic-list,.cm-t-minimal) .cp-row{gap:7px}
+:is(.cm-t-classic-list,.cm-t-minimal) .cp-crow{gap:7px}
+/* (the order's rows on checkout, Order placed and "Payment didn't go through", as drawn) */
+:is(.cm-t-fresh-grid,.cm-t-cafe){--cp-row-size:15px}
+:is(.cm-t-classic-list,.cm-t-minimal){--cp-row-size:15.5px}
 
 /* ---------- Editorial: Cormorant Garamond, small square corners, spaced capitals in the accent ---------- */
 .cm-t-editorial{--cp-display:400 27px/1.2 'Cormorant Garamond','CM Rupee',serif;--cp-dish-font:500 17.5px/1.25 'Cormorant Garamond','CM Rupee',serif;--cp-price-font:600 17.5px/1 'Cormorant Garamond','CM Rupee',serif;
-  --cp-title-size:27px;--cp-card-size:21px;--cp-ctitle-size:26px;--cp-htitle-size:26px;--cp-dname-size:27px;--cp-row-size:17.5px;--cp-crow-size:17px;--cp-srow-size:17.5px;--cp-price-size:17.5px;
-  --cp-back-r:2px;--cp-back-bw:1px;--cp-back-line:#DED5C6;--cp-back-ink:var(--ink);--cp-card:#FEFDF8;--cp-card-line:#DED6C9;--cp-card-r:2px;--cp-field:#FEFDF8;--cp-field-line:#DED6C9;--cp-field-r:2px;--cp-pill-r:2px;--cp-pill-ls:.1em;
+  --cp-title-size:27px;--cp-card-size:19.25px;--cp-ctitle-size:26px;--cp-htitle-size:26px;--cp-dname-size:27px;--cp-row-size:17.5px;--cp-crow-size:17px;--cp-srow-size:17.5px;--cp-price-size:17.5px;
+  --cp-back-r:2px;--cp-back-bw:1px;--cp-back-line:#DED5C6;--cp-back-ink:var(--ink);--cp-card:#FEFDF8;--cp-card-line:#DED6C9;--cp-card-r:2px;--cp-field:#FEFDF8;--cp-field-line:#DED6C9;--cp-field-r:2px;--cp-pill-r:2px;--cp-pill-ls:.14em;
   --cp-btn-r:3px;--cp-chip-r:2px;--cp-ph-r:2px;--cp-big-r:2px;--cp-soft:#5D5449;--cp-dim:rgba(40,35,30,.42);--cp-sheet:#F5EFE3;--cp-sheet-line:transparent;--cp-sheet-r:22px;--cp-grab:#DBD2C3;--cp-pop:#FFFFFF;--cp-pop-line:#E4DCCD;--cp-pop-r:3px;
   --cp-off:#E6DFD2;--cp-off-ink:#9C9284;--cp-veil:rgba(245,239,227,.9);--cp-more-line:var(--ink);--cp-more-ink:var(--ink);--cp-more-bg:#FEFDF8;--cp-bell:#FFFFFF;--cp-bell-line:#DAD3C1;--cp-bell-shadow:0 2px 8px rgba(60,45,30,.08);
   --cp-xdot:#FFFFFF;--cp-xdot-line:#E9B9B9;--cp-xdot-ink:#B4232F;--cp-box-ink:#3E362F;--cp-photo-line:#FFFFFF}
@@ -238,6 +257,11 @@
   --cp-btn-r:8px;--cp-chip-r:6px;--cp-soft:#C8D1CD;--cp-sheet:#1F2925;--cp-sheet-line:#3B453D;--cp-sheet-r:18px;--cp-grab:#4A544E;--cp-pop:#26332C;--cp-pop-line:#434945;--cp-pop-r:10px;
   --cp-off:#2C3732;--cp-off-ink:#7D8782;--cp-veil:rgba(27,36,33,.9);--cp-bell:#26332C;--cp-bell-line:#3F4541;--cp-dot-r:50%;--cp-row-line:#3B453D;--cp-row-h:41px;--cp-xdot:#2A1A17;--cp-xdot-line:#7A3530;--cp-xdot-ink:#F07A6E;--cp-foot-img:var(--dots)}
 .cm-t-chalkboard .cp-x{font-size:13px}
+.cm-t-chalkboard{--cp-ct-lh:28px;--cp-ct-mt:3px;--cp-cs-mt:3px;--cp-ct-ls:0;--cp-row-size:15.25px}
+.cm-t-night{--cp-ct-lh:26.5px;--cp-ct-mt:3.5px;--cp-cs-mt:2px}
+.cm-t-editorial{--cp-ct-lh:23px;--cp-ct-mt:4.5px;--cp-cs-mt:1.5px}
+.cm-t-editorial .cp-card{gap:2px}
+.cm-t-chalkboard .cp-pill{gap:4px;padding:0 11px;font:400 13px/1 'Yatra One','CM Rupee',sans-serif}
 
 /* ---------- a template without dish photos: lists without them ---------- */
 :is(.cm-t-chalkboard,.cm-t-classic-list,.cm-t-minimal) .cp-crow{min-height:52px}

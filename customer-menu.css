@@ -69,7 +69,9 @@
 .cm-mk::after{content:'';position:absolute;left:50%;top:50%;width:4.6px;height:4.6px;margin:-2.3px 0 0 -2.3px;border-radius:50%;background:#1C9A4E}
 .cm-mk.nv{border-color:#D02A26}
 .cm-mk.nv::after{width:0;height:0;margin:-2.6px 0 0 -3px;border-radius:0;background:none;border-left:3px solid transparent;border-right:3px solid transparent;border-bottom:4.8px solid #D02A26}
-.cm-add{flex:none;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+.cm-add{flex:none;position:relative;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+/* (every + / Add keeps its look, with an invisible tap area at least 44 px each way round it: C3) */
+.cm-add:not(.out)::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
 .cm-add-t{display:none}
 .cm-add.out .cm-add-t{display:block}
 .cm-add .ci{width:16px;height:16px;stroke-width:2.9}
