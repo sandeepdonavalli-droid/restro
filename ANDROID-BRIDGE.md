@@ -1268,9 +1268,26 @@ menu", "I want them to work as is"): Update Pack 7's customer pages, below. When
 - **Receipts** (H2, H3): Takeaway's and a whole event's Order placed have **Receipt** where a table's has the bell:
   "Your receipt · Order #1046 · ₹1,407 · ‹name› · ‹phone›" with Save as photo and Email. A table's is the bell's Get a
   receipt: the table's open order (its PAID boxes and a black "DUE ₹798 · Pay on your phone or at the counter") and
-  the orders paid from this phone today (`restro.cp.orders.v1`). **Save as photo** draws the receipt as the printed
-  one ("TAX INVOICE · RECEIPT", Inter, black on white) and saves it as a picture: "Receipt saved · In your phone's
-  photos". **Email**: "Email your receipt", the address and Send receipt: "Receipt sent · To ‹email›".
+  the orders paid from this phone today (`restro.cp.orders.v1`). **Save as photo** draws the receipt and saves it as a
+  picture: "Receipt saved · In your phone's photos". **Email**: "Email your receipt", the address and Send receipt:
+  "Receipt sent · To ‹email›".
+  - **The receipt is the printed one** (owner, 18 Nov 2026: "the receipt should have the bill number and all
+    details"): `receipt.js` makes the document from the order, the same one `printer.printBill` gets (below, "Printing
+    the bill"), and draws it as Update Pack 7's e-receipts (Inter, black on white, 808 px wide): the restaurant, its
+    address, phone · email and GSTIN · FSSAI; the title; "Bill #B-45 · Order #07" and the date and time; "Dine-in ·
+    Table 7 · 4 guests" with "Server: ‹first name›", or the customer and their phone with "QR order"; each dish with its
+    choices and its dish discount under it; Subtotal, Discount, Service charge, Packaging, Delivery, CGST and SGST for
+    each rate, Round off, GRAND TOTAL; a PAID box for each payment (its time and reference), a REFUND box for a dish
+    that sold out as the customer paid ("Sold out as you paid · back in 3–5 days", E4), the black DUE box; the footer.
+    Never a REPRINT box: it's the customer's own copy.
+  - A table's comes from its open order as the POS keeps it (`RestroReceipt.copy`: its numbers, dishes and choices,
+    sums, payments and prints; no kitchen notes, no staff but the server's first name): its bill number once the POS
+    has printed the bill or taken a payment, otherwise "BILL · NOT A TAX INVOICE" and no bill number, as the POS prints
+    a bill before its number; "TAX INVOICE" while part paid; "TAX INVOICE · RECEIPT" once paid in full; the time of the
+    bill's first print, as on the paper. What this phone paid of it is on it as a payment of its own.
+  - This phone's own order is kept the same way (`rec` in `restro.cp.orders.v1`, an order as the POS keeps one): QR
+    order, its customer, its dishes and sums, its payment and its refund; its order number and bill number are the
+    restaurant's once the cloud gives them (until then the phone's own order number and no bill number).
 - **The table's bill** (I3): while the table's open order has something due and the cart is empty, the bar reads
   "Table 7 · ₹798 due · Pay bill ›" (dishes in the cart: the cart bar). "Table 7 bill": the paid rounds greyed in one
   box, "Still due · Round 1 · ordered by ‹first name›" with its dishes, Items, CGST, SGST, Due now, Pay ₹798 (the same payment
@@ -1409,10 +1426,13 @@ Counter says "The bill didn’t print", Orders offers Retry. After each bill the
 Settings › Printers › This device › a printer). Print that many of the bill, receipt or refund slip on this device's
 receipt printer, cut between them; 1 when it isn't listed.
 
+`receipt.js` makes this object from the order as it is kept (owner, 18 Nov 2026): the QR page makes the customer's
+e-receipt with the same file, so the paper and the phone always say the same (above, "Our website for now").
+
 Print it as `25_printed-bill` (Counter Update 7, the customer's copy, the same for every kind of order), 80 mm,
 **black only**:
 
-- **Header:** `restaurant` (large), `address`, then the restaurant's phone · email (`phone`, printed `+91 98765
+- **Header:** `restaurant` (large, in capitals as everywhere a customer sees it), `address`, then the restaurant's phone · email (`phone`, printed `+91 98765
   43210`, and `email`, Settings › Business details; Update Pack 3), then `GSTIN …` · `FSSAI …` (`gstin`, `fssai`: the
   FSSAI licence number is required on bills in India). Each is `""` when not set: leave its line out. A dashed rule,
   **TAX INVOICE**, then `Bill #B-2045 · Order #1015` (`bill`: the bill's own number, `"B-2045"`, one series for the
@@ -1450,11 +1470,12 @@ Amounts are in rupees.
 | --- | --- |
 | `kind` | `"bill"` (not paid yet) or `"receipt"` (paid: a document of its own, not a reprint of the bill); or `"refund"`, a QR order cancelled and refunded (below) |
 | `title` | `"TAX INVOICE"` or `"TAX INVOICE · RECEIPT"`, printed where TAX INVOICE is; or `"BILL · NOT A TAX INVOICE"` (below); or `"REFUND · NOT A TAX INVOICE"` |
-| `at` | the bill's first print (a receipt keeps the bill's date and time when a bill was printed first, otherwise its own first print); a reprint keeps it |
+| `at` | the bill's first print; a receipt keeps the bill's date and time when a bill (a tax invoice) was printed first, otherwise the time it was paid (owner, 18 Nov 2026: the real times, the same on paper and on the customer's phone however late it prints); a reprint keeps it |
 | `reprint` | `null` on a first print; on every later print of the same bill or receipt `{ at, by }`: a bold black outlined box at the very top, **REPRINT** in large letters, and under it `"Reprinted 7 Nov 2026 12:20 PM · by ‹first name›"` (`by`: the staff's first name; owner, 17 Nov 2026, not initials) |
 | `payments` | Update Pack 7 (H2; it was `paid`, one payment): every payment taken on the order, `[{ method, amount, at, ref }]`, each a boxed line above the footer, `"PAID · UPI ₹1,260"` and under it `"16 Nov 2026 7:25 PM · Ref 4318 9920 1032"`, in the order paid, 8 apart (`method`: `"Cash"`, `"UPI"`, `"Card"`, `"Net banking"`, `"Wallet"`, `"Swiggy"` or `"Zomato"`, several joined `"UPI + Cash"`, or `"QR"` for a QR order staff saw paid and not matched yet; `ref` only when the payment has one). A receipt has them all; a bill of an order paid in part (a round paid by QR, the rest due) has those paid so far; `[]` for none |
 | `due` | Update Pack 7 (H2): what is still to pay on an order paid in part (rupees), `0` otherwise: a black box under the PAID boxes, white on black, **"DUE ₹798"** and under it "Pay on your phone or at the counter" |
 | `refunded` | refund slips only: `{ method, amount, at }`, the same boxed line where PAID goes, `"REFUNDED ₹1,260"` and under it `"9 Nov 2026 7:28 PM · Order cancelled"` (`at`: when staff cancelled it); `method` is `""` until the cloud has refunded it, then `"UPI"` and the rest: `"REFUNDED · UPI ₹1,260"` |
+| `refunds` | Update Pack 7 (E4; owner, 18 Nov 2026): only on an order with a dish that sold out as the customer paid, refunded by itself: `[{ method, amount, at, lines: [{ name, qty }] }]`, each a boxed line under the PAID boxes, `"REFUND · UPI ₹168"` and under it `"Sold out as you paid · back in 3–5 days"`; the dish is not on the bill (the order is for the rest). The cloud puts them on the order (`refunds`, amounts in paise) |
 
 Each print is kept on the order (`bills`, `receipts`, `refundSlips`: `{ at, by, total }`), so the next one is a REPRINT
 on every tablet.

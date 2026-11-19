@@ -87,11 +87,12 @@ body.menu{background:var(--page-bg,#F4F5F7)}
     document.body.style.setProperty('--page-bg', bg); theme(bg);
   }
 
-  // RESTRO's files, in order: the menu, the customer's menu and pages, where the data comes from
+  // RESTRO's files, in order: the menu, the restaurant's settings, the bill's sums and the receipt (the same as the POS
+  // prints: receipt.js), the tables' names, the customer's menu and pages, where the data comes from
   for (const href of ['customer-menu.css?v=1', 'customer-pages.css?v=1']) {
     const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = base + href; document.head.append(css);
   }
-  const files = ['menu-data.js?v=6', 'prefs.js?v=12', 'customer-menu.js?v=1', 'customer-pages.js?v=1', 'customer-data.js?v=1'];
+  const files = ['menu-data.js?v=6', 'prefs.js?v=12', 'bill.js?v=4', 'receipt.js?v=1', 'floor-data.js?v=1', 'customer-menu.js?v=1', 'customer-pages.js?v=1', 'customer-data.js?v=1'];
   let left = files.length;
   for (const src of files) {
     const js = document.createElement('script'); js.src = base + src; js.async = false; js.charset = 'utf-8';

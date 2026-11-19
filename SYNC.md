@@ -374,14 +374,28 @@ requests and the receipt by email. The QR's code is the key: a replaced or delet
 
 | Method and path (the QR page, no token) | Body | Answer |
 | --- | --- | --- |
-| `GET <endpoint>/v1/qr/<restaurant>/<code>/bill` | none | the table's open order, or `null`: `{ uid, number, total, paid, due, rounds: [{ n, by, qr, at, lines: [{ id, name, qty, price, veg }] }], payments: [{ method, amount, at }] }` (paise; `by` the first name, or `'QR'`) |
+| `GET <endpoint>/v1/qr/<restaurant>/<code>/bill` | none | the table's open order, or `null`: `{ uid, number, total, paid, due, rounds: [{ n, by, qr, at, lines: [{ id, name, qty, price, veg }] }], payments: [{ method, amount, at, ref }], guests, server, order }` (paise; `by` and `server` the first name, or `'QR'`; `order`: the order as its receipt needs it, `RestroReceipt.copy(order)` in `receipt.js`: numbers, dishes and choices, sums, payments and prints, no kitchen notes, no history, no staff but the server's first name) |
 | `POST <endpoint>/v1/qr/<restaurant>/<code>/requests` | `{ kind: 'waiter' \| 'water' \| 'bill' \| 'other', note }` | `{ id }`; it goes to every captain phone and the POS at once |
 | `DELETE <endpoint>/v1/qr/<restaurant>/<code>/requests` | none | Cancel request: every request from the table not taken yet |
-| `POST <endpoint>/v1/qr/<restaurant>/<code>/receipt` | `{ order, email }` | the backend emails the e-receipt (the printed receipt); `{ ok }` |
+| `POST <endpoint>/v1/qr/<restaurant>/<code>/receipt` | `{ order, email }` | the backend emails the e-receipt (the printed receipt: `receipt.js` makes it from the order, as the POS and the phone do); `{ ok }` |
 | WebSocket `<endpoint>/v1/qr/<restaurant>/<code>/live` | | `{ taken: [{ id, takenBy, takenAt }] }` (the first captain's "On my way"), the bill as it changes, `{ paidOffline: { method } }` (E5: 30 s with no confirmation while the restaurant is offline) |
 
 Paying the table's bill uses the same payment provider as an order (D2), for what is due; the backend records it on the
 open order, which closes once fully paid (I1).
+
+**One receipt everywhere** (owner, 18 Nov 2026: "the receipt should have the bill number and all details"): the bill
+the POS prints, the e-receipt on the phone and the one by email are the same document, made by `receipt.js` from the
+order as the POS keeps it (`restro.counter.orders.v1`). So the cloud keeps on every order what its receipt prints: its
+order number and bill number (`number`, `billNo`, `billYear`), each dish's name and price as ordered with its choices
+(`mods`: `{ label, price, sets }`) and dish discount, the order's sums (bill.js), every payment with its time and
+reference (`payments`: `{ method, amount, at, ref }`, a round paid by QR and the rest), when it was paid in full
+(`paidAt`), its prints (`bills`, `receipts`: `{ at, tax }`) and a dish refunded as it sold out while the customer paid
+(`refunds`: `[{ method, amount, at, lines: [{ name, qty }] }]`, E4). An order placed on a phone gets its order number
+from the same series as the POS's, at once ("Order received by ‹restaurant›", D5), and its bill number when it is paid;
+the answer gives both to the phone, with the payment's reference, so its receipt has them. An open order without a bill
+number gets one at its first payment, a round paid by QR too, as the Counter gives one when it takes a payment; until
+then its receipt is "BILL · NOT A TAX INVOICE", as a bill printed before its number. The phone keeps that order
+for a day as the POS keeps one (`rec` in `restro.cp.orders.v1`).
 
 ## Security
 

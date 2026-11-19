@@ -331,17 +331,30 @@
       el('div', { class: 'cm-hrow' }, el('h1', { class: 'cm-name' }, restaurant), pill ? el('span', { class: 'cm-pill' }, o.place || where()) : null));
     const bellButton = () => el('button', { type: 'button', class: 'cp-round', 'aria-label': 'Help', onclick: helpSheet }, icon('bell'));
     const nextNumber = () => { const n = (Number(store('restro.cp.lastOrder')) || 1000) + 1; store('restro.cp.lastOrder', n); return n; };
+    // (this phone's order as the restaurant keeps an order (restro.counter.orders.v1; receipt.js), for its receipt (H2): the
+    // order and bill numbers the restaurant gives it once the cloud is connected (SYNC.md), until then this phone's own
+    // order number and none for the bill; a QR order, so "QR order" where the server goes; paid in full, with what sold
+    // out as the customer paid refunded (E4): the order is for the rest, and the refund is what was paid less that)
+    function phoneOrder(kept, gone, b, method, at, number) {
+      const type = kind === 'takeaway' ? 'takeaway' : kind === 'event' || kind === 'event-table' ? 'event' : 'dine-in', pay = method === 'Card' ? 'card' : 'upi', t = at.getTime();
+      const sums = window.RestroBill.order({ lines: kept.map(l => ({ each: Math.round(l.d.price * 100), qty: l.q, rate: Number.isFinite(l.d.gst) ? l.d.gst : undefined })), type }, o.taxRate);
+      return { uid: null, number, billNo: null, type, qr: true, server: '', guests: 0, createdAt: t, table: kind === 'table' ? String(o.table || '') : '',
+        ...(type === 'event' ? { event: { name: o.event || 'Event', ...(kind === 'event-table' ? { table: String(o.eventTable || '') } : {}), mode: s.how === 'Takeaway' ? 'takeaway' : 'dine-in' } } : {}),
+        customer: !dineIn && s.name && validPhone(s.phone) ? { name: s.name, mobile: digits(s.phone), code: '91' } : null,
+        lines: kept.map(l => ({ id: l.d.id, name: l.d.name, price: l.d.price, qty: l.q, ...(Number.isFinite(l.d.gst) ? { ev: { gst: Math.round(l.d.gst * 10000) / 100 } } : {}) })),
+        ...sums, paidAt: t, method: pay, payments: [{ method: pay, amount: b.toPay, at: t, ref: '' }],
+        refunds: gone.length ? [{ method: pay, amount: b.toPay - sums.total, at: t, lines: gone.map(l => ({ name: l.d.name, qty: l.q })) }] : [] };
+    }
     function placed(b, method) {
       const ls = b.lines || lines(), at = new Date(), number = nextNumber();
       // (E4: a dish that sold out while the customer paid is refunded by itself, its amount with GST; the rest goes on)
-      const gone = ls.filter(l => dishes.get(l.d.id)?.out), back = gone.length ? bill(gone, o.taxRate) : null, refund = back?.toPay || 0;
+      const gone = ls.filter(l => dishes.get(l.d.id)?.out), back = gone.length ? bill(gone, o.taxRate) : null;
+      const rec = phoneOrder(ls.filter(l => !gone.includes(l)), gone, b, method, at, number), refund = rec.refunds[0]?.amount || 0;
       const sub = (kind === 'takeaway' ? `${who()} · Paid ${fmt(b.toPay)}`
         : kind === 'event' ? `${who()} · ${o.event || 'Event'} · ${s.how || 'Dine-in'}`
           : kind === 'event-table' ? `Order #${number} · ${o.event || 'Event'} · Paid ${fmt(b.toPay)}`
             : `Order #${number} · Paid ${fmt(b.toPay)}${refund ? '' : ` · ${method}`}`) + (refund ? ` · Refund ${fmt(refund)}` : '');
-      const order = { at: at.getTime(), number, uid: null, method, paid: b.toPay, refund, who: who(),
-        type: kind === 'takeaway' ? `Takeaway · ${who()}` : kind === 'event' ? `${o.event || 'Event'} · ${s.how || 'Dine-in'} · ${who()}` : `Dine-in · ${o.place || where()}`,
-        lines: ls.map(l => ({ name: l.d.name, qty: l.q, price: l.d.price, gst: l.d.gst, gone: gone.includes(l) })), bill: { itemTotal: b.itemTotal, taxes: b.taxes, roundOff: b.roundOff, toPay: b.toPay } };
+      const order = { at: at.getTime(), number, uid: null, method, paid: b.toPay, refund, who: who(), rec };
       keepMine(ORD_KEY, [...mineOf(ORD_KEY), order]);
       // (the order's status only with a kitchen display: E1)
       const steps = o.kds ? el('div', { class: 'cp-status' }, label('Status'), [['Sent to the kitchen', clock(at)], ['Cooking', null], [dineIn ? 'Ready · we bring it to your table' : 'Ready · collect at the counter', null]]
@@ -460,76 +473,32 @@
         backBtn(() => close(layer)));
       open(layer);
     }
-    const stamp = t => { const d = new Date(t); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()} ${clock(d)}`; };
-    // (one receipt: a phone's order, or a table's open order with its payments and what is still due)
-    // (a dish refunded as it sold out while paying, E4, isn't sold: off the bill, with its refund in a box of its own)
-    const receiptOf = x => { const kept = x.lines.filter(l => !l.gone);
-      return { number: x.number, at: x.at, type: x.type, right: 'QR order', lines: kept.map(l => ({ qty: l.qty, name: l.name, amount: Math.round(l.price * 100) * l.qty })),
-        bill: x.refund ? bill(kept.map(l => ({ d: { price: l.price, gst: l.gst }, q: l.qty })), o.taxRate) : x.bill, payments: [{ method: x.method, amount: x.paid, at: x.at }], refund: x.refund || 0, due: 0 }; };
+    // (one receipt, as the restaurant prints it (receipt.js, owner 18 Nov 2026: "the receipt should have the bill number
+    // and all details"): this phone's order, or the table's open order with its payments and what is still due. Never a
+    // REPRINT: it's the customer's own copy)
+    const rctx = () => ({ restaurant, business: o.business || {}, taxRate: o.taxRate, copy: true });
+    const receiptOf = x => window.RestroReceipt.doc(x.rec, 'receipt', { ...rctx(), rec: x.rec });
     function tableReceipts() {
-      const out = [];
-      if (o.bill) {
-        const all = o.bill.rounds.flatMap(r => r.lines), b = bill(all.map(l => ({ d: l, q: l.qty })), o.taxRate), here = billsPaid()[o.bill.uid];
-        // (a dish in more than one round once, as the printed receipt: "2 × Masala dosa")
-        const lines = []; for (const l of all) { const m = lines.find(x => x.id === l.id && x.price === l.price && x.name === l.name); if (m) m.qty += l.qty; else lines.push({ ...l }); }
-        out.push({ number: o.bill.number, at: Date.now(), type: [`Dine-in · ${o.place || where()}`, o.bill.guests ? plural(o.bill.guests, 'guest', 'guests') : ''].filter(Boolean).join(' · '), right: o.bill.server ? `Server: ${o.bill.server}` : '', lines: lines.map(l => ({ qty: l.qty, name: l.name, amount: Math.round(l.price * 100) * l.qty })),
-          bill: { ...b, toPay: o.bill.total }, payments: [...o.bill.payments, ...(here?.amount ? [{ method: here.method, amount: here.amount, at: here.at }] : [])], refund: 0, due: tableDue() });
+      const out = [], B = o.bill?.order;
+      if (B) {
+        // (the bill paid here, I3: on the order as a payment of its own, as the cloud will record it; paid in full, the
+        // bill is the receipt, TAX INVOICE · RECEIPT)
+        const here = billsPaid()[o.bill.uid], r = { ...B };
+        if (here?.amount) {
+          const was = window.RestroReceipt.payments(B, B.total / 100, false).map(p => ({ method: p.method, amount: Math.round(p.amount * 100), at: p.at, ref: p.ref }));
+          r.payments = [...was, { method: here.method === 'Card' ? 'card' : 'upi', amount: here.amount, at: here.at, ref: '' }];
+          if (r.payments.reduce((n, p) => n + p.amount, 0) >= B.total) r.paidAt = here.at;
+        }
+        // (no bill number yet: the restaurant gives one when it prints the bill or takes the payment, so until then it is
+        // "BILL · NOT A TAX INVOICE", as the POS prints a bill before its number)
+        const kind = r.paidAt ? 'receipt' : 'bill';
+        out.push(window.RestroReceipt.doc(r, kind, { ...rctx(), rec: r, prints: (kind === 'receipt' ? r.receipts : r.bills) || [], pre: kind === 'bill' && !r.billNo }));
       }
-      return [...out, ...phoneOrders().map(receiptOf)];
-    }
-    // (drawn as the printed receipt: Inter, black on white, dashes between its parts)
-    // (drawn as the printed receipt, as Update Pack 7's e-receipts: Inter, black on white, 808 wide; sizes and spacing
-    // as drawn)
-    async function drawReceipt(r) {
-      try { await Promise.all(['400 25px "CP Receipt"', '700 25px "CP Receipt"'].map(f => document.fonts.load(f))); } catch {}
-      const W = 808, P = 40, INK = '#111111', F = (w, px) => `${w} ${px}px "CP Receipt", "DM Sans", sans-serif`;
-      const cv = document.createElement('canvas'), c = cv.getContext('2d');
-      // (too wide for the paper: a name smaller, a dish's name cut with "…")
-      const fitFont = (s, w, px, max) => { c.font = F(w, px); const k = c.measureText(s).width; return k > max ? F(w, Math.floor(px * max / k * 10) / 10) : F(w, px); };
-      const cut = (s, font, max) => { c.font = font; if (c.measureText(s).width <= max) return s; let t = s; while (t.length > 1 && c.measureText(`${t}…`).width > max) t = t.slice(0, -1); return `${t.trimEnd()}…`; };
-      const money2 = p => (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const run = draw => {
-        let y = 0;
-        const text = (s, x, base, font, align = 'left', color = INK) => { if (!draw) return; c.font = font; c.textAlign = align; c.fillStyle = color; c.fillText(s, x, base); };
-        // (a line: its words on the left, the amount on the right, on a baseline `gap` below the last)
-        const lr = (a, b, font, gap) => { y += gap; c.font = font; const bw = b ? c.measureText(b).width + 24 : 0; text(cut(a, font, W - 2 * P - bw), P, y, font); if (b) text(b, W - P, y, font, 'right'); };
-        const mid = (s, font, gap) => { y += gap; text(s, W / 2, y, font, 'center'); };
-        // (dashes between the parts: 12 long, 4 thick every 20; 6 thick every 18 above the grand total; y is its top)
-        const dash = (gap, h = 4, every = 20) => { y += gap; if (draw) { c.fillStyle = INK; for (let x = P; x < W - P; x += every) c.fillRect(x, y, Math.min(12, W - P - x), h); } };
-        // (a payment's box, 116 tall: PAID with a 4 px line; DUE filled black)
-        const box = (a, b, dark, gap) => { y += gap; if (draw) { c.fillStyle = INK; if (dark) c.fillRect(P, y, W - 2 * P, 116); else { c.lineWidth = 4; c.strokeStyle = INK; c.strokeRect(P + 2, y + 2, W - 2 * P - 4, 112); } }
-          text(a, W / 2, y + 50, F(700, 32.5), 'center', dark ? '#FFFFFF' : INK); text(b, W / 2, y + 89.5, F(400, 25), 'center', dark ? '#FFFFFF' : INK); y += 116; };
-        y = 85; text(restaurant, W / 2, y, fitFont(restaurant, 700, 46, W - 2 * P), 'center');
-        if (o.business?.address) mid(cut(o.business.address, F(400, 25), W - 2 * P), F(400, 25), 42);
-        const ids = [o.business?.gstin ? `GSTIN ${o.business.gstin}` : '', o.business?.fssai ? `FSSAI ${o.business.fssai}` : ''].filter(Boolean).join(' · ');
-        if (ids) mid(ids, F(400, 25), 36.5);
-        dash(36.5); mid('TAX INVOICE · RECEIPT', F(700, 30.4), 58);
-        lr(`Order #${r.number}`, stamp(r.at), F(400, 25), 39.5);
-        lr(r.type, r.right, F(400, 25), 39.5);
-        dash(33);
-        let gap = 57; for (const l of r.lines) { lr(`${l.qty} × ${l.name}`, money2(l.amount), F(400, 30), gap); gap = 52; }
-        dash(33);
-        lr('Subtotal', money2(r.bill.itemTotal), F(400, 30), 58);
-        for (const x of r.bill.taxes || []) for (const n of ['CGST', 'SGST']) lr(`${n} ${tax(x.rate)}`, money2(x.half), F(400, 30), 52);
-        if (r.bill.roundOff) lr('Round off', `${r.bill.roundOff > 0 ? '+' : '−'}${money2(Math.abs(r.bill.roundOff))}`, F(400, 30), 52);
-        dash(32, 6, 18);
-        lr('GRAND TOTAL', fmt(r.bill.toPay), F(700, 42.5), 68);
-        dash(36);
-        let next = 28;
-        const how = m => (/card/i.test(m) ? 'Card' : /cash/i.test(m) ? 'Cash' : 'UPI');
-        for (const p of r.payments) { box(`PAID · ${how(p.method)} ${fmt(p.amount)}`, [stamp(p.at || r.at), p.ref ? `Ref ${p.ref}` : ''].filter(Boolean).join(' · '), false, next); next = 20; }
-        // (E4: what sold out as the customer paid comes back by itself; it isn't on the bill above)
-        if (r.refund) { box(`REFUND · ${how(r.payments[0]?.method)} ${fmt(r.refund)}`, 'Sold out as you paid · back in 3–5 days', false, next); next = 20; }
-        if (r.due) box(`DUE ${fmt(r.due)}`, 'Pay on your phone or at the counter', true, next === 28 ? 28 : 16);
-        if (o.business?.footer) mid(cut(o.business.footer, F(400, 25), W - 2 * P), F(400, 25), 43);
-        return Math.ceil(y + 50);
-      };
-      cv.width = W; cv.height = run(false); c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, W, cv.height); run(true);
-      return cv;
+      return [...out, ...phoneOrders().filter(x => x.rec).map(receiptOf)];
     }
     async function savePhoto(order) {
       const list = order ? [receiptOf(order)] : tableReceipts(); if (!list.length) return;
-      const pics = []; for (const r of list) pics.push(await drawReceipt(r));
+      const pics = []; for (const r of list) pics.push(await window.RestroReceipt.draw(r));
       const gap = 24, cv = document.createElement('canvas'), c = cv.getContext('2d');
       cv.width = 808; cv.height = pics.reduce((n, p) => n + p.height, 0) + gap * (pics.length - 1);
       c.fillStyle = '#E8E6E1'; c.fillRect(0, 0, cv.width, cv.height);

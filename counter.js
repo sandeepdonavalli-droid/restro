@@ -2745,37 +2745,12 @@
   // optional — ask us to remove it." (when there is one) and the bill footer. Black only. The RESTRO Android app prints it
   // on the restaurant's bill printer (RESTRODevice.printer.printBill, ANDROID-BRIDGE.md); in a browser it goes to the
   // browser's printing.
-  const SERVICE_FOOTER = 'Service charge is optional — ask us to remove it.';
-  function billOf(o = order) {
-    const t = totalsOf(o), shop = (localStorage.getItem('restro.restaurantName') || '').trim(), biz = window.RestroPrefs?.get('business') || {};
-    const type = o.type || DEFAULT_TYPE;
-    return {
-      restaurant: shop && shop !== 'RESTAURANT NAME' ? shop : '', address: biz.address || '', gstin: biz.gstin || '', fssai: biz.fssai || '',
-      // (Update Pack 3: the restaurant's phone and email, printed under the address)
-      phone: biz.phone ? window.RestroProfile?.formatPhone?.(biz.phone, biz.phoneCountry) || biz.phone : '', email: biz.email || '',
-      number: o.number ? ticket(o.number) : null, at: Date.now(),
-      type: typeLabel[type], table: usesTable(o) ? tableName(o.table) : '', guests: o.guests || 0,
-      // (Update Pack 7, H2: the receipt as drawn) the server, printed by first name ("Server: ‹first name›"); an order
-      // placed by QR has none of its own and says "QR order" there (qr); a takeaway, phone, delivery or event customer
-      // with their phone beside the name ("‹customer› · +91 ‹phone›", D3); an event's name and its event table
-      server: o.qr === true ? o.server || '' : o.server || staffName() || '', qr: o.qr === true,
-      customer: !usesTable(o) && !eventTableOf(o) && String(o.customer?.name || '').trim() ? { name: String(o.customer.name).trim(), phone: slipPhone(o.customer.mobile, o.customer.code) } : null,
-      event: o.type === 'event' && o.event?.name ? String(o.event.name) : '', eventTable: eventTableOf(o),
-      lines: o.lines.map(l => {
-        const each = eachOf(l), gross = each * l.qty * 100, off = window.RestroBill.lineOff(gross, l.off);
-        return { name: itemOf(l).name, qty: l.qty, each, total: each * l.qty, modifiers: (l.mods || []).map(modLabel), note: l.note || '',
-          ...(l.off ? { discount: { percent: l.off, reason: l.off === 100 ? l.offReason || '' : '', amount: off / 100, label: `${l.off}% off${l.off === 100 && l.offReason ? ` · ${l.offReason}` : ''}` } } : {}) };
-      }),
-      subtotal: t.subtotal / 100, discount: t.discountPct ? { label: `Discount ${t.discountPct}%`, percent: t.discountPct, amount: t.discount / 100 } : null,
-      serviceCharge: t.servicePct ? { label: `Service charge ${t.servicePct}% (optional)`, percent: t.servicePct, amount: t.service / 100 } : null,
-      packaging: t.packaging ? { label: 'Packaging charge', amount: t.packaging / 100 } : null, delivery: t.delivery ? { label: 'Delivery charge', amount: t.delivery / 100 } : null,
-      // (CGST and SGST for each GST rate on the bill, lowest first: Update Pack 7 D4)
-      taxes: taxLines(t).flatMap(x => [{ label: x.labels.cgst, amount: x.cgst / 100 }, { label: x.labels.sgst, amount: x.sgst / 100 }]), tax: t.tax / 100,
-      taxLabel: taxLines(t).length > 1 ? 'GST' : taxLines(t)[0]?.labels.gst || menu.taxLabel,
-      roundOff: t.roundOff / 100, total: t.total / 100,
-      footer: [t.servicePct ? SERVICE_FOOTER : '', biz.footer || ''].filter(Boolean)
-    };
-  }
+  // (owner, 18 Nov 2026: one receipt everywhere) receipt.js makes it, from the order as it is kept (each dish's name and
+  // price with its add-ons, and the order's sums), the same way it makes the customer's e-receipt on the QR page
+  const asKept = o => ({ ...o, lines: o.lines.map(l => ({ id: l.id, name: itemOf(l).name, price: eachOf(l), qty: l.qty, mods: l.mods || [], note: l.note || '',
+    ...(l.off ? { off: l.off, ...(l.offReason ? { offReason: l.offReason } : {}) } : {}), ...(l.ev ? { ev: l.ev } : {}) })), ...totalsOf(o) });
+  const billCtx = () => ({ restaurant: localStorage.getItem('restro.restaurantName') || '', business: window.RestroPrefs?.get('business') || {}, taxRate: menu.taxRate, taxLabel: menu.taxLabel,
+    tableName: id => window.RestroFloor?.tableName(id), modLabel, formatPhone: (n, c) => window.RestroProfile?.formatPhone?.(n, c) || '', staff: staffName() });
   // Update Pack 3 (04_Printed-slips): the first print of a bill, and of a receipt, is plain; every later print of the
   // same one has a bold black REPRINT box at the top ("Reprinted 7 Nov 2026 12:20 PM · by ‹first name›"), black only. The receipt
   // after payment is a document of its own: TAX INVOICE · RECEIPT, and a boxed "PAID · UPI ₹837" line with the time
@@ -2784,43 +2759,9 @@
   // NOT A TAX INVOICE", with no number (`pre`; kept as { tax: false } among `bills`), and the receipt, with its number,
   // prints by itself at the payment. A bill that already has its number keeps it, and prints as the tax invoice.)
   // (Update Pack 5: a QR order's own methods; paid by QR and not matched yet, H1: "PAID · QR")
-  const PAID_AS = { cash: 'Cash', upi: 'UPI', card: 'Card', netbanking: 'Net banking', wallet: 'Wallet', swiggy: 'Swiggy', zomato: 'Zomato' };
   const atPayment = () => window.RestroPrefs?.get?.('billNumber')?.at === 'payment';
-  // An order's payments, each { method, amount (rupees), at, ref } (Update Pack 7, H2 and I1: an order takes a payment
-  // for each round paid by QR, and the rest at the Counter): `payments` on the order when it has them ({ method, amount
-  // in paise, at, ref }); otherwise its one payment once paid (`paidAt`), the whole total; or what was paid of it in part
-  // (`paidAmount`). A QR order staff saw paid and not matched yet, H1: "QR". `full`: a receipt, so paid in full.
-  function paymentsOf(o, total, full) {
-    if (!o) return [];
-    const methodOf = (m, qr) => (qr ? 'QR' : PAID_AS[m] || (typeof m === 'string' && m ? m : 'Cash'));
-    const atOf = t => (Number.isFinite(Number(t)) && Number(t) > 0 ? Number(t) : Date.parse(t) || Date.now());
-    if (Array.isArray(o.payments) && o.payments.length)
-      return o.payments.filter(p => p && Number(p.amount) > 0).map(p => ({ method: methodOf(p.method), amount: Math.round(Number(p.amount)) / 100, at: atOf(p.at), ref: typeof p.ref === 'string' ? p.ref : '' }));
-    const qr = o.qr === true && o.qrPay === 'matching', ref = typeof o.payRef === 'string' ? o.payRef : '';
-    if (o.paidAt || full) {
-      const how = Array.isArray(o.methods) && o.methods.length > 1 ? o.methods.map(m => methodOf(m)).join(' + ') : methodOf(o.method, qr);
-      return [{ method: how, amount: total, at: atOf(o.paidAt), ref }];
-    }
-    const part = Number(o.paidAmount);
-    return part > 0 && part < Math.round(total * 100) ? [{ method: methodOf(o.method), amount: part / 100, at: atOf(o.paidAmountAt), ref }] : [];
-  }
-  function billDoc(o, kind, prints, rec = null, pre = false) {
-    const same = prints.filter(p => (p?.tax === false) === pre), now = Date.now(), last = same.length ? { at: now, by: firstOf(staffName()) } : null;
-    // (the receipt carries the bill's date and time, as PS01 draws it, when a bill (a tax invoice) was printed first)
-    const billAt = kind === 'receipt' && Array.isArray(rec?.bills) ? Number(rec.bills.find(b => b && b.tax !== false)?.at) || 0 : 0;
-    const bill = { ...billOf(o), kind, title: kind === 'receipt' ? 'TAX INVOICE · RECEIPT' : kind === 'refund' ? 'REFUND · NOT A TAX INVOICE' : pre ? 'BILL · NOT A TAX INVOICE' : 'TAX INVOICE', at: billAt || same[0]?.at || now, reprint: last };
-    // (a saved order placed by QR, H2: "QR order" where the server goes, and no staff's name of its own)
-    if (rec) { bill.qr = rec.qr === true; if (bill.qr) bill.server = rec.server || ''; }
-    // (Update Pack 7, H2) one PAID box per payment, and under them, while the order is part paid, the black DUE box
-    if (kind !== 'refund') {
-      const pays = paymentsOf(rec || o, bill.total, kind === 'receipt'), paid = pays.reduce((s, p) => s + Math.round(p.amount * 100), 0);
-      bill.payments = pays; bill.due = pays.length && paid < Math.round(bill.total * 100) ? (Math.round(bill.total * 100) - paid) / 100 : 0;
-    }
-    // (a QR order cancelled and refunded: a boxed "REFUNDED ₹1,260" where PAID goes, with when it was cancelled; its
-    // method once the cloud has refunded it: "REFUNDED · UPI ₹1,260")
-    if (kind === 'refund' && rec) bill.refunded = { method: rec.refundedAt ? PAID_AS[rec.refundMethod] || PAID_AS[rec.method] || '' : '', amount: bill.total, at: Number(rec.qrChoice?.at) || Date.parse(rec.refundedAt) || now };
-    return bill;
-  }
+  // (receipt.js: the title, date and time, REPRINT box, PAID boxes, DUE box and a refund, as on the customer's e-receipt)
+  const billDoc = (o, kind, prints, rec = null, pre = false) => window.RestroReceipt.doc(asKept(o), kind, { ...billCtx(), prints, rec, pre, by: firstOf(staffName()) });
   // The receipt printers (Settings › Printers: role Bills or Both), each with its copies of each bill (owner, 16 Nov
   // 2026: Copies per bill); the app prints on this device's own
   const billPrinters = () => Object.entries(window.RestroPrefs?.get('printers') || {}).filter(([, p]) => p && (p.role === 'bills' || p.role === 'both'))
@@ -2855,7 +2796,9 @@
     if (!num) { toast(cantFire(false).replace('order not saved', 'bill not printed')); return; }
     if (order !== target) return;
     const list = loadOrders(), rec = savedOf(list), prints = rec ? (Array.isArray(rec.bills) ? rec.bills : []) : (Array.isArray(order.bills) ? order.bills : []);
-    const bill = { ...billDoc(order, 'bill', prints, null, pre), bill: billLabel(num.no) }, app = typeof window.RESTRODevice?.printer?.printBill === 'function';
+    // (its payments so far and what is still due from the saved order: a round paid by QR, a part payment; owner, 18 Nov
+    // 2026: the bill printed here is the one the customer's phone shows)
+    const bill = { ...billDoc(order, 'bill', prints, rec, pre), bill: billLabel(num.no) }, app = typeof window.RESTRODevice?.printer?.printBill === 'function';
     const ok = await deliverBill(bill);
     if (app) toast(ok ? 'Bill sent to the printer' : 'The bill didn’t print');
     if (!ok) return;
@@ -2923,6 +2866,8 @@
       el('hr'),
       el('table', { class: 'gt' }, el('tbody', {}, row('GRAND TOTAL', `₹${bill.total.toLocaleString('en-IN')}`))),
       ...(bill.payments || []).map(p => el('div', { class: 'paid' }, el('b', {}, `PAID · ${p.method} ₹${p.amount.toLocaleString('en-IN')}`), el('span', {}, [stamp(p.at), p.ref ? `Ref ${p.ref}` : ''].filter(Boolean).join(' · ')))),
+      // (Update Pack 7, E4: a dish refunded as it sold out while the customer paid, owner 18 Nov 2026)
+      ...(bill.refunds || []).map(x => el('div', { class: 'paid' }, el('b', {}, `REFUND${x.method ? ` · ${x.method}` : ''} ₹${x.amount.toLocaleString('en-IN')}`), el('span', {}, 'Sold out as you paid · back in 3–5 days'))),
       bill.due ? el('div', { class: 'due' }, el('b', {}, `DUE ₹${bill.due.toLocaleString('en-IN')}`), el('span', {}, 'Pay on your phone or at the counter')) : null,
       bill.refunded ? el('div', { class: 'paid' }, el('b', {}, `REFUNDED${bill.refunded.method ? ` · ${bill.refunded.method}` : ''} ₹${bill.refunded.amount.toLocaleString('en-IN')}`), el('span', {}, `${stamp(bill.refunded.at)} · Order cancelled`)) : null,
       bill.footer.length ? [el('hr'), el('p', { class: 'small' }, ...bill.footer.flatMap((f, i) => (i ? [el('br'), f] : [f])))] : null].flat().filter(Boolean));

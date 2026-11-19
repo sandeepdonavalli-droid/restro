@@ -17,8 +17,12 @@
 //   (Pack 5 I4); a restaurant QR follows the business hours (prefs.js: closed, a break, the weekly day off; after the
 //   last order time, paused) and QR Studio's pause by hand (restro.qrOrdering.v1); an event's QRs its dates only.
 //   bill (I3): a table's open order on the POS, { uid, number, total, paid, due (paise), rounds: [{ n, by, qr, at, lines:
-//   [{ id, name, qty, price, veg, photo }] }], payments: [{ method, amount, at, ref }], guests, server }, or null
-//   business: what a receipt prints at the top (Settings › Business details: address, GSTIN, FSSAI, the footer)
+//   [{ id, name, qty, price, veg, photo }] }], payments: [{ method, amount, at, ref }], guests, server, order }, or null;
+//   order: the order as its receipt needs it (receipt.js, copy(): numbers, dishes and choices, sums, payments, prints),
+//   so the phone's receipt is the one the POS prints
+//   business: what a receipt prints at the top and bottom (Settings › Business details: address, phone, email, GSTIN,
+//   FSSAI, the footer)
+//   table, eventTable: a table QR's table and an event table QR's event table, by name ('7', '3')
 //   link (404.html reads it from the address): { slug (the restaurant's part), kind: 'table' | 'takeaway' | 'menu' |
 //   'event' (TK, MN, EV), table (a table QR's table, as T7), eventTable (an event table's, as E3), code }
 //   kind and place as RestroCustomerPages.mount takes them: a whole event's QR is 'event' (eventMode 'both': Dine-in or
@@ -111,11 +115,24 @@
     const rounds = (kots.length ? kots : [{ at: o.createdAt, by: o.server || null, lines: o.lines }]).map((k, i) => ({ n: i + 1, by: k.qr === true ? 'QR' : String(k.by || o.server || '').trim().split(/\s+/)[0] || null, qr: k.qr === true, at: Number(k.at) || null,
       lines: k.lines.filter(l => l && Number(l.qty) > 0).map(l => ({ id: l.id, name: l.name || line(l.id).name || dish(l.id)?.name || 'Dish', qty: Number(l.qty), price: Number(line(l.id).price) || Number(dish(l.id)?.price) || 0, veg: dish(l.id)?.veg ?? line(l.id).ev?.veg ?? null, photo: https(dish(l.id)?.photo) })) }));
     const payments = (Array.isArray(o.payments) ? o.payments : []).filter(p => p && Number(p.amount) > 0).map(p => ({ method: String(p.method || ''), amount: Number(p.amount), at: Number(p.at) || null, ref: typeof p.ref === 'string' ? p.ref : '' }));
-    // (the receipt's "Dine-in · Table 7 · 4 guests" and "Server: ‹first name›", the first name only)
+    // (the receipt's "Dine-in · Table 7 · 4 guests" and "Server: ‹first name›", the first name only; the order as the
+    // receipt needs it, the POS's table names and choices as it prints them)
     return { uid: o.uid || `n${o.number}`, number: o.number, total: o.total, paid, due: Math.max(0, o.total - paid), rounds, payments,
-      guests: Number(o.guests) > 0 ? Number(o.guests) : 0, server: String(o.server || '').trim().split(/\s+/)[0] || null };
+      guests: Number(o.guests) > 0 ? Number(o.guests) : 0, server: String(o.server || '').trim().split(/\s+/)[0] || null,
+      order: window.RestroReceipt?.copy(o, { tableName, modLabel }) || null };
   }
-  const business = () => { const b = json('restro.business.v1') || {}; return { address: String(b.address || ''), gstin: String(b.gstin || ''), fssai: String(b.fssai || ''), footer: String(b.footer ?? 'Thank you! Visit again.') }; };
+  // (a table's name as the POS prints it (floor.js), and a dish's choice ("Extra gravy +₹40", counter.js))
+  const tableName = id => (window.RestroFloorPlan?.areas || []).flatMap(a => a.tables || []).find(t => t.id === id)?.name || '';
+  const modLabel = id => {
+    const g = (window.RestroMenu?.modifierGroups || []).find(x => (x.options || []).some(y => y.id === id)), x = g?.options.find(y => y.id === id);
+    const price = Number(x?.price) || 0;
+    return !x ? id : price && g.mode !== 'set' ? `${x.label} +₹${price.toLocaleString('en-IN')}` : x.label;
+  };
+  // (Settings › Business details, as the POS prints them: prefs.js, with its defaults)
+  const business = () => {
+    const b = window.RestroPrefs?.get('business') || json('restro.business.v1') || {};
+    return { address: String(b.address || ''), phone: String(b.phone || ''), phoneCountry: String(b.phoneCountry || 'IN'), email: String(b.email || ''), gstin: String(b.gstin || ''), fssai: String(b.fssai || ''), footer: String(b.footer ?? 'Thank you! Visit again.') };
+  };
 
   // From this browser's RESTRO: only for the same restaurant
   function local(link) {
@@ -134,7 +151,7 @@
       const at = e ? { eventStart: e.start, eventEnd: Math.min(e.end, Number(e.endedAt) || Infinity) } : {};
       if (link.eventTable) {
         const t = (e?.tables || []).find(x => x?.code === link.code);
-        return { ...base, ...at, kind: 'event-table', place: `Event table ${link.eventTable}`, event: e?.name || 'Event', categories, state,
+        return { ...base, ...at, kind: 'event-table', place: `Event table ${link.eventTable}`, eventTable: link.eventTable, event: e?.name || 'Event', categories, state,
           bill: e && t ? tableBill(o => o.type === 'event' && o.event?.id === e.id && String(o.event?.table ?? '') === String(e.tablesFrom === 'floor' ? t.floor || t.id : t.name)) : null };
       }
       const mode = e?.mode || 'both';
@@ -144,6 +161,7 @@
     const qr = qrs.find(r => r && r.kind === link.kind && r.code === link.code);
     const state = !qr ? dead : link.kind === 'menu' ? null : restaurantStatus();
     return { ...base, kind: link.kind, place: link.kind === 'table' ? `Table ${qr?.name || link.table}` : link.kind === 'takeaway' ? 'Takeaway' : 'Menu', categories: menuOf(soldOut), state,
+      ...(link.kind === 'table' ? { table: (qr && tableName(qr.table)) || qr?.name || link.table } : {}),
       bill: qr && link.kind === 'table' ? tableBill(o => o.table === qr.table && (o.type === 'dine-in' || (Boolean(o.type) && o.split === true))) : null };
   }
 
