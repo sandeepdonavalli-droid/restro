@@ -229,8 +229,7 @@
   const staffNow = () => window.RestroStaff?.current?.name || null;
   // Bill number (mock-up B, the owner's choice, 11 Nov 2026): when a bill gets its number, B-1, B-2 … in one series for
   // the financial year. Each tile shows the top of what prints. A change is kept with when and who (billNumber.log), and
-  // applies from the next bill: a bill that has its number keeps it. It is only about the bill's number: nothing prints
-  // by itself at the payment (owner, 19 Nov 2026).
+  // applies from the next bill: a bill that has its number keeps it.
   const BILL_AT = [['print', 'When the bill is first printed', 'Default · The bill is the tax invoice. If its order is deleted later, the number is listed as Cancelled in the GST report.'],
     ['payment', 'At payment', 'The bill before payment says “Not a tax invoice”. The bill number is given at payment.']];
   const slipPic = (title, numbers, caption) => el('span', { class: 'st-bn-slip' },
