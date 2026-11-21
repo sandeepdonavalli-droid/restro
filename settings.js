@@ -227,18 +227,18 @@
   // Both are the restaurant's (every tablet's) and apply as they are picked.
   const businessHost = document.querySelector('#settings-business-more');
   const staffNow = () => window.RestroStaff?.current?.name || null;
-  // Bill number (mock-up B, the owner's choice, 11 Nov 2026): when a bill gets its number, B-1, B-2 … in one series for
-  // the financial year. Each tile shows the top of what prints. A change is kept with when and who (billNumber.log), and
+  // Bill number (the owner's mock-up B, 11 Nov 2026): when a bill gets its number, B-1, B-2 … in one series for the
+  // financial year. Each tile shows the top of what prints. A change is kept with when and who (billNumber.log), and
   // applies from the next bill: a bill that has its number keeps it.
   const BILL_AT = [['print', 'When the bill is first printed', 'Default · The bill is the tax invoice. If its order is deleted later, the number is listed as Cancelled in the GST report.'],
-    ['payment', 'At payment', 'The bill before payment says “Not a tax invoice”. The bill number is given at payment.']];
+    ['payment', 'At payment', 'The bill before payment says “Not a tax invoice”. The numbered receipt prints at every payment.']];
   const slipPic = (title, numbers, caption) => el('span', { class: 'st-bn-slip' },
     el('span', { class: 'st-bn-paper' }, el('b', { class: 'st-bn-name' }, window.RestroRestaurantName?.value || 'RESTAURANT NAME'), el('i'), el('b', { class: 'st-bn-title' }, title),
       el('span', { class: 'st-bn-row' }, el('span', {}, numbers), el('span', {}, '9:42 PM')), el('span', { class: 'st-bn-row st-bn-faint' }, el('span', {}, 'Dine-in · Table 6'), el('span'))),
     el('span', { class: 'st-bn-cap' }, caption));
   const billPics = id => el('span', { class: 'st-tile-pic' }, el('span', { class: 'st-bn-pics' }, ...(id === 'print'
     ? [slipPic('TAX INVOICE', 'Bill #B-45 · Order #07', 'Bill · before payment')]
-    : [slipPic('BILL · NOT A TAX INVOICE', 'Order #07', 'Bill · before payment'), slipPic('TAX INVOICE · RECEIPT', 'Bill #B-45 · Order #07', 'Receipt · after payment')])));
+    : [slipPic('BILL · NOT A TAX INVOICE', 'Order #07', 'Bill · before payment'), slipPic('TAX INVOICE · RECEIPT', 'Bill #B-45 · Order #07', 'Receipt · at payment')])));
   function billNumberCard() {
     const b = Prefs.get('billNumber');
     const pick = to => { if (to !== b.at) Prefs.set('billNumber', { at: to, log: [...b.log, { to, at: Date.now(), by: staffNow() }] }); };
