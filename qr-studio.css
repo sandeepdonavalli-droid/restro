@@ -905,8 +905,11 @@
 /* ---------- Print (J): black and white on the receipt printer (in a browser, its print page) ---------- */
 #print-qr{display:none}
 @media print{
-  body>*:not(#print-qr){display:none!important}
-  #print-qr{display:block!important;width:72mm;margin:0 auto;color:#000;font-family:Inter,Roboto,Arial,sans-serif;text-align:center}
+  /* (only while the QR cards are the page being printed, html[data-print="qr"] (qr-studio.js): the Counter prints its
+     own bill) */
+  html[data-print="qr"] body>*:not(#print-qr){display:none!important}
+  #print-qr{width:72mm;margin:0 auto;color:#000;font-family:Inter,Roboto,Arial,sans-serif;text-align:center}
+  html[data-print="qr"] #print-qr{display:block!important}
   #print-qr .pq-card{padding:4mm 0 8mm;break-after:page}
   #print-qr h1{margin:0;font-size:5mm;font-weight:900;letter-spacing:.06em}
   #print-qr h2{margin:3mm 0 1mm;font-size:8mm;font-weight:900}

@@ -2875,8 +2875,11 @@
       bill.due ? el('div', { class: 'due' }, el('b', {}, `DUE ₹${bill.due.toLocaleString('en-IN')}`), el('span', {}, 'Pay on your phone or at the counter')) : null,
       bill.refunded ? el('div', { class: 'paid' }, el('b', {}, `REFUNDED${bill.refunded.method ? ` · ${bill.refunded.method}` : ''} ₹${bill.refunded.amount.toLocaleString('en-IN')}`), el('span', {}, `${stamp(bill.refunded.at)} · Order cancelled`)) : null,
       bill.footer.length ? [el('hr'), el('p', { class: 'small' }, ...bill.footer.flatMap((f, i) => (i ? [el('br'), f] : [f])))] : null].flat().filter(Boolean));
+    // (the page printed is this one, not QR Studio's QR cards: counter.css and qr-studio.css print the page named here)
+    document.documentElement.dataset.print = 'bill';
     try { window.print(); } catch { toast('Printing isn’t available here'); }
   }
+  addEventListener('afterprint', () => { if (document.documentElement.dataset.print === 'bill') delete document.documentElement.dataset.print; });
 
   // ---------- swipe an order line left to remove it ----------
   // Drag a line to the left: it slides over a red strip saying Remove. Let go past a third of its width (or flick it)

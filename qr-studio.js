@@ -1928,8 +1928,11 @@
     page.replaceChildren(...cards.map(c => el('section', { class: 'pq-card' }, el('h1', {}, c.restaurant), el('p', { class: 'pq-head' }, c.heading),
       qrSvg(c.url, c.mark, '#000000', 'pq-qr'), el('h2', {}, c.title), c.lines.map(l => el('p', {}, l)), c.note ? el('p', { class: 'pq-note' }, c.note) : null,
       el('p', { class: 'pq-small' }, c.linkLabel), el('p', { class: 'pq-link' }, linkWords(c.link)))));
+    // (the page printed is this one, not the Counter's bill: qr-studio.css and counter.css print the page named here)
+    document.documentElement.dataset.print = 'qr';
     try { window.print(); } catch {}
   }
+  addEventListener('afterprint', () => { if (document.documentElement.dataset.print === 'qr') delete document.documentElement.dataset.print; });
   // Send (G, J): a colour, print-ready PDF to the business's registered email or WhatsApp, made and sent by the cloud
   // (the Android app passes it on: RESTRODevice.qr.send)
   function sendQrs(list, to, masked) {

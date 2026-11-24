@@ -889,8 +889,10 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
    rules 2, TAX INVOICE 800, dishes 16 with their choices 14.5 under them, dish discounts as minus lines 14.5, CGST and
    SGST each on a line, GRAND TOTAL 22/900, the footer 13.5 */
 @media print{
-  body>*:not(#print-bill){display:none!important}
-  #print-bill{--p:calc(72mm / 384);display:block!important;width:72mm;margin:0 auto;color:#000;font:calc(16 * var(--p))/1.35 Inter,Roboto,Arial,sans-serif}
+  /* (only while the bill is the page being printed, html[data-print="bill"] (counter.js): QR Studio prints its own) */
+  html[data-print="bill"] body>*:not(#print-bill){display:none!important}
+  #print-bill{--p:calc(72mm / 384);width:72mm;margin:0 auto;color:#000;font:calc(16 * var(--p))/1.35 Inter,Roboto,Arial,sans-serif}
+  html[data-print="bill"] #print-bill{display:block!important}
   #print-bill h1{margin:0;font-size:calc(24 * var(--p));font-weight:900;line-height:1.35;text-align:center}
   #print-bill p{margin:0;text-align:center}
   #print-bill .small{font-size:calc(13.5 * var(--p))}
