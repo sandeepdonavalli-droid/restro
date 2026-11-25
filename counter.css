@@ -907,7 +907,8 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-mvn b{font-size:calc(16 * var(--u));font-weight:700;color:#57534E}
 .cx-mv.on .cx-mvn b{color:#2F6FDE}
 .cx-mvn small{font-size:calc(13.5 * var(--u));font-weight:500;color:#57534E}
-.cx-mvq .cx-sb:disabled{color:#C4C0BC;cursor:default}
+/* (at the end of its range a button looks as drawn, CM5's "2 of 2" +, and does nothing) */
+.cx-mvq .cx-sb:disabled{cursor:default}
 .cx-mvq .cx-sb:disabled:active{background:transparent}
 /* what is picked, above the buttons: "7 items selected from 3 dishes" and what they come to */
 .cx-mvs{gap:calc(11.7 * var(--u));padding-top:calc(8 * var(--u))}

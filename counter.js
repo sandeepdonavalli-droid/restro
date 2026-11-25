@@ -4629,6 +4629,10 @@
     // who serves it, whether its bill is printed (and nothing was added since), Pending QR payment (to confirm).
     floorOrders(now = Date.now()) {
       const out = [], seen = new Set(), onHold = new Set(held.map(h => h.uid).filter(Boolean));
+      // (left: the tables the order was moved away from in the last 3 hours and when; floor.js shows a Help bell made
+      // at one of them before the move on the order's table now: the guests took it with them)
+      const leftOf = (o, t) => cleanEvents(o.events).filter(e => e.kind === 'move' && e.at > t - 3 * 3600000)
+        .map(e => ({ tables: (Array.isArray(e.tables) ? e.tables : [e.from]).filter(x => typeof x === 'string' && x), at: e.at })).filter(l => l.tables.length);
       const tablesOf = o => [o.table, ...(Array.isArray(o.joined) ? o.joined : [])].filter((t, i, a) => typeof t === 'string' && t && a.indexOf(t) === i);
       for (const o of loadOrders()) {
         if (!usesTable(o) || o.cancelledBy || onHold.has(idOf(o))) continue;
@@ -4641,7 +4645,7 @@
         out.push({ uid: idOf(o), number: o.number ?? null, tables: tablesOf(o), guests: cleanGuests(o.guests) || 0, at: seatedOf(o) || now, total, due,
           server: typeof o.server === 'string' ? o.server : null, bill: !o.paidAt && bills.length > 0 && Number(bills[bills.length - 1]?.total) === total / 100,
           paidQr: Boolean(o.paidAt), freeAt: freeAt || null, confirm: qrOf(o) === 'pending', items: o.lines.reduce((n, l) => n + (Number(l.qty) || 0), 0),
-          sent: kotPrinted(o), dirty: Boolean(order.uid) && order.uid === idOf(o) && unsavedOnScreen() });
+          sent: kotPrinted(o), dirty: Boolean(order.uid) && order.uid === idOf(o) && unsavedOnScreen(), left: leftOf(o, now) });
         seen.add(idOf(o));
       }
       if (order.lines.length && usesTable(order) && !(order.uid && seen.has(order.uid))) {

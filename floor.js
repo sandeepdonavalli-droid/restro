@@ -81,8 +81,16 @@
     const B = window.RestroBookings, byTable = new Map(), groups = [];
     // (an order not paid yet before one paid by QR that is still at the table)
     const orders = [...(window.RestroCounter?.floorOrders?.(now) || [])].sort((p, q) => Number(p.paidQr) - Number(q.paidQr));
+    // (a Help bell made at a table before its order moved away goes with the guests, to the order's table now (MM5): the
+    // first move away from that table after the bell takes it)
+    const tookWith = new Map(), movedAt = new Map();
+    for (const o of orders) for (const l of o.left || []) for (const t of l.tables) for (const c of callsOn(t, now)) {
+      if (c.at <= l.at && !(movedAt.get(c.id) <= l.at)) { movedAt.set(c.id, l.at); tookWith.set(c.id, o); }
+    }
+    const callsHere = (t, o = null) => callsOn(t, now).filter(c => !tookWith.has(c.id) || tookWith.get(c.id) === o);
     for (const o of orders) {
-      const calls = o.tables.flatMap(t => callsOn(t, now));
+      const own = o.tables.flatMap(t => callsHere(t, o)), ids = new Set(own.map(c => c.id));
+      const calls = [...own, ...[...tookWith].filter(([id, x]) => x === o && !ids.has(id)).map(([id]) => ({ ...requestCall(id, now), table: o.tables[0] })).filter(c => c.id)];
       const g = { ...o, calls, attention: Boolean(o.confirm) || calls.length > 0, label: o.tables.map(tableName).filter(Boolean).join(' + ') };
       groups.push(g);
       for (const t of o.tables) if (tableById.has(t) && !byTable.has(t)) byTable.set(t, g);
@@ -100,7 +108,7 @@
       const o = byTable.get(t.id);
       if (o) { state.set(t.id, { kind: o.bill ? 'bill' : 'occupied', order: o, next: B?.nextOn?.(t.id, now) || null }); continue; }
       // (a Help bell from a table with no order yet: the table needs attention all the same)
-      const r = B?.reservedOn?.(t.id, now), calls = callsOn(t.id, now);
+      const r = B?.reservedOn?.(t.id, now), calls = callsHere(t.id);
       state.set(t.id, r ? { kind: 'reserved', booking: r, calls } : { kind: 'free', calls, join: joinOn.get(t.id) || null });
     }
     return { state, orders: groups.filter(g => g.tables.some(t => byTable.get(t) === g)) };
@@ -129,7 +137,8 @@
   let requests = [];
   try { const v = JSON.parse(localStorage.getItem(REQ_KEY) || '[]'); if (Array.isArray(v)) requests = v.filter(r => r && typeof r.id === 'string' && typeof r.table === 'string'); } catch {}
   const keepRequests = () => { const cut = Date.now() - 3 * 60 * MIN; requests = requests.filter(r => (Number(r.at) || 0) > cut).slice(-200); try { localStorage.setItem(REQ_KEY, JSON.stringify(requests)); } catch {} if (dialog.open) render(); };
-  const callsOn = (table, now) => requests.filter(r => r.table === table && (Number(r.at) || 0) > now - 3 * 60 * MIN).map(r => ({ id: r.id, table, kind: r.kind, label: REQ_WORDS[r.kind] || 'Help' }));
+  const callsOn = (table, now) => requests.filter(r => r.table === table && (Number(r.at) || 0) > now - 3 * 60 * MIN).map(r => ({ id: r.id, table, kind: r.kind, label: REQ_WORDS[r.kind] || 'Help', at: Number(r.at) || 0 }));
+  const requestCall = (id, now) => { const r = requests.find(x => x.id === id); return r ? callsOn(r.table, now).find(c => c.id === id) || {} : {}; };
   window.addEventListener('restro:qr-request', e => {
     const d = e.detail || {}; if (typeof d.table !== 'string' || !d.table) return;
     requests = [...requests.filter(r => r.id !== d.id), { id: String(d.id || `rq${Date.now()}`), table: d.table, kind: REQ_WORDS[d.kind] ? d.kind : 'other', note: String(d.note || '').slice(0, 120), at: Number(d.at) || Date.now() }];

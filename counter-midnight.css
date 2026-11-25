@@ -357,7 +357,6 @@ html[data-app-theme="midnight"] .counter-app .cx-mv.on{background-color:#142C57;
 html[data-app-theme="midnight"] .counter-app .cx-mvn b{color:#CDCCCB;--ink2:#9F9E9E}
 html[data-app-theme="midnight"] .counter-app .cx-mv.on .cx-mvn b{color:#8DB0ED;--ink2:#8DB0ED}
 html[data-app-theme="midnight"] .counter-app .cx-mvn small{color:#CDCCCB;--ink2:#9F9E9E}
-html[data-app-theme="midnight"] .counter-app .cx-mvq .cx-sb:disabled{color:#A09E9C;--ink2:#9F9E9E}
 html[data-app-theme="midnight"] .counter-app .cx-mvq .cx-sb:disabled:active{background-color:transparent;background-image:none}
 html[data-app-theme="midnight"] .counter-app .cx-mvsum{color:#DCDBDA;--ink2:#9F9E9D}
 html[data-app-theme="midnight"] .counter-app .cx-mvsum b{color:#F8F7F7;--ink2:#F8F7F7}
