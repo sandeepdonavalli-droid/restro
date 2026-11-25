@@ -116,7 +116,7 @@
   }
 
   // ---------- Recent apps: which apps, and a picture of each as it was left ----------
-  const appDialogs={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','customers-dialog':'customers','employees-dialog':'employees'};
+  const appDialogs={'settings-dialog':'settings','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','customers-dialog':'customers','employees-dialog':'employees','bookings-dialog':'bookings'};
   const controlDialogs={'calculator-dialog':'calculator','camera-dialog':'camera'};
   const insightViews={'order-details-dialog':{id:'last-order',name:'Last order',symbol:'receipt'},'most-sold-dialog':{id:'most-sold',name:'Most sold items',symbol:'chef'}};
   function recentOf(dialog){
@@ -304,7 +304,7 @@
 
   // Where a window closes into: its app's icon on the home screen (the dock or the first page), or, with no icon to go
   // to, the middle of the screen
-  const iconOf={'settings-dialog':'settings','customers-dialog':'customers','employees-dialog':'employees','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','calculator-dialog':'calculator','camera-dialog':'camera'};
+  const iconOf={'settings-dialog':'settings','customers-dialog':'customers','employees-dialog':'employees','analytics-dialog':'analytics','help-dialog':'help','qr-studio-dialog':'qr-studio','calculator-dialog':'calculator','camera-dialog':'camera','bookings-dialog':'bookings'};
   // (any app can be in the dock or on the pages: app.js)
   function iconNode(dialog){
     const id=dialog.id==='counter-dialog'?'register':dialog.id==='floor-dialog'?'floor':dialog.id==='orders-dialog'?(dialog.dataset.view==='held'?'register':'orders')
@@ -573,7 +573,7 @@
     const typing=document.activeElement;
     if(typing&&typing!==document.body&&(typing.matches?.('textarea,input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit])')||typing.isContentEditable)&&!typing.closest('#settings-search')){typing.blur();return;}
     const opened=dialogs.filter(dialog=>dialog.open).at(-1);
-    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='orders-dialog'&&window.RestroOrders?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;if(opened.id==='employees-dialog'&&window.RestroEmployees?.goBack())return;if(opened.id==='qr-studio-dialog'&&window.RestroQrStudio?.goBack())return;opened.close();return;}
+    if(opened){if(opened.id==='settings-dialog'&&window.RestroThemeSettings?.goBack())return;if(opened.id==='counter-dialog'&&window.RestroCounter?.goBack())return;if(opened.id==='floor-dialog'&&window.RestroFloor?.goBack?.())return;if(opened.id==='bookings-dialog'&&window.RestroBookingsApp?.goBack?.())return;if(opened.id==='orders-dialog'&&window.RestroOrders?.goBack())return;if(opened.id==='customers-dialog'&&window.RestroCustomers?.goBack())return;if(opened.id==='employees-dialog'&&window.RestroEmployees?.goBack())return;if(opened.id==='qr-studio-dialog'&&window.RestroQrStudio?.goBack())return;opened.close();return;}
     if(arranging){endDrag(true);setArranging(false);return;}
     if(currentPage>0){goToPage(currentPage-1);return;}
     await nativeAction('goBack');

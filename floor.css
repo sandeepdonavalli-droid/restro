@@ -322,3 +322,9 @@ html[data-nav="bar"] .fl-hint{right:calc(29.5 * var(--fu))}
 html[data-nav="bar"] .fl-done{right:calc(28 * var(--fu))}
 .fl-done .fi{width:calc(22 * var(--fu));height:calc(22 * var(--fu));stroke-width:2.8}
 .fl-done:disabled{opacity:.45}
+/* Seat now (D B11): "Seat at Table 3" where Done is */
+.fl-seat{position:absolute;right:calc(100 * var(--fu));bottom:calc(14 * var(--fu));width:calc(280 * var(--fu));height:calc(68 * var(--fu));display:grid!important;place-items:center;border-radius:calc(16 * var(--fu));background:#2F6FDE!important;
+  color:#FFFFFF!important;font-size:calc(20 * var(--fu))!important;font-weight:800!important;white-space:nowrap}
+html[data-nav="bar"] .fl-seat{right:calc(28 * var(--fu))}
+.fl-seat:disabled{opacity:.45}
+.fl-top.rs.seat h2{left:calc(177.7 * var(--fu))}

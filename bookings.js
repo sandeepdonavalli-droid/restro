@@ -1,6 +1,12 @@
 'use strict';
-// Bookings (Update Pack 8, C and D). This part: New reservation and Edit reservation (C2, C4: N01–N04, N08–N10), with
-// Pick a table on the Floor (C3: floor.js, its 'reserve' mode). The lists (Waitlist, Reservations: D) come next.
+// Bookings (Update Pack 8, C and D): one app, three screens in #bookings-dialog.
+// 1. The app (D: B01–B11): Waitlist | Reservations. "‹ Floor", the switch, + Add to waitlist / + New reservation; on the
+//    left the day (Today ▾), the filter (All ▾) and the list (who is waiting, or the bookings after the NOW line, then
+//    Earlier today, greyed); on the right the one picked: who they are, Edit, where they stand, and Remove / Cancel
+//    reservation · Notify · Buzz · Seat now (Notify and Buzz with the short green or red bar: A3). Seat now: a waitlist
+//    guest picks a table on the Floor (floor.js, 'seat'), a reservation goes to the Counter.
+// 2. Add / Edit waitlist (D: B12–B14), below.
+// 3. New / Edit reservation (C2, C4: N01–N04, N08–N10), with Pick a table on the Floor (C3: floor.js, 'reserve'):
 // - Customer details: Phone / Walk-in (how the booking was taken); phone first (the country's code from Settings, "+91 |",
 //   then the 10 digits), first name, last name. A phone number found in the customers or in past bookings fills in the
 //   names, with the green line "Returning guest · found in your customers · 3 visits · last booked 2 Nov".
@@ -160,6 +166,12 @@
 
   // ---------- drawing ----------
   function render() {
+    root.dataset.view = view || '';
+    if (view === 'list') { renderList(); return; }
+    if (view === 'wait') { renderWait(); return; }
+    renderRes();
+  }
+  function renderRes() {
     if (!f) { root.replaceChildren(); return; }
     const all = tablesNow(), areas = areasNow(all), now = Date.now();
     const focusId = document.activeElement?.id, sel = focusId && document.activeElement.selectionStart != null ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
@@ -238,17 +250,18 @@
   }
   let soon = 0;
   function renderSoon() { cancelAnimationFrame(soon); soon = requestAnimationFrame(render); }
-  document.addEventListener('selectionchange', () => { if (dialog.open && f) carets(); });
+  document.addEventListener('selectionchange', () => { if (dialog.open && (f || wf)) carets(); });
   root.addEventListener('focusin', () => carets()); root.addEventListener('focusout', () => setTimeout(carets));
 
   // Number of guests: − / + (the Counter's glyphs, the number in its quantity blue); the number tapped: the number pad
-  function guestsCard() {
-    const step = d => { f.guests = Math.max(1, Math.min(99, f.guests + d)); repick(); render(); };
+  // (s: the form, reservation or waitlist; then: what changes with the guests)
+  function guestsCard(s = f, then = repick) {
+    const step = d => { s.guests = Math.max(1, Math.min(99, s.guests + d)); then(); render(); };
     return el('section', { class: 'bk-card bk-guests', 'aria-labelledby': 'bk-guests-h' }, el('h3', { id: 'bk-guests-h' }, 'Number of guests'),
       el('div', { class: 'bk-step' },
-        el('button', { type: 'button', class: 'bk-sb', 'aria-label': 'One guest less', disabled: f.guests <= 1, onclick: () => step(-1) }, svgOf('0 0 24 24', '<path d="M3.5 12h17"/>')),
-        el('button', { type: 'button', class: 'bk-sn', 'aria-label': `${f.guests} guests. Tap to type the number`, onclick: () => { pad = { value: '' }; render(); } }, String(f.guests)),
-        el('button', { type: 'button', class: 'bk-sb', 'aria-label': 'One guest more', disabled: f.guests >= 99, onclick: () => step(1) }, svgOf('0 0 24 24', '<path d="M3.5 12h17M12 3.5v17"/>'))));
+        el('button', { type: 'button', class: 'bk-sb', 'aria-label': 'One guest less', disabled: s.guests <= 1, onclick: () => step(-1) }, svgOf('0 0 24 24', '<path d="M3.5 12h17"/>')),
+        el('button', { type: 'button', class: 'bk-sn', 'aria-label': `${s.guests} guests. Tap to type the number`, onclick: () => { pad = { value: '', s, then }; render(); } }, String(s.guests)),
+        el('button', { type: 'button', class: 'bk-sb', 'aria-label': 'One guest more', disabled: s.guests >= 99, onclick: () => step(1) }, svgOf('0 0 24 24', '<path d="M3.5 12h17M12 3.5v17"/>'))));
   }
 
   // When: the day, the wheels, what it comes to
@@ -451,12 +464,13 @@
       else if (pad.value.length < 2 && !(k === '0' && !pad.value)) pad.value += k;
       render();
     };
-    const done = () => { const n = Number(pad.value); if (n >= 1) { f.guests = Math.min(99, n); repick(); } pad = null; render(); };
+    const s = pad.s || f, then = pad.then || repick;
+    const done = () => { const n = Number(pad.value); if (n >= 1) { s.guests = Math.min(99, n); then(); } pad = null; render(); };
     const key = (k, label, cls = '') => el('button', { type: 'button', class: `bk-key ${cls}`.trim(), 'aria-label': k === 'back' ? 'Delete' : null, onclick: () => press(k) }, label);
     return el('div', { class: 'bk-scrim', onclick: e => { if (e.target === e.currentTarget) { pad = null; render(); } } },
       el('div', { class: 'bk-pad', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'bk-pad-t' },
         el('div', { class: 'bk-pad-h' }, el('h3', { id: 'bk-pad-t' }, 'Number of guests'), el('button', { type: 'button', class: 'bk-x', 'aria-label': 'Close', onclick: () => { pad = null; render(); } }, icon('x'))),
-        el('div', { class: 'bk-pad-v', role: 'status', 'aria-label': v ? `${v} guests` : `Type the number of guests (now ${f.guests})` }, v ? el('span', {}, v) : null, el('i', { 'aria-hidden': 'true' })),
+        el('div', { class: 'bk-pad-v', role: 'status', 'aria-label': v ? `${v} guests` : `Type the number of guests (now ${s.guests})` }, v ? el('span', {}, v) : null, el('i', { 'aria-hidden': 'true' })),
         el('div', { class: 'bk-keys' }, ...['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(k => key(k, k)), key('clear', 'Clear', 'fn'), key('0', '0'),
           key('back', svgOf('0 0 24 24', '<path d="M8.2 5h11.3A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5H8.2a1.5 1.5 0 0 1-1.1-.5L2.5 12l4.6-6.5A1.5 1.5 0 0 1 8.2 5Zm3.4 4.2L14.4 12l-2.8 2.8 1.3 1.3 2.8-2.8 2.8 2.8 1.3-1.3-2.8-2.8 2.8-2.8-1.3-1.3-2.8 2.8-2.8-2.8Z"/>', 'bk-del'), 'fn')),
         el('button', { type: 'button', class: 'bk-done', onclick: done }, 'Done')));
@@ -469,20 +483,515 @@
   });
 
   // ---------- Assign pager (A6): the Counter's pop-up; a pager tapped on the NFC spot: at once, with Undo ----------
+  // (the form on screen: the reservation's or the waitlist's)
+  const form = () => (view === 'wait' ? wf : view === 'res' ? f : null);
   function pagerLayer() {
-    const host = el('div', { class: 'bk-pagerhost' });
-    const built = window.RestroCounter?.pagerPicker?.({ current: f.pager, except: f.id, onPick: n => { f.pager = n; f.nfc = null; pagerOpen = false; render(); }, onClose: () => { pagerOpen = false; render(); } });
+    const host = el('div', { class: 'bk-pagerhost' }), s = form();
+    const built = s && window.RestroCounter?.pagerPicker?.({ current: s.pager, except: s.id, onPick: n => { s.pager = n; s.nfc = null; pagerOpen = false; render(); }, onClose: () => { pagerOpen = false; render(); } });
     if (built) host.append(built); else { pagerOpen = false; }
     return host;
   }
-  function undoPager() { if (!f?.nfc) return; f.pager = f.nfc.was; f.nfc = null; render(); }
-  // (counter.js asks first: true when the form took the pager)
+  function undoPager() { const s = form(); if (!s?.nfc) return; s.pager = s.nfc.was; s.nfc = null; render(); }
+  // (counter.js asks first: true when Bookings took the tap) A form on screen: the pager is theirs at once, with Undo.
+  // The lists with nothing open (A6): the guest or the booking holding that pager, picked.
   function pagerTapped(n) {
-    if (!dialog.open || !f) return false;
-    if (pad || pagerOpen) return true;
-    const busy = window.RestroCounter?.pagerInUse?.(n, f.id);
+    if (!dialog.open || !view) return false;
+    if (pad || pagerOpen || L.pop || L.menu) return true;
+    if (view === 'list') { listPager(n); return true; }
+    const s = form(); if (!s) return false;
+    const busy = window.RestroCounter?.pagerInUse?.(n, s.id);
     if (busy) { say({ b: `Pager ${n}`, t: ' is in use' }); return true; }
-    f.nfc = { was: f.pager }; f.pager = n; render(); return true;
+    s.nfc = { was: s.pager }; s.pager = n; render(); return true;
+  }
+
+  // ======================================================================================================================
+  // The app (D: B01–B11)
+  // ======================================================================================================================
+  // L: the tab; where it was opened from (Home or the Floor: "‹ Floor" goes to the Floor either way, Back goes Home when
+  // it was opened there) and the Floor's own back (Home or the Counter); per tab the day (a business day; null = today),
+  // the filter ('all' or a status) and the one picked; the menu open ('day' | 'filter') and the date menu's month; the
+  // pop-up open ({ kind: 'cancel' | 'remove', id, why }).
+  const L = { tab: 'waitlist', from: 'home', floorFrom: 'home', day: { waitlist: null, reservations: null }, filter: { waitlist: 'all', reservations: 'all' },
+    sel: { waitlist: null, reservations: null }, menu: null, cal: null, pop: null };
+  let view = null; // 'list' (the app) · 'wait' (Add / Edit waitlist) · 'res' (New / Edit reservation)
+  const W_STATUS = [['waiting', 'Waiting'], ['notified', 'Notified'], ['seated', 'Seated'], ['left', 'Left'], ['noshow', 'No-show']];
+  const R_STATUS = [['upcoming', 'Upcoming'], ['seated', 'Seated'], ['completed', 'Completed'], ['cancelled', 'Cancelled'], ['noshow', 'No-show']];
+  // (D: Seated blue, Left grey, Cancelled red, No-show orange; Completed grey as Left)
+  const TONE = { seated: 'blue', left: 'grey', completed: 'grey', cancelled: 'red', noshow: 'orange', waiting: 'blue', notified: 'blue', upcoming: 'blue' };
+  const activeW = w => w.status === 'waiting' || w.status === 'notified';
+  const dayOf = tab => L.day[tab] || today();
+  const dayLabel = k => (k === today() ? 'Today' : k === addDays(today(), -1) ? 'Yesterday' : k === addDays(today(), 1) ? 'Tomorrow' : dateWords(k));
+  const areaName = id => (id === 'any' ? 'Any area' : F()?.areas?.().find(a => a.id === id)?.name || '');
+  const tablesWords = ids => ids.map(id => F()?.tableName?.(id) || id).join(' + ');
+  const initialsOf = name => String(name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  const phoneWords = x => (x.phone ? `+${x.code || country().code} ${pretty(x.phone)}` : '');
+  const nameWords = x => B()?.nameOf?.(x) || 'Guest';
+
+  // What a tab shows for a day: who is on the list (or the bookings still to come) and the others (Earlier today), each
+  // through the filter; the counts for the filter menu; #N on the list
+  function listData(tab, now = Date.now()) {
+    const k = dayOf(tab), fl = L.filter[tab];
+    const keep = x => fl === 'all' || x.status === fl;
+    if (tab === 'waitlist') {
+      const all = (B()?.waitlist?.() || []).filter(w => bizKey(w.addedAt) === k);
+      const active = all.filter(activeW).sort((a, b) => a.addedAt - b.addedAt), past = all.filter(w => !activeW(w)).sort((a, b) => b.addedAt - a.addedAt);
+      return { tab, k, all, active: active.filter(keep), past: past.filter(keep), pos: new Map(active.map((w, i) => [w.id, i + 1])),
+        counts: Object.fromEntries(W_STATUS.map(([s]) => [s, all.filter(w => w.status === s).length])), shown: all.filter(keep).length, now };
+    }
+    const all = (B()?.reservations?.() || []).filter(r => bizKey(r.at) === k);
+    const active = all.filter(r => r.status === 'upcoming').sort((a, b) => a.at - b.at), past = all.filter(r => r.status !== 'upcoming').sort((a, b) => b.at - a.at);
+    return { tab, k, all, active: active.filter(keep), past: past.filter(keep), pos: new Map(),
+      counts: Object.fromEntries(R_STATUS.map(([s]) => [s, all.filter(r => r.status === s).length])), shown: all.filter(keep).length, now };
+  }
+  // The one picked: as tapped, else the first on the list
+  const pickedOf = d => { const list = [...d.active, ...d.past]; return list.find(x => x.id === L.sel[d.tab]) || list[0] || null; };
+
+  function renderList() {
+    const now = Date.now(), d = listData(L.tab, now), x = pickedOf(d);
+    const parts = [listTop(), el('section', { class: 'bl-left', 'aria-label': L.tab === 'waitlist' ? 'Waitlist' : 'Reservations' }, dropdowns(d), listRows(d, x, now)), detail(d, x, now)];
+    if (L.menu) parts.push(el('div', { class: 'bl-catch', onclick: () => { L.menu = null; L.cal = null; render(); } }), L.menu === 'filter' ? filterMenu(d) : dayMenu(d));
+    if (L.pop) parts.push(popLayer(d, now));
+    if (pagerOpen) parts.push(pagerLayer());
+    const top = root.querySelector('.bl-scroll')?.scrollTop || 0;
+    root.replaceChildren(...parts);
+    const sc = root.querySelector('.bl-scroll'); if (sc) sc.scrollTop = top;
+    if (toastNode) root.append(toastNode);
+  }
+  // The top: "‹ Floor", Waitlist | Reservations (no counts), the blue button of the tab
+  function listTop() {
+    const tab = (id, ic, label) => el('button', { type: 'button', role: 'tab', 'aria-selected': String(L.tab === id), class: L.tab === id ? 'on' : '',
+      onclick: () => { if (L.tab !== id) { L.tab = id; L.menu = null; L.cal = null; render(); } } }, icon(ic), label);
+    return el('header', { class: 'bl-top' },
+      el('h2', { id: 'bookings-title', class: 'bl-hide', tabindex: '-1' }, 'Bookings'),
+      el('button', { type: 'button', class: 'bl-floor', onclick: toFloor }, icon('chevron-left'), 'Floor'),
+      el('div', { class: 'bl-tabs', role: 'tablist', 'aria-label': 'Waitlist or reservations' }, tab('waitlist', 'timer', 'Waitlist'), tab('reservations', 'calendar', 'Reservations')),
+      el('button', { type: 'button', class: 'bl-add', onclick: L.tab === 'waitlist' ? () => openWait(null) : () => window.RestroBookingsApp.newReservation({ from: 'bookings' }) },
+        icon('plus'), L.tab === 'waitlist' ? 'Add to waitlist' : 'New reservation'));
+  }
+  // Today ▾ and All ▾ (the number shown)
+  function dropdowns(d) {
+    const list = d.tab === 'waitlist' ? W_STATUS : R_STATUS, fl = L.filter[d.tab];
+    const menu = which => { L.menu = L.menu === which ? null : which; L.cal = L.menu === 'day' ? (d.k).slice(0, 7) : null; render(); };
+    return el('div', { class: 'bl-dds' },
+      el('button', { type: 'button', class: `bl-dd day${L.menu === 'day' ? ' open' : ''}`, 'aria-haspopup': 'dialog', 'aria-expanded': String(L.menu === 'day'), onclick: () => menu('day') },
+        icon('calendar'), el('b', {}, dayLabel(d.k)), icon('chevron-down', 'bl-cv')),
+      el('button', { type: 'button', class: `bl-dd fl${L.menu === 'filter' ? ' open' : ''}`, 'aria-haspopup': 'menu', 'aria-expanded': String(L.menu === 'filter'), onclick: () => menu('filter') },
+        icon('list-filter'), el('b', {}, fl === 'all' ? 'All' : list.find(([s]) => s === fl)?.[1] || 'All'), el('em', {}, String(d.shown)), icon('chevron-down', 'bl-cv')));
+  }
+  // The list: who is on it now (or the bookings still to come, under NOW), then Earlier today, greyed
+  function listRows(d, x, now) {
+    const out = [], isToday = d.k === today(), w = d.tab === 'waitlist';
+    if (w) {
+      if (isToday) {
+        const n = d.active.length, g = d.active.reduce((s, y) => s + y.guests, 0);
+        out.push(el('p', { class: 'bl-sec' }, n ? `On the list · ${plural(n, 'group')} · ${plural(g, 'guest')}` : 'On the list · nobody waiting'));
+        out.push(...d.active.map(y => waitRow(y, d, x, now)));
+        if (d.past.length) out.push(el('p', { class: 'bl-sec' }, 'Earlier today'), ...d.past.map(y => pastRow(y, x)));
+      } else {
+        out.push(el('p', { class: 'bl-sec' }, `${dateWords(d.k)} · ${plural(d.active.length + d.past.length, 'group')}`), ...[...d.active, ...d.past].sort((a, b) => b.addedAt - a.addedAt).map(y => pastRow(y, x)));
+      }
+    } else if (isToday) {
+      out.push(el('p', { class: 'bl-now' }, el('span', {}, `Now · ${clock(now)}`), el('i', { 'aria-hidden': 'true' })));
+      out.push(...d.active.map(r => resRow(r, x, now)));
+      if (!d.active.length) out.push(el('p', { class: 'bl-empty' }, L.filter.reservations === 'all' || L.filter.reservations === 'upcoming' ? 'No more bookings today' : ''));
+      if (d.past.length) out.push(el('p', { class: 'bl-sec' }, 'Earlier today'), ...d.past.map(r => pastRow(r, x)));
+    } else {
+      out.push(el('p', { class: 'bl-sec' }, `${dateWords(d.k)} · ${plural(d.active.length + d.past.length, 'booking')}`), ...d.active.map(r => resRow(r, x, now)), ...d.past.map(r => pastRow(r, x)));
+    }
+    if (!d.active.length && !d.past.length && !(w && isToday) && !(!w && isToday)) out.push(el('p', { class: 'bl-empty' }, w ? 'Nobody on the waitlist that day' : 'No bookings that day'));
+    return el('div', { class: 'bl-scroll' }, ...out);
+  }
+  const pick = (tab, id) => { L.sel[tab] = id; render(); };
+  // A waitlist row: #N; the name, the guests · the area · notified · no phone; the pager (or None); the minutes waited
+  // against the quote (black on time, orange from 5 minutes before it: D)
+  function waitRow(w, d, x, now) {
+    const waited = Math.max(0, Math.floor((now - w.addedAt) / MIN)), late = waited >= w.quote - 5;
+    const sub = [areaName(w.area), w.status === 'notified' ? 'notified' : '', w.phone ? '' : 'no phone'].filter(Boolean).join(' · ');
+    const out = w.pager && !w.pagerBackAt;
+    return el('button', { type: 'button', class: `bl-row w${x?.id === w.id ? ' on' : ''}`, 'aria-pressed': String(x?.id === w.id), onclick: () => pick('waitlist', w.id) },
+      el('span', { class: 'bl-pos' }, String(d.pos.get(w.id) || '')),
+      el('span', { class: 'bl-who' }, el('b', {}, nameWords(w)), el('span', {}, icon('chair'), el('b', {}, String(w.guests)), ` · ${sub}`)),
+      el('span', { class: `bl-pg${out ? '' : ' none'}` }, icon('vibration'), out ? String(w.pager) : 'None'),
+      el('span', { class: `bl-tm${late ? ' late' : ''}` }, el('span', {}, el('b', {}, String(waited)), 'min'), el('small', {}, `of ${w.quote}`)));
+  }
+  // A booking still to come: its time ("in 18 min", or late in orange), the name, the guests · the area, the table
+  function resRow(r, x, now) {
+    const isToday = bizKey(r.at) === today(), late = Math.round((now - r.at) / MIN);
+    return el('button', { type: 'button', class: `bl-row r${x?.id === r.id ? ' on' : ''}`, 'aria-pressed': String(x?.id === r.id), onclick: () => pick('reservations', r.id) },
+      el('span', { class: 'bl-time' }, el('b', {}, clock(r.at)), isToday ? (late > 0 ? el('small', { class: 'late' }, `${late} min late`) : el('small', {}, inWords(r.at, now))) : null),
+      el('span', { class: 'bl-who' }, el('b', {}, nameWords(r)), el('span', {}, icon('chair'), el('b', {}, String(r.guests)), ` · ${areaName(F()?.areaOf?.(r.tables[0]) || '')}`)),
+      tableChip(r.tables));
+  }
+  // (the table as on the floor: a rounded square, or round for a round table; joined: "9 + 19")
+  function tableChip(ids, cls = 'bl-tno') {
+    const t = F()?.table?.(ids[0]);
+    return el('i', { class: `${cls}${ids.length < 2 && t?.shape === 'round' ? ' round' : ''}${ids.length > 1 ? ' wide' : ''}` }, tablesWords(ids));
+  }
+  // Earlier today: the time, the name, what became of them, greyed
+  function pastRow(y, x) {
+    const w = Boolean(y.addedAt), [words, tone] = statusOf(y);
+    return el('button', { type: 'button', class: `bl-row past${x?.id === y.id ? ' on' : ''}`, 'aria-pressed': String(x?.id === y.id), onclick: () => pick(w ? 'waitlist' : 'reservations', y.id) },
+      el('span', { class: 'bl-pt' }, clock(w ? y.addedAt : y.at)), el('span', { class: 'bl-pn' }, nameWords(y)), el('span', { class: `bl-ps ${tone}` }, words));
+  }
+  // What became of a booking or a guest, for its row: ["Seated · T12", 'blue']
+  function statusOf(y) {
+    if (y.addedAt) {
+      if (y.status === 'seated') return [`Seated${y.tables?.length ? ` · ${y.tables.map(id => `T${F()?.tableName?.(id) || id}`).join(' + ')}` : ''}`, 'blue'];
+      return [(W_STATUS.find(([s]) => s === y.status) || [, 'Waiting'])[1], TONE[y.status] || 'grey'];
+    }
+    return [(R_STATUS.find(([s]) => s === y.status) || [, 'Upcoming'])[1], TONE[y.status] || 'grey'];
+  }
+
+  // ---------- the one picked (right) ----------
+  function detail(d, x, now) {
+    if (!x) return el('section', { class: 'bl-detail none' }, el('p', {}, d.tab === 'waitlist' ? (d.k === today() ? 'Nobody on the waitlist yet' : 'Nobody on the waitlist that day') : 'No bookings to show'));
+    return d.tab === 'waitlist' ? waitDetail(x, d, now) : resDetail(x, now);
+  }
+  // The top: the initials, the name, the phone and new or returning guest, Edit, where they stand
+  function detailHead(x, st, onEdit) {
+    const name = nameWords(x), v = x.phone ? visitsOf(x.phone, x.addedAt ? null : x.id) : 0;
+    return el('div', { class: 'bl-dh' }, el('i', { class: 'bl-av', 'aria-hidden': 'true' }, initialsOf(name)),
+      el('div', { class: 'bl-dn' }, el('h3', {}, name), el('p', {}, el('span', {}, x.phone ? phoneWords(x) : 'No phone'), x.phone ? el('b', {}, v ? `Returning guest · ${plural(v, 'visit')}` : 'New guest') : null)),
+      el('div', { class: 'bl-dr' }, el('button', { type: 'button', class: 'bl-edit', disabled: !onEdit, onclick: onEdit }, icon('pencil'), 'Edit'),
+        el('p', { class: `bl-st ${st.tone}` }, st.icon ? icon(st.icon) : null, st.text)));
+  }
+  // The messages sent, the last of each kind: ✓ green when it went, ✗ red when it didn't (A3)
+  const MSG_WORDS = { added: ['Added to waitlist', 'Waitlist message failed'], confirm: ['Confirmation sent', 'Confirmation failed'], reminder: ['Reminder sent', 'Reminder failed'],
+    notify: ['Notify sent', 'Notify failed'], buzz: ['Buzz sent', 'Buzz failed'] };
+  function msgItems(x) {
+    const last = new Map(); for (const m of x.msgs || []) last.set(m.kind, m);
+    const items = ['added', 'confirm', 'reminder', 'notify', 'buzz'].filter(k => last.has(k)).map(k => { const m = last.get(k); return el('span', { class: `bl-msg ${m.ok ? 'ok' : 'no'}` }, icon(m.ok ? 'check' : 'x'), MSG_WORDS[k][m.ok ? 0 : 1]); });
+    return items.length ? items : [el('span', { class: 'bl-msg none' }, x.phone ? 'None yet' : 'No phone number')];
+  }
+  const lastMsg = (x, kind) => [...(x.msgs || [])].reverse().find(m => m.kind === kind) || null;
+  // A bottom button (D: equal widths; the Counter's Save / Pay look): red, blue (light) or solid; Notify and Buzz with
+  // their short bar under the words, green when the last one went, red when it didn't (A3)
+  function dbtn(tone, ic, label, run, off, bar = null) {
+    return el('button', { type: 'button', class: `bl-db ${tone}`, disabled: Boolean(off), onclick: run }, ic, label, bar ? el('i', { class: `bl-bar ${bar.ok ? 'ok' : 'no'}`, 'aria-hidden': 'true' }) : null);
+  }
+
+  // A waitlist guest: the minutes waited against the quote (the ring), the quote, when they were added and #N, the table
+  // that may free first for them, the messages; Guests · Area · Pager · Note; Remove · Notify · Buzz · Seat now
+  function waitDetail(w, d, now) {
+    const active = activeW(w), end = active ? now : (w.removedAt || w.seatedAt || now), waited = Math.max(0, Math.floor((end - w.addedAt) / MIN)), left = w.quote - waited;
+    const late = active && left <= 5, sinceN = w.notifiedAt ? Math.floor((now - w.notifiedAt) / MIN) : 0;
+    const st = w.status === 'waiting' ? { text: left > 5 ? 'Waiting · on time' : left >= 0 ? `Waiting · ${left} min left` : `Waiting · ${-left} min over`, tone: left > 5 ? 'blue' : 'orange' }
+      : w.status === 'notified' ? (sinceN >= (B()?.RULES?.notifiedFlag || 15 * MIN) / MIN ? { text: `Notified ${sinceN} min ago · not here yet`, tone: 'orange' } : { text: `Notified ${sinceN ? `${sinceN} min ago` : 'just now'}`, tone: 'blue' })
+        : { text: `${statusOf(w)[0]} · ${clock(w.removedAt || w.seatedAt || w.addedAt)}`, tone: statusOf(w)[1] };
+    const pos = d.pos.get(w.id), out = w.pager && !w.pagerBackAt;
+    const lines = [
+      el('p', {}, 'Quoted ', el('b', {}, `${w.quote} min`), ' · ', active ? el('b', { class: late ? 'o' : '' }, left >= 0 ? `${left} min left` : `${-left} min over`) : el('b', {}, `waited ${waited} min`)),
+      el('p', {}, 'Added ', el('b', {}, clock(w.addedAt)), active && pos ? ` · #${pos} on the list` : ''),
+      active ? potentialLine(w, now) : null,
+      el('p', { class: 'bl-msgs' }, el('span', { class: 'bl-ml' }, 'Messages'), ...msgItems(w))];
+    const tile = (label, value, cls = '') => el('div', { class: `bl-tile ${cls}`.trim() }, el('small', {}, label), value);
+    const btns = el('div', { class: 'bl-btns four' },
+      active ? dbtn('red', icon('user-round-x'), 'Remove', () => { L.pop = { kind: 'remove', id: w.id, why: w.status === 'notified' ? 'noshow' : 'left' }; render(); })
+        : dbtn('blue', icon('list-end'), 'Put back', () => putBack(w), !(w.status === 'left' || w.status === 'noshow') || bizKey(w.addedAt) !== today()),
+      dbtn('blue', icon('send-horizontal'), 'Notify', () => notify(w), !active || !w.phone, active && w.phone ? lastMsg(w, 'notify') : null),
+      dbtn('blue bz', out ? el('b', {}, String(w.pager)) : el('i', { class: 'bl-dash', 'aria-hidden': 'true' }), 'Buzz', () => buzz(w), !active || !out, active && out ? lastMsg(w, 'buzz') : null),
+      dbtn('solid', icon('armchair'), 'Seat now', () => seatWaiting(w), !active));
+    return el('section', { class: 'bl-detail w', 'aria-label': nameWords(w) },
+      detailHead(w, st, active ? () => openWait(w.id) : null),
+      el('div', { class: 'bl-wait' }, ring(waited, w.quote, active ? (late ? 'o' : '') : 'done'), el('div', { class: 'bl-lines' }, ...lines)),
+      el('div', { class: 'bl-tiles' },
+        tile('Guests', el('b', { class: 'n' }, icon('chair'), el('span', {}, String(w.guests)))),
+        tile('Area', el('b', {}, areaName(w.area))),
+        tile('Pager', out ? el('b', { class: 'n' }, icon('vibration'), el('span', {}, String(w.pager))) : el('b', { class: 'n off' }, icon('vibration'), el('em', {}, 'None')), out ? 'violet' : ''),
+        tile('Note', w.note ? el('b', { class: 'note' }, w.note) : el('b', { class: 'off dash' }, '—'))),
+      btns);
+  }
+  // The ring: the minutes waited against the quote, from the top round; black on time, orange from 5 minutes before it
+  function ring(waited, quote, tone) {
+    const R = 63, C = 2 * Math.PI * R, part = Math.min(1, quote ? waited / quote : 1);
+    const arc = part > 0 ? `<circle cx="71" cy="71" r="${R}" class="bl-arc" stroke-dasharray="${(part * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 71 71)"/>` : '';
+    return el('div', { class: `bl-ring ${tone}`.trim(), role: 'img', 'aria-label': `Waited ${waited} minutes of ${quote}` },
+      svgOf('0 0 142 142', `<circle cx="71" cy="71" r="${R}" class="bl-track"/>${arc}`), el('b', {}, String(waited)), el('small', {}, 'min'));
+  }
+  // "Potential table for 6: Table 19 · Terrace, seated 1 h 05": the table that seats them likely to free first (D)
+  function potentialLine(w, now) {
+    const t = estimates(w.guests, now, w.id).first[w.area === 'any' ? 'any' : w.area] || null;
+    if (!t) return el('p', {}, `Potential table for ${w.guests}: `, el('b', {}, 'none seats them'));
+    const why = t.state === 'free' ? 'free now' : t.bill ? 'bill printed' : `seated ${since(t.since, now)}`;
+    return el('p', {}, `Potential table for ${w.guests}: `, el('b', {}, `Table ${t.name} · ${t.areaName}`), `, ${why}`);
+  }
+  const since = (t, now) => { const m = Math.max(0, Math.floor((now - t) / MIN)); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${pad2(m % 60)}`; };
+
+  // A booking: where it stands; Time · Guests · Table · Booked; the note; the messages and their channel; Cancel
+  // reservation · Notify · Seat now
+  function resDetail(r, now) {
+    const up = r.status === 'upcoming', k = bizKey(r.at), mins = Math.round((r.at - now) / MIN);
+    const st = !up ? { text: `${statusOf(r)[0]}${r.statusAt ? ` · ${clock(r.statusAt)}` : ''}`, tone: statusOf(r)[1] }
+      : mins >= 0 ? { icon: 'timer', text: `Upcoming · ${k === today() ? inWords(r.at, now) : dayLabel(k)}`, tone: 'blue' } : { icon: 'clock', text: `Running late · ${-mins} min`, tone: 'orange' };
+    const t = F()?.table?.(r.tables[0]), area = areaName(t?.area || '');
+    const tile = (label, value, sub) => el('div', { class: 'bl-tile r' }, el('small', {}, label), value, el('span', {}, sub));
+    const ch = [...(r.msgs || [])].reverse().find(m => m.ch === 'whatsapp' || m.ch === 'sms')?.ch;
+    return el('section', { class: 'bl-detail r', 'aria-label': nameWords(r) },
+      detailHead(r, st, up ? () => window.RestroBookingsApp.editReservation(r.id, { from: 'bookings' }) : null),
+      el('div', { class: 'bl-tiles r' },
+        tile('Time', el('b', {}, clock(r.at)), dayLabel(k)),
+        tile('Guests', el('b', {}, icon('chair'), String(r.guests)), 'party size'),
+        tile('Table', el('b', {}, tableChip(r.tables, 'bl-tno sm'), area), `Reserved from ${clock(r.at - HOUR)}`),
+        tile('Booked', el('b', {}, icon(r.how === 'walkin' ? 'walk' : 'phone'), r.how === 'walkin' ? 'Walk-in' : 'By phone'), [firstOf(r.by), clock(r.createdAt)].filter(Boolean).join(' · '))),
+      el('div', { class: 'bl-line note' }, el('small', {}, 'Note'), el('b', { class: r.note ? '' : 'off' }, r.note || '—')),
+      el('div', { class: 'bl-line msgs' }, el('small', {}, 'Messages'), el('span', { class: 'bl-mi' }, ...msgItems(r)), ch ? el('em', {}, ch === 'whatsapp' ? 'WhatsApp' : 'SMS') : null),
+      el('div', { class: 'bl-btns three' },
+        dbtn('red', icon('calendar-x'), 'Cancel reservation', () => { L.pop = { kind: 'cancel', id: r.id }; render(); }, !up),
+        dbtn('blue', icon('send-horizontal'), 'Notify', () => notify(r), !up || !r.phone, up && r.phone ? lastMsg(r, 'notify') : null),
+        dbtn('solid', icon('armchair'), 'Seat now', () => seatReservation(r), !up)));
+  }
+
+  // ---------- the menus: Today ▾ (B07, B08) and All ▾ (B04, B06) ----------
+  function filterMenu(d) {
+    const list = [['all', 'All'], ...(d.tab === 'waitlist' ? W_STATUS : R_STATUS)], fl = L.filter[d.tab];
+    return el('div', { class: 'bl-menu fl', role: 'menu', 'aria-label': 'Show' }, ...list.map(([s, label]) => {
+      const on = s === fl, n = s === 'all' ? d.all.length : d.counts[s] || 0;
+      return el('button', { type: 'button', role: 'menuitemradio', 'aria-checked': String(on), class: on ? 'on' : '', onclick: () => { L.filter[d.tab] = s; L.menu = null; render(); } },
+        el('span', {}, label), el('em', {}, String(n)), on ? icon('check') : null);
+    }));
+  }
+  // The day: Today · Yesterday · Tomorrow (Reservations) and a month's calendar; the waitlist's history: past days only
+  function dayMenu(d) {
+    const w = d.tab === 'waitlist', k0 = today(), opts = [[k0, 'Today'], [addDays(k0, -1), 'Yesterday'], ...(w ? [] : [[addDays(k0, 1), 'Tomorrow']])];
+    const choose = k => { L.day[d.tab] = k === k0 ? null : k; L.menu = null; L.cal = null; render(); };
+    const other = !opts.some(([k]) => k === d.k);
+    const [y, mo] = (L.cal || d.k.slice(0, 7)).split('-').map(Number), first = new Date(y, mo - 1, 1), lead = (first.getDay() + 6) % 7, days = new Date(y, mo, 0).getDate();
+    const shift = n => { const t = new Date(y, mo - 1 + n, 1); L.cal = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}`; render(); };
+    const cells = [...Array.from({ length: lead }, () => el('span')), ...Array.from({ length: days }, (_, i) => {
+      const k = dkey(new Date(y, mo - 1, i + 1)), off = w && k > k0;
+      return el('button', { type: 'button', class: `${k === d.k ? 'on' : ''}${off ? ' off' : ''}`.trim() || null, disabled: off, 'aria-pressed': String(k === d.k), 'aria-label': keyDate(k).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }), onclick: () => choose(k) }, String(i + 1));
+    })];
+    return el('div', { class: `bl-menu day${w ? ' w' : ''}`, role: 'dialog', 'aria-label': 'Pick a day' },
+      el('div', { class: 'bl-days' }, ...opts.map(([k, label]) => el('button', { type: 'button', class: k === d.k ? 'on' : '', 'aria-pressed': String(k === d.k), onclick: () => choose(k) },
+        el('b', {}, label), el('small', {}, dateWords(k)), k === d.k ? icon('check') : null)),
+      el('button', { type: 'button', class: `bl-pick${other ? ' on' : ''}`, onclick: () => { L.cal = d.k.slice(0, 7); render(); root.querySelector('.bl-cal button.on, .bl-cal button:not([disabled])')?.focus(); } }, icon('calendar'), other ? dateWords(d.k) : 'Pick a date')),
+      el('div', { class: 'bl-cal' },
+        el('div', { class: 'bl-cal-h' }, el('b', {}, first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })),
+          el('button', { type: 'button', 'aria-label': 'Previous month', onclick: () => shift(-1) }, icon('chevron-left')),
+          el('button', { type: 'button', 'aria-label': 'Next month', disabled: w && `${y}-${pad2(mo)}` >= k0.slice(0, 7), onclick: () => shift(1) }, icon('chevron-right'))),
+        el('div', { class: 'bl-cal-w', 'aria-hidden': 'true' }, ...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(x => el('span', {}, x))),
+        el('div', { class: 'bl-cal-g' }, ...cells),
+        w ? el('p', { class: 'bl-cal-n' }, 'Waitlist history · past days only') : null));
+  }
+
+  // ---------- the pop-ups: Cancel reservation (B09), Remove from the waitlist (B10) ----------
+  function popLayer(d, now) {
+    const card = L.pop.kind === 'cancel' ? cancelPop() : L.pop.kind === 'remove' ? removePop(d, now) : null;
+    if (!card) { L.pop = null; return el('span'); }
+    return el('div', { class: 'bl-scrim', onclick: e => { if (e.target === e.currentTarget) { L.pop = null; render(); } } }, card);
+  }
+  const popHead = (ic, title) => el('div', { class: 'bl-pop-h' }, el('i', { class: 'bl-pop-ic' }, ic), el('h3', { id: 'bl-pop-t' }, title),
+    el('button', { type: 'button', class: 'bl-x', 'aria-label': 'Close', onclick: () => { L.pop = null; render(); } }, icon('x')));
+  function cancelPop() {
+    const r = B()?.reservation?.(L.pop.id); if (!r || r.status !== 'upcoming') return null;
+    const name = nameWords(r), words = tablesWords(r.tables), many = r.tables.length > 1;
+    return el('div', { class: 'bl-pop', role: 'alertdialog', 'aria-modal': 'true', 'aria-labelledby': 'bl-pop-t' },
+      popHead(icon('calendar-x'), `Cancel ${firstOf(name) || 'the'}’s reservation?`),
+      el('div', { class: 'bl-pcard bl-sum' }, tableChip(r.tables, 'bl-tno big'), el('div', {}, el('b', {}, `${name} · ${clock(r.at)}`), el('small', {}, `${many ? 'Tables' : 'Table'} ${words} · ${plural(r.guests, 'guest')} · ${r.how === 'walkin' ? 'walk-in' : 'by phone'}`))),
+      el('p', { class: 'bl-warn' }, `${many ? 'Tables' : 'Table'} ${words} turn${many ? '' : 's'} `, el('b', {}, 'free'), ' and the booking moves to ', el('b', {}, 'Cancelled'), '. This can’t be undone.'),
+      el('div', { class: 'bl-pbtns' },
+        el('button', { type: 'button', class: 'bl-pb white', onclick: () => { L.pop = null; render(); } }, 'Keep it'),
+        el('button', { type: 'button', class: 'bl-pb danger', onclick: () => { B().cancel(r.id); L.pop = null; render(); say({ b: `${firstOf(name) || 'The'}’s reservation cancelled`, t: ` · ${many ? 'Tables' : 'Table'} ${words} ${many ? 'are' : 'is'} free` }); } }, icon('trash'), 'Cancel reservation')));
+  }
+  function removePop(d, now) {
+    const w = B()?.waiting?.(L.pop.id); if (!w || !activeW(w)) return null;
+    const name = nameWords(w), first = firstOf(name) || 'them', out = w.pager && !w.pagerBackAt, waited = Math.max(0, Math.floor((now - w.addedAt) / MIN)), pos = d.pos.get(w.id);
+    const choice = (why, label, sub) => el('button', { type: 'button', role: 'radio', 'aria-checked': String(L.pop.why === why), class: `bl-choice${L.pop.why === why ? ' on' : ''}`, onclick: () => { L.pop.why = why; render(); } },
+      el('i', { class: 'bk-radio', 'aria-hidden': 'true' }), el('span', {}, el('b', {}, label), el('small', {}, sub)));
+    return el('div', { class: 'bl-pop', role: 'alertdialog', 'aria-modal': 'true', 'aria-labelledby': 'bl-pop-t' },
+      popHead(icon('user-round-x'), `Remove ${first} from the waitlist?`),
+      el('div', { class: 'bl-pcard bl-sum' }, el('i', { class: `bl-sq${out ? ' violet' : ''}` }, out ? String(w.pager) : `#${pos || ''}`),
+        el('div', {}, el('b', {}, `${name} · ${plural(w.guests, 'guest')}`), el('small', {}, [pos ? `#${pos} on the list` : '', `waited ${waited} min`, out ? `Pager ${w.pager}` : ''].filter(Boolean).join(' · ')))),
+      el('div', { class: 'bl-choices', role: 'radiogroup', 'aria-label': 'Why' }, choice('noshow', 'No-show', w.status === 'notified' ? 'Notified, didn’t come' : 'Didn’t come back'), choice('left', 'Left', 'Gave up waiting')),
+      el('p', { class: 'bl-pcard bl-info' }, 'Moves to ', el('b', {}, 'Earlier today'), `, where you can put ${first} back.${out ? ` Pager ${w.pager} frees once it’s back in the dock.` : ''}`),
+      el('div', { class: 'bl-pbtns' },
+        el('button', { type: 'button', class: 'bl-pb white', onclick: () => { L.pop = null; render(); } }, 'Keep on list'),
+        el('button', { type: 'button', class: 'bl-pb danger', onclick: () => {
+          const why = L.pop.why; B().removeWaiting(w.id, why); L.pop = null; render();
+          say({ b: `${first} · ${why === 'left' ? 'left' : 'no-show'}`, t: ' · moved to Earlier today' });
+        } }, icon('user-round-x'), 'Remove')));
+  }
+  function putBack(w) { B().putBack(w.id); render(); say({ b: `${firstOf(nameWords(w)) || 'They'}’re back on the list` }); }
+
+  // ---------- Notify, Buzz (A3: at once, no pop-up; the short bar shows how it went) ----------
+  async function notify(x) {
+    const r = await B()?.message?.('notify', x.id);
+    if (r?.none) say('Messages go through the RESTRO Android app');
+    render();
+  }
+  async function buzz(w) {
+    const r = await B()?.buzz?.(w.id);
+    if (r?.none) say('Pagers start with the RESTRO Android app');
+    render();
+  }
+  // (A6) an NFC tap on the lists: the guest or the booking holding that pager
+  function listPager(n) {
+    const holder = (B()?.pagersOut?.() || []).find(p => p.n === n);
+    if (!holder) { say({ b: `Pager ${n}`, t: ' isn’t with anyone on the lists' }); return; }
+    backToList(holder.kind === 'wait' ? 'waitlist' : 'reservations', holder.id);
+  }
+
+  // ---------- Seat now ----------
+  // A waitlist guest (B11): the Floor picks the table, the best for them picked already (in their area; any area: the
+  // one the Floor shows when a table there fits them exactly, else the best anywhere); then back to the Waitlist
+  function seatWaiting(w) {
+    const now = Date.now(), all = B()?.tablesFor?.({ at: now, guests: w.guests, now, lock: true }) || new Map();
+    const areas = (F()?.areas?.() || []).map(a => B().areaFor(a.id, all, w.guests)), seatOk = areas.map(a => ({ ...a, pick: a.pick && a.pick.tables.every(id => all.get(id)?.state === 'free') ? a.pick : null }));
+    const shown = seatOk.find(a => a.id === F()?.area && a.pick?.kind === 'exact');
+    const best = (w.area !== 'any' ? seatOk.find(a => a.id === w.area && a.pick) : shown) || B().bestArea(seatOk);
+    const name = nameWords(w), out = w.pager && !w.pagerBackAt;
+    F()?.open({ reserve: { seat: true, title: 'Seat now', back: 'Waitlist', who: name, guests: w.guests, at: now, pager: out ? w.pager : 0, tables: best?.pick ? [...best.pick.tables] : [],
+      area: best?.id || (w.area !== 'any' ? w.area : null), picked: 'auto', join: Boolean(best?.pick && best.pick.tables.length > 1),
+      onPick: ids => {
+        if (!ids.length) return;
+        B().seatWaiting(w.id, ids);
+        backToList('waitlist', w.id, { b: `${firstOf(name) || 'Guest'} seated`, t: ` · ${ids.length > 1 ? 'Tables' : 'Table'} ${tablesWords(ids)}` });
+      } } });
+  }
+  // A reservation: the Counter, its table, Dine-in, the party; Back there comes here again
+  function seatReservation(r) {
+    view = null; if (dialog.open) dialog.close();
+    window.RestroCounter?.seatBooking?.({ table: r.tables[0], tables: r.tables, guests: r.guests, booking: r.id, back: 'bookings',
+      customer: r.phone ? { name: nameWords(r), mobile: r.phone, code: r.code } : null }) || window.RestroCounter?.openTable?.(r.tables[0]);
+  }
+
+  // ======================================================================================================================
+  // Add / Edit waitlist (D: B12–B14): the reservation's form, as the waitlist needs it
+  // ======================================================================================================================
+  // wf: { id (Edit), phone, first, last, filled, guests, quote (minutes), quoted (a chip was tapped), area ('any' or an
+  //   area), note, pager, nfc ({ was }: Undo), was (Edit: as it was) }
+  let wf = null;
+  const QUOTES = [10, 15, 20, 30, 45, 60];
+  function openWait(id) {
+    const w = id ? B()?.waiting?.(id) : null; if (id && (!w || !activeW(w))) return;
+    wf = w ? { id: w.id, phone: w.phone, first: w.first, last: w.last, filled: false, guests: w.guests, quote: w.quote, quoted: true, area: w.area, note: w.note, pager: w.pager && !w.pagerBackAt ? w.pager : 0, nfc: null, was: w }
+      : { id: null, phone: '', first: '', last: '', filled: false, guests: 2, quote: 30, quoted: false, area: 'any', note: '', pager: 0, nfc: null, was: null };
+    view = 'wait'; pad = null; pagerOpen = false; L.menu = null; L.pop = null;
+    if (dialog.open) render(); else show();
+    dialog.querySelector('#bookings-title')?.focus({ preventScroll: true });
+  }
+  function leaveWait(msg, id = null) { wf = null; pad = null; pagerOpen = false; backToList('waitlist', id, msg); }
+
+  // How long a party would wait, from the floor now (D: a suggested time from the Floor, and a wait per area): each
+  // table that seats them frees at once when it is free (and no booking holds it), in about 10 minutes once its bill is
+  // printed, else about 1 h 15 after its party sat down (and at least 15 minutes from now); the groups ahead on the
+  // list, for that area or any area, take the first ones. → { per: { any, ‹area› }: minutes or null (no table seats
+  // them), first: { any, ‹area› }: the table likely first, why: the reason's words }
+  const FREES = { bill: 10, meal: 75, least: 15 };
+  function estimates(guests, now = Date.now(), except = null) {
+    const all = B()?.tablesFor?.({ at: now, guests, now, lock: true }) || new Map(), areas = F()?.areas?.() || [], mine = except ? B()?.waiting?.(except) : null;
+    const ahead = (B()?.waitlist?.() || []).filter(w => activeW(w) && w.id !== except && bizKey(w.addedAt) === today() && (!mine || w.addedAt < mine.addedAt));
+    const frees = t => (t.state === 'free' ? 0 : t.state === 'maybe' ? FREES.bill : Math.max(FREES.least, FREES.meal - Math.floor((now - (t.order?.at || now)) / MIN)));
+    const fit = [...all.values()].filter(t => t.fits && t.state !== 'booked').map(t => ({ ...t, in: frees(t), bill: t.state === 'maybe', since: t.order?.at || now, areaName: areas.find(a => a.id === t.area)?.name || '' })).sort((a, b) => a.in - b.in);
+    const at = (list, before) => (list.length ? list[Math.min(before, list.length - 1)].in + (before >= list.length ? FREES.meal * Math.ceil((before + 1 - list.length) / list.length) : 0) : null);
+    const per = { any: at(fit, ahead.length) }, first = { any: fit[0] || null };
+    for (const a of areas) { const list = fit.filter(t => t.area === a.id); per[a.id] = at(list, ahead.filter(w => w.area === a.id || w.area === 'any').length); first[a.id] = list[0] || null; }
+    const bills = fit.filter(t => t.bill).length, long = fit.filter(t => t.state === 'busy' && now - t.since >= HOUR).length, free = fit.filter(t => t.state === 'free').length;
+    const why = free ? `${plural(free, 'table')} for ${guests} ${free === 1 ? 'is' : 'are'} free now`
+      : [bills ? `${plural(bills, 'table')} for ${guests} ${bills === 1 ? 'has its bill' : 'have bills'} printed` : '', long ? `${long} seated over 1 h` : ''].filter(Boolean).join(', ')
+        || (fit.length ? `every table for ${guests} is busy` : `no table seats ${guests}`);
+    return { per, first, why, ahead: ahead.length };
+  }
+  const round5 = m => Math.max(5, Math.ceil(m / 5) * 5);
+  const suggest = m => (m == null ? 60 : QUOTES.find(q => q >= m) || 60);
+
+  function renderWait() {
+    if (!wf) { root.replaceChildren(); return; }
+    const now = Date.now(), est = estimates(wf.guests, now, wf.id);
+    if (!wf.quoted) wf.quote = suggest(est.per.any);
+    const focusId = document.activeElement?.id, sel = focusId && document.activeElement.selectionStart != null ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
+    const parts = [el('header', { class: 'bk-top bw' },
+      el('button', { type: 'button', class: 'bk-back', onclick: () => leaveWait(null, wf?.id) }, icon('chevron-left'), 'Waitlist'),
+      el('h2', { id: 'bookings-title', tabindex: '-1' }, wf.id ? 'Edit waitlist' : 'Add to waitlist')),
+    el('div', { class: 'bk-form bw' },
+      el('div', { class: 'bk-left' }, waitCustomer(), el('div', { class: 'bk-row2' }, guestsCard(wf, () => {}), quoteCard(est, now)), waitNote(), buzzerCard()),
+      areaPanel(est))];
+    if (pad) parts.push(padLayer());
+    if (pagerOpen) parts.push(pagerLayer());
+    root.replaceChildren(...parts);
+    if (toastNode) root.append(toastNode);
+    if (focusId) { const n = root.querySelector(`#${focusId}`); if (n) { n.focus({ preventScroll: true }); if (sel && n.setSelectionRange) try { n.setSelectionRange(sel[0], sel[1]); } catch {} } }
+    carets();
+  }
+  // Customer details: the phone optional, the names; a phone number found pulls up the customer (D: visits only)
+  function waitCustomer() {
+    const c = country();
+    const phone = field('bk-phone', 'Phone', pretty(wf.phone), { type: 'tel', inputmode: 'numeric', prefix: `+${c.code}`, oninput: e => typeWaitPhone(e.target) });
+    phone.querySelector('.bk-fl').append(el('small', {}, 'optional'));
+    const first = field('bk-first', 'First name', wf.first, { autocapitalize: 'words', oninput: e => { wf.first = e.target.value.slice(0, 40); wf.filled = false; renderSoon(); } });
+    const last = field('bk-last', 'Last name', wf.last, { autocapitalize: 'words', oninput: e => { wf.last = e.target.value.slice(0, 40); wf.filled = false; renderSoon(); } });
+    const g = wf.phone ? guestOf(wf.phone) : null;
+    const line = g ? el('p', { class: 'bk-guest' }, icon('user-round'), el('b', {}, g.visits ? 'Returning guest' : 'Known guest'), ` · ${[g.where === 'customers' ? 'found in your customers' : 'found in your bookings', g.visits ? plural(g.visits, 'visit') : ''].filter(Boolean).join(' · ')}`)
+      : !wf.phone ? el('p', { class: 'bk-guest none' }, 'No phone · name only is fine. A phone number pulls up the customer.') : null;
+    return el('section', { class: 'bk-card bk-cust bw', 'aria-labelledby': 'bk-cust-h' }, el('h3', { id: 'bk-cust-h' }, 'Customer details'), el('div', { class: 'bk-fields' }, phone, first, last), line);
+  }
+  function typeWaitPhone(input) {
+    const digits = input.value.replace(/\D/g, '').slice(0, maxDigits()), caret = input.selectionStart ?? input.value.length;
+    const before = input.value.slice(0, caret).replace(/\D/g, '').length;
+    wf.phone = digits;
+    const g = guestOf(digits);
+    if (g && (!(wf.first || wf.last) || wf.filled)) { wf.first = g.first; wf.last = g.last; wf.filled = true; }
+    else if (!g && wf.filled) { wf.first = ''; wf.last = ''; wf.filled = false; }
+    const shown = pretty(digits); input.value = shown;
+    let pos = 0, seen = 0; while (pos < shown.length && seen < before) { if (/\d/.test(shown[pos])) seen++; pos++; }
+    try { input.setSelectionRange(pos, pos); } catch {}
+    renderSoon();
+  }
+  // Quoted wait: 10 · 15 · 20 · 30 · 45 · 60 min, the floor's suggestion and why (Edit: when they were added, #N)
+  function quoteCard(est, now) {
+    const sug = suggest(est.per.any), who = firstOf(wf.first) || (wf.first || wf.last ? firstOf(`${wf.first} ${wf.last}`) : 'They');
+    const pos = wf.id ? listData('waitlist', now).pos.get(wf.id) : est.ahead + 1;
+    const line = wf.id && wf.was ? el('p', { class: 'bw-why' }, el('b', {}, `Added ${clock(wf.was.addedAt)}`), ` · waiting ${Math.max(0, Math.floor((now - wf.was.addedAt) / MIN))} min · ${who} is `, el('b', {}, `#${pos || '?'}`), ' on the list')
+      : el('p', { class: 'bw-why' }, el('b', {}, 'Suggested from the floor:'), ` ${est.why} · ${who} will be `, el('b', {}, `#${pos}`), ' on the list');
+    return el('section', { class: 'bk-card bw-quote', 'aria-labelledby': 'bw-quote-h' }, el('h3', { id: 'bw-quote-h' }, 'Quoted wait'),
+      el('p', { class: 'bw-sug' }, el('i', { 'aria-hidden': 'true' }), `Suggested ${sug} min`),
+      el('div', { class: 'bw-chips', role: 'radiogroup', 'aria-label': 'Quoted wait' }, ...QUOTES.map(q => el('button', { type: 'button', role: 'radio', 'aria-checked': String(wf.quote === q), class: wf.quote === q ? 'on' : '',
+        onclick: () => { wf.quote = q; wf.quoted = true; render(); } }, el('b', {}, String(q)), el('small', {}, 'min')))),
+      line);
+  }
+  function waitNote() {
+    const input = el('input', { id: 'bk-note', type: 'text', maxlength: '200', autocomplete: 'off', autocapitalize: 'sentences', enterkeyhint: 'done', 'aria-label': 'Note', placeholder: 'Birthday, high chair, window side...',
+      oninput: e => { wf.note = e.target.value; carets(); } });
+    input.value = wf.note;
+    return el('section', { class: 'bk-card bk-note', 'aria-labelledby': 'bk-note-h' }, el('h3', { id: 'bk-note-h' }, 'Note'), el('small', { class: 'bk-hint' }, 'optional'),
+      el('label', { class: 'bk-f bk-nf', for: 'bk-note' }, el('span', { class: 'bk-fv' }, pencilIcon(), input, el('i', { class: 'bk-cur', 'aria-hidden': 'true', hidden: true }), el('span', { class: 'bk-ruler', 'aria-hidden': 'true' }))));
+  }
+  // Buzzer (optional): the Counter's pager button (A6: its pop-up; or a pager tapped on the NFC spot, at once, with
+  // Undo) and the summary row
+  function buzzerCard() {
+    const open = () => { pagerOpen = true; render(); };
+    const hint = wf.nfc ? el('div', { class: 'bw-ph nfc' }, el('b', {}, 'Assigned by NFC tap'), el('button', { type: 'button', onclick: undoPager }, 'Undo'))
+      : el('p', { class: 'bw-ph' }, wf.pager ? 'Same pagers as the Counter · or tap a pager on the NFC spot to change it' : 'No pager yet · tap a pager on the NFC spot, or call out the name');
+    const cell = (label, value, cls = '') => el('div', { class: `bk-sc ${cls}`.trim() }, el('small', {}, label), el('b', {}, value));
+    return el('section', { class: 'bk-card bw-buzz', 'aria-labelledby': 'bw-buzz-h' }, el('h3', { id: 'bw-buzz-h' }, 'Buzzer'), el('small', { class: 'bk-hint' }, 'optional'),
+      el('div', { class: 'bw-pg' }, el('button', { type: 'button', class: `bk-pager${wf.pager ? ' on' : ''}`, onclick: open }, icon('vibration'), wf.pager ? `Pager ${wf.pager}` : 'Assign pager'), hint,
+        wf.pager ? el('button', { type: 'button', class: 'bw-change', onclick: open }, 'Change') : null),
+      el('div', { class: 'bk-sumrow bw' }, cell('Customer', [wf.first, wf.last].map(s => s.trim()).filter(Boolean).join(' ') || '—'), cell('Phone', wf.phone ? `+${country().code} ${pretty(wf.phone)}` : '—', wf.phone ? '' : 'off'),
+        cell('Guests', String(wf.guests)), cell('Quoted wait', `${wf.quote} min`), cell('Buzzer', wf.pager ? `Pager ${wf.pager}` : '—', wf.pager ? 'violet' : 'off')));
+  }
+  // Area (right): Any area first, then each area with its wait for this party; Add to waitlist / Save changes
+  function areaPanel(est) {
+    const rows = [['any', 'Any area'], ...(F()?.areas?.() || []).map(a => [a.id, a.name])].map(([id, name]) => {
+      const m = est.per[id], on = wf.area === id, none = m == null;
+      return el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), class: `bk-area${on ? ' on' : ''}${none ? ' none' : ''}`, disabled: none && !on, onclick: () => { wf.area = id; render(); } },
+        el('i', { class: 'bk-radio', 'aria-hidden': 'true' }), el('b', {}, name), el('span', {}, none ? `no table for ${wf.guests}` : m > 60 ? '60+ min' : `~${round5(m)} min`));
+    });
+    const can = Boolean(wf.first.trim() || wf.last.trim()) && (!wf.phone || phoneOk(wf.phone));
+    return el('aside', { class: 'bk-card bk-panel bw', 'aria-labelledby': 'bw-area-h' }, el('h3', { id: 'bw-area-h' }, 'Area'), el('small', { class: 'bk-hint' }, `wait for ${plural(wf.guests, 'guest')}`),
+      el('p', { class: 'bk-tip' }, icon('check'), el('b', {}, 'Any area'), ' = seated at the first table that frees up'),
+      el('div', { class: 'bk-areas', role: 'radiogroup', 'aria-label': 'Area' }, ...rows),
+      el('p', { class: 'bk-free' }, 'Wait times are estimates from the floor right now'),
+      el('button', { type: 'button', class: 'bw-save', disabled: !can, onclick: saveWait }, wf.id ? 'Save changes' : 'Add to waitlist'));
+  }
+  function saveWait() {
+    const data = { first: wf.first.trim(), last: wf.last.trim(), phone: wf.phone, code: country().code, guests: wf.guests, quote: wf.quote, area: wf.area, note: wf.note.trim(),
+      pager: wf.pager || 0, pagerAt: wf.pager ? (wf.was?.pager === wf.pager ? wf.was.pagerAt : Date.now()) : null, pagerBackAt: null };
+    const rec = wf.id ? B()?.editWaiting?.(wf.id, data) : B()?.addWaiting?.(data);
+    if (!rec) { say('Add a name first'); return; }
+    if (rec.pager) B().pagerTaken?.(rec.pager, rec.id);
+    const who = firstOf(nameWords(rec)) || 'Guest';
+    leaveWait({ b: wf?.id ? `${who}’s details saved` : `${who} added to the waitlist`, t: wf?.id ? '' : ` · quoted ${rec.quote} min` }, rec.id);
   }
 
   // ---------- the toast (A5: the Counter's toast) ----------
@@ -501,30 +1010,66 @@
     if (!dialog.open) dialog.showModal();
     dialog.querySelector('#bookings-title')?.focus({ preventScroll: true });
   }
-  // Back: the pop-up open, the calendar, else where the form came from (nothing is saved)
+  // Back: the pop-up or the menu open, the calendar; then the screen before: a form goes back to where it was opened
+  // from (nothing is saved); the app to the Floor when it was opened there, else Home (false: the system closes it)
   function goBack() {
-    if (!dialog.open) return false;
+    if (!dialog.open || !view) return false;
     if (pagerOpen) { pagerOpen = false; render(); return true; }
     if (pad) { pad = null; render(); return true; }
+    if (view === 'list') {
+      if (L.pop) { L.pop = null; render(); return true; }
+      if (L.menu) { L.menu = null; L.cal = null; render(); return true; }
+      if (L.from === 'floor') { toFloor(); return true; }
+      return false;
+    }
+    if (view === 'wait') { leaveWait(null); return true; }
     if (f?.cal) { f.cal = null; render(); return true; }
     leave(null);
     return true;
   }
+  // (a reservation's form, saved or not: back to Bookings when it was opened there, else to the Floor, C1)
   function leave(msg, savedId = null) {
     const was = f; f = null; pad = null; pagerOpen = false;
+    if (was?.from === 'bookings') { backToList('reservations', savedId, msg); return; }
+    view = null;
     if (dialog.open) dialog.close();
-    if (!was || was.from === 'floor') F()?.open({ from: was?.floorFrom === 'counter' ? 'counter' : 'home', table: savedId ? B()?.reservation?.(savedId)?.tables?.[0] : null, say: msg || undefined });
-    else window.RestroBookingsApp?.open?.({ tab: 'reservations', select: savedId, say: msg || undefined });
+    F()?.open({ from: was?.floorFrom === 'counter' ? 'counter' : 'home', table: savedId ? B()?.reservation?.(savedId)?.tables?.[0] : null, say: msg || undefined });
   }
-  dialog.addEventListener('cancel', e => { e.preventDefault(); goBack(); });
-  dialog.addEventListener('close', () => { clearTimeout(toastTimer); toastNode = null; });
-  // (A1) the top bar, the lock or Recent apps close the pop-up open, and only that
-  window.addEventListener('restro:close-popups', () => { if (!dialog.open || !f || (!pad && !pagerOpen && !f.cal)) return; pad = null; pagerOpen = false; f.cal = null; render(); });
-  // Bookings, orders or the floor changed (here or on another tablet): what is free now
-  const refresh = () => { if (dialog.open && f && !pad) { if (f.picked === 'auto' && !f.chosen) repick(); render(); } };
+  // The app again, on that tab with that one picked (its day, the filter showing it)
+  function backToList(tab, id = null, msg = null) {
+    view = 'list'; L.tab = tab; L.menu = null; L.cal = null; L.pop = null;
+    if (id) {
+      const x = tab === 'waitlist' ? B()?.waiting?.(id) : B()?.reservation?.(id);
+      if (x) { const k = bizKey(tab === 'waitlist' ? x.addedAt : x.at); L.day[tab] = k === today() ? null : k; L.filter[tab] = 'all'; L.sel[tab] = id; }
+    }
+    if (dialog.open) render(); else show();
+    if (msg) say(msg);
+  }
+  // "‹ Floor" (and Back when the app was opened there): the Floor, as it was opened
+  function toFloor() {
+    view = null; f = null; wf = null; pad = null; pagerOpen = false;
+    if (dialog.open) dialog.close();
+    F()?.open({ from: L.floorFrom === 'counter' ? 'counter' : 'home' });
+  }
+  dialog.addEventListener('cancel', e => { e.preventDefault(); if (!goBack()) { view = null; dialog.close(); } });
+  dialog.addEventListener('close', () => { clearTimeout(toastTimer); toastNode = null; L.menu = null; L.cal = null; L.pop = null; });
+  // (A1) the top bar, the lock or Recent apps close the pop-up or menu open, and only that
+  window.addEventListener('restro:close-popups', () => {
+    if (!dialog.open || !view) return;
+    if (view === 'list') { if (L.menu || L.pop) { L.menu = null; L.cal = null; L.pop = null; render(); } return; }
+    const s = form(); if (!s || (!pad && !pagerOpen && !s.cal)) return;
+    pad = null; pagerOpen = false; if (s.cal) s.cal = null; render();
+  });
+  // Bookings, orders or the floor changed (here or on another tablet): what is free now, who is waiting
+  const refresh = () => {
+    if (!dialog.open || pad || !view) return;
+    if (view === 'res' && f && f.picked === 'auto' && !f.chosen) repick();
+    render();
+  };
   window.addEventListener('restro:bookings-changed', refresh);
   window.addEventListener('restro:data-changed', refresh);
-  setInterval(() => { if (dialog.open && f && !pad && !pagerOpen && document.activeElement?.tagName !== 'INPUT') render(); }, 30000);
+  // (the minutes waited, "in 18 min", the NOW line: each half minute)
+  setInterval(() => { if (dialog.open && view && !pad && !pagerOpen && document.activeElement?.tagName !== 'INPUT') render(); }, 30000);
 
   // ---------- icons drawn here ----------
   // (Material Icons "edit", Apache 2.0) the note's pencil
@@ -533,14 +1078,23 @@
   function floorIcon() { return svgOf('0 0 24 24', '<rect x="3.5" y="4.2" width="7" height="6.4" rx="2"/><rect x="13.5" y="4.2" width="7" height="6.4" rx="2"/><rect x="3.5" y="13.4" width="7" height="6.4" rx="2"/><path d="M14 16.6h6M17 13.6v6"/>', 'fi fi-stroke bk-flic'); }
 
   window.RestroBookingsApp = Object.freeze({
+    // open({ tab: 'waitlist' | 'reservations', from: 'home' | 'floor', floorFrom: 'home' | 'counter', select: id, say })
+    // the app: from the Home screen (the Waitlist), the Floor's Waitlist pill or its menu's Reservations, the Counter's
+    // Back after a reservation's Seat now
+    open(opts = {}) {
+      f = null; wf = null; pad = null; pagerOpen = false;
+      if (opts.from) { L.from = opts.from === 'floor' ? 'floor' : 'home'; L.floorFrom = opts.floorFrom === 'counter' ? 'counter' : 'home'; }
+      const tab = opts.tab === 'reservations' || opts.tab === 'waitlist' ? opts.tab : L.tab;
+      backToList(tab, opts.select || null, opts.say || null);
+    },
     // newReservation({ from: 'floor' | 'bookings', floorFrom: 'home' | 'counter' }) from the Floor's menu or Bookings;
     // editReservation(id, { from }) from Bookings (its Edit)
     newReservation(opts = {}) {
-      f = fresh(opts); repick(); show();
+      f = fresh(opts); view = 'res'; repick(); show();
     },
     editReservation(id, opts = {}) {
       const r = B()?.reservation?.(id); if (!r || r.status !== 'upcoming') return false;
-      f = fromBooking(r, opts); repick(); show(); return true;
+      f = fromBooking(r, opts); view = 'res'; repick(); show(); return true;
     },
     pagerTapped,
     goBack,

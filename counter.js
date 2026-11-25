@@ -308,6 +308,7 @@
   let scheduleDraft = null;                             // the day and time being picked on the Schedule sheet
   let fromFloor = false;                                // opened by tapping a table on the Floor (Back returns there)
   let fromOrders = false;                               // opened from a tile in the Orders app (Back returns there)
+  let fromBookings = null;                              // a reservation's Seat now in Bookings (Back returns there, that booking picked)
   let baseline = null;                                  // signature of the saved order on screen (opened from Orders)
   let opened = null;                                    // that order as saved when it was opened here (JSON): changes made on
                                                         // another tablet meanwhile are merged with this tablet's on Save or Pay
@@ -1193,7 +1194,7 @@
     const o = (pagerHolders(loadOrders()).get(n) || [])[0];
     if (!o) { toast(`Pager ${n} isn’t out`); return; }
     if (o.paidAt) { window.RestroOrders?.open({ find: idOf(o) }); return; }
-    openCounter(); fromFloor = false; fromOrders = false; openOrder(idOf(o));
+    openCounter(); fromFloor = false; fromOrders = false; fromBookings = null; openOrder(idOf(o));
   });
   // Changes from another tablet (sync.js): Held and Orders show them at once, and so does the saved order on screen.
   window.addEventListener('restro:data-changed', e => {
@@ -3896,6 +3897,7 @@
     if (category && menuStyle === 'grid') { category = null; renderMenuBody(); return true; } // inside a category: back to all of them
     if (fromFloor && window.RestroFloor) { fromFloor = false; window.RestroFloor.open(); return true; } // opened from a table: Back returns to the Floor
     if (fromOrders && window.RestroOrders) { fromOrders = false; window.RestroOrders.open(); return true; } // opened from Orders: Back returns there
+    if (fromBookings != null && window.RestroBookingsApp) { const id = fromBookings; fromBookings = null; window.RestroBookingsApp.open({ tab: 'reservations', select: id || null }); return true; } // a reservation seated from Bookings: Back returns there
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
@@ -4213,17 +4215,17 @@
     storeOrders(list); return true;
   }
   window.RestroCounter = Object.freeze({
-    open() { fromFloor = false; fromOrders = false; openCounter(); },
+    open() { fromFloor = false; fromOrders = false; fromBookings = null; openCounter(); },
     // Back from an app Counter opened (Orders): Counter as it was, where it came from unchanged.
     resume() { openCounter(); },
     // From the Floor: Counter opens on that table's order (Dine in, table chosen).
-    openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; fromOrders = false; openTable(id); },
+    openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; fromOrders = false; fromBookings = null; openTable(id); },
     // (Update Pack 8: a reservation's Seat now, on the Floor or in Bookings) the Counter with that table (a joined
     // booking's tables as one group), Dine-in, the party's guests and the guest as the order's customer when they gave
     // a phone; the reservation is Seated, and the order keeps which one it seated (booking)
     seatBooking({ table, tables = [], guests = 0, booking = null, customer = null, back = 'floor' } = {}) {
       if (typeof table !== 'string' || !table) return false;
-      openCounter(); fromFloor = back === 'floor'; fromOrders = false; openTable(table);
+      openCounter(); fromFloor = back === 'floor'; fromOrders = false; fromBookings = back === 'bookings' ? booking || '' : null; openTable(table);
       if (order.table !== table) return true;
       if (!order.number && !order.uid) {
         order.joined = tables.filter(t => typeof t === 'string' && t && t !== table);
@@ -4236,7 +4238,7 @@
       return true;
     },
     // From the Orders app: Counter opens on that saved order (not paid yet), to add items or take the payment.
-    openOrder(ref) { if (!Number.isInteger(ref) && typeof ref !== 'string') return; openCounter(); fromFloor = false; fromOrders = true; openOrder(ref); },
+    openOrder(ref) { if (!Number.isInteger(ref) && typeof ref !== 'string') return; openCounter(); fromFloor = false; fromOrders = true; fromBookings = null; openOrder(ref); },
     // Every saved order (Save or Pay), newest first, as kept on this device; pagerOut: the order still has its pager (not
     // docked back, not given to a newer order); pagerBackAt: when its pager came back.
     orders() {
@@ -4254,7 +4256,7 @@
     },
     // From the Held view: Counter opens on that held order, to carry on with it (the order on screen goes to Held first
     // if it has anything not saved).
-    resumeHeld(id) { if (typeof id !== 'string' || !held.some(h => h.heldId === id)) return; openCounter(); fromFloor = false; fromOrders = false; resume(id); },
+    resumeHeld(id) { if (typeof id !== 'string' || !held.some(h => h.heldId === id)) return; openCounter(); fromFloor = false; fromOrders = false; fromBookings = null; resume(id); },
     goBack,
     // Orders (Update Pack 3): a saved order's kitchen, bill or receipt, KOT reprints, a new KOT, deleting, Ready
     kitchenOf, printSaved, reprintKots, sendKitchen, deleteOrders, markReady, prepMinutes: type => prepMinutes(type), kitchenTime: o => kitchenTime(o),
@@ -4283,7 +4285,7 @@
       return true;
     },
     // Orders' Held link: the Counter's Held list until the Held page exists (Back returns to Orders, its filters kept)
-    openHeld() { openCounter(); fromFloor = false; fromOrders = true; sheet = 'held'; render(); },
+    openHeld() { openCounter(); fromFloor = false; fromOrders = true; fromBookings = null; sheet = 'held'; render(); },
     tablesInUse() {
       // (a held order's table was freed when it was held, a saved one's too: Update Pack 4, C11)
       // (H1: a Pending QR order's table is in use; one still on the payment page, or cancelled, isn't)

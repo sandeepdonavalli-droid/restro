@@ -246,22 +246,23 @@
   // tables of one area (across its pages; tables of another area start again there), and Done takes them.
   function renderReserve(a, L, now) {
     const B = window.RestroBookings; if (!B?.tablesFor) return;
-    const all = B.tablesFor({ at: res.at, guests: res.guests, except: res.except, now });
+    const all = B.tablesFor({ at: res.seat ? now : res.at, guests: res.guests, except: res.except, now, lock: Boolean(res.seat) });
     const info = new Map(areas.map(x => [x.id, B.areaFor(x.id, all, res.guests)]));
     root.replaceChildren(reserveHead(info), reserveCanvas(a, L, all, now), reserveBottom(a, all));
     if (toastNode) root.append(toastNode);
   }
   function reserveHead(info) {
-    const who = [res.who, `${res.guests} guest${res.guests === 1 ? '' : 's'}`, res.when].filter(Boolean);
+    // (Seat now, D B11: the party's pager in place of the day and time; nobody can sit at a table busy now, so no "maybe")
+    const who = [res.who, `${res.guests} guest${res.guests === 1 ? '' : 's'}`, res.seat ? (res.pager ? `Pager ${res.pager}` : '') : res.when].filter(Boolean);
     const pill = x => {
-      const n = info.get(x.id), on = x.id === areaId;
-      const count = n.free ? `${n.free} free${n.maybe ? ` · ${n.maybe} maybe` : ''}` : res.join && n.join ? `join ${n.join}` : n.maybe ? `${n.maybe} maybe` : 'none';
+      const n = info.get(x.id), on = x.id === areaId, maybe = res.seat ? 0 : n.maybe;
+      const count = n.free ? `${n.free} free${maybe ? ` · ${maybe} maybe` : ''}` : res.join && n.join ? `join ${n.join}` : maybe ? `${maybe} maybe` : 'none';
       return el('button', { type: 'button', role: 'tab', 'aria-selected': String(on), class: `fl-area${on ? ' on' : ''}${count === 'none' ? ' dim' : ''}`, 'data-area': x.id, onclick: () => goArea(x.id) },
         el('span', { class: 'fl-area-n' }, x.name), el('span', { class: 'fl-free rs' }, count));
     };
-    return el('header', { class: 'fl-top rs' },
+    return el('header', { class: `fl-top rs${res.seat ? ' seat' : ''}` },
       el('button', { type: 'button', class: 'fl-back', onclick: goBack }, icon('chevron-left'), res.back || 'New reservation'),
-      el('h2', { id: 'floor-title', tabindex: '-1' }, 'Pick a table'),
+      el('h2', { id: 'floor-title', tabindex: '-1' }, res.title || 'Pick a table'),
       el('div', { class: 'fl-ctx' }, ...who.flatMap((w, i) => (i ? [el('i', { 'aria-hidden': 'true' }), el('span', {}, w)] : [el('span', {}, w)]))),
       el('button', { type: 'button', role: 'switch', 'aria-checked': String(Boolean(res.join)), class: `fl-join${res.join ? ' on' : ''}`, onclick: () => toggleJoin(info) }, 'Join tables', el('i', { 'aria-hidden': 'true' })),
       el('div', { class: 'fl-areas-wrap rs' }, el('nav', { class: 'fl-areas', role: 'tablist', 'aria-label': 'Areas' }, ...areas.map(pill))));
@@ -303,6 +304,8 @@
   }
   function tapReserve(id) {
     if (Date.now() - swiped < 400) return;
+    // (Seat now: the table tapped is picked, "Seat at Table N" seats them)
+    if (!res.join && res.seat) { chosen = [id]; render(); return; }
     if (!res.join) { const done = res.onPick; close(); done?.([id]); return; }
     if (chosen.includes(id)) chosen = chosen.filter(x => x !== id);
     else { if (chosen.length && tableById.get(chosen[0])?.area !== tableById.get(id)?.area) chosen = []; chosen = [...chosen, id]; }
@@ -310,24 +313,28 @@
   }
   function toggleJoin() {
     res.join = !res.join;
-    if (!res.join) { const all = window.RestroBookings.tablesFor({ at: res.at, guests: res.guests, except: res.except }); chosen = chosen.filter(id => all.get(id)?.fits).slice(0, 1); }
+    if (!res.join) { const all = window.RestroBookings.tablesFor({ at: res.seat ? Date.now() : res.at, guests: res.guests, except: res.except, lock: Boolean(res.seat) }); chosen = chosen.filter(id => all.get(id)?.fits).slice(0, 1); }
     render();
   }
   function reserveBottom(a) {
     const pages = pagesOf(a), page = pageNow(a);
     const dots = pages > 1 ? el('div', { class: 'fl-dots', role: 'tablist', 'aria-label': 'Pages' }, ...Array.from({ length: pages }, (_, i) => el('button', { type: 'button', role: 'tab', 'aria-selected': String(i === page), 'aria-label': `Page ${i + 1}`, class: i === page ? 'on' : '', onclick: () => { pageOf[a.id] = i; render(); } }))) : null;
+    const take = () => { const done = res.onPick, ids = [...chosen]; close(); done?.(ids); };
+    // (Seat now, D B11: "Seat at Table 3" at the bottom right seats them)
+    const seatBtn = () => el('button', { type: 'button', class: 'fl-seat', disabled: !chosen.length, onclick: take },
+      chosen.length ? `Seat at ${chosen.length > 1 ? 'Tables' : 'Table'} ${chosen.map(tableName).join(' + ')}` : 'Seat at a table');
     if (res.join) {
       const ts = chosen.map(id => tableById.get(id)).filter(Boolean), seats = ts.reduce((n, t) => n + t.seats, 0);
-      return el('footer', { class: 'fl-bot rs' },
+      return el('footer', { class: `fl-bot rs${res.seat ? ' seat' : ''}` },
         el('div', { class: 'fl-joined' }, el('b', {}, ts.length ? ts.map(t => `Table ${t.name}`).join(' + ') : 'Tap the tables to join'), el('i', { 'aria-hidden': 'true' }),
           el('span', { class: seats >= res.guests ? 'ok' : 'short' }, el('b', {}, `${seats} seats`), ` for ${res.guests} guest${res.guests === 1 ? '' : 's'}`)),
-        dots, el('button', { type: 'button', class: 'fl-done', disabled: !ts.length, onclick: () => { const done = res.onPick, ids = [...chosen]; close(); done?.(ids); } }, icon('check'), 'Done'));
+        dots, res.seat ? seatBtn() : el('button', { type: 'button', class: 'fl-done', disabled: !ts.length, onclick: take }, icon('check'), 'Done'));
     }
     const sw = (cls, label) => el('span', { class: 'fl-lg' }, el('i', { class: `fl-sw ${cls}` }), label);
     const how = res.picked === 'current' ? 'current table' : res.picked === 'floor' ? 'picked on the Floor' : 'auto-picked';
-    return el('footer', { class: 'fl-bot rs' },
+    return el('footer', { class: `fl-bot rs${res.seat ? ' seat' : ''}` },
       el('div', { class: 'fl-legend rs' }, sw('r-free', 'Free'), sw('r-oc', 'Occupied now · can’t pick'), sw('r-bk', 'Booked · can’t pick'), sw('r-na', `N/A · fewer than ${res.guests} seats`)),
-      dots, el('p', { class: 'fl-hint' }, 'Tap a table to choose it', chosen.length ? ` · now: ${chosen.map(id => `Table ${tableName(id)}`).join(' + ')} (${how})` : ''));
+      dots, res.seat ? seatBtn() : el('p', { class: 'fl-hint' }, 'Tap a table to choose it', chosen.length ? ` · now: ${chosen.map(id => `Table ${tableName(id)}`).join(' + ')} (${how})` : ''));
   }
 
   // ---------- pages: the arrows and a swipe ----------
@@ -530,9 +537,13 @@
       if (options.say) say(options.say);
     },
     say,
+    // (the system's Back: a pop-up or the menu, then where the Floor was opened from; false: the system closes it)
+    goBack,
     tableName,
     table: id => { const t = tableById.get(id); return t ? { ...t } : null; },
     areaOf: id => tableById.get(id)?.area || null,
+    // (the area the Floor shows: Seat now looks there first)
+    get area() { return areaId; },
     areas: () => areas.map(a => ({ id: a.id, name: a.name, tables: a.tables.map(t => ({ ...t })) })),
     get tables() { return tables.map(({ id, name, seats, area: a, shape, page, x, y, w, h }) => ({ id, name, seats, area: a, shape, page, x, y, w, h })); }
   });

@@ -27,7 +27,9 @@ const apps = {
   menu:{name:'Availability',art:art('master',49,478,212,128)},
   gallery:{name:'Gallery',art:tileArt('gallery')},
   camera:{name:'Camera',art:tileArt('camera')},
-  help:{name:'Help',art:art('master',778,668,155,123)}
+  help:{name:'Help',art:art('master',778,668,155,123)},
+  // (Update Pack 8, D: Waitlist + Reservations; page 2 after Help; opens on the Waitlist)
+  bookings:{name:'Bookings',art:tileArt('bookings')}
 };
 shortcuts.forEach(item=>{item.art.key=item.id;});
 Object.entries(apps).forEach(([id,item])=>{item.art.key=id;});
@@ -247,7 +249,7 @@ $('#delete-app-dialog').addEventListener('close',()=>{deleteAppId=null;const slo
 function syncInstalledControls(){$$('[data-control="settings"]').forEach(control=>{control.hidden=!isInstalledApp('settings');});}
 window.addEventListener('restro:app-uninstalled',syncInstalledControls);syncInstalledControls();
 function openSettings(){$('#restaurant-input').value=restaurantName;window.RestroProfile?.fill();window.RestroThemeSettings?.reset();openDialog('settings-dialog');}
-function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='employees')window.RestroEmployees?.open();else if(id==='qr-studio')window.RestroQrStudio?.open();else if(id==='calculator'||id==='camera')document.querySelector(`[data-control="${id}"]`)?.click();}
+function openApp(id){if(!isInstalledApp(id))return;if(id==='settings')openSettings();else if(id==='analytics')openDialog('analytics-dialog');else if(id==='help')openDialog('help-dialog');else if(id==='customers')window.RestroCustomers?.open();else if(id==='employees')window.RestroEmployees?.open();else if(id==='qr-studio')window.RestroQrStudio?.open();else if(id==='bookings')window.RestroBookingsApp?.open({tab:'waitlist',from:'home'});else if(id==='calculator'||id==='camera')document.querySelector(`[data-control="${id}"]`)?.click();}
 function openMove(id){
   const item=itemOf(id);if(!item)return;
   moveId=id;setArranging(true);

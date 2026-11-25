@@ -17,6 +17,7 @@
     'calendar-days': "<path d='M8 2v3'/> <path d='M16 2v3'/> <rect x='3' y='3' width='18' height='18' rx='2'/> <path d='M3 9h18'/> <path d='M8 13h.01'/> <path d='M12 13h.01'/> <path d='M16 13h.01'/> <path d='M8 17h.01'/> <path d='M12 17h.01'/> <path d='M16 17h.01'/>",
     'calendar-clock': "<path d='M16 2v3'/> <path d='M17 15.5v1.7l1 .625'/> <path d='M21 8.936V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h3.935'/> <path d='M3 9h9.873'/> <path d='M8 2v3'/> <circle cx='17' cy='17' r='5'/>",
     'check': "<path d='M20 6 9 17l-5-5'/>",
+    'chevron-down': "<path d='m6 9 6 6 6-6'/>",
     'chevron-left': "<path d='m15 18-6-6 6-6'/>",
     'chevron-right': "<path d='m9 18 6-6-6-6'/>",
     'clock': "<circle cx='12' cy='12' r='10'/> <path d='M12 6v6l4 2'/>",

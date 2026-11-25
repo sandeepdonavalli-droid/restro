@@ -89,12 +89,13 @@
   // table counts as free for it): 'free'; 'booked' (another booking on it inside 2 hours of `at`: C1); and, for a booking
   // within the next 2 hours, who is at it now: 'maybe' (occupied, its bill already printed) or 'busy' (occupied). A
   // booking further out only looks at the bookings. fits: it seats the party on its own.
+  // (lock: seating someone now, D B11: only a booking's lock holds a table, from 1 hour before it to 2 hours after: C1)
   const SOON = 2 * HOUR;
-  function tablesFor({ at, guests, except = null, now = Date.now() }) {
+  function tablesFor({ at, guests, except = null, now = Date.now(), lock = false }) {
     const plan = window.RestroFloor?.tables || [], soon = at - now <= SOON, out = new Map(), held = new Map();
     if (soon) for (const o of window.RestroCounter?.floorOrders?.(now) || []) for (const t of o.tables) if (!held.has(t)) held.set(t, o);
     for (const t of plan) {
-      const b = bookedAt(t.id, at, except), o = held.get(t.id);
+      const b = lock ? res.filter(r => r.id !== except && r.tables.includes(t.id) && locks(r, at)).sort((p, q) => p.at - q.at)[0] || null : bookedAt(t.id, at, except), o = held.get(t.id);
       const state = b ? 'booked' : o ? (o.bill ? 'maybe' : 'busy') : 'free';
       out.set(t.id, { ...t, state, booking: b ? copy(b) : null, order: o ? { tables: o.tables, at: o.at, bill: o.bill } : null, fits: t.seats >= guests });
     }

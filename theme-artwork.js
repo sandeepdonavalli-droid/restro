@@ -5,7 +5,7 @@
   // (assets/app-icons/plain), so on a white page only the icon shows. Orders and Floor (white tiles) are their drawing alone,
   // trimmed to it: Floor's is narrower than it is tall.
   const plainWidth={floor:110};
-  const tileIcons={register:'counter',floor:'floor',orders:'orders','pager-hub':'pager-hub',closeout:'end-day',menu:'menu',transactions:'payments',refunds:'refunds',cash:'cash-bag',inventory:'inventory',employees:'staff',customers:'customers',help:'help',store:'app-store',analytics:'analytics',settings:'settings','qr-studio':'qr-studio',calculator:'calculator',gallery:'gallery',camera:'camera'};
+  const tileIcons={register:'counter',floor:'floor',orders:'orders','pager-hub':'pager-hub',closeout:'end-day',menu:'menu',transactions:'payments',refunds:'refunds',cash:'cash-bag',inventory:'inventory',employees:'staff',customers:'customers',help:'help',store:'app-store',analytics:'analytics',settings:'settings','qr-studio':'qr-studio',calculator:'calculator',gallery:'gallery',camera:'camera',bookings:'bookings'};
   const overrides = new Map();
   function resolve(art) {
     const key=art.key;
