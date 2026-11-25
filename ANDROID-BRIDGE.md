@@ -27,6 +27,7 @@ Run it after any change to how the page talks to the app.
 | `uninstallApp` | method | Uninstalling an app |
 | `localSync.start`, `localSync.send` | methods | Sync between tablets |
 | `sms.send`, `pager.buzz`, `restro:pager-docked`, `restro:pager-tapped`, `getPazzerDevices` | methods, events | Texting customers and buzzing pagers |
+| `sms.send`, `whatsapp.send` (with `booking`), `pager.buzz`, `restro:qr-request`, `restro:qr-request-taken`, `restro:qr-request-cancelled` | methods, events | Bookings and the Floor (Update Pack 8) |
 | `whatsapp.send`, `printer.newRoll`, `restro:printer-cover`, `integrations.markReady`, `restro:platform-cancelled` | methods, events | Orders |
 | `restro:device-locked`, `restro:device-unlocked` | events | Screen lock |
 | `restro:keyboard` | event | The keyboard |
@@ -248,6 +249,13 @@ app's order has **Ready** in Notify's place): Notify texts the customer, on What
 phone number; Buzz buzzes the order's pager while it is out. Without these, the buttons say that messages or pagers
 start with the RESTRO Android app.
 
+**Notify sends at once** (Update Pack 8, A3: no pop-up anywhere, in Orders, Bookings or on the Floor): the "Order
+ready" text (below), or "Order scheduled" while a scheduled order's KOT waits, on the restaurant's channel. The channel
+is chosen in Settings › Messages (still to be drawn); until then it is the earlier choice, `restro.readyMessage.v1`:
+WhatsApp, falling back to SMS when the number has no WhatsApp or WhatsApp fails, else SMS. The Bill and Running late
+texts were choices in the pop-up, so they don't go for now. The result is the line under the button (green sent, red
+failed) and the bar at the bottom, as before.
+
 | Method | Returns | What the app does |
 | --- | --- | --- |
 | `sms.send({ to, code, text, order })` | `true` / `false` (may be a promise) | Sends `text` to `+code to` (`code` is the country code, `"91"` unless the customer's number has another), **through the restaurant's SMS service with DLT registration, from the backend (Phase 2); never from the tablet's own SIM** (owner, 12 Nov 2026). `order` is the order's id (`uid`), for a log. Resolve `true` once the service accepted it: "Sent to ‹name› on SMS · Order #1028 ready for pickup", and the short line under Notify is **green** (kept on the order as `notifiedAt`). `false` (or an error): "Couldn’t send the SMS to ‹name› · Order #1028 · the SMS service didn’t answer" with RETRY, and the line under Notify is **red** (`notifyFailedAt`) until a message goes (owner, 12 Nov 2026: by hand or by itself) |
@@ -338,6 +346,46 @@ still has it). Anywhere else it opens that pager's order: in Counter while it is
 hardware: return `[{ name, connected }]` (or a Promise of it), shown as "Connected" or "Disconnected" ("Pazzer device"
 when it has no name; "No Pazzer hardware connected" for none). Its **Pazzer settings** button calls
 `openSettings('pazzer')` (above).
+
+## Bookings and the Floor (Update Pack 8): messages to guests, pagers, Help bell requests
+
+**Messages to guests.** Bookings (reservations and the waitlist) uses the same `sms.send` and `whatsapp.send` as
+Notify, on the same channel (above), with `booking` (the reservation's or waitlist guest's id, for a log) in place of
+`order`: `send({ to, code, text, booking })`, `true` / `false` (may be a promise). A guest with no phone number gets no
+messages (Notify is greyed for them). Every message is kept on its booking (`msgs`: `{ kind, ok, at, ch }`, synced) for
+its Messages line, green sent, red failed. Messages that go by themselves go once, from the main system (or a tablet
+working on its own), as the order-ready text does.
+
+| Kind | When | Default text (‹first›: the guest's first name; "Hi," without one; no "at …" without a restaurant name) |
+| --- | --- | --- |
+| `confirm` | By itself, as soon as a reservation is saved | "Hi ‹first›, your table for 4 at ‹restaurant› is booked for 8:30 PM today." ("tomorrow", or "on Wed 25 Nov") |
+| `reminder` | By itself, 1 hour before the reservation (not for one booked less than an hour ahead) | "Hi ‹first›, a reminder: your table for 4 at ‹restaurant› is at 8:30 PM today." |
+| `added` | By itself, when a guest with a phone number is added to the waitlist | "Hi ‹first›, you're on the waitlist at ‹restaurant›. We'll message you as soon as your table is ready." |
+| `notify` | Notify, by hand (a reservation or the waitlist; on the Floor's Reserved pop-up too) | "Hi ‹first›, your table at ‹restaurant› is ready. Please come to the front desk." |
+
+These wordings are RESTRO's defaults until Settings › Messages (each place Default or Custom) is drawn; like the order
+texts, they have to be registered on DLT and with Meta before they can go.
+
+**Pagers.** One pool of pagers for every app (A6): a pager given to a waitlist guest or a reservation is out until it
+is docked (`restro:pager-docked`, above), and giving it to an order or another guest takes it back from the booking
+that had it. Buzz on the waitlist calls `pager.buzz(number)`, as Orders' Buzz does, and keeps the result on the guest
+(`msgs`, kind `buzz`).
+
+**Help bell requests on the Floor** (Pack 7 H1: the bell on a Table QR). When the cloud reports a request, dispatch on
+every tablet:
+
+```js
+window.dispatchEvent(new CustomEvent('restro:qr-request', { detail: { id: 'rq123', table: 'T7', kind: 'water', note: '', at: Date.now() } }));
+```
+
+`kind` is `waiter`, `water`, `bill` or `other` (shown "Waiter", "Water", "Bill", "Help"); `table` is the table's id.
+The table glows red on the Floor (Needs attention) with a white pill naming the request, until a captain takes it
+(`restro:qr-request-taken`, `{ id }`) or the customer cancels it (`restro:qr-request-cancelled`, `{ id }` or
+`{ table }`). A tablet keeps requests for 3 hours at most (`restro.requests.v1`).
+
+**The Floor's tables** come from `floor-data.js` (a sample until Floor › Edit layout and the backend exist): areas,
+each with its tables (number, seats, shape, page and place on the page). A table's id is what orders, bookings, QRs and
+requests use (`table`), so it never changes when a table is renamed or moved.
 
 ## Orders (Update Pack 3): WhatsApp, the paper roll, delivery apps
 

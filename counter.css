@@ -115,7 +115,7 @@ button.ctr-history-main{cursor:pointer}
 .ctr-history-detail .ctr-sums{color:var(--palette-text)}
 .ctr-history-detail .ctr-sums .ctr-total{margin-top:0;font-size:13px}
 .counter-app{overflow:clip;overflow-clip-margin:3px}
-.ctr-root .ctr-sheet-wrap{position:fixed;inset:0;padding:calc(var(--header-height) + 24px) 24px}
+.ctr-root .ctr-sheet-wrap{position:fixed;inset:var(--top-banner-height) 0 0;padding:calc(var(--header-height) + 24px) 24px} /* (Update Pack 8, A1: the dimming starts under the top bar; status-bar.css keeps the sheet where it was) */
 
 /* ===== The Counter screen (POS Counter Handoff: 01_screens, 02_redlines, 03_specs) =====
    Counter Update 2 (Full HD): the screen is 1920 x 1000 and everything under the shared top bar is the first design's
@@ -176,7 +176,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-seg.lift .cx-b{box-shadow:0 calc(8 * var(--u)) calc(22 * var(--u)) rgba(0,0,0,.25)}
 /* (Update Pack 5, Icon Pack 1) the order-type picker's icons: plain, in the label's colour */
 .cx-pick .cx-b svg{color:inherit}
-.cx-scrim{position:fixed;inset:0;z-index:40;background:rgba(15,23,42,.45);animation:cx-fade .14s ease-out}
+.cx-scrim{position:fixed;inset:var(--top-banner-height) 0 0;z-index:40;background:rgba(15,23,42,.45);animation:cx-fade .14s ease-out} /* (Update Pack 8, A1: never over the top bar) */
 @keyframes cx-fade{from{opacity:0}}
 /* The order header (Update 4): "Order #1015" 18/700 with "24 items" 12.5/500 grey under it; then Schedule (as wide as
    its words) · Modify · Hold, chips 36 tall 14/600, 8 apart, Modify and Hold sharing what is left, so the row ends under
@@ -781,7 +781,7 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
    whole screen, the banner too, but under the navigation bar and the lock (54, the bar 55: nothing covers them, owner
    13 Nov 2026); from just under the banner to just above the bottom edge, 1120 wide. */
 .cx-layer.history{position:fixed;inset:0;z-index:54}
-.cx-hscrim{position:absolute;inset:0;background:rgba(15,23,42,.45)}
+.cx-hscrim{position:absolute;inset:var(--top-banner-height) 0 0;background:rgba(15,23,42,.45)}
 .cx-hp{position:absolute;left:50%;top:calc(66 * var(--fu));font-size:calc(16 * var(--fu));bottom:calc(70 * var(--fu));width:calc(1120 * var(--fu));max-width:calc(100% - calc(32 * var(--fu)));box-sizing:border-box;display:flex;flex-direction:column;padding:calc(26 * var(--fu)) calc(28 * var(--fu)) calc(24 * var(--fu));border-radius:calc(30 * var(--fu));background:#F3F4F7;color:#1C1917;box-shadow:0 calc(30 * var(--fu)) calc(80 * var(--fu)) rgba(15,23,42,.35);transform:translateX(-50%)}
 .cx-hp-head{flex:none;display:flex;justify-content:space-between;align-items:flex-start}
 .cx-hp-t{min-width:0}

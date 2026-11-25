@@ -590,6 +590,19 @@
   document.querySelector('#system-back').addEventListener('click',goBack);
   document.querySelector('#system-home').addEventListener('click',goHome);
   document.querySelector('#system-recents').addEventListener('click',showRecents);
+  // (Update Pack 8, A1) The top bar, the lock and the navigation bar always work, even over a pop-up or a menu: a tap on
+  // one of them does its own job and closes whatever was open. Each app closes its own pop-ups, menus, sheets and pickers
+  // on restro:close-popups (the app, its page and its order stay). Back's own job is closing the pop-up, so it sends
+  // nothing; Home closes the app with it. A tap on the top bar does only that, and nothing under it.
+  const closePopups=()=>window.dispatchEvent(new CustomEvent('restro:close-popups'));
+  lockButton.addEventListener('pointerdown',()=>{if(!locked)closePopups();});
+  document.querySelector('#system-recents').addEventListener('pointerdown',closePopups);
+  document.addEventListener('pointerdown',event=>{
+    if(locked||!dialogs.some(dialog=>dialog.open&&dialog.matches(fullApps)))return;
+    const banner=document.querySelector('#top-banner');if(!banner||event.clientY>=banner.getBoundingClientRect().bottom)return;
+    event.preventDefault();event.stopPropagation();closePopups();
+  },true);
+  window.RestroPopups=Object.freeze({closeAll:closePopups});
   // The tablet's own Back, Home and Recent apps (gestures or buttons) come in here from the RESTRO Android app
   window.RestroSystem=Object.freeze({back:goBack,home:goHome,recents:showRecents});
 
@@ -743,8 +756,9 @@
   // app), and Auto-lock after the time without a tap set in Settings › Staff & security. Go dark (Settings › Display ›
   // Navigation): the screen turns black and locks together; a double tap wakes it to the PIN pad (a single tap does
   // nothing, and the waking taps never count as PIN digits). Whatever was open stays as it was under the lock: the same
-  // app, page, order and pop-up are there after signing in. Once staff accounts exist only a PIN ends a lock (staff
-  // sign-in, employees.js); before that, Unlock does.
+  // app, page and order are there after signing in (a pop-up or menu open when the lock button is tapped closes as it
+  // locks: Update Pack 8, A1). Once staff accounts exist only a PIN ends a lock (staff sign-in, employees.js); before
+  // that, Unlock does.
   let pinRequired=false;
   function lockScreen(){
     if(locked)return;

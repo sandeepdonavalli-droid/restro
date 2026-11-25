@@ -1,8 +1,8 @@
 'use strict';
 // Sync: keeps the restaurant's data the same on every tablet of the restaurant. (SYNC.md has the details.)
 //
-// What syncs: orders, held tickets, customers, staff (PINs only as hashes) and the restaurant's details (name, profile,
-// preparation time). What stays on each tablet: its looks and layouts (theme, sounds, home screen, tile order,
+// What syncs: orders, held tickets, customers, staff (PINs only as hashes), QR Studio's QRs and events, Bookings'
+// reservations and waitlist, and the restaurant's details (name, profile, preparation time). What stays on each tablet: its looks and layouts (theme, sounds, home screen, tile order,
 // the Counter's menu style and button order), the order being rung up, and who is signed in.
 //
 // How:
@@ -54,7 +54,11 @@
     // (Update Pack 5: QR Studio's Table, Takeaway and Menu QRs)
     qr: { key: 'restro.qr.v1', id: q => (typeof q?.id === 'string' ? q.id : null) },
     // (Update Pack 6: QR Studio's events, each with its QRs and menu)
-    events: { key: 'restro.events.v1', id: e => (typeof e?.id === 'string' ? e.id : null) }
+    events: { key: 'restro.events.v1', id: e => (typeof e?.id === 'string' ? e.id : null) },
+    // (Update Pack 8: Bookings, the reservations and the waitlist; the messages each one sent are all kept, from every
+    // tablet)
+    bookings: { key: 'restro.bookings.v1', id: r => (typeof r?.id === 'string' ? r.id : null), rules: { keyed: { msgs: m => `${m.kind}@${m.at}` } } },
+    waitlist: { key: 'restro.waitlist.v1', id: w => (typeof w?.id === 'string' ? w.id : null), rules: { keyed: { msgs: m => `${m.kind}@${m.at}` } } }
   };
   // Settings: one value per key, synced as the records { value } of 'settings'. The name's placeholder is no name, so it
   // never travels (a new tablet takes the restaurant's name from the others).

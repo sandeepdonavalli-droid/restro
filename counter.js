@@ -155,7 +155,7 @@
   // orders whose dishes Merge tables brought onto it (they go when it is saved). A line can have off, its dish discount
   // (1–100%; 100 complimentary, with offReason), and kit: what the kitchen has of it ([{ n, mods, note }]).
   const blankOrder = () => ({ type: null, split: false, table: '', customer: null, pager: 0, pagerAt: null, pagerShared: false, readyAt: null, kotMode: null, prepMin: null, holdUntil: null, heldId: null, number: null, uid: null, discountPct: null,
-    servicePct: null, priority: false, note: '', guests: 0, server: null, serverId: null, merged: [], events: [], lines: [] });
+    servicePct: null, priority: false, note: '', guests: 0, server: null, serverId: null, merged: [], events: [], lines: [], joined: [], booking: null });
   const cleanCustomer = c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string'
     ? { id: c.id, name: c.name.slice(0, 60), mobile: String(c.mobile || '').replace(/\D/g, '').slice(0, 15), code: String(c.code || '').replace(/\D/g, '').slice(0, 4), address: String(c.address || '').slice(0, 200) } : null;
   // A customer who came with the order (by QR, or online) isn't in Customers: no id, their name and phone as sent
@@ -232,6 +232,8 @@
       discountPct: window.RestroBill.pct(o.discountPct), servicePct: window.RestroBill.rate(o.servicePct), priority: o.priority === true, note: cleanNote(o.note), guests: cleanGuests(o.guests),
       server: typeof o.server === 'string' && o.server ? o.server.slice(0, 60) : null, serverId: typeof o.serverId === 'string' ? o.serverId : null,
       merged: (Array.isArray(o.merged) ? o.merged : []).filter(u => typeof u === 'string').slice(0, 20), events: cleanEvents(o.events),
+      // (Update Pack 8) a merged group's other tables (the bill sits on the first: table), and the reservation it seated
+      joined: (Array.isArray(o.joined) ? o.joined : []).filter(t => typeof t === 'string' && t && t !== o.table).slice(0, 12), booking: typeof o.booking === 'string' ? o.booking : null,
       ...(Array.isArray(o.bills) && o.bills.length ? { bills: o.bills.slice(-20) } : {}), ...(Number.isInteger(o.billNo) && o.billNo > 0 && typeof o.billYear === 'string' ? { billNo: o.billNo, billYear: o.billYear } : {}),
       // (an event's order: the dishes it came with as they were ordered, ev; a dish added on the Counter, here, is the menu's)
       lines: (Array.isArray(o.lines) ? o.lines : []).filter(l => l && (items.has(l.id) || (typeof l.id === 'string' && (cleanCustom(l.custom) || (type === 'event' && l.here !== true && cleanEv(l.ev, null))))) && Number.isInteger(l.qty) && l.qty > 0 && l.qty < 1000)
@@ -268,6 +270,17 @@
   // 'pending' (no confirmation in 30 s and no cloud) or 'refund' (staff cancelled it). Such an order never opens here,
   // is never merged into another or deleted, and isn't Due here; a waiting or cancelled one doesn't keep its table busy.
   const qrHeld = o => o?.qr === true && !o.platform && ['waiting', 'pending', 'refund'].includes(o.qrPay);
+  const qrOf = o => (o?.qr === true && !o.platform && typeof o.qrPay === 'string' ? o.qrPay : null);
+  // (Update Pack 8, B6) A table whose customers paid by QR before eating stays Occupied ("Paid by QR") until 15 minutes
+  // after the kitchen screen marks the whole order done (kitchenDoneAt), or 30 minutes after its last round when no
+  // kitchen screen marks it, or until staff tap Free on its pop-up (tableFreedAt). A table that pays at the end is free
+  // as soon as it is paid. → when it frees itself (0: not such a table)
+  const qrFreeAt = o => {
+    if (!o?.paidAt || o.qr !== true || o.platform || o.tableFreedAt || !usesTable(o)) return 0;
+    const done = Number(o.kitchenDoneAt); if (done > 0) return done + 15 * 60000;
+    const last = Math.max(createdOf(o), Number(o.qrRoundAt) || 0, ...(Array.isArray(o.kots) ? o.kots : []).map(k => Number(k?.at) || 0));
+    return last + 30 * 60000;
+  };
   const qrPendingOn = id => loadOrders().find(o => o.qr === true && !o.platform && o.qrPay === 'pending' && o.table === id && usesTable(o));
   // With Modify on (called "split" in the code), each line keeps its own type; otherwise every line follows the order type.
   const typeOf = (o, line) => (o.split ? line.type || o.type : o.type) || DEFAULT_TYPE;
@@ -860,6 +873,8 @@
         ...(l.off ? { off: l.off, ...(l.offReason ? { offReason: l.offReason } : {}) } : {}) })), ...totals(),
       // Update 7: the order note (on every KOT), priority (kitchen only), the guest count
       ...(order.note ? { note: order.note } : {}), ...(order.priority ? { priority: true } : {}), ...(order.guests ? { guests: order.guests } : {}),
+      // (Update Pack 8) a merged group's other tables, and the reservation it seated
+      ...(usesTable(order) && order.joined?.length ? { joined: [...order.joined] } : {}), ...(order.booking ? { booking: order.booking } : {}),
       createdAt: prev ? createdOf(prev) : now, savedAt: now, day: prev ? prev.day : given?.day || window.RestroSync?.today(), sent: prev && prev.sent && typeof prev.sent === 'object' ? { ...prev.sent } : {}, sentAt: prev ? cleanTime(prev.sentAt) : null, kots: prev && Array.isArray(prev.kots) ? prev.kots : [],
       method: pay ? pay.method : null, received: pay ? pay.received : null, change: pay ? pay.change : null, paidAt: pay ? new Date(now).toISOString() : null,
       // the server: as changed with Change server (Update 7), otherwise whoever was signed in when it was first saved
@@ -1646,7 +1661,7 @@
     if (dayKey(d) === dayKey(yesterday)) return 'Yesterday';
     return d.toLocaleDateString('en-IN', d.getFullYear() === now.getFullYear() ? { weekday: 'short', day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
   };
-  const timeOf = when => new Date(when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  const timeOf = when => new Date(when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }).replace(/\s?([ap])\.?m\.?$/i, (m, x) => ` ${x.toUpperCase()}M`); // (Update Pack 8, A5: capital AM and PM)
   // "7:30 pm" today, "Fri 7:30 pm" on another day.
   const whenShort = when => dayKey(when) === dayKey(Date.now()) ? timeOf(when) : `${new Date(when).toLocaleDateString('en-IN', { weekday: 'short' })} ${timeOf(when)}`;
   // (Update Pack 5: a QR order's own methods; one paid by QR and not matched yet, H1: QR)
@@ -3001,7 +3016,7 @@
     const wheelEls = [
       drum('Hour', hours, (d.h + 11) % 12, true, i => { d.h = hourOf(i); }, update, i => fives.some(m => okAt(hourOf(i), m))),
       drum('Minutes', minutes, d.m / 5, true, i => { d.m = i * 5; }, update, i => okAt(d.h, i * 5)),
-      drum('am or pm', ['am', 'pm'], d.h >= 12 ? 1 : 0, false, i => { d.h = d.h % 12 + (i ? 12 : 0); d.half = Boolean(i); }, update, i => Array.from({ length: 12 }, (_, x) => x + i * 12).some(h => fives.some(m => okAt(h, m))))];
+      drum('AM or PM', ['AM', 'PM'], d.h >= 12 ? 1 : 0, false, i => { d.h = d.h % 12 + (i ? 12 : 0); d.half = Boolean(i); }, update, i => Array.from({ length: 12 }, (_, x) => x + i * 12).some(h => fives.some(m => okAt(h, m))))];
     const wheelsAt = () => { wheelEls[0].set((d.h + 11) % 12); wheelEls[1].set(d.m / 5); wheelEls[2].set(d.h >= 12 ? 1 : 0); };
     const wheels = el('div', { class: 'cx-swheels' }, ...wheelEls);
     fit(); wheelsAt(); update();
@@ -3871,6 +3886,19 @@
     return false;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
+  // (Update Pack 8, A1) A tap on the top bar, the lock or Recent apps closes whatever is open here (each as Back closes
+  // it), and only that: the order and the page stay.
+  // (The dish choices pop-up closes as ✕ does, keeping the line as it was; the others as Back closes them.)
+  function closePops() {
+    if (!dialog.open) return;
+    window.RestroOrders?.closeQr?.();
+    for (let i = 0; i < 6 && (typeMenu || optionsMenu || sheet); i++) {
+      const state = () => `${typeMenu}|${optionsMenu}|${sheet}|${modPop?.note ? 1 : 0}|${dishPop?.step || 0}|${scheduleDraft?.cal ? 1 : 0}`, was = state();
+      if (sheet === 'mods') cancelMods(); else goBack();
+      if (state() === was) break;
+    }
+  }
+  window.addEventListener('restro:close-popups', closePops);
   // Tapping anywhere outside the selected line puts it back to a plain line (the pop-ups and the sheets opened from it
   // leave it as it is). The tap still does its own job: on another line, that line is selected instead.
   dialog.addEventListener('click', event => {
@@ -4177,6 +4205,23 @@
     resume() { openCounter(); },
     // From the Floor: Counter opens on that table's order (Dine in, table chosen).
     openTable(id) { if (typeof id !== 'string' || !id) return; openCounter(); fromFloor = true; fromOrders = false; openTable(id); },
+    // (Update Pack 8: a reservation's Seat now, on the Floor or in Bookings) the Counter with that table (a joined
+    // booking's tables as one group), Dine-in, the party's guests and the guest as the order's customer when they gave
+    // a phone; the reservation is Seated, and the order keeps which one it seated (booking)
+    seatBooking({ table, tables = [], guests = 0, booking = null, customer = null, back = 'floor' } = {}) {
+      if (typeof table !== 'string' || !table) return false;
+      openCounter(); fromFloor = back === 'floor'; fromOrders = false; openTable(table);
+      if (order.table !== table) return true;
+      if (!order.number && !order.uid) {
+        order.joined = tables.filter(t => typeof t === 'string' && t && t !== table);
+        if (cleanGuests(guests)) order.guests = cleanGuests(guests);
+        if (customer && customer.mobile && !order.customer) order.customer = cleanCustomer({ id: `bk-${booking || Date.now()}`, ...customer });
+        if (booking) order.booking = booking;
+        render();
+      }
+      if (booking) window.RestroBookings?.seat?.(booking, order.uid || null);
+      return true;
+    },
     // From the Orders app: Counter opens on that saved order (not paid yet), to add items or take the payment.
     openOrder(ref) { if (!Number.isInteger(ref) && typeof ref !== 'string') return; openCounter(); fromFloor = false; fromOrders = true; openOrder(ref); },
     // Every saved order (Save or Pay), newest first, as kept on this device; pagerOut: the order still has its pager (not
@@ -4229,9 +4274,51 @@
     tablesInUse() {
       // (a held order's table was freed when it was held, a saved one's too: Update Pack 4, C11)
       // (H1: a Pending QR order's table is in use; one still on the payment page, or cancelled, isn't)
-      const used = [...loadOrders().filter(o => !o.paidAt && !(qrHeld(o) && o.qrPay !== 'pending')), ...held.filter(h => h.number)].filter(usesTable).map(o => o.table);
-      if (order.lines.length && usesTable(order)) used.push(order.table);
+      // (Update Pack 8: a merged group's other tables too, `joined`)
+      const tablesOf = o => [o.table, ...(Array.isArray(o.joined) ? o.joined : [])].filter(t => typeof t === 'string' && t);
+      const used = [...loadOrders().filter(o => !o.paidAt && !(qrHeld(o) && o.qrPay !== 'pending')), ...held.filter(h => h.number)].filter(usesTable).flatMap(tablesOf);
+      if (order.lines.length && usesTable(order)) used.push(...tablesOf(order));
       return used;
+    },
+    // (Update Pack 8, B) What the Floor draws: each open order on a table. Saved and not paid (a held order frees its
+    // table; a QR order still on its payment page, or cancelled, has none), one paid by QR before eating that is still
+    // at the table (it frees itself 15 minutes after the kitchen marks the whole order done, or 30 minutes after its last
+    // round without a kitchen screen, or when staff tap Free), and the one on screen not saved yet. Each: its tables (a
+    // merged group's first table, then the others: `joined`), guests, when it sat down, total and what is still due (paise),
+    // who serves it, whether its bill is printed (and nothing was added since), Pending QR payment (to confirm).
+    floorOrders(now = Date.now()) {
+      const out = [], seen = new Set(), onHold = new Set(held.map(h => h.uid).filter(Boolean));
+      const tablesOf = o => [o.table, ...(Array.isArray(o.joined) ? o.joined : [])].filter((t, i, a) => typeof t === 'string' && t && a.indexOf(t) === i);
+      for (const o of loadOrders()) {
+        if (!usesTable(o) || o.cancelledBy || onHold.has(idOf(o))) continue;
+        if (qrHeld(o) && o.qrPay !== 'pending') continue;
+        const freeAt = qrFreeAt(o);
+        if (o.paidAt && !(freeAt && freeAt > now)) continue;
+        const total = Number(o.total) || 0, due = o.paidAt ? 0 : Math.max(0, total - paidSoFar(o)), bills = Array.isArray(o.bills) ? o.bills : [];
+        out.push({ uid: idOf(o), number: o.number ?? null, tables: tablesOf(o), guests: cleanGuests(o.guests) || 0, at: createdOf(o) || now, total, due,
+          server: typeof o.server === 'string' ? o.server : null, bill: !o.paidAt && bills.length > 0 && Number(bills[bills.length - 1]?.total) === total / 100,
+          paidQr: Boolean(o.paidAt), freeAt: freeAt || null, confirm: qrOf(o) === 'pending', items: o.lines.reduce((n, l) => n + (Number(l.qty) || 0), 0) });
+        seen.add(idOf(o));
+      }
+      if (order.lines.length && usesTable(order) && !(order.uid && seen.has(order.uid))) {
+        const t = totals();
+        out.push({ uid: order.uid || null, number: order.number ?? null, tables: tablesOf(order), guests: cleanGuests(order.guests) || 0, at: now, total: t.total, due: t.total,
+          server: staffName(), bill: false, paidQr: false, freeAt: null, confirm: false, items: t.count, onScreen: true });
+      }
+      return out;
+    },
+    // (Paid by QR, Update Pack 8 F06) how it was paid and when, when the kitchen finished it, its last round
+    paidInfo(uid) {
+      const o = loadOrders().find(x => idOf(x) === uid); if (!o) return null;
+      const pays = Array.isArray(o.payments) ? o.payments : [], how = String(pays.at(-1)?.method || o.method || '');
+      return { method: /upi|qr/i.test(how) ? 'UPI' : /card/i.test(how) ? 'Card' : /cash/i.test(how) ? 'Cash' : how ? how.toUpperCase() : '', paidAt: Date.parse(o.paidAt) || null,
+        doneAt: Number(o.kitchenDoneAt) || null, lastAt: Math.max(createdOf(o), Number(o.qrRoundAt) || 0, ...(Array.isArray(o.kots) ? o.kots : []).map(k => Number(k?.at) || 0)) };
+    },
+    // (Paid by QR, Update Pack 8 B6: Free on its pop-up) the table is free again; the order stays in the paid orders
+    freeTable(uid) {
+      const list = loadOrders(), rec = list.find(o => idOf(o) === uid);
+      if (!rec || !rec.paidAt) return false;
+      rec.tableFreedAt = Date.now(); storeOrders(list); if (dialog.open) render(); return true;
     },
     get order() { return JSON.parse(JSON.stringify(order)); },
     // The order on screen for the lock screen (Navigation & Lock Update 1): "Order #1015" and "Dine-in · Table 12 ·

@@ -136,8 +136,8 @@
   const money = paise => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const rupees = paise => `₹${Math.round(paise / 100).toLocaleString('en-IN')}`;
   const ticket = n => `#${String(n).padStart(2, '0')}`;
-  // "7:24 pm" (am and pm always lower-case)
-  const timeOf = t => new Date(t).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?m\.?/i, (m, x) => ` ${x.toLowerCase()}m`);
+  // "7:24 PM" (Update Pack 8, A5: capital AM and PM everywhere)
+  const timeOf = t => new Date(t).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?([ap])\.?m\.?/i, (m, x) => ` ${x.toUpperCase()}M`);
   // "7:25 PM" (the Customer paid? pop-up, as drawn)
   const clockOf = t => timeOf(t).replace(/([ap])m$/, (m, x) => `${x.toUpperCase()}M`);
   const dateOf = t => new Date(t).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -841,7 +841,7 @@
         btn => openKot(r, btn), icon('kot'), el('span', {}, k.label));
     const th = r.third;
     const third = th.kind === 'notify'
-      ? b(`nt${th.line ? ` ${th.line}` : ''}`, th.on, th.on ? `Notify ${r.name || 'the customer'}` : 'Notify: no phone number', btn => openNotify(r, btn), icon('notify'), el('span', {}, 'Notify'))
+      ? b(`nt${th.line ? ` ${th.line}` : ''}`, th.on, th.on ? `Notify ${r.name || 'the customer'}` : 'Notify: no phone number', () => openNotify(r), icon('notify'), el('span', {}, 'Notify'))
       : b('nt', th.on, th.kind === 'marked' ? 'Marked ready' : 'Mark ready', () => markReady(r), icon(th.kind === 'marked' ? 'marked' : 'ready'), el('span', {}, th.kind === 'marked' ? 'Marked' : 'Ready'));
     const state = flash.get(r.id);
     const pq = parsed(), pagerHit = pq?.kind === 'pager' && pq.n === Number(r.buzz.no);
@@ -1199,10 +1199,14 @@
   setInterval(qrWatch, 5000); setTimeout(qrWatch, 2000);
 
   // ---------- pop-ups ----------
-  // Notify (OR-P01): the customer's name, phone, order and type · the message · Order ready / Bill / Running late
-  // (Order scheduled first while a scheduled order's KOT waits) · WhatsApp / SMS. Through the RESTRO Android app
-  // (RESTRODevice.whatsapp, RESTRODevice.sms; WhatsApp falls back to SMS). Sent: kept on the order (notifiedAt).
-  function openNotify(r, btn) { pop = { kind: 'notify', id: r.id, from: 'nt', template: r.kot.look === 'q' ? 'scheduled' : 'ready', anchor: anchorOf(btn) }; renderLayer(); }
+  // Notify (Update Pack 8, A3: no pop-up any more; it replaces OR-P01): a tap sends the message straight away, "Order
+  // ready" ("Order scheduled" while a scheduled order's KOT waits), on the restaurant's channel: Settings › Messages (to
+  // be drawn; until then the one chosen before in Settings › Orders, SMS unless WhatsApp was picked), WhatsApp falling
+  // back to SMS. Through the RESTRO Android app (RESTRODevice.whatsapp, RESTRODevice.sms). The result is only the short
+  // bar under the button: green sent (notifiedAt), red failed (notifyFailedAt); no message and no Retry: the button
+  // sends again.
+  const msgChannel = () => (window.RestroPrefs?.get?.('readyMessage')?.send === 'whatsapp' ? 'whatsapp' : 'sms');
+  function openNotify(r) { sendNotify(r, msgChannel(), r.kot.look === 'q' ? 'scheduled' : 'ready'); }
   function message(r, template) {
     const hi = r.name ? `Hi ${r.name}, ` : 'Hi, ', no = ticket(r.o.number), shop = shopName(), from = shop ? [' from ', shop] : [];
     const type = r.type.key;
@@ -1234,24 +1238,11 @@
   const sentNote = (r, template, used) => ({ bold: `Sent to ${r.name || 'the customer'} on ${used === 'whatsapp' ? 'WhatsApp' : 'SMS'}`, text: ` · Order ${ticket(r.o.number)} ${sentWords(r, template)}` });
   const failNote = (r, used, retry) => ({ kind: 'error', bold: `Couldn’t send the ${used === 'whatsapp' ? 'WhatsApp message' : 'SMS'} to ${r.name || 'the customer'}`,
     text: ` · Order ${ticket(r.o.number)} · ${used === 'whatsapp' ? 'WhatsApp' : 'the SMS service'} didn’t answer`, retry });
-  async function sendNotify(r, channel, template = pop?.template || 'ready') {
+  async function sendNotify(r, channel, template = 'ready') {
     const dev = window.RESTRODevice;
     if (typeof dev?.sms?.send !== 'function' && typeof dev?.whatsapp?.send !== 'function') { say('Messages go through the RESTRO Android app'); return; }
-    pop = null; renderLayer();
-    const { ok, used } = await deliver(r, channel, template);
-    say(ok ? sentNote(r, template, used) : failNote(r, used, () => sendNotify(r, channel, template)));
+    await deliver(r, channel, template);
     renderRest();
-  }
-  function notifyCard(r) {
-    const tpl = pop.template, queued = r.kot.look === 'q';
-    const chip = (key, label) => el('button', { type: 'button', class: `or-tpl${tpl === key ? ' on' : ''}`, 'aria-pressed': String(tpl === key), onclick: () => { pop.template = key; renderLayer(); } }, label);
-    return el('div', { class: 'or-pop notify', role: 'dialog', 'aria-modal': 'true', 'aria-label': `Notify ${r.name || 'the customer'}` },
-      el('div', { class: 'or-pop-head' }, el('div', {}, el('h3', {}, `Notify ${r.name || 'the customer'}`), el('p', {}, [r.phone, `Order ${ticket(r.o.number)}`, r.type.label].filter(Boolean).join(' · '))), closeX()),
-      el('p', { class: 'or-msg-box' }, ...message(r, tpl)),
-      el('div', { class: 'or-tpls' }, queued ? chip('scheduled', 'Order scheduled') : null, chip('ready', 'Order ready'), chip('bill', 'Bill'), chip('late', 'Running late')),
-      el('div', { class: 'or-chs' },
-        el('button', { type: 'button', class: 'or-ch wa', onclick: () => sendNotify(r, 'whatsapp') }, icon('chat'), 'WhatsApp'),
-        el('button', { type: 'button', class: 'or-ch sm', onclick: () => sendNotify(r, 'sms') }, icon('sms'), 'SMS')));
   }
   // KOT (OR-P04 to P06): reprint only — every KOT of the order with its number, time and dishes, tick one or several
   // (Select all); a KOT that didn't print is ticked, in red, with why. A scheduled KOT still waiting (OS1): "Prints by
@@ -1691,18 +1682,18 @@
     const parts = [];
     if (menu) parts.push(menuView(v));
     if (pop) {
-      const r = ['notify', 'kot', 'queued', 'paid', 'failed'].includes(pop.kind) ? v.all.find(x => x.id === pop.id) || v.list.find(x => x.id === pop.id) : null;
+      const r = ['kot', 'queued', 'paid', 'failed'].includes(pop.kind) ? v.all.find(x => x.id === pop.id) || v.list.find(x => x.id === pop.id) : null;
       // (Customer paid?: only while the order is still Pending; otherwise why it went. Payment failed: only until it is
       // paid, on any tablet)
       if (pop.kind === 'paid' && !r?.pending) { pop = null; paidGone(r); }
       if (pop?.kind === 'failed' && !r?.failed) pop = null;
-      const card = !pop ? null : pop.kind === 'notify' && r ? notifyCard(r) : pop.kind === 'kot' && r ? kotCard(r) : pop.kind === 'queued' && r ? queuedCard(r) : pop.kind === 'paid' ? paidCard(r)
+      const card = !pop ? null : pop.kind === 'kot' && r ? kotCard(r) : pop.kind === 'queued' && r ? queuedCard(r) : pop.kind === 'paid' ? paidCard(r)
         : pop.kind === 'failed' ? failCard(r) : pop.kind === 'delete' ? deleteCard() : pop.kind === 'roll' ? rollCard() : null;
       if (card) {
         if (pop.anchor) card.style.cssText = `right:${pop.anchor.right}px;--mid:${pop.anchor.mid}px;--min:${pop.anchor.min}px`;
         card.classList.toggle('anchored', Boolean(pop.anchor));
         // a tap outside closes Notify and KOT; the delete and paper-roll questions wait for an answer
-        parts.push(el('div', { class: `or-scrim k-${pop.kind}`, onclick: e => { if (e.target === e.currentTarget && ['notify', 'kot', 'queued'].includes(pop.kind)) { pop = null; renderLayer(); } } }, card));
+        parts.push(el('div', { class: `or-scrim k-${pop.kind}`, onclick: e => { if (e.target === e.currentTarget && ['kot', 'queued'].includes(pop.kind)) { pop = null; renderLayer(); } } }, card));
       } else pop = null;
     }
     layerEl.replaceChildren(...parts);
@@ -1777,6 +1768,13 @@
     fromCounter = false; returning = false; window.RestroCounter.resume(); return true;
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
+  // (Update Pack 8, A1) A tap on the top bar, the lock or Recent apps closes whatever is open here, as Back would, and
+  // only that.
+  window.addEventListener('restro:close-popups', () => {
+    if (!dialog.open) return;
+    closeReceipt();
+    if (menu || pop || picking) { if (pop?.kind === 'failed') failSeen(pop.id, 'later'); menu = null; pop = null; picking = null; render(); }
+  });
 
   // Toasts from elsewhere show above this full-screen app (and go back to Counter, or home, after it closes).
   const toastNode = document.querySelector('#toast'), toastHome = toastNode?.parentElement;

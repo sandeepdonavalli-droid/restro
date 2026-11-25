@@ -144,6 +144,8 @@
     shell.dataset.view = 'list';
     nav.querySelector(`[data-page="${parentOf(current) || current}"]`)?.focus({ preventScroll: true });
   }
+  // (Update Pack 8, A1) A tap on the top bar, the lock or Recent apps closes the printer pop-up, and only that
+  window.addEventListener('restro:close-popups', () => { if (dialog.open) closePrinter(); });
   function goBack() {
     if (!dialog.open) return false;
     if (closePrinter()) return true; // (the printer pop-up first)
@@ -250,7 +252,7 @@
   // Counter's Schedule picker). The business day ends at closing time and the next starts the minute after (owner, 11 Nov
   // 2026); Today, the day's totals and the day's order and KOT numbers follow it (sync.js).
   const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
-  const clock = m => { const h = Math.floor(m / 60) % 24; return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`; };
+  const clock = m => { const h = Math.floor(m / 60) % 24; return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; }; // (Update Pack 8, A5: capital AM and PM)
   function hoursCard() {
     const h = Prefs.get('hours'), setHours = change => Prefs.update('hours', change);
     const select = (id, label, values, value, change, disabled = false) => el('select', { id, class: 'st-select st-time', 'aria-label': label, disabled, onchange: e => change(Number(e.target.value)) },
@@ -273,7 +275,7 @@
           el('span', {}, 'to'),
           select(`hours-${d}-to`, `${name}: closes at`, toValues.map(m => [m, clock(m)]), x.to, m => setHours(v => { v.days[d].to = m; }), !x.open)));
     };
-    return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. A new business day starts the minute after closing: open till 2:00 am, an order at 12:40 am counts in the day before.'),
+    return card('st-hours', lab('Business hours'), sub('Scheduled orders can be ready only while you are open. A new business day starts the minute after closing: open till 2:00 AM, an order at 12:40 AM counts in the day before.'),
       el('div', { class: 'st-rows' }, Prefs.days.map(row)));
   }
   // (Owner, 14 Nov 2026) Break hours: optional, a break in a day's hours when the restaurant is closed (e.g. 3:30 pm to
@@ -302,7 +304,7 @@
           el('span', {}, 'to'),
           select(`break-${d}-to`, `${name}: break to`, inside.filter(m => m > start), b.to, m => setHours(v => { v.days[d].break = { from: b.from, to: m }; }), !on)));
     };
-    return card('st-hours', lab('Break hours'), sub('Optional. A break in the day when you’re closed, for example 3:30 pm to 7:00 pm. QR ordering, Swiggy, Zomato, other delivery apps and your own online ordering stop for it, and scheduled orders can’t be ready during it.'),
+    return card('st-hours', lab('Break hours'), sub('Optional. A break in the day when you’re closed, for example 3:30 PM to 7:00 PM. QR ordering, Swiggy, Zomato, other delivery apps and your own online ordering stop for it, and scheduled orders can’t be ready during it.'),
       el('div', { class: 'st-rows' }, Prefs.days.map(row)));
   }
   // (Update Pack 5, I3) Last order time: how long before closing QR ordering, Swiggy, Zomato, other delivery apps and the
@@ -379,18 +381,15 @@
     ['cards', 'Cards', 'One card per order, bigger buttons, easy to tap.']];
   const ORDER_ROWS = [['classic', 'Classic rows', 'One panel with thin lines between orders. Square-ish buttons.'], ['pills', 'Floating pills', 'Each order floats as a soft rounded pill. Round buttons.']];
   const ordersPic = (view, rows) => livePic(() => { const p = window.RestroOrders?.preview?.({ view, rows }); return { node: p?.node || el('span'), sample: Boolean(p?.sample), cls: 'orders-app' }; });
-  // The order-ready message (Update Pack 4): sent by itself when the kitchen marks an order done (orders.js), by SMS (the
-  // default), by WhatsApp falling back to SMS, or not at all. The restaurant's, on every tablet.
-  const READY_SEND = [['sms', 'SMS'], ['whatsapp', 'WhatsApp (falls back to SMS)'], ['off', 'Off']];
+  // (Update Pack 8, A3: the order-ready message's channel is no longer chosen here; one Settings › Messages page, to be
+  // drawn, will choose the channel for every message. Until then the choice made here before stays: restro.readyMessage.v1.)
   builders.orders = () => rebuild(ordersHost, () => {
     const v = Prefs.scoped('orders').value, set = next => Prefs.setScoped('orders', next);
     return [
       card('', secHead('Order list view', 'Same orders, buttons, filters and rules in every view. Only the layout changes.'),
         radioGrid('Order list view', ORDER_VIEWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic(id, v.rows) })), v.view, id => set({ ...v, view: id }))),
       card('', secHead('Row style', 'Applies to every view above. New restaurants start with Classic rows.'),
-        radioGrid('Row style', ORDER_ROWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic('classic', id) })), v.rows, id => set({ ...v, rows: id }))),
-      card('', secHead('Order-ready message', 'Sent by itself when the kitchen marks an order done and the order has the customer’s phone number.'),
-        tiles('Order-ready message', READY_SEND.map(([value, label]) => ({ value, label })), Prefs.get('readyMessage').send, value => Prefs.set('readyMessage', { send: value })))
+        radioGrid('Row style', ORDER_ROWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic('classic', id) })), v.rows, id => set({ ...v, rows: id })))
     ];
   });
 

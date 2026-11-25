@@ -2100,6 +2100,14 @@
   }
   dialog.addEventListener('cancel', event => { if (goBack()) event.preventDefault(); });
   dialog.addEventListener('close', () => { pop = null; view.picked = null; form = null; clearInterval(tick); clearInterval(testTimer); });
+  // (Update Pack 8, A1) A tap on the top bar, the lock or Recent apps closes an open pop-up, picker or selection, and
+  // only that (a form being filled in stays).
+  window.addEventListener('restro:close-popups', () => {
+    if (!dialog.open) return;
+    if (pop) closePop();
+    if (view.picked) stopPicking();
+    if (form?.pick) { form.pick = null; render(); }
+  });
   window.addEventListener('restro:data-changed', e => {
     const c = e.detail?.collections || [];
     if (c.includes('events')) loadEvents();
