@@ -328,3 +328,80 @@ html[data-nav="bar"] .fl-done{right:calc(28 * var(--fu))}
 html[data-nav="bar"] .fl-seat{right:calc(28 * var(--fu))}
 .fl-seat:disabled{opacity:.45}
 .fl-top.rs.seat h2{left:calc(177.7 * var(--fu))}
+
+/* ---------- Move / Merge (E1–E2: MM1–MM6b, CM2–CM4) and Move items (E3: CM6–CM8); floor.js 'mm' / 'items' ---------- */
+/* the page's grey; "‹ Floor" (or "‹ Counter") with a light edge, the title 17.5 after it; the area pills from 420, no
+   counts, a blue dot on another area holding a table picked */
+.fl-root[data-mode="mm"],.fl-root[data-mode="items"]{background:#F3F4F7}
+.fl-mmt{position:absolute;left:calc(28 * var(--fu));top:calc(18 * var(--fu));height:calc(56 * var(--fu));display:flex;align-items:center;gap:calc(16 * var(--fu))}
+.fl-top.mm .fl-back{position:static;gap:calc(7.5 * var(--fu));padding:0 calc(22.5 * var(--fu)) 0 calc(14.5 * var(--fu))!important;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) #DEDAD5;font-size:calc(18 * var(--fu))!important}
+.fl-top.mm .fl-back .fi{width:calc(24 * var(--fu));height:calc(24 * var(--fu));stroke-width:2}
+.fl-top.mm h2{position:static;transform:none;font-size:calc(28 * var(--fu));letter-spacing:0;white-space:nowrap}
+.fl-areas-wrap.mm{left:calc(412 * var(--fu));right:calc(28 * var(--fu));top:calc(10 * var(--fu));justify-content:flex-start}
+.fl-area.mm{gap:calc(10 * var(--fu));padding:0 calc(7.9 * var(--fu)) 0 calc(18.2 * var(--fu))!important}
+.fl-mmdot{flex:none;width:calc(10 * var(--fu));height:calc(10 * var(--fu));border-radius:50%;background:#2F6FDE}
+/* the tables: picked, the blue ring and tick (below); a table reserved within the hour faded; Move items' own table
+   faded too, with its black From tag where the server's initials are */
+.fl-t.lock,.fl-t.from{opacity:.43;cursor:default}
+.fl-t.lock:active,.fl-t.from:active{transform:none}
+.fl-from{position:absolute;right:calc(14 * var(--fu));top:calc(14 * var(--fu));height:calc(25 * var(--fu));box-sizing:border-box;padding:0 calc(12.5 * var(--fu));display:grid;place-items:center;border-radius:999px;background:#1C1917;font-size:calc(14 * var(--fu));font-style:normal;font-weight:800;color:#FFFFFF}
+.fl-t.round .fl-from{right:50%;top:calc(-12 * var(--fu));transform:translateX(50%)}
+/* the bottom: what is picked (bold, then grey; another area's name small and lighter; "+" between areas), the page
+   dots, Move · Merge (greyed when they don't apply) */
+.fl-mmsel{position:absolute;left:calc(28.5 * var(--fu));bottom:calc(32.25 * var(--fu));margin:0;display:flex;align-items:baseline;transform:translateY(50%);font-size:calc(18 * var(--fu));font-weight:400;color:#44403C;white-space:nowrap}
+.fl-mmsel b{font-weight:700;color:#1C1917}
+.fl-mmsel b+span{margin-left:calc(12.5 * var(--fu))}
+.fl-mmsel small{margin-left:calc(13 * var(--fu));font-size:calc(15 * var(--fu));font-weight:500;color:#78716C}
+.fl-mmsel>i{margin:0 calc(13 * var(--fu));font-style:normal;font-weight:600;color:#A8A29E}
+.fl-mmsel>i.ar{display:flex;align-self:center;margin:0 calc(11 * var(--fu)) 0 calc(12 * var(--fu));color:#A8A29E}
+.fl-mmsel>i.ar .fi{width:calc(20 * var(--fu));height:calc(20 * var(--fu));stroke-width:2}
+.fl-mmbtns{position:absolute;right:calc(112 * var(--fu));bottom:calc(14 * var(--fu));display:grid;grid-template-columns:repeat(2,calc(218 * var(--fu)));gap:calc(12 * var(--fu))}
+html[data-nav="bar"] .fl-mmbtns{right:calc(28 * var(--fu))}
+.fl-mmb{height:calc(64 * var(--fu));display:flex!important;align-items:center;justify-content:center;gap:calc(12 * var(--fu));border-radius:calc(18 * var(--fu))!important;background:#2F6FDE!important;color:#FFFFFF!important;
+  box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(15,23,42,.12),0 calc(2 * var(--fu)) calc(6 * var(--fu)) rgba(30,91,214,.18);font-size:calc(18.6 * var(--fu))!important;font-weight:800!important;white-space:nowrap}
+.fl-mmb .fi{width:calc(24 * var(--fu));height:calc(24 * var(--fu))}
+.fl-mmb:disabled{background:#E7E5E2!important;color:#A8A29E!important;box-shadow:none;cursor:default}
+/* the confirm pop-ups: 812 wide; the blue round icon; cards of a table (its chip in its colour, "Table 7", "4 guests ·
+   ₹1,120 due"), an arrow (Move) or a bar (Unmerge) between two, two by two (Merge); the dishes (Move items); what
+   happens, on white; Cancel · the action in blue */
+.fl-pop.mm{width:calc(812 * var(--fu));margin-bottom:calc(48 * var(--fu));padding:calc(25 * var(--fu)) calc(27 * var(--fu)) calc(27 * var(--fu))} /* (centred 24 higher than the Floor's own pop-ups, as drawn) */
+.fl-pop.mm .fl-pop-h{height:calc(49.5 * var(--fu));gap:calc(13 * var(--fu))}
+.fl-pop-ic.mm{width:calc(48 * var(--fu));height:calc(48 * var(--fu));margin-left:calc(-2 * var(--fu));background:#E6EEFC;color:#2F6FDE}
+.fl-pop-ic.mm .fi{width:calc(24 * var(--fu));height:calc(24 * var(--fu))}
+.fl-pop.mm .fl-x{width:calc(50 * var(--fu));height:calc(50 * var(--fu))}
+.fl-mmrow{display:grid;grid-template-columns:1fr calc(62 * var(--fu)) 1fr;align-items:center;margin-top:calc(20.5 * var(--fu))}
+.fl-mmgrid{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:calc(24.5 * var(--fu)) calc(12 * var(--fu));margin-top:calc(20.5 * var(--fu))}
+.fl-mmc{display:flex;align-items:center;gap:calc(16.5 * var(--fu));min-height:calc(89.5 * var(--fu));box-sizing:border-box;padding:calc(12 * var(--fu)) calc(16 * var(--fu)) calc(12 * var(--fu)) calc(19 * var(--fu))}
+.fl-mmc>div{min-width:0;display:flex;flex-direction:column;gap:calc(3.5 * var(--fu));padding-top:calc(2 * var(--fu))}
+.fl-mmc b{font-size:calc(21 * var(--fu));font-weight:800;line-height:1.15;color:#1C1917}
+.fl-mmc small{font-size:calc(15.6 * var(--fu));font-weight:500;line-height:1.3;color:#78716C}
+.fl-tchip{flex:none;min-width:calc(60 * var(--fu));height:calc(60 * var(--fu));box-sizing:border-box;padding:0 calc(10 * var(--fu));display:grid;place-items:center;border-radius:calc(14 * var(--fu));font-size:calc(23 * var(--fu));font-style:normal;font-weight:800;white-space:nowrap}
+.fl-tchip.occ{background:#C9DBFB;box-shadow:inset 0 0 0 calc(2 * var(--fu)) #86AAED;color:#123572}
+.fl-tchip.bill{background:#FEF3C2;box-shadow:inset 0 0 0 calc(2 * var(--fu)) #E3C04E;color:#4F3D03}
+.fl-tchip.free{background:#FFFFFF;box-shadow:inset 0 0 0 calc(2 * var(--fu)) #D3CFCA;color:#1C1917}
+.fl-tchip.wide{font-size:calc(20 * var(--fu))}
+.fl-mmar{display:grid;place-items:center;color:#2F6FDE}
+.fl-mmar .fi{width:calc(29 * var(--fu));height:calc(29 * var(--fu))}
+.fl-mmbar{justify-self:center;width:calc(4 * var(--fu));height:calc(30 * var(--fu));border-radius:999px;background:#8A8480}
+.fl-mmlist{margin-top:calc(15 * var(--fu));padding:calc(6 * var(--fu)) calc(15 * var(--fu));border-radius:calc(16 * var(--fu));background:#F7F7F8}
+.fl-mmlist>div{display:grid;grid-template-columns:calc(42 * var(--fu)) 1fr auto;align-items:center;height:calc(36 * var(--fu));font-size:calc(17 * var(--fu));font-weight:500;color:#1C1917}
+.fl-mmlist>div+div{box-shadow:inset 0 1px 0 #E7E5E4}
+.fl-mmlist b{font-weight:800}
+.fl-mmlist b:last-child{font-weight:700}
+.fl-mmlist b:first-child{white-space:nowrap}
+.fl-mminfo{margin:calc(13 * var(--fu)) 0 0;padding:calc(15 * var(--fu)) calc(19 * var(--fu)) calc(17 * var(--fu));border-radius:calc(16 * var(--fu));font-size:calc(16.6 * var(--fu));font-weight:500;line-height:calc(24 * var(--fu));color:#44403C}
+.fl-mmlist+.fl-mminfo{margin-top:calc(12 * var(--fu))}
+.fl-mminfo b{font-weight:800;color:#1C1917}
+.fl-btns.mm{gap:calc(13 * var(--fu));margin-top:calc(19.5 * var(--fu))}
+.fl-btns.mm .fl-btn{height:calc(69.5 * var(--fu));padding-bottom:calc(2.5 * var(--fu))!important;font-size:calc(19 * var(--fu))!important}
+.fl-btns.mm .fl-btn .fi{width:calc(24 * var(--fu));height:calc(24 * var(--fu))}
+/* (A5: the Counter's error toast: a red left edge, RETRY and ✕, until one is tapped) */
+.fl-toast.err{box-shadow:inset calc(5 * var(--fu)) 0 0 #DC2626,0 calc(10 * var(--fu)) calc(30 * var(--fu)) rgba(15,23,42,.35)}
+.fl-toast button.x{display:grid!important;place-items:center;color:#FFFFFF!important}
+.fl-toast button.x .fi{width:calc(20 * var(--fu));height:calc(20 * var(--fu))}
+/* (picked in Move / Merge: the 3 ring inside the edge, a 7 pale blue halo, no glow, even on a table that needs
+   attention; the tick 40 round, 7 in from the corner) */
+.fl-root[data-mode="mm"] .fl-t.sel,.fl-root[data-mode="items"] .fl-t.sel{animation:none;box-shadow:inset 0 0 0 calc(3 * var(--fu)) #2F6FDE,0 0 0 calc(7 * var(--fu)) #C9D7EF,0 calc(8 * var(--fu)) calc(18 * var(--fu)) rgba(30,79,184,.10)}
+.fl-root[data-mode="mm"] .fl-tick,.fl-root[data-mode="items"] .fl-tick{right:calc(-13 * var(--fu));top:calc(-13 * var(--fu));width:calc(40 * var(--fu));height:calc(40 * var(--fu));border-width:calc(3 * var(--fu))}
+.fl-root[data-mode="mm"] .fl-t.round .fl-tick,.fl-root[data-mode="items"] .fl-t.round .fl-tick{right:calc(6 * var(--fu));top:calc(6 * var(--fu))}
+.fl-root[data-mode="mm"] .fl-tick .fi,.fl-root[data-mode="items"] .fl-tick .fi{width:calc(18 * var(--fu));height:calc(18 * var(--fu))}

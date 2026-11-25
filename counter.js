@@ -222,7 +222,7 @@
   // An order read back from storage (the draft, Held or Orders), keeping only what is valid.
   // What happened to an order (Update Pack 3, Track history), besides its KOTs, voids and bill prints (kots, bills):
   // events: { id, at, kind, by, … } (logEvent)
-  const EVENT_KINDS = ['open', 'disc', 'disc-off', 'dish', 'dish-off', 'svc', 'svc-off', 'move', 'merge', 'server', 'priority', 'priority-off'];
+  const EVENT_KINDS = ['open', 'disc', 'disc-off', 'dish', 'dish-off', 'svc', 'svc-off', 'move', 'merge', 'unmerge', 'items-out', 'items-in', 'server', 'priority', 'priority-off'];
   const cleanEvents = list => (Array.isArray(list) ? list : []).filter(e => e && typeof e === 'object' && EVENT_KINDS.includes(e.kind) && Number.isFinite(e.at)).slice(-200);
   const restoreOrder = o => {
     const type = TYPES.includes(o.type) || o.type === 'event' ? o.type : null;
@@ -480,8 +480,8 @@
   }
   // The order menu (☰, the blue button left of search; Counter Update 7), its rows by order type (the ones that don't
   // apply are not there): Kitchen: Reprint KOT · Mark as priority / Remove priority; Bill: Discount · Dish discount ·
-  // Service charge (dine-in, when the owner allows it), each with a switch; Table (dine-in): Move table · Merge tables ·
-  // Change server; then Delete order.
+  // Service charge (dine-in, when the owner allows it), each with a switch; Table (dine-in): Move / Merge tables · Move
+  // items · Change server (Update Pack 8, A7); Track history; then Delete order.
   function openOptions(open) {
     optionsMenu = open; deleteArmed = false; render();
     if (open) dialog.querySelector('.cx-mi:not(:disabled)')?.focus({ preventScroll: true });
@@ -627,27 +627,290 @@
     const last = kots[kots.length - 1];
     printSlip(kitchenSlip(saved, last), () => say({ b: 'KOT reprinted', t: ' · sent to Kitchen printer' }));
   }
-  // Move table: the Dining app, to pick the table the order moves to. Merge tables: pick a table whose open order comes
-  // onto this one (its dishes, as the kitchen has them; that order goes when this one is saved). Change server: who
-  // serves the order.
-  function moveTable() { closeMenu(); render(); pickTable(); }
-  function mergeTables() {
-    closeMenu(); render();
-    window.RestroFloor?.open({ pick: true, current: null, onPick: table => {
-      const mine = o => (order.uid ? idOf(o) === order.uid : order.number ? o.number === order.number : false);
-      const other = loadOrders().find(o => !o.paidAt && !qrHeld(o) && o.table === table.id && usesTable(o) && !mine(o));
-      if (!other) { render(); say(`Table ${tableName(table.id)} has no open order`); return; }
-      if (order.merged.includes(idOf(other))) { render(); return; }
-      const r = onScreen(other);
-      for (const l of r.lines) { l.type = order.split ? typeOf(r, l) : order.type || DEFAULT_TYPE; order.lines.push(l); }
-      order.merged = [...order.merged, idOf(other)];
-      logEvent('merge', { from: table.id, to: order.table || '', number: other.number });
-      if (!order.type) order.type = 'dine-in';
-      order.guests = cleanGuests((order.guests || 0) + (r.guests || 0)) || order.guests;
-      if (r.note && r.note !== order.note) order.note = cleanNote(order.note ? `${order.note} · ${r.note}` : r.note);
-      tidy(); render();
-      say({ b: `Order ${ticket(other.number)}`, t: ` (table ${tableName(table.id)}) merged · Save to keep it` });
-    } });
+  // ---------- Move / Merge tables and Move items (Update Pack 8, E: Update 7's Move table and Merge tables before) ----------
+  // The order menu's Move / Merge tables (one row, A7) opens the Floor's Move / Merge with this order's table picked
+  // ("‹ Counter", E2); Move items (E3) picks the dishes here first (movePick), then the table on the Floor. Each is
+  // confirmed on the Floor and done at once on the saved orders, without Save: so the order on screen must have nothing
+  // unsaved. Every move, merge, unmerge and item move is kept on its order (Track history: who, when, what; open to all
+  // staff for now), and the kitchen gets a slip for each (F): TABLE MOVED, TABLES MERGED, ITEMS MOVED; none while the
+  // kitchen has nothing of those orders yet (their first KOT goes with the new table). Change server: who serves the order.
+  const unsavedOnScreen = () => order.lines.length > 0 && (!order.number || signature(order) !== baseline);
+  function openMoveMerge() {
+    closeMenu();
+    if (!usesTable(order)) { render(); say('Choose a table first'); return; }
+    if (unsavedOnScreen()) { render(); say({ b: 'Save the order first', t: ' · then move or merge its table' }); return; }
+    render();
+    window.RestroFloor?.open({ mm: { table: order.table } });
+  }
+  // Move items (CM5): each dish line gets a round tick; a ticked one moves all of it unless − / + says how many
+  // ("3 of 8"); Select all; Cancel · Pick a table →. The menu side is greyed meanwhile ("Choose the dishes to move on the
+  // left"), so nothing is added by mistake.
+  let movePick = null; // { uid (the order on screen), picks: { line key: how many } }
+  function openMoveItems() {
+    closeMenu();
+    if (!usesTable(order)) { render(); say('Choose a table first'); return; }
+    if (unsavedOnScreen() || !savedOf(loadOrders())) { render(); say({ b: 'Save the order first', t: ' · then move its items' }); return; }
+    movePick = { uid: order.uid, picks: {} }; selected = null; sheet = null; render();
+  }
+  const movePicked = () => (movePick ? order.lines.map(line => ({ line, n: Math.min(line.qty, movePick.picks[keyOf(line)] || 0) })).filter(x => x.n > 0) : []);
+  // (n of a line, its dish discount taken off: paise)
+  const lineNet = (line, n) => { const gross = eachOf(line) * 100 * n; return gross - window.RestroBill.lineOff(gross, line.off); };
+  function tickMove(key) { const line = lineOf(key); if (!line || !movePick) return; if (movePick.picks[key]) delete movePick.picks[key]; else movePick.picks[key] = line.qty; render(); }
+  function stepMove(key, d) { const line = lineOf(key); if (!line || !movePick?.picks[key]) return; movePick.picks[key] = Math.min(line.qty, Math.max(1, movePick.picks[key] + d)); render(); }
+  function moveAll() { if (!movePick) return; for (const line of order.lines) movePick.picks[keyOf(line)] = line.qty; render(); }
+  function cancelMoveItems() { movePick = null; render(); }
+  // Pick a table → (CM6): the Floor's Move items, this order's table faded with its From tag
+  function pickMoveTable() {
+    const picked = movePicked(); if (!picked.length || !order.uid) return;
+    const uid = order.uid, picks = picked.map(({ line, n }) => ({ key: keyOf(line), n }));
+    window.RestroFloor?.open({ items: { from: order.table, uid, count: picked.reduce((s, x) => s + x.n, 0),
+      dishes: picked.map(({ line, n }) => ({ qty: n, name: itemOf(line).name, amount: lineNet(line, n) })),
+      preview: to => itemsPreview(uid, picks, to), apply: to => applyMoveItems(uid, picks, to) } });
+  }
+
+  // The tables an order has: the bill's first, then a merged group's others (joined)
+  const recTables = o => [o.table, ...(Array.isArray(o.joined) ? o.joined : [])].filter((t, i, a) => typeof t === 'string' && t && a.indexOf(t) === i);
+  const tablesWord = ts => `Table ${ts.map(tableName).join(' + ')}`;
+  const wordsList = ws => (ws.length > 1 ? `${ws.slice(0, -1).join(', ')} and ${ws[ws.length - 1]}` : ws[0] || '');
+  // The KOTs a slip speaks of: "KOT #1–#3" when their numbers run on, otherwise "KOT #141, #152"
+  const kotRange = o => {
+    const ns = [...new Set(kotsOf(o).map(k => k.no).filter(Number.isInteger))].sort((a, b) => a - b);
+    if (!ns.length) return '';
+    return ns.length > 1 && ns.every((n, i) => !i || n === ns[i - 1] + 1) ? `KOT #${ns[0]}–#${ns[ns.length - 1]}` : `KOT #${ns.join(', #')}`;
+  };
+  // A saved order's lines with more of them: the same dish (type, choices, dish discount) becomes one line, as sync.js
+  // keys them; both notes are kept
+  const savedKey = l => `${l.id}@${l.type || ''}${modsKey(l.mods)}${Number.isInteger(l.off) && l.off > 0 ? `%${l.off}` : ''}${l.here === true ? '~here' : ''}`;
+  function joinLines(into, more) {
+    const out = into.map(l => ({ ...l }));
+    for (const l of more) {
+      const same = out.find(x => savedKey(x) === savedKey(l));
+      if (!same) { out.push({ ...l }); continue; }
+      same.qty += l.qty;
+      if (l.note && l.note !== same.note) same.note = cleanNote(same.note ? `${same.note} · ${l.note}` : l.note);
+    }
+    return out;
+  }
+  // What was paid of an order so far, as payments ([{ method, amount (paise), at, ref }])
+  const paymentsOf = o => (Array.isArray(o.payments) && o.payments.length ? o.payments.map(p => ({ ...p })) : Number(o.paidAmount) > 0 ? [{ method: o.method || 'cash', amount: Math.round(Number(o.paidAmount)), at: Number(o.paidAmountAt) || createdOf(o) }] : []);
+  // when its party sat down (a merged group's: the first of them)
+  const seatedOf = o => Number(o.seatedAt) || createdOf(o);
+
+  // Free merged groups (E1, "any states": free tables merged before anyone sits): the tables, the bill on the first. An
+  // order started there takes them (joined) when it is saved; until then they are kept here and shared with the other
+  // tablets (sync collection joins).
+  const JOINS_KEY = 'restro.floor.joins.v1';
+  const loadJoins = () => { const v = load(JOINS_KEY, []); return (Array.isArray(v) ? v : []).filter(j => j && typeof j.id === 'string' && Array.isArray(j.tables) && j.tables.filter(t => typeof t === 'string' && t).length > 1); };
+  const joinOf = id => loadJoins().find(j => j.tables.includes(id)) || null;
+  // (tables an order now has: a free group holding any of them is done)
+  function dropJoins(tables) {
+    const list = loadJoins(), gone = list.filter(j => j.tables.some(t => tables.includes(t)));
+    if (!gone.length) return;
+    for (const j of gone) window.RestroSync?.removed('joins', j.id);
+    store(JOINS_KEY, list.filter(j => !gone.includes(j)));
+  }
+
+  // The order on screen follows a change made here to its saved order (it had nothing unsaved): its new tables, or,
+  // merged into another order, that order
+  function followRec(rec, gone = []) {
+    if (!rec || !order.uid || (order.uid !== idOf(rec) && !gone.includes(order.uid))) return;
+    order = onScreen(rec); baseline = signature(order); opened = JSON.stringify(rec); selected = null;
+    if (dialog.open) render(); else saveDraft();
+  }
+  // The kitchen slips (F), in the approved KOT layout: the black band; the red outlined box (TABLE MOVED, TABLES MERGED,
+  // ITEMS MOVED; ★★ PRIORITY ★★ first on a priority order's, C3); the order and the tables, bold (first, title); a small
+  // line; then, after a dashed line, ITEMS MOVED's dishes with their choices and notes; what to do, big and bold (serve);
+  // a small last line (footer). Kept on the order (kots, its own kind), printed at once. The dishes of a move or a merge
+  // aren't listed: the KOTs already on the kitchen rail stay as they are, the slip only redirects them.
+  const ACTION = { moved: 'TABLE MOVED', merged: 'TABLES MERGED', items: 'ITEMS MOVED' };
+  function actionSlip(k) {
+    const by = firstOf(k.by), tail = [slipTime(k.at), by ? `By: ${by}` : ''];
+    const base = { kind: k.kind, type: 'dine-in', band: 'DINE-IN', boxes: [k.priority ? '★★ PRIORITY ★★' : null, ACTION[k.kind]].filter(Boolean), priority: k.priority === true, addOn: false, round: null, kot: null,
+      order: ticket(k.number), event: '', when: '', at: k.at, note: '', lines: [], reason: '', by: k.by || null, printers: kitchenPrinters() };
+    if (k.kind === 'moved') return { ...base, first: `Order ${ticket(k.number)}`, title: `${tablesWord(k.from)} → ${tablesWord(k.to)}`, info: ['ALL ITEMS', k.kots, ...tail].filter(Boolean).join(' · '),
+      serve: `Serve everything for this order at ${tablesWord(k.to)}`, footer: `${k.from.length > 1 ? `Tables ${wordsList(k.from.map(tableName))} are` : `${tablesWord(k.from)} is`} now free` };
+    if (k.kind === 'merged') {
+      const n = (k.numbers || []).length;
+      return { ...base, first: k.tables.map(t => `Table ${tableName(t)}`).join(' + '), title: '', info: [n ? `Order ${k.numbers.map(ticket).join(' + ')}` : '', ...tail].filter(Boolean).join(' · '),
+        serve: `One party now · serve ${n > 2 ? 'all the orders' : n === 2 ? 'both orders' : 'this order'} at ${tablesWord(k.tables)}`,
+        footer: `KOTs already sent for ${wordsList((k.sent || []).map(tablesWord))} stay as they are` };
+    }
+    const count = (k.lines || []).reduce((s, l) => s + (Number(l.qty) || 0), 0);
+    return { ...base, order: ticket(k.toNumber), first: `Order ${ticket(k.number)} → Order ${ticket(k.toNumber)}`, title: `${tablesWord(k.from)} → ${tablesWord(k.to)}`,
+      info: [plural(count, 'item'), ...tail].filter(Boolean).join(' · '),
+      lines: (k.lines || []).map(l => ({ qty: l.qty, name: l.name, names: items.get(l.id)?.names || null, mods: (l.mods || []).map(labelOf), note: l.note || '' })),
+      serve: `Serve these at ${tablesWord(k.to)}`, footer: k.emptied ? `${tablesWord(k.from)} is now free` : `The rest of Order ${ticket(k.number)} stays at ${tablesWord(k.from)}` };
+  }
+  // Prints an action slip → { printed, retry } (in a browser, with no kitchen printer, it is kept on the order only)
+  const printAction = k => sendSlip(actionSlip(k)).then(r => ({ printed: r.ok, what: `${ACTION[k.kind]} slip`, retry: () => printAction(k) }));
+
+  // Move (E1, MM2b): an order (a merged group's too) goes to a free table, its bill and dishes with it; the old tables are
+  // free.
+  async function mmMove(uid, to) {
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid && usesTable(o));
+    if (!rec || typeof to !== 'string' || !to || recTables(rec).includes(to)) return { ok: false };
+    const from = recTables(rec), now = Date.now(), by = staffName();
+    rec.table = to; delete rec.joined; rec.savedAt = now;
+    rec.events = [...cleanEvents(rec.events), { id: newEventId(), at: now, kind: 'move', by, from: from[0], to, ...(from.length > 1 ? { tables: from } : {}) }];
+    const slip = kotPrinted(rec) ? { id: newKotId(), at: now, kind: 'moved', number: rec.number, from, to: [to], kots: kotRange(rec), priority: rec.priority === true, by } : null;
+    if (slip) rec.kots = [...(Array.isArray(rec.kots) ? rec.kots : []), slip].slice(-60);
+    storeOrders(list); dropJoins([to]); followRec(rec);
+    return { ok: true, slip: slip ? await printAction(slip) : null };
+  }
+  // Merge (E1, MM3b): the Floor's picks in order, each { uid } (an order, with all its tables) or { tables } (a free
+  // table, or a free merged group): always ONE bill, on the first table picked. The other orders' dishes (as the kitchen
+  // has them), guests, notes and payments come onto the first open order, and those orders go. A table paid by QR whose
+  // party is still there joins the group; its paid order stays as it is. No order at all: the tables become a free group.
+  function planMerge(units, list) {
+    const recs = units.map(u => (u && u.uid ? list.find(o => idOf(o) === u.uid && usesTable(o) && !qrHeld(o)) || null : null)), tables = [];
+    units.forEach((u, i) => { for (const t of recs[i] ? recTables(recs[i]) : Array.isArray(u?.tables) ? u.tables : []) if (typeof t === 'string' && t && !tables.includes(t)) tables.push(t); });
+    const open = recs.filter(r => r && !r.paidAt), host = open[0] || recs.find(Boolean) || null;
+    return { tables, host, others: open.filter(r => r !== host) };
+  }
+  function foldInto(host, others, tables) {
+    host.table = tables[0]; host.joined = tables.slice(1);
+    for (const r of others) {
+      host.lines = joinLines(host.lines, r.lines);
+      if (!host.sent || typeof host.sent !== 'object') host.sent = {};
+      for (const [k, n] of Object.entries(r.sent && typeof r.sent === 'object' ? r.sent : {})) if (n > 0) host.sent[k] = (Number(host.sent[k]) || 0) + n;
+      host.kots = [...(Array.isArray(host.kots) ? host.kots : []), ...(Array.isArray(r.kots) ? r.kots.map(k => ({ ...k, from: k.from || r.number })) : [])].sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0)).slice(-60);
+      for (const f of ['sentAt', 'kitchenAt']) if (r[f] && (!host[f] || r[f] < host[f])) host[f] = r[f];
+      if (!r.kitchenDoneAt) delete host.kitchenDoneAt;
+      host.guests = cleanGuests((host.guests || 0) + (r.guests || 0)) || host.guests || 0;
+      if (r.note && r.note !== host.note) host.note = cleanNote(host.note ? `${host.note} · ${r.note}` : r.note);
+      if (!host.customer && r.customer) host.customer = r.customer;
+      if (!cleanPager(host.pager) && cleanPager(r.pager) && !r.pagerBackAt) for (const f of ['pager', 'pagerAt', 'pagerShared']) if (r[f] != null) host[f] = r[f];
+      const pays = paymentsOf(r); if (pays.length) { host.payments = [...paymentsOf(host), ...pays]; delete host.paidAmount; }
+      if (!host.billNo && r.billNo) { host.billNo = r.billNo; host.billYear = r.billYear; }
+      if (r.priority) host.priority = true;
+      if (r.split && r.lines.some(l => l.type && l.type !== r.type)) host.split = true;
+      host.seatedAt = Math.min(seatedOf(host), seatedOf(r));
+    }
+    if (others.length) host.mergedFrom = [...(Array.isArray(host.mergedFrom) ? host.mergedFrom : []), ...others.map(idOf)].slice(-20);
+    Object.assign(host, recordSums(host));
+    return host;
+  }
+  // (the merged bill, for the confirm pop-up: what will be due, guests, the first table)
+  function mergePreview(units) {
+    const { tables, host, others } = planMerge(units, JSON.parse(JSON.stringify(loadOrders())));
+    if (!host) return { tables, due: 0, guests: 0, orders: 0, sent: false };
+    const sent = [host, ...others].some(kotPrinted), h = foldInto(host, others, tables);
+    return { tables, due: h.paidAt ? 0 : Math.max(0, (Number(h.total) || 0) - paidSoFar(h)), guests: h.guests || 0, orders: others.length + 1, sent };
+  }
+  async function mmMerge(units) {
+    const list = loadOrders(), { tables, host, others } = planMerge(Array.isArray(units) ? units : [], list), now = Date.now(), by = staffName();
+    if (tables.length < 2) return { ok: false };
+    if (!host) {
+      const joins = loadJoins(), touched = joins.filter(j => j.tables.some(t => tables.includes(t)));
+      for (const j of touched.slice(1)) window.RestroSync?.removed('joins', j.id);
+      store(JOINS_KEY, [...joins.filter(j => !touched.includes(j)), { id: touched[0]?.id || window.RestroSync?.newId?.('j') || `j${now.toString(36)}${Math.random().toString(36).slice(2, 7)}`, tables, at: now, by }]);
+      return { ok: true, slip: null };
+    }
+    const withKots = [host, ...others].filter(kotPrinted), numbers = [host, ...others].map(r => r.number);
+    const sentTables = withKots.map(recTables);
+    foldInto(host, others, tables); host.savedAt = now;
+    host.events = [...cleanEvents(host.events), { id: newEventId(), at: now, kind: 'merge', by, from: tables[1], to: tables[0], tables, numbers: others.map(r => r.number) }];
+    const slip = withKots.length ? { id: newKotId(), at: now, kind: 'merged', number: host.number, tables, numbers, sent: sentTables, priority: host.priority === true, by } : null;
+    if (slip) host.kots = [...host.kots, slip].slice(-60);
+    for (const r of others) window.RestroSync?.removed('orders', idOf(r));
+    storeOrders(list.filter(o => !others.includes(o))); dropJoins(tables); followRec(host, others.map(idOf));
+    return { ok: true, slip: slip ? await printAction(slip) : null };
+  }
+  // Unmerge (E1, MM6b): the bill stays on the first table, the others are free (a free group's tables are free tables)
+  function mmUnmerge({ uid = null, join = null } = {}) {
+    if (join) { const j = loadJoins().find(x => x.id === join); if (!j) return { ok: false }; window.RestroSync?.removed('joins', j.id); store(JOINS_KEY, loadJoins().filter(x => x.id !== j.id)); return { ok: true, freed: j.tables.slice(1) }; }
+    const list = loadOrders(), rec = list.find(o => idOf(o) === uid && usesTable(o)), freed = rec ? recTables(rec).slice(1) : [];
+    if (!freed.length) return { ok: false };
+    const now = Date.now();
+    delete rec.joined; rec.savedAt = now;
+    rec.events = [...cleanEvents(rec.events), { id: newEventId(), at: now, kind: 'unmerge', by: staffName(), table: rec.table, tables: freed }];
+    storeOrders(list); followRec(rec);
+    return { ok: true, freed };
+  }
+
+  // Move items (E3, CM8): the dishes picked on the order on screen go to table `to`: onto its open order (there is never
+  // a second order on a table: they join its bill), or a new order there with a number of its own. What the kitchen has
+  // of them goes with them (a sent dish moves first), so nothing is sent twice. An order left with no dishes goes (its
+  // payments go with the dishes), and its tables are free.
+  // (a line as a saved order keeps it, as Save writes it)
+  const savedLine = (o, l, qty = l.qty) => ({ id: l.id, name: itemOf(l).name, price: eachOf(l), qty, type: typeOf(o, l), ...(l.here ? { here: true } : {}), ...(l.custom ? { custom: { ...l.custom } } : {}), ...(l.ev ? { ev: { ...l.ev } } : {}),
+    ...(l.mods?.length ? { mods: modObjs(l.mods) } : {}), ...(l.note ? { note: l.note } : {}), ...(l.off ? { off: l.off, ...(l.offReason ? { offReason: l.offReason } : {}) } : {}) });
+  function itemsPlan(uid, picks, to, list) {
+    const src = list.find(o => idOf(o) === uid && usesTable(o) && !o.paidAt);
+    if (!src || order.uid !== uid || typeof to !== 'string' || !to || recTables(src).includes(to)) return null;
+    const on = onScreen(src), moved = [], left = { ...(src.sent && typeof src.sent === 'object' ? src.sent : {}) }, take = {};
+    for (const { key, n } of picks) {
+      const line = on.lines.find(l => keyOf(l) === key); if (!line) continue;
+      const qty = Math.min(line.qty, Math.max(0, Math.round(Number(n)) || 0)); if (!qty) continue;
+      const kk = kitchenKey(line.id, typeOf(on, line), line.mods), sentN = Math.min(qty, sentOf(line));
+      if (sentN) { left[kk] = (Number(left[kk]) || 0) - sentN; if (left[kk] <= 0) delete left[kk]; take[kk] = (take[kk] || 0) + sentN; }
+      moved.push(savedLine(on, line, qty));
+      line.qty -= qty;
+    }
+    if (!moved.length) return null;
+    // (the table tapped: an open order there takes them; a free merged group's first table, its tables)
+    const dest = list.find(o => !o.paidAt && !qrHeld(o) && usesTable(o) && recTables(o).includes(to)) || null;
+    return { src, moved, rest: on.lines.filter(l => l.qty > 0).map(l => savedLine(on, l)), left, take, dest, join: dest ? null : joinOf(to) };
+  }
+  function itemsPreview(uid, picks, to) {
+    const p = itemsPlan(uid, picks, to, JSON.parse(JSON.stringify(loadOrders()))); if (!p) return null;
+    const keep = { ...p.src, lines: p.rest }, kept = recordSums(keep);
+    const into = p.dest ? { ...p.dest, lines: joinLines(p.dest.lines, p.moved) } : { type: 'dine-in', lines: p.moved };
+    const t = recordSums(into);
+    return { keepItems: p.rest.reduce((s, l) => s + l.qty, 0), keepDue: Math.max(0, kept.total - paidSoFar(p.src)), dest: Boolean(p.dest), destNumber: p.dest?.number || null,
+      destGuests: p.dest?.guests || 0, destDueNow: p.dest ? Math.max(0, (Number(p.dest.total) || 0) - paidSoFar(p.dest)) : 0, due: Math.max(0, t.total - (p.dest ? paidSoFar(p.dest) : 0)), sent: Object.keys(p.take).length > 0 };
+  }
+  async function applyMoveItems(uid, picks, to) {
+    const sync = window.RestroSync, now = Date.now(), by = staffName();
+    let p = itemsPlan(uid, picks, to, loadOrders());
+    if (!p) return { ok: false, why: 'gone' };
+    // (a new order there takes its number as any new order does: from the main system or the cloud)
+    let given = null;
+    if (!p.dest) {
+      if (sync && !sync.canFire()) return { ok: false, why: cantFire(false).replace('order not saved', 'items not moved') };
+      if (sync) { try { given = await sync.takeNumber(); } catch { given = null; } if (!given) return { ok: false, why: cantFire(false).replace('order not saved', 'items not moved') }; }
+    }
+    const list = loadOrders(); p = itemsPlan(uid, picks, to, list);
+    if (!p) return { ok: false, why: 'gone' };
+    const { src, moved, rest, left, take } = p, from = recTables(src), count = moved.reduce((s, l) => s + l.qty, 0), emptied = !rest.length;
+    let dest = p.dest;
+    if (dest) {
+      dest.lines = joinLines(dest.lines, moved);
+      if (!dest.sent || typeof dest.sent !== 'object') dest.sent = {};
+      for (const [k, n] of Object.entries(take)) dest.sent[k] = (Number(dest.sent[k]) || 0) + n;
+      if (Object.keys(take).length) { delete dest.kitchenDoneAt; if (!dest.sentAt) dest.sentAt = src.sentAt || now; if (!dest.kitchenAt) dest.kitchenAt = src.kitchenAt || src.sentAt || now; }
+    } else {
+      const number = given ? given.number : nextNumber();
+      const j = p.join, tables = j ? [to, ...j.tables.filter(t => t !== to)] : [to];
+      dest = { uid: sync?.newId('o') || `o${now.toString(36)}${Math.random().toString(36).slice(2, 8)}`, number, type: 'dine-in', split: false, table: to, ...(tables.length > 1 ? { joined: tables.slice(1) } : {}), customer: null, pager: 0, readyAt: null, kotMode: null, prepMin: null,
+        lines: moved, createdAt: now, savedAt: now, day: given?.day || sync?.today?.(), sent: { ...take }, sentAt: Object.keys(take).length ? src.sentAt || now : null, kots: [],
+        ...(Object.keys(take).length && (src.kitchenAt || src.sentAt) ? { kitchenAt: src.kitchenAt || src.sentAt } : {}),
+        method: null, received: null, change: null, paidAt: null, server: src.server || by, serverId: src.serverId || null,
+        events: [{ id: newEventId(), at: now, kind: 'open', by, type: 'dine-in', table: to, guests: 0, customer: '' }], ...(thisDevice() ? { savedOn: thisDevice() } : {}) };
+      list.push(dest);
+    }
+    const toTables = recTables(dest);
+    dest.events = [...cleanEvents(dest.events), { id: newEventId(), at: now, kind: 'items-in', by, from: from[0], number: src.number, count, names: moved.map(l => `${l.qty} × ${l.name}`).join(', ') }];
+    if (emptied) {
+      // (nothing left here: the order goes, its payments and its kitchen with the dishes)
+      const pays = paymentsOf(src); if (pays.length) { dest.payments = [...paymentsOf(dest), ...pays]; delete dest.paidAmount; }
+      dest.kots = [...(Array.isArray(dest.kots) ? dest.kots : []), ...(Array.isArray(src.kots) ? src.kots.map(k => ({ ...k, from: k.from || src.number })) : [])].sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0)).slice(-60);
+      if (!dest.billNo && src.billNo) { dest.billNo = src.billNo; dest.billYear = src.billYear; }
+      dest.mergedFrom = [...(Array.isArray(dest.mergedFrom) ? dest.mergedFrom : []), idOf(src)].slice(-20);
+    } else {
+      src.lines = rest; src.sent = left; src.savedAt = now;
+      src.events = [...cleanEvents(src.events), { id: newEventId(), at: now, kind: 'items-out', by, to, number: dest.number, count, names: moved.map(l => `${l.qty} × ${l.name}`).join(', ') }];
+      Object.assign(src, recordSums(src));
+    }
+    Object.assign(dest, recordSums(dest)); dest.savedAt = now;
+    const slip = Object.keys(take).length ? { id: newKotId(), at: now, kind: 'items', number: src.number, toNumber: dest.number, from, to: toTables, emptied, priority: dest.priority === true || src.priority === true, by,
+      lines: moved.map(l => ({ id: l.id, name: l.name, qty: l.qty, type: l.type, ...(l.mods ? { mods: l.mods } : {}), ...(l.note ? { note: l.note } : {}) })) } : null;
+    if (slip) { dest.kots = [...(Array.isArray(dest.kots) ? dest.kots : []), slip].slice(-60); if (!emptied) src.kots = [...(Array.isArray(src.kots) ? src.kots : []), slip].slice(-60); }
+    if (emptied) window.RestroSync?.removed('orders', idOf(src));
+    storeOrders(emptied ? list.filter(o => o !== src) : list); dropJoins(toTables);
+    movePick = null;
+    followRec(emptied ? dest : src, emptied ? [idOf(src)] : []);
+    return { ok: true, count, to: toTables, slip: slip ? await printAction(slip) : null };
   }
   // Assign pager (Update Pack 3): a pager still out with another order (not docked) asks first: Same customer (they
   // kept it for this order too: both orders have it, Buzz on either rings it, and it comes back from both when docked)
@@ -934,6 +1197,8 @@
       }
     }
     storeOrders([entry, ...others]);
+    // (Update Pack 8, E1: a free merged group is done once an order is saved on it: the order keeps its tables)
+    if (usesTable(entry)) dropJoins(recTables(entry));
     // (Update Pack 8, A6: one pool) a pager handed out here comes back from a booking or a waitlist guest that had it
     if (!untouched && !record && cleanPager(entry.pager)) window.RestroBookings?.pagerTaken?.(cleanPager(entry.pager));
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
@@ -1235,6 +1500,9 @@
       order = onScreen(stored); baseline = signature(order); opened = JSON.stringify(stored);
       return;
     }
+    // (Update Pack 8, E1: merged into another order on another tablet: that order, when nothing here is unsaved)
+    const into = !stored && !unsaved && order.uid ? loadOrders().find(o => !o.paidAt && Array.isArray(o.mergedFrom) && o.mergedFrom.includes(order.uid)) : null;
+    if (into) { const was = order.number; order = onScreen(into); baseline = signature(order); opened = JSON.stringify(into); selected = null; toast(`Order ${ticket(was)} was merged into ${ticket(into.number)} on another tablet`); return; }
     const n = order.number, was = opened ? restoreOrder(JSON.parse(opened)) : null;
     const before = new Map((was ? was.lines : []).map(l => [`${l.id}@${typeOf(was, l)}${modsKey(l.mods)}${offKey(l)}${hereKey(l)}`, l.qty]));
     const added = unsaved ? order.lines.map(l => { const { kit, ...rest } = l; return { ...rest, qty: l.qty - (before.get(keyOf(l)) || 0) }; }).filter(l => l.qty > 0) : [];
@@ -1249,7 +1517,9 @@
   // saved goes to Held (a new order's table and pager are freed). A held order never keeps a table busy.
   // (Update Pack 5, H1: a table with a Pending QR order asks Customer paid? first; it opens once a choice is made)
   function openTable(id, asked = false) {
-    const forTable = o => o.table === id && usesTable(o);
+    // (Update Pack 8: a merged group's order from any of its tables; a free merged group's new order has all its tables,
+    // the bill on the first)
+    const forTable = o => recTables(o).includes(id) && usesTable(o);
     if (!asked && qrPendingOn(id) && window.RestroOrders?.askQr?.(idOf(qrPendingOn(id)), { host: dialog, then: choice => { if (choice && dialog.open) openTable(id, true); } })) return;
     query = ''; category = null;
     if (forTable(order) && (order.lines.length || order.number)) { selected = null; sheet = null; render(); return; }
@@ -1257,8 +1527,8 @@
     if (open) { openOrder(idOf(open)); return; }
     const waiting = held.find(h => h.number && forTable(h));
     if (waiting) { resume(waiting.heldId); return; }
-    const parked = park();
-    order = { ...blankOrder(), type: 'dine-in', table: id }; baseline = null; opened = null; selected = null; sheet = null; render();
+    const parked = park(), j = joinOf(id), first = j ? j.tables[0] : id;
+    order = { ...blankOrder(), type: 'dine-in', table: first, ...(j ? { joined: j.tables.filter(t => t !== first) } : {}) }; baseline = null; opened = null; selected = null; sheet = null; render();
     if (parked) toast(`Previous order on hold · ${held.length} held`);
   }
   // Pay: the order is saved as paid (and goes to the kitchen if it has not yet), then the receipt shows.
@@ -1618,7 +1888,7 @@
     window.RestroFloor?.open({ pick: true, current: order.table, guests: order.guests, onPick: table => {
       const take = () => {
         if (order.table && order.table !== table.id && (order.uid || order.number)) logEvent('move', { from: order.table, to: table.id });
-        order.table = table.id;
+        order.table = table.id; order.joined = Array.isArray(table.joined) ? table.joined.filter(t => typeof t === 'string' && t && t !== table.id) : []; // (a free merged group: all its tables)
         // (Update 7: the guest count, asked in the Dining app the first time the table is picked for the order)
         if (cleanGuests(table.guests)) order.guests = table.guests;
         if (!order.type) { order.type = 'dine-in'; order.lines.forEach(l => { l.type = l.type || 'dine-in'; }); tidy(); } // a table means Dine in
@@ -1726,6 +1996,11 @@
     room_service: 'M110-200q-13 0-21.5-8.5T80-230q0-13 8.5-21.5T110-260h740q13 0 21.5 8.5T880-230q0 13-8.5 21.5T850-200H110Zm0-120v-17q0-155 88.5-250T420-710v-30q0-26 17-43t43-17q26 0 43 17t17 43v30q133 28 221.5 123T850-337v17H110Z',
     move_table: 'm194-323 100 100q9 9 9 21.16t-8.61 21Q285-172 272.9-172q-12.1 0-20.9-9L101-332q-5-5-7-10.13-2-5.14-2-11Q92-359 94-364q2-5 7-10l151-151q9-9 21-9t21.39 9q8.61 9 8.61 21t-9 21L194-383h286q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H194Zm572-254H480q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h286L666-737q-9-9-9-21.16t8.61-21Q675-788 687.1-788q12.1 0 20.9 9l151 151q5 5 7 10.13 2 5.14 2 11 0 5.87-2 10.87-2 5-7 10L708-435q-9 9-21 9t-21.39-9q-8.61-9-8.61-21t9-21l100-100Z',
     merge: 'M480-344 277-141q-9 9-21 9t-21-9q-9-9-9-21t9-21l175-175q24-24 32-44t8-59v-265l-69 69q-9 9-21 9t-21-9q-9-9-9-21t9-21l120-120q9-9 21-9t21 9l120 120q9 9 9 21t-9 21q-9 9-21 9t-21-9l-69-69v265q0 39 8 59t32 44l175 175q9 9 9 21t-9 21q-9 9-21 9t-21-9L480-344Z',
+    // (Update Pack 8, CM5: Pick a table →, the arrow as drawn)
+    arrow_forward: '<g transform="matrix(40 0 0 40 0 -960)" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M14 6l6 6-6 6"/></g>',
+    // (Update Pack 8, CM1: Move / Merge tables, two tables linked; Move items, three lines and an arrow; drawn as the design)
+    move_merge: '<g transform="matrix(40 0 0 40 0 -960)" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8.05" width="7.85" height="10.2" rx="2.3"/><rect x="13.65" y="8.05" width="7.85" height="10.2" rx="2.3"/><path d="M10.4 13.15h3.2" stroke-width="1.9"/></g>',
+    move_items: '<g transform="matrix(40 0 0 40 0 -960)" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"><path d="M3.48 6.94h9.1M3.48 11.79h9.1M3.48 16.79h6.1M13.98 16.79h7.62M18.2 13.39l3.4 3.4-3.4 3.4"/></g>',
     badge: 'M232-247h239v-14q0-18-9-32t-23-19q-32-11-50-14.5t-35-3.5q-19 0-40.5 4.5T265-312q-15 5-24 19t-9 32v14Zm361-67h120q10.83 0 17.92-7.12 7.08-7.11 7.08-18 0-10.88-7.08-17.88-7.09-7-17.92-7H593q-10.83 0-17.92 7.12-7.08 7.11-7.08 18 0 10.88 7.08 17.88 7.09 7 17.92 7Zm-239-50q22.5 0 38.25-15.75T408-418q0-22.5-15.75-38.25T354-472q-22.5 0-38.25 15.75T300-418q0 22.5 15.75 38.25T354-364Zm239-63h120q10.83 0 17.92-7.12 7.08-7.11 7.08-18 0-10.88-7.08-17.88-7.09-7-17.92-7H593q-10.83 0-17.92 7.12-7.08 7.11-7.08 18 0 10.88 7.08 17.88 7.09 7 17.92 7ZM140-80q-24 0-42-18t-18-42v-480q0-24 18-42t42-18h250v-140q0-24 18-42t42.41-18h59.18Q534-880 552-862q18 18 18 42v140h250q24 0 42 18t18 42v480q0 24-18 42t-42 18H140Zm310-510h60v-230h-60v230Z',
     do_not_disturb_on: 'M310-453h340q12.75 0 21.38-8.68 8.62-8.67 8.62-21.5 0-12.82-8.62-21.32-8.63-8.5-21.38-8.5H310q-12.75 0-21.37 8.68-8.63 8.67-8.63 21.5 0 12.82 8.63 21.32 8.62 8.5 21.37 8.5ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Z',
     void_x: '<path transform="matrix(40 0 0 40 0 -960)" d="M12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-18C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2m2.59 6L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41z"/>',
@@ -1880,7 +2155,44 @@
     // the kitchen"); Instant KOT shows nothing until it has gone
     const kotl = !order.readyAt ? null : kotGone ? el('div', { class: 'cx-kotl sent' }, mi('check_circle', 15), el('span', {}, 'KOT sent to the kitchen'))
       : order.kotMode !== 'now' ? el('div', { class: 'cx-kotl' }, mi('schedule', 15), el('span', {}, `KOT prints ${kitchenWhen(kitchenTime(order))}`)) : null;
+    if (movePick) return moveItemsPanel(row);
     return el('aside', { class: `cx-order${panelArranging ? ' arranging' : ''}${typeMenu ? ' picking' : ''}${kotl ? ' kotl' : ''}`, 'aria-label': 'Current order' }, pick, row, head, kotl, onote, list, sums);
+  }
+  // Move items (Update Pack 8, E3: CM5): the order panel picking dishes. "Move items" with "Tap the dishes to move · set
+  // how many" and Select all; every line with a round tick (ticked: light blue, − / + with "3 of 8", what that many come
+  // to); under them "7 items selected from 3 dishes · ₹960"; Cancel (Save's look) · Pick a table → (Pay's look). The
+  // context row stays as it is, and does nothing meanwhile.
+  function moveItemsPanel(row) {
+    const picked = movePicked(), count = picked.reduce((s, x) => s + x.n, 0), worth = picked.reduce((s, x) => s + lineNet(x.line, x.n), 0);
+    row.inert = true;
+    const head = el('div', { class: 'cx-oh cx-mvh' },
+      el('div', { class: 'cx-mvt' }, el('h2', { id: 'counter-title', tabindex: '-1' }, 'Move items'), el('small', {}, 'Tap the dishes to move · set how many')),
+      el('button', { type: 'button', class: 'cx-mvall', onclick: moveAll }, 'Select all'));
+    const list = el('ul', { class: 'cx-lines cx-mvl', 'aria-label': 'Dishes to move' }, ...order.lines.map(line => {
+      const item = itemOf(line), key = keyOf(line), n = Math.min(line.qty, movePick.picks[key] || 0), on = n > 0, each = eachOf(line);
+      const mods = (line.mods || []).map(m => { const o = optionOf.get(m); return el('span', { class: `cx-mc ${o?.mode === 'set' ? 'por' : o?.kind === 'spice' ? 'sp' : 'nn'}` }, modLabel(m)); });
+      const qty = on
+        ? el('div', { class: 'cx-stp cx-mvq' },
+          el('button', { type: 'button', class: 'cx-sb', disabled: n <= 1, 'aria-label': `One less ${item.name} to move`, onclick: () => stepMove(key, -1) }, mi('remove', 22)),
+          el('span', { class: 'cx-mvn' }, el('b', {}, String(n)), el('small', {}, `of ${line.qty}`)),
+          el('button', { type: 'button', class: 'cx-sb', disabled: n >= line.qty, 'aria-label': `One more ${item.name} to move`, onclick: () => stepMove(key, 1) }, mi('add', 22)))
+        : el('div', { class: 'cx-stp cx-mvq off' }, el('span', { class: 'cx-mvn' }, el('b', {}, String(line.qty))));
+      const amountOf = on ? lineNet(line, n) : lineNet(line, line.qty);
+      return el('li', { class: `cx-line cx-mv${on ? ' on' : ''}`, 'data-line': key },
+        el('div', { class: 'cx-row', onclick: e => { if (!e.target.closest?.('.cx-mvq')) tickMove(key); } },
+          el('button', { type: 'button', role: 'checkbox', 'aria-checked': String(on), class: 'cx-tick', 'aria-label': `Move ${item.name}` }, on ? mi('check', 18) : null),
+          el('div', { class: 'cx-nm' }, el('span', { class: 'cx-nm-btn' }, item.name, line.custom ? el('span', { class: 'cx-ctag' }, 'CUSTOM') : null), line.off ? el('span', { class: 'cx-ltag' }, `${line.off}% off`) : null),
+          qty,
+          el('div', { class: 'cx-lt' }, (on ? n : line.qty) > 1 ? el('small', {}, `${rupees(each)} ea`) : null, el('b', {}, amount(amountOf))),
+          mods.length ? el('div', { class: 'cx-mcs' }, ...mods) : null,
+          line.note ? el('div', { class: 'cx-cmt' }, mi('receipt_long', 14), el('span', {}, line.note)) : null));
+    }));
+    const sums = el('div', { class: 'cx-tot cx-mvs' },
+      el('div', { class: 'cx-mvsum' }, el('span', {}, el('b', {}, plural(count, 'item')), ` selected from ${dishCount(picked.length)}`), el('b', {}, amount(worth))),
+      el('div', { class: 'cx-act' },
+        el('button', { type: 'button', class: 'cx-save', onclick: cancelMoveItems }, 'Cancel'),
+        el('button', { type: 'button', class: 'cx-pay cx-mvgo', disabled: !count, onclick: pickMoveTable }, 'Pick a table', mi('arrow_forward', 22))));
+    return el('aside', { class: 'cx-order cx-moving', 'aria-label': 'Move items' }, row, head, list, sums);
   }
   // Tap a line: it is selected (another one was, it isn't any more); tapping the selected one again keeps it so.
   function selectLine(key) { if (selected === key) return; selected = key; render(); }
@@ -1909,7 +2221,9 @@
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { if (window.RestroOrders) window.RestroOrders.open({ from: 'counter' }); else { sheet = 'orders'; render(); } } }, mi('receipt_long', 17), 'Orders'),
       el('button', { type: 'button', class: 'cx-tc', onclick: () => { sheet = 'payments'; render(); } }, mi('history', 17), 'Payment history'),
       syncButton());
-    return el('section', { class: 'cx-main', 'aria-label': 'Menu' }, top, optionsMenu ? orderMenu() : null, el('div', { class: 'cx-area' }));
+    // (Move items, E3: greyed, so nothing is added by mistake)
+    const cover = movePick ? el('div', { class: 'cx-mvcover' }, el('span', {}, 'Choose the dishes to move on the left')) : null;
+    return el('section', { class: 'cx-main', 'aria-label': 'Menu', inert: movePick ? true : null }, top, optionsMenu ? orderMenu() : null, el('div', { class: 'cx-area' }), cover);
   }
   // The order menu (Update 7): 400 wide, 14 below the button, over the dimmed screen; rows 60 tall in groups with a
   // hairline between. Rows that don't apply to the order type aren't there (takeaway, delivery and phone: no service
@@ -1930,7 +2244,8 @@
       swRow('percent', 'Discount', Boolean(order.discountPct), `${order.discountPct}%`, 'cx-dtag', openDiscount, () => switchOff('discount')),
       swRow('sell', 'Dish discount', dished > 0, `${dished} ${dished === 1 ? 'dish' : 'dishes'}`, 'cx-dtag', openDish, () => switchOff('dish'), !order.lines.length && !dished),
       dine ? swRow('room_service', 'Service charge', Boolean(order.servicePct), `${order.servicePct}%`, 'cx-stag', openService, () => switchOff('service')) : null,
-      ...(dine ? [sep(), row('move_table', 'Move table', moveTable), row('merge', 'Merge tables', mergeTables), row('badge', 'Change server', openServer)] : []),
+      // (Update Pack 8, A7: Move table and Merge tables are one row, Move / Merge tables; Move items under it)
+      ...(dine ? [sep(), row('move_merge', 'Move / Merge tables', openMoveMerge), row('move_items', 'Move items', openMoveItems), row('badge', 'Change server', openServer)] : []),
       sep(),
       row('history', 'Track history', openHistory),
       sep(),
@@ -3352,6 +3667,8 @@
     list.forEach((e, i) => { e.seq = i; });
     list.sort((a, b) => (b.kind === 'open') - (a.kind === 'open') || (Number(a.at) || 0) - (Number(b.at) || 0) || a.seq - b.seq);
     const q = e => (e.qty > 1 ? `${e.qty} × ` : '');
+    // (the kitchen's slip for a move, a merge or an item move, kept with it: "TABLE MOVED slip printed")
+    const slipNote = (e, kind) => ((Array.isArray(rec.kots) ? rec.kots : []).some(k => k && k.kind === kind && Math.abs((Number(k.at) || 0) - (Number(e.at) || 0)) < 5000) ? `${ACTION[kind]} slip printed` : '');
     const rows = list.map(e => {
       switch (e.kind) {
         case 'open': return { e, icon: typeIcon[e.type] || typeIcon['dine-in'], title: 'Order opened',
@@ -3371,8 +3688,15 @@
         case 'dish-off': return { e, icon: 'remove_discount', title: `Dish discount removed · ${q(e)}${e.name}`, sub: [e.was ? `was ${e.was}%` : '', by(e.by)] };
         case 'svc': return { e, icon: 'room_service', title: `Service charge ${e.pct}% on order`, sub: [e.was ? `was ${e.was}%` : '', by(e.by)] };
         case 'svc-off': return { e, icon: 'room_service', title: 'Service charge removed', sub: [e.was ? `was ${e.was}%` : '', by(e.by)] };
-        case 'move': return { e, icon: 'move_table', title: 'Moved table', sub: [`Table ${tableName(e.from)} → Table ${tableName(e.to)}`, by(e.by)] };
-        case 'merge': return { e, icon: 'merge', title: 'Merged tables', sub: [`Table ${tableName(e.from)}${e.to ? ` → Table ${tableName(e.to)}` : ''}`, e.number ? `Order ${ticket(e.number)}` : '', by(e.by)] };
+        // (Update Pack 8, E: a merged group moved, tables merged on the Floor, unmerged, items moved; with the slip the
+        // kitchen got)
+        case 'move': return { e, icon: 'move_table', title: 'Moved table', sub: [`${Array.isArray(e.tables) ? tablesWord(e.tables) : `Table ${tableName(e.from)}`} → Table ${tableName(e.to)}`, by(e.by), slipNote(e, 'moved')] };
+        case 'merge': return Array.isArray(e.tables)
+          ? { e, icon: 'move_merge', title: 'Merged tables', sub: [tablesWord(e.tables), (e.numbers || []).length ? `with Order ${e.numbers.map(ticket).join(', ')}` : '', by(e.by), slipNote(e, 'merged')] }
+          : { e, icon: 'merge', title: 'Merged tables', sub: [`Table ${tableName(e.from)}${e.to ? ` → Table ${tableName(e.to)}` : ''}`, e.number ? `Order ${ticket(e.number)}` : '', by(e.by)] };
+        case 'unmerge': return { e, icon: 'move_merge', title: 'Unmerged tables', sub: [`Table ${tableName(e.table)} keeps the bill`, `${(e.tables || []).length > 1 ? `Tables ${wordsList(e.tables.map(tableName))} are` : `Table ${tableName((e.tables || [])[0])} is`} free`, by(e.by)] };
+        case 'items-out': return { e, icon: 'move_items', title: `${plural(e.count || 0, 'item')} moved to Table ${tableName(e.to)}`, sub: [e.names || '', e.number ? `Order ${ticket(e.number)}` : '', by(e.by), slipNote(e, 'items')] };
+        case 'items-in': return { e, icon: 'move_items', title: `${plural(e.count || 0, 'item')} moved from Table ${tableName(e.from)}`, sub: [e.names || '', e.number ? `Order ${ticket(e.number)}` : '', by(e.by), slipNote(e, 'items')] };
         case 'server': return { e, icon: 'badge', title: 'Server changed', sub: [`${firstOf(e.from) || '—'} → ${firstOf(e.to)}`, by(e.by)] };
         case 'priority': return { e, icon: 'flag', title: 'Marked as priority', sub: ['Kitchen only', by(e.by)] };
         case 'priority-off': return { e, icon: 'flag', title: 'Priority removed', sub: ['Kitchen only', by(e.by)] };
@@ -3827,6 +4151,7 @@
   }
 
   function render() {
+    if (movePick && (movePick.uid !== order.uid || !order.lines.length)) movePick = null; // (another order took the screen)
     if (drag) endDrag(true, false);
     if (panelDrag) endPanelDrag(true);
     syncPops();
@@ -3891,6 +4216,7 @@
     if (sheet === 'receipt') { sheet = null; receipt = null; render(); return true; }
     if (panelArranging) { setPanelArranging(false); return true; }
     if (arranging) { setArranging(false); return true; }
+    if (movePick) { cancelMoveItems(); return true; } // (Move items: Back is Cancel)
     if (selected) { selected = null; render(); return true; } // a selected line goes back to a plain one
     if (msg?.kind === 'error') { dropMsg(); return true; } // (an error message stays until Retry or ✕: Back is ✕ too)
     if (query) { query = ''; render(); return true; }
@@ -4310,18 +4636,26 @@
         const freeAt = qrFreeAt(o);
         if (o.paidAt && !(freeAt && freeAt > now)) continue;
         const total = Number(o.total) || 0, due = o.paidAt ? 0 : Math.max(0, total - paidSoFar(o)), bills = Array.isArray(o.bills) ? o.bills : [];
-        out.push({ uid: idOf(o), number: o.number ?? null, tables: tablesOf(o), guests: cleanGuests(o.guests) || 0, at: createdOf(o) || now, total, due,
+        // (Update Pack 8, E: sent, the kitchen has some of it; dirty, the order on screen with something not saved yet;
+        // a merged group shows when its first party sat down)
+        out.push({ uid: idOf(o), number: o.number ?? null, tables: tablesOf(o), guests: cleanGuests(o.guests) || 0, at: seatedOf(o) || now, total, due,
           server: typeof o.server === 'string' ? o.server : null, bill: !o.paidAt && bills.length > 0 && Number(bills[bills.length - 1]?.total) === total / 100,
-          paidQr: Boolean(o.paidAt), freeAt: freeAt || null, confirm: qrOf(o) === 'pending', items: o.lines.reduce((n, l) => n + (Number(l.qty) || 0), 0) });
+          paidQr: Boolean(o.paidAt), freeAt: freeAt || null, confirm: qrOf(o) === 'pending', items: o.lines.reduce((n, l) => n + (Number(l.qty) || 0), 0),
+          sent: kotPrinted(o), dirty: Boolean(order.uid) && order.uid === idOf(o) && unsavedOnScreen() });
         seen.add(idOf(o));
       }
       if (order.lines.length && usesTable(order) && !(order.uid && seen.has(order.uid))) {
         const t = totals();
         out.push({ uid: order.uid || null, number: order.number ?? null, tables: tablesOf(order), guests: cleanGuests(order.guests) || 0, at: now, total: t.total, due: t.total,
-          server: staffName(), bill: false, paidQr: false, freeAt: null, confirm: false, items: t.count, onScreen: true });
+          server: staffName(), bill: false, paidQr: false, freeAt: null, confirm: false, items: t.count, onScreen: true, sent: false, dirty: true });
       }
       return out;
     },
+    // (Update Pack 8, E) Move / Merge tables, done on the Floor (floor.js): the free merged groups; move an order to a
+    // free table; merge the tables picked (in order: { uid } or { tables }); what a merge's one bill will be; unmerge
+    // ({ uid } or { join }). Each resolves { ok, slip: { printed, what, retry } or null }.
+    joins: () => loadJoins().map(j => ({ id: j.id, tables: j.tables.filter(t => typeof t === 'string' && t) })),
+    mmMove, mmMerge, mmUnmerge, mergePreview,
     // (Update Pack 8, A6) the Assign pager pop-up for another app's screen (a booking, a waitlist guest): a pager in use
     // can't be chosen there. → the pop-up (its dimming and card) to put in that screen
     pagerPicker({ current = 0, except = null, onPick, onClose } = {}) {

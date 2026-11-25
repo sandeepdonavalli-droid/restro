@@ -1681,7 +1681,7 @@ that sent it tries again by itself every 30 seconds until it prints.
 
 | Field | |
 | --- | --- |
-| `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"`, `"time"` (TIME CHANGED, Update Pack 4) or `"cancel-bulk"` (below) |
+| `kind` | `"kot"`, `"void"`, `"changed"`, `"cancel"`, `"priority"`, `"time"` (TIME CHANGED, Update Pack 4), `"moved"`, `"merged"`, `"items"` (TABLE MOVED, TABLES MERGED, ITEMS MOVED, Update Pack 8: below) or `"cancel-bulk"` (below) |
 | `band` | the black band at the top: `"DINE-IN"`, `"TAKEAWAY"`, `"DELIVERY"`, `"PHONE ORDER"`, `"EVENT · DINE-IN"` / `"EVENT · TAKEAWAY"` (an event's order, Update Pack 6), or a delivery app's name in capitals, `"SWIGGY"`, `"ZOMATO"` (Update Pack 4) (`type` is the order type: `"dine-in"`, `"takeaway"`, `"delivery"`, `"phone"`) |
 | `boxes` | Update Pack 5 (C1): the boxes under the band, in order (above): `["★★ PRIORITY ★★", "ADD-ON +", "SCHEDULED · READY 10:00 PM", "TIME CHANGED"]`, any of them, or `[]` |
 | `event` | Update Pack 7 (K3, `SL4_event-kot-slips`): an event's order, the event's name, `"Live music night"`, bold and small on a line of its own under the band and the boxes; `""` for any other order |
@@ -1692,7 +1692,8 @@ that sent it tries again by itself every 30 seconds until it prints.
 | `at` | when it happened, milliseconds |
 | `note` | the order note, in a red box (`"ORDER NOTE: …"`), on every KOT and the priority notice; `""` for none |
 | `lines` | (none on TIME CHANGED: the dishes don't change) `{ qty, name, names, mods, note }`: `qty × name` bold (minus quantities on VOID and ORDER CANCELLED: `−8 ×`), quantities right-aligned in a fixed column; then every one of `mods` on its own line, right-aligned, red (on a CHANGED slip these are the changes: `"Medium spicy → Less spicy"`, `"+ No onion"`, `"− Less oil"`, `"+ Note: …"`); the dish's `note` last, red italic, right-aligned (`"Note: …"`). `names` is the dish's names in other languages, set on the dish in Inventory (`{ te: "…" }`), or `null`. The priority notice has no lines |
-| `footer` | small, at the end: `"Priority · cook this order first"`, `"No dish changes · cook as already sent"` (TIME CHANGED), `"Reason: Customer changed mind"`, or `""` (a KOT has none: no "earlier KOT" line, C4) |
+| `footer` | small, at the end: `"Priority · cook this order first"`, `"No dish changes · cook as already sent"` (TIME CHANGED), `"Reason: Customer changed mind"`, `"Table 7 is now free"` (TABLE MOVED, Update Pack 8), or `""` (a KOT has none: no "earlier KOT" line, C4) |
+| `serve` | Update Pack 8 (F), on TABLE MOVED, TABLES MERGED and ITEMS MOVED only: what the kitchen does now, bold, the largest after the band, after a dashed line: `"Serve everything for this order at Table 13"` (above) |
 | `reason`, `by` | the reason staff gave (`""` for none) and who did it (their full name, or `null`) |
 | `priority` | true when the ★★ PRIORITY ★★ box is on it |
 | `printers` | Settings › Printers: `[{ id, language, copies, backup }]` for the kitchen printers; `backup: true` on the backup printer only (Update Pack 5, I2: Settings, below) |
@@ -1712,6 +1713,32 @@ that sent it tries again by itself every 30 seconds until it prints.
 The page keeps every slip on its order (`kots`: `{ id, at, kind, no, lines, reason, by }`; Update Pack 4: `how`,
 `"queue"` or `"early"`, on a scheduled order's KOT, and `byApp`, `"Swiggy"`, on a delivery app's cancel), with who did
 it and why (no PIN asked for now: "PIN required" comes with the access levels).
+
+**Move / Merge tables and Move items** (Update Pack 8, F; `06_Kitchen-slips` K1, K2). A slip prints for every table
+moved, tables merged and dishes moved (the Floor's Move / Merge, the Counter's Move items), in the same layout, while
+the kitchen has something of those orders (a KOT has printed; before that, the first KOT has the new table): the black
+band `"DINE-IN"`; the red outlined box in `boxes` (`"TABLE MOVED"`, `"TABLES MERGED"`, `"ITEMS MOVED"`; after **★★
+PRIORITY ★★** on a priority order's); `first` and `title` in bold, both about the second row's size here (the designs
+draw them 20 on the 420-wide slip, not the first row's 31), each on its own line (`title` may be `""`); `info` small; a
+dashed line; ITEMS MOVED's dishes (`lines`, as on a KOT: their choices one per line right-aligned in red, the note in
+red italics); a dashed line; **`serve`**, new, the largest text after the band and its box, bold, wrapping (drawn 22);
+then a dashed line and `footer`, small. `kot` is `null`. The dishes of a move or a merge aren't listed: the KOTs on the
+kitchen rail stay as they are, the slip only redirects them.
+
+- TABLE MOVED (`kind: "moved"`): `first` `"Order #1015"`, `title` `"Table 7 → Table 13"`, `info` `"ALL ITEMS · KOT #1–#3 ·
+  8:14 PM · By: ‹first name›"` (the order's KOTs, a range when their numbers run on, otherwise `"KOT #141, #152"`),
+  `serve` `"Serve everything for this order at Table 13"`, `footer` `"Table 7 is now free"`. A merged group moves whole:
+  `"Table 7 + 8 + 55 → Table 13"`, `"Tables 7, 8 and 55 are now free"`.
+- TABLES MERGED (`kind: "merged"`): `first` `"Table 7 + Table 8"`, `title` `""`, `info` `"Order #1015 + #1019 · 8:16 PM ·
+  By: ‹first name›"`, `serve` `"One party now · serve both orders at Table 7 + 8"` (`"this order"` with one, `"all the
+  orders"` with three or more), `footer` `"KOTs already sent for Table 7 and Table 8 stay as they are"`.
+- ITEMS MOVED (`kind: "items"`): `first` `"Order #1015 → Order #1021"` (the order they joined, or the new one made for
+  them), `title` `"Table 12 → Table 13"`, `info` `"7 items · 8:16 PM · By: ‹first name›"`, `lines` the dishes moved,
+  `serve` `"Serve these at Table 13"`, `footer` `"The rest of Order #1015 stays at Table 12"` (or `"Table 12 is now
+  free"` when every dish went).
+
+Each is kept on its order (`kots`, with its own `kind`; ITEMS MOVED on both orders) and isn't a KOT: it has no number
+and isn't reprinted with the KOTs. One that doesn't print shows the Counter's printer error with **Retry**.
 
 **Bulk cancel** (Update Pack 3, `PS02_bulk-cancel-slip`): orders deleted together in Orders print one compact slip
 instead of one ORDER CANCELLED each: `kind: "cancel-bulk"`, `band` (`"ORDERS CANCELLED"`, the black band), `action`

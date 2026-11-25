@@ -58,7 +58,9 @@
     // (Update Pack 8: Bookings, the reservations and the waitlist; the messages each one sent are all kept, from every
     // tablet)
     bookings: { key: 'restro.bookings.v1', id: r => (typeof r?.id === 'string' ? r.id : null), rules: { keyed: { msgs: m => `${m.kind}@${m.at}` } } },
-    waitlist: { key: 'restro.waitlist.v1', id: w => (typeof w?.id === 'string' ? w.id : null), rules: { keyed: { msgs: m => `${m.kind}@${m.at}` } } }
+    waitlist: { key: 'restro.waitlist.v1', id: w => (typeof w?.id === 'string' ? w.id : null), rules: { keyed: { msgs: m => `${m.kind}@${m.at}` } } },
+    // (Update Pack 8, E1: free tables merged on the Floor before anyone sits there, until an order is saved on them)
+    joins: { key: 'restro.floor.joins.v1', id: j => (typeof j?.id === 'string' ? j.id : null) }
   };
   // Settings: one value per key, synced as the records { value } of 'settings'. The name's placeholder is no name, so it
   // never travels (a new tablet takes the restaurant's name from the others).

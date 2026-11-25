@@ -53,9 +53,13 @@
   const appArt = name => el('img', { class: 'fl-app-ic', src: `assets/app-icons/${name}.webp`, alt: '', draggable: 'false' });
 
   // ---------- where it is ----------
-  // mode: 'view' (the Floor), 'pick' (the Counter's Table box: the Floor, a free table goes on the order), and later
-  // 'reserve' / 'seat' (bookings.js), 'mm' / 'items' (Move / Merge, Move items).
+  // mode: 'view' (the Floor), 'pick' (the Counter's Table box: the Floor, a free table goes on the order), 'reserve'
+  // (a reservation's table, Seat now: bookings.js), 'mm' (Move / Merge) and 'items' (the Counter's Move items).
   let mode = 'view', from = 'home', pick = null, areaId = null, menuOpen = false, pop = null;
+  // (E) Move / Merge and Move items: { kind: 'mm' | 'items', back: 'floor' | 'counter', sel: [the tables picked, the
+  // first of each pick, in order], to (Move items: the table picked), items (the Counter's dishes: count, dishes,
+  // preview(to), apply(to)), from (Move items: the order's table), uid } and its confirm pop-up
+  let mm = null, mmPop = null, longAt = 0;
   // (C3) mode 'reserve': the booking being placed ({ back, who, guests, at, except, when, tables, area, picked, join,
   // onPick }) and the tables picked on the Floor so far
   let res = null, chosen = [];
@@ -84,24 +88,34 @@
       for (const t of o.tables) if (tableById.has(t) && !byTable.has(t)) byTable.set(t, g);
     }
     const state = new Map();
+    // (E1) free merged groups: their tables free, one tile; not while one of them is busy or reserved
+    const joinOn = new Map();
+    for (const j of window.RestroCounter?.joins?.() || []) {
+      const ts = j.tables.filter(t => tableById.has(t));
+      if (ts.length < 2 || ts.some(t => byTable.has(t) || B?.reservedOn?.(t, now))) continue;
+      const g = { id: j.id, tables: ts, label: ts.map(tableName).join(' + '), seats: ts.reduce((n, t) => n + tableById.get(t).seats, 0) };
+      for (const t of ts) if (!joinOn.has(t)) joinOn.set(t, g);
+    }
     for (const t of tables) {
       const o = byTable.get(t.id);
       if (o) { state.set(t.id, { kind: o.bill ? 'bill' : 'occupied', order: o, next: B?.nextOn?.(t.id, now) || null }); continue; }
       // (a Help bell from a table with no order yet: the table needs attention all the same)
       const r = B?.reservedOn?.(t.id, now), calls = callsOn(t.id, now);
-      state.set(t.id, r ? { kind: 'reserved', booking: r, calls } : { kind: 'free', calls });
+      state.set(t.id, r ? { kind: 'reserved', booking: r, calls } : { kind: 'free', calls, join: joinOn.get(t.id) || null });
     }
     return { state, orders: groups.filter(g => g.tables.some(t => byTable.get(t) === g)) };
   }
   // Counts for an area (all its pages): Free · Occupied · Bill printed · Reserved (one per table; a merged group spread
-  // over several areas counts in every area it touches, all its tables), Needs attention (one per order, and one per table
-  // with a Help bell request and no order), Guests now and Due here (one per order, in every area its tables touch).
+  // over several areas counts in every area it touches, all its tables), Needs attention (one per order, in the area its
+  // Help bell came from, and one per table with a Help bell request and no order), Guests now and Due here (one per
+  // order, in every area its tables touch).
   function countsOf(a, L) {
     const n = { free: 0, occupied: 0, bill: 0, reserved: 0, attention: 0, guests: 0, due: 0 }, here = new Set();
     for (const t of a.tables) { const s = L.state.get(t.id); n[s.kind] += 1; if (s.order) here.add(s.order); else if (s.calls?.length) n.attention += 1; }
     for (const o of L.orders) if (o.tables.some(id => tableById.get(id)?.area === a.id)) here.add(o);
     for (const o of here) {
-      n.guests += o.guests || 0; n.due += o.due || 0; if (o.attention) n.attention += 1;
+      // (a merged group's Help bell counts in the area of the table it came from, MM4b; a QR order to confirm, in each)
+      n.guests += o.guests || 0; n.due += o.due || 0; if (o.confirm || o.calls.some(c => tableById.get(c.table)?.area === a.id)) n.attention += 1;
       n[o.bill ? 'bill' : 'occupied'] += o.tables.filter(id => tableById.has(id) && tableById.get(id).area !== a.id).length;
     }
     return n;
@@ -115,7 +129,7 @@
   let requests = [];
   try { const v = JSON.parse(localStorage.getItem(REQ_KEY) || '[]'); if (Array.isArray(v)) requests = v.filter(r => r && typeof r.id === 'string' && typeof r.table === 'string'); } catch {}
   const keepRequests = () => { const cut = Date.now() - 3 * 60 * MIN; requests = requests.filter(r => (Number(r.at) || 0) > cut).slice(-200); try { localStorage.setItem(REQ_KEY, JSON.stringify(requests)); } catch {} if (dialog.open) render(); };
-  const callsOn = (table, now) => requests.filter(r => r.table === table && (Number(r.at) || 0) > now - 3 * 60 * MIN).map(r => ({ id: r.id, kind: r.kind, label: REQ_WORDS[r.kind] || 'Help' }));
+  const callsOn = (table, now) => requests.filter(r => r.table === table && (Number(r.at) || 0) > now - 3 * 60 * MIN).map(r => ({ id: r.id, table, kind: r.kind, label: REQ_WORDS[r.kind] || 'Help' }));
   window.addEventListener('restro:qr-request', e => {
     const d = e.detail || {}; if (typeof d.table !== 'string' || !d.table) return;
     requests = [...requests.filter(r => r.id !== d.id), { id: String(d.id || `rq${Date.now()}`), table: d.table, kind: REQ_WORDS[d.kind] ? d.kind : 'other', note: String(d.note || '').slice(0, 120), at: Number(d.at) || Date.now() }];
@@ -132,6 +146,7 @@
     const now = Date.now(), L = live(now), a = area();
     root.dataset.mode = mode;
     if (mode === 'reserve' && res) { renderReserve(a, L, now); return; }
+    if ((mode === 'mm' || mode === 'items') && mm) { renderMM(a, L, now); return; }
     const parts = [head(L, now), canvas(a, L, now), bottom(a, L)];
     if (menuOpen) parts.push(el('div', { class: 'fl-catch', onclick: () => { menuOpen = false; render(); } }), menuCard());
     if (pop) parts.push(popLayer(L, now));
@@ -168,24 +183,25 @@
   }
 
   // The tables
-  function canvas(a, L, now) {
+  // (deco: Move / Merge's look for each tile, { cls, from, tap })
+  function canvas(a, L, now, deco = null) {
     const page = pageNow(a), pages = pagesOf(a);
     const drawn = new Set(), tiles = [];
     for (const t of a.tables.filter(x => x.page === page)) {
       if (drawn.has(t.id)) continue;
-      const s = L.state.get(t.id);
-      // a merged group: its tables side by side on this page are one tile
-      if (s.order && s.order.tables.length > 1) {
-        const here = s.order.tables.map(id => tableById.get(id)).filter(x => x && x.area === a.id && x.page === page);
-        const row = sideBySide(here);
-        if (row) { row.forEach(x => drawn.add(x.id)); tiles.push(tile(row, s, now)); continue; }
+      const s = L.state.get(t.id), g = s.order && s.order.tables.length > 1 ? s.order.tables : s.join ? s.join.tables : null;
+      // a merged group (an order's, or free tables merged): its tables side by side on this page are one tile
+      if (g) {
+        const row = sideBySide(g.map(id => tableById.get(id)).filter(x => x && x.area === a.id && x.page === page));
+        if (row) { row.forEach(x => drawn.add(x.id)); tiles.push(tile(row, s, now, deco)); continue; }
       }
-      drawn.add(t.id); tiles.push(tile([t], s, now));
+      drawn.add(t.id); tiles.push(tile([t], s, now, deco));
     }
     const arrows = [page > 0 ? el('button', { type: 'button', class: 'fl-arrow l', 'aria-label': 'Previous page', onclick: () => turn(-1) }, icon('chevron-left')) : null,
       page < pages - 1 ? el('button', { type: 'button', class: 'fl-arrow r', 'aria-label': 'Next page', onclick: () => turn(1) }, icon('chevron-right')) : null];
     const box = el('div', { class: 'fl-canvas' }, ...tiles, ...arrows);
     swipes(box);
+    if (mode === 'view') longPress(box);
     return box;
   }
   // Tables in one row with only a narrow gap between them (one joined tile), or null
@@ -198,15 +214,17 @@
     }
     return s;
   }
-  function tile(group, s, now) {
+  function tile(group, s, now, deco = null) {
     const x = Math.min(...group.map(t => t.x)), y = Math.min(...group.map(t => t.y)), w = Math.max(...group.map(t => t.x + t.w)) - x, h = Math.max(...group.map(t => t.y + t.h)) - y;
-    const shape = group.length > 1 ? 'rect' : group[0].shape, o = s.order, kind = s.kind, t0 = group[0];
-    const calls = o ? o.calls : s.calls || [], attention = o ? o.attention : calls.length > 0;
-    const cls = ['fl-t', shape, kind, attention ? 'attn' : '', o?.paidQr ? 'qr' : ''].filter(Boolean).join(' ');
+    const shape = group.length > 1 ? 'rect' : group[0].shape, o = s.order, kind = s.kind, t0 = group[0], j = o ? null : s.join || null;
+    // (a merged group's Help bell shows on the tile of the table it came from, MM4 / MM4b; a QR order to confirm, on each)
+    const calls = o ? o.calls.filter(c => group.some(t => t.id === c.table)) : s.calls || [], attention = o ? Boolean(o.confirm) || calls.length > 0 : calls.length > 0, d = deco ? deco(t0.id, s) : null;
+    const cls = ['fl-t', shape, kind, attention ? 'attn' : '', o?.paidQr ? 'qr' : '', d?.cls || ''].filter(Boolean).join(' ');
     const lines = [];
-    const number = o && o.tables.length > 1 ? o.label : t0.name;
-    lines.push(el('b', { class: o && o.tables.length > 1 ? 'fl-no join' : 'fl-no' }, number));
-    if (kind === 'free') lines.push(el('span', { class: 'fl-ln seat' }, icon('chair'), String(t0.seats)));
+    // (a merged group: only its numbers, "7 + 8 + 55", on each of its tiles; a free one shows all its seats)
+    const joined = (o && o.tables.length > 1) || Boolean(j), number = o && o.tables.length > 1 ? o.label : j ? j.label : t0.name;
+    lines.push(el('b', { class: joined ? 'fl-no join' : 'fl-no' }, number));
+    if (kind === 'free') lines.push(el('span', { class: 'fl-ln seat' }, icon('chair'), String(j ? j.seats : t0.seats)));
     else if (kind === 'reserved') {
       const r = s.booking;
       lines.push(el('span', { class: 'fl-ln lab' }, `Reserved ${clock(r.at)}`), el('span', { class: 'fl-ln who' }, el('b', {}, r.first || window.RestroBookings?.nameOf?.(r) || 'Guest'), icon('chair'), String(r.guests)));
@@ -218,13 +236,17 @@
       if (!o.paidQr && o.due > 0) lines.push(el('span', { class: 'fl-ln due' }, el('b', {}, money(o.due)), ' due'));
     }
     const tags = [];
-    if (o?.server) tags.push(el('i', { class: 'fl-srv' }, initials(o.server)));
+    // (Move items: the order's own table, faded, with its black From tag where the server's initials are)
+    if (d?.from) tags.push(el('i', { class: 'fl-from' }, 'From'));
+    else if (o?.server) tags.push(el('i', { class: 'fl-srv' }, initials(o.server)));
     if (calls.length) tags.push(el('i', { class: 'fl-call' }, icon('bell'), calls[0].label));
     if (s.next && kind !== 'reserved') tags.push(el('i', { class: 'fl-next' }, icon('calendar'), `Next ${clock(s.next.at)} · ${s.next.first || 'Guest'}`));
-    const label = `Table ${number}, ${{ free: 'free', occupied: 'occupied', bill: 'bill printed', reserved: 'reserved' }[kind]}`;
-    return el('button', { type: 'button', class: cls, 'data-id': t0.id, 'aria-label': label,
-      style: `left:${fu(x)};top:${fu(y)};width:${fu(w)};height:${fu(h)}`, onclick: () => tapTable(t0.id, s) },
-    el('span', { class: 'fl-in' }, ...lines), ...tags);
+    const label = `Table ${number}, ${{ free: 'free', occupied: 'occupied', bill: 'bill printed', reserved: 'reserved' }[kind]}${d?.label || ''}`;
+    // (picked: 2 larger to the right and below, as Move / Merge draws it)
+    const grow = d?.sel ? 2 : 0;
+    return el('button', { type: 'button', class: cls, 'data-id': t0.id, 'aria-label': label, 'aria-pressed': d ? String(Boolean(d.sel)) : null, 'aria-disabled': d?.off ? 'true' : null,
+      style: `left:${fu(x)};top:${fu(y)};width:${fu(w + grow)};height:${fu(h + grow)}`, onclick: () => (d?.tap ? d.tap() : tapTable(t0.id, s)) },
+    el('span', { class: 'fl-in' }, ...lines), ...tags, d?.sel ? el('em', { class: 'fl-tick', 'aria-hidden': 'true' }, icon('check')) : null);
   }
 
   // The legend, the page dots, Guests now and Due here
@@ -337,6 +359,252 @@
       dots, res.seat ? seatBtn() : el('p', { class: 'fl-hint' }, 'Tap a table to choose it', chosen.length ? ` · now: ${chosen.map(id => `Table ${tableName(id)}`).join(' + ')} (${how})` : ''));
   }
 
+  // ---------- Move / Merge (E1–E2: MM1–MM6b, CM2–CM4) and Move items (E3: CM6–CM8) ----------
+  // Long-press any table, free or busy (or the Counter's Move / Merge tables: that order's table picked, "‹ Counter"):
+  // "Move / Merge", the area pills without their counts (a blue dot on another area holding a table picked), the tables
+  // where they stand, on the page's grey. Tap tables to pick them, in any area (a merged group is picked whole); tap one
+  // again to put it back. Bottom left: what is picked, area by area; bottom right: Move · Merge (Unmerge for a merged
+  // group alone), greyed when they don't apply, never hidden. A table reserved within the next hour can't be picked
+  // (faded, C1). Each action asks first (MM2b, MM3b, MM6b); then the Floor shows it (or the Counter, opened from there),
+  // with a toast. Move items (the Counter's, CM6–CM7): "Move items", the order's table faded with a black From tag; tap
+  // the table to move the dishes to, then Move here (CM8 asks first).
+  // A table's pick: its order's tables (a merged group), a free merged group's, or the table alone
+  function unitOf(id, L) {
+    const s = L.state.get(id); if (!s) return null;
+    if (s.order) { const ts = s.order.tables.filter(t => tableById.has(t)); return { key: ts[0] || id, tables: ts.length ? ts : [id], order: s.order, s }; }
+    if (s.join) return { key: s.join.tables[0], tables: s.join.tables, join: s.join, s };
+    return { key: id, tables: [id], s };
+  }
+  function unitsOf(L) {
+    const seen = new Set(), out = [];
+    for (const id of mm?.sel || []) { const u = unitOf(id, L); if (u && !seen.has(u.key)) { seen.add(u.key); out.push(u); } }
+    return out;
+  }
+  const unitWord = u => `Table ${u.tables.map(tableName).join(' + ')}`;
+  const guestsWord = n => `${n} guest${n === 1 ? '' : 's'}`;
+  // Why a table can't be picked (a toast), or null
+  function cantPick(u) {
+    if (u.s.kind === 'reserved') return { b: `Table ${tableName(u.key)} is reserved for ${clock(u.s.booking.at)}`, t: ' · it can’t be picked' };
+    if (u.order?.dirty) return { b: `${unitWord(u)}’s order isn’t saved yet`, t: ' · save it on the Counter first' };
+    if (u.order?.confirm) return { b: unitWord(u), t: ' has a QR payment to confirm first' };
+    return null;
+  }
+  // (from a long-press on the Floor, back: 'floor'; from the Counter, 'counter')
+  function startMM(id, back = 'floor') {
+    const L = live(), u = id ? unitOf(id, L) : null;
+    mode = 'mm'; mm = { kind: 'mm', back, sel: [] }; mmPop = null; pop = null; menuOpen = false;
+    if (u) { const why = cantPick(u); if (why) say(why); else mm.sel = [u.key]; }
+    render();
+    root.querySelector('#floor-title')?.focus({ preventScroll: true });
+  }
+  function renderMM(a, L, now) {
+    const units = unitsOf(L), items = mm.kind === 'items';
+    const parts = [mmHead(units, L), canvas(a, L, now, items ? itemsDeco(L) : mmDeco(L, units)), items ? itemsBottom(a, L) : mmBottom(a, units)];
+    if (mmPop) { const layer = mmPopLayer(L, units); if (layer) parts.push(layer); }
+    root.replaceChildren(...parts);
+    if (toastNode) root.append(toastNode);
+  }
+  const mmDeco = (L, units) => (id, s) => {
+    const u = unitOf(id, L), sel = units.some(x => x.key === u.key), off = s.kind === 'reserved';
+    return { cls: [sel ? 'sel' : '', off ? 'lock' : ''].filter(Boolean).join(' '), sel, off, tap: () => tapMM(id), label: sel ? ', picked' : off ? ', can’t be picked' : '' };
+  };
+  const itemsDeco = L => (id, s) => {
+    const u = unitOf(id, L), from = u.tables.includes(mm.from), sel = !from && Boolean(mm.to) && unitOf(mm.to, L)?.key === u.key, off = !from && s.kind === 'reserved';
+    return { cls: [from ? 'from' : '', sel ? 'sel' : '', off ? 'lock' : ''].filter(Boolean).join(' '), from, sel, off: from || off, tap: () => tapItems(id), label: from ? ', the dishes are from here' : sel ? ', picked' : off ? ', can’t be picked' : '' };
+  };
+  function tapMM(id) {
+    if (Date.now() - swiped < 400) return;
+    const L = live(), u = unitOf(id, L); if (!u) return;
+    const at = mm.sel.findIndex(k => unitOf(k, L)?.key === u.key);
+    if (at >= 0) { mm.sel.splice(at, 1); render(); return; }
+    const why = cantPick(u); if (why) { say(why); return; }
+    mm.sel.push(u.key); render();
+  }
+  function tapItems(id) {
+    if (Date.now() - swiped < 400) return;
+    const L = live(), u = unitOf(id, L); if (!u || u.tables.includes(mm.from)) return;
+    if (mm.to && unitOf(mm.to, L)?.key === u.key) { mm.to = null; render(); return; }
+    const why = cantPick(u) || (u.order?.paidQr ? { b: `${unitWord(u)} is paid by QR`, t: ' · pick another table' } : null);
+    if (why) { say(why); return; }
+    mm.to = u.key; render();
+  }
+  // Which buttons apply (E1): one table, nothing (a merged group alone: Unmerge); an order (or a merged group) and one free
+  // table: Move and Merge; any two or more: Merge
+  function mmState(units) {
+    const single = u => !u.order && !u.join;
+    if (units.length === 1) return { move: false, second: units[0].tables.length > 1, unmerge: units[0].tables.length > 1 };
+    if (units.length === 2) { const [p, q] = units; return { move: Boolean((p.order && single(q)) || (q.order && single(p))), second: true, unmerge: false }; }
+    return { move: false, second: units.length > 2, unmerge: false };
+  }
+  // The top row: "‹ Floor" (or "‹ Counter"), the title, the areas without counts
+  function mmHead(units, L) {
+    const picked = new Set(units.flatMap(u => u.tables).map(t => tableById.get(t)?.area).filter(Boolean));
+    if (mm.kind === 'items' && mm.to) for (const t of unitOf(mm.to, L)?.tables || []) picked.add(tableById.get(t)?.area);
+    const pill = x => {
+      const on = x.id === areaId, dot = !on && picked.has(x.id);
+      return el('button', { type: 'button', role: 'tab', 'aria-selected': String(on), 'aria-label': `${x.name}${dot ? ', a table picked here' : ''}`, class: `fl-area mm${on ? ' on' : ''}`, 'data-area': x.id, onclick: () => goArea(x.id) },
+        el('span', { class: 'fl-area-n' }, x.name), dot ? el('i', { class: 'fl-mmdot', 'aria-hidden': 'true' }) : null);
+    };
+    return el('header', { class: 'fl-top mm' },
+      el('div', { class: 'fl-mmt' }, el('button', { type: 'button', class: 'fl-back', onclick: goBack }, icon('chevron-left'), mm.back === 'counter' ? 'Counter' : 'Floor'),
+        el('h2', { id: 'floor-title', tabindex: '-1' }, mm.kind === 'items' ? 'Move items' : 'Move / Merge')),
+      el('div', { class: 'fl-areas-wrap mm' }, el('nav', { class: 'fl-areas', role: 'tablist', 'aria-label': 'Areas' }, ...areas.map(pill))));
+  }
+  const pageDots = a => {
+    const pages = pagesOf(a), page = pageNow(a);
+    return pages > 1 ? el('div', { class: 'fl-dots', role: 'tablist', 'aria-label': 'Pages' }, ...Array.from({ length: pages }, (_, i) => el('button', { type: 'button', role: 'tab', 'aria-selected': String(i === page), 'aria-label': `Page ${i + 1}`, class: i === page ? 'on' : '', onclick: () => { pageOf[a.id] = i; render(); } }))) : null;
+  };
+  // What is picked: "Table 7 selected · tap more tables"; "Table 5 + 6 selected"; area by area, "Table 7 + 8 AC hall +
+  // Table 55 Terrace"
+  function selLine(units) {
+    if (!units.length) return el('p', { class: 'fl-mmsel' }, el('span', {}, 'Tap the tables to move or merge'));
+    if (units.length === 1) return el('p', { class: 'fl-mmsel' }, el('b', {}, unitWord(units[0])), el('span', {}, units[0].tables.length > 1 ? 'selected' : 'selected · tap more tables'));
+    const byArea = new Map();
+    for (const u of units) for (const t of u.tables) { const ar = tableById.get(t)?.area; if (!byArea.has(ar)) byArea.set(ar, []); byArea.get(ar).push(t); }
+    return el('p', { class: 'fl-mmsel' }, ...[...byArea].flatMap(([ar, ts], i) => [i ? el('i', { 'aria-hidden': 'true' }, '+') : null, el('b', {}, `Table ${ts.map(tableName).join(' + ')}`), el('small', {}, areaById.get(ar)?.name || '')]));
+  }
+  function mmBottom(a, units) {
+    const st = mmState(units);
+    return el('footer', { class: 'fl-bot mm' }, selLine(units), pageDots(a),
+      el('div', { class: 'fl-mmbtns' },
+        el('button', { type: 'button', class: 'fl-mmb', disabled: !st.move, onclick: () => ask('move') }, icon('arrow-long'), 'Move'),
+        el('button', { type: 'button', class: 'fl-mmb', disabled: !st.second, onclick: () => ask(st.unmerge ? 'unmerge' : 'merge') }, icon('merge'), st.unmerge ? 'Unmerge' : 'Merge')));
+  }
+  // Move items: "7 items from Table 12 · tap the table to move them to", then "7 items from Table 12 → Table 13"; Move here
+  function itemsBottom(a, L) {
+    const to = mm.to ? unitOf(mm.to, L) : null, src = unitOf(mm.from, L), n = mm.items.count, items = `${n} item${n === 1 ? '' : 's'}`;
+    const left = to ? el('p', { class: 'fl-mmsel' }, el('b', {}, items), el('span', {}, `from ${src ? unitWord(src) : `Table ${tableName(mm.from)}`}`), el('i', { class: 'ar', 'aria-label': 'to' }, icon('arrow-right')), el('b', {}, unitWord(to)))
+      : el('p', { class: 'fl-mmsel' }, el('b', {}, items), el('span', {}, `from ${src ? unitWord(src) : `Table ${tableName(mm.from)}`} · tap the table to move them to`));
+    return el('footer', { class: 'fl-bot mm' }, left, pageDots(a),
+      el('div', { class: 'fl-mmbtns' }, el('span'), el('button', { type: 'button', class: 'fl-mmb', disabled: !to, onclick: () => ask('items') }, icon('arrow-long'), 'Move here')));
+  }
+  function ask(kind) { mmPop = { kind }; render(); root.querySelector('.fl-pop .fl-btn.solid')?.focus({ preventScroll: true }); }
+  function closeMMPop() { mmPop = null; render(); }
+
+  // ---------- the confirm pop-ups (MM2b, MM3b, MM6b, CM8: the Counter pop-up's look) ----------
+  // A table's chip in its colour (occupied blue, bill printed yellow, free white), its card ("Table 7", "4 guests · ₹1,120
+  // due"; another area's name first; free: "Free · 4 seats")
+  const tchip = u => el('i', { class: `fl-tchip ${u.order ? (u.s.kind === 'bill' ? 'bill' : 'occ') : 'free'}${u.tables.length > 1 ? ' wide' : ''}` }, u.tables.map(tableName).join(' + '));
+  function subOf(u, area = false) {
+    if (!u.order) return `Free · ${u.join ? u.join.seats : tableById.get(u.key)?.seats || 0} seats`;
+    const o = u.order;
+    return [area ? areaById.get(tableById.get(u.key)?.area)?.name || '' : '', o.guests ? guestsWord(o.guests) : '', o.paidQr ? 'Paid by QR' : `${money(o.due)} due`].filter(Boolean).join(' · ');
+  }
+  const mmCard = (u, sub, word = unitWord(u), chip = tchip(u)) => el('div', { class: 'fl-card fl-mmc' }, chip, el('div', {}, el('b', {}, word), el('small', {}, sub)));
+  const mmTop = (ic, title) => el('div', { class: 'fl-pop-h' }, el('i', { class: 'fl-pop-ic mm' }, icon(ic)), el('h3', { id: 'fl-pop-t' }, title), el('button', { type: 'button', class: 'fl-x', 'aria-label': 'Close', onclick: closeMMPop }, icon('x')));
+  const mmBtns = (ic, label, run) => el('div', { class: 'fl-btns two mm' }, el('button', { type: 'button', class: 'fl-btn white', onclick: closeMMPop }, 'Cancel'),
+    el('button', { type: 'button', class: 'fl-btn solid', onclick: run }, icon(ic), label));
+  const mmPopOf = (...kids) => el('div', { class: 'fl-pop mm', role: 'alertdialog', 'aria-modal': 'true', 'aria-labelledby': 'fl-pop-t' }, ...kids);
+  function mmPopLayer(L, units) {
+    const k = mmPop.kind, card = k === 'move' ? movePop(units) : k === 'merge' ? mergePop(units) : k === 'unmerge' ? unmergePop(units) : k === 'items' ? itemsPop(L) : null;
+    if (!card) { mmPop = null; return null; }
+    return el('div', { class: 'fl-scrim', onclick: e => { if (e.target === e.currentTarget) closeMMPop(); } }, card);
+  }
+  // Move (MM2b): "Move Table 7 to Table 13?" Table 7 → Table 13; all items and the bill move; the kitchen's slip
+  function movePop(units) {
+    const [p, q] = units, src = p?.order ? p : q, dst = p?.order ? q : p;
+    if (units.length !== 2 || !src?.order || !dst || dst.order || dst.join) return null;
+    return mmPopOf(mmTop('arrow-long', `Move ${unitWord(src)} to ${unitWord(dst)}?`),
+      el('div', { class: 'fl-mmrow' }, mmCard(src, subOf(src)), el('i', { class: 'fl-mmar', 'aria-label': 'to' }, icon('arrow-long')), mmCard(dst, subOf(dst))),
+      el('p', { class: 'fl-card fl-mminfo' }, `All items and the bill move to ${unitWord(dst)}.`,
+        src.order.sent ? [' The kitchen gets a slip: ', el('b', {}, `${unitWord(src)} moved to ${unitWord(dst)} · all items`), '.'] : ''),
+      mmBtns('arrow-long', 'Move table', () => doMove(src, dst)));
+  }
+  // Merge (MM3b): "Merge 3 tables?" a card for each pick; one bill, what it will be, on the first table; the slip
+  function mergePop(units) {
+    if (units.length < 2) return null;
+    const pv = window.RestroCounter?.mergePreview?.(units.map(u => (u.order?.uid ? { uid: u.order.uid } : { tables: u.tables }))) || {};
+    const all = pv.tables?.length ? pv.tables : units.flatMap(u => u.tables), firstArea = tableById.get(units[0].key)?.area, first = `Table ${tableName(all[0])}`;
+    const info = pv.orders
+      ? ['All orders go on ', el('b', {}, 'one bill'), ` · ${money(pv.due)} due, on `, el('b', {}, first), ' (the first table).', pv.sent ? [' The kitchen gets a slip: ', el('b', {}, `Table ${all.map(tableName).join(' + ')} merged`), '.'] : '', ' Paying separately? Split it in the Pay screen.']
+      : ['These tables become one, with ', el('b', {}, 'one bill'), ' on ', el('b', {}, first), ' (the first table).'];
+    return mmPopOf(mmTop('merge', `Merge ${all.length} tables?`),
+      el('div', { class: 'fl-mmgrid' }, ...units.map(u => mmCard(u, subOf(u, tableById.get(u.key)?.area !== firstArea)))),
+      el('p', { class: 'fl-card fl-mminfo' }, ...info),
+      mmBtns('merge', `Merge ${all.length} tables`, () => doMerge(units)));
+  }
+  // Unmerge (MM6b): the first table keeps the bill, the others become free; Move items is how dishes go across
+  function unmergePop(units) {
+    const u = units[0]; if (units.length !== 1 || u.tables.length < 2) return null;
+    const keep = u.tables[0], rest = u.tables.slice(1), restWord = `Table ${rest.map(tableName).join(' + ')}`, o = u.order;
+    const keepSub = o ? ['Keeps the bill', o.paidQr ? 'Paid by QR' : `${money(o.due)} due`, o.guests ? guestsWord(o.guests) : ''].filter(Boolean).join(' · ') : `Free · ${tableById.get(keep)?.seats || 0} seats`;
+    return mmPopOf(mmTop('merge', `Unmerge ${unitWord(u)}?`),
+      el('div', { class: 'fl-mmrow' }, mmCard(u, keepSub, `Table ${tableName(keep)}`, el('i', { class: `fl-tchip ${o ? (u.s.kind === 'bill' ? 'bill' : 'occ') : 'free'}` }, tableName(keep))),
+        el('i', { class: 'fl-mmbar', 'aria-hidden': 'true' }),
+        mmCard(u, rest.length > 1 ? 'Become free' : 'Becomes free', restWord, el('i', { class: `fl-tchip free${rest.length > 1 ? ' wide' : ''}` }, rest.map(tableName).join(' + ')))),
+      o ? el('p', { class: 'fl-card fl-mminfo' }, `To put some items on ${restWord}, use `, el('b', {}, 'Move items'), ' in the Counter after unmerging.') : null,
+      mmBtns('merge', 'Unmerge', () => doUnmerge(u)));
+  }
+  // Move items (CM8): "Move 7 items to Table 13?" what stays here, the table they go to, the dishes, and whether they
+  // start a new order there or join its bill (never a second order on a table)
+  function itemsPop(L) {
+    const to = mm.to ? unitOf(mm.to, L) : null, src = unitOf(mm.from, L); if (!to || !src) return null;
+    const pv = mm.items.preview?.(to.key); if (!pv) return null;
+    const n = mm.items.count, items = `${n} item${n === 1 ? '' : 's'}`;
+    const info = pv.dest ? ['These items are added to ', el('b', {}, `${unitWord(to)}’s existing bill`), ` · new due ${money(pv.due)}.`] : [`${unitWord(to)} gets a new order for these items · ${money(pv.due)} due with GST.`];
+    if (pv.sent) info.push(' The kitchen gets a slip: ', el('b', {}, `Items moved · ${unitWord(src)} → ${unitWord(to)}`), '.');
+    return mmPopOf(mmTop('arrow-long', `Move ${items} to ${unitWord(to)}?`),
+      el('div', { class: 'fl-mmrow' }, mmCard(src, `Keeps ${pv.keepItems} item${pv.keepItems === 1 ? '' : 's'} · ${money(pv.keepDue)} due`), el('i', { class: 'fl-mmar', 'aria-label': 'to' }, icon('arrow-long')), mmCard(to, subOf(to))),
+      el('div', { class: 'fl-mmlist' }, ...mm.items.dishes.map(d => el('div', {}, el('b', {}, `${d.qty} ×`), el('span', {}, d.name), el('b', {}, money(d.amount))))),
+      el('p', { class: 'fl-card fl-mminfo' }, ...info),
+      mmBtns('arrow-long', `Move ${items}`, () => doItems(to)));
+  }
+
+  // ---------- doing it ----------
+  // Done: the Floor (or the Counter, when it came from there) shows it, with the toast ("Table 7 moved to Table 13 ·
+  // kitchen slip printed"); a slip that didn't print: the Counter's printer error, with Retry
+  async function doMove(src, dst) {
+    const words = `${unitWord(src)} moved to ${unitWord(dst)}`; mmPop = null; render();
+    const r = await window.RestroCounter?.mmMove?.(src.order.uid, dst.key);
+    finish(r, words);
+  }
+  async function doMerge(units) {
+    const tables = units.flatMap(u => u.tables).map(tableName), words = `Tables ${tables.length > 1 ? `${tables.slice(0, -1).join(', ')} and ${tables[tables.length - 1]}` : tables[0]} merged`;
+    mmPop = null; render();
+    const r = await window.RestroCounter?.mmMerge?.(units.map(u => (u.order?.uid ? { uid: u.order.uid } : { tables: u.tables })));
+    finish(r, words);
+  }
+  function doUnmerge(u) {
+    const names = u.tables.map(tableName), words = `Tables ${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]} unmerged`;
+    mmPop = null;
+    finish(window.RestroCounter?.mmUnmerge?.(u.order?.uid ? { uid: u.order.uid } : { join: u.join?.id }), words);
+  }
+  async function doItems(to) {
+    const items = mm.items; mmPop = null; render();
+    const r = await items.apply?.(to.key);
+    const n = r?.count || items.count;
+    if (!r?.ok) { say(r?.why && r.why !== 'gone' ? r.why : 'The items couldn’t be moved · try again'); return; }
+    close(); window.RestroCounter?.resume?.();
+    tell(true, { b: `${n} item${n === 1 ? '' : 's'} moved to Table ${(r.to || [to.key]).map(tableName).join(' + ')}`, t: r.slip?.printed ? ' · kitchen slip printed' : '' }, r.slip);
+  }
+  function finish(r, words) {
+    if (!r?.ok) { render(); say(r?.why === 'unsaved' ? { b: 'Save the order on the Counter first' } : { b: 'Nothing was changed', t: ' · the tables changed meanwhile' }); return; }
+    const counter = mm?.back === 'counter';
+    if (counter) { close(); window.RestroCounter?.resume?.(); }
+    else { mode = 'view'; mm = null; mmPop = null; render(); }
+    tell(counter, { b: words, t: r.slip?.printed ? ' · kitchen slip printed' : '' }, r.slip);
+  }
+  // (on the Counter, its message bar; on the Floor, its toast)
+  function tell(counter, m, slip) {
+    const failed = slip && !slip.printed ? { kind: 'error', b: 'Kitchen printer offline', t: ` · ${slip.what} not sent`, retry: () => slip.retry().then(x => { if (!x.printed) tell(counter, null, x); }) } : null;
+    const show = x => (counter ? window.RestroCounter?.notice?.({ kind: x.kind || 'confirm', bold: x.b, text: x.t || '', retry: x.retry }) : say(x));
+    if (failed) show(failed); else if (m) show(m);
+  }
+
+  // Long-press (E1): about half a second on a table, without moving, opens Move / Merge with it picked
+  function longPress(box) {
+    let timer = 0, start = null;
+    const stop = () => { clearTimeout(timer); timer = 0; };
+    box.addEventListener('pointerdown', e => {
+      const node = e.target.closest('.fl-t'); if (!node || mode !== 'view' || pop || menuOpen) return;
+      start = { x: e.clientX, y: e.clientY, id: node.dataset.id }; stop();
+      timer = setTimeout(() => { timer = 0; longAt = Date.now(); startMM(start.id, 'floor'); }, 500);
+    });
+    box.addEventListener('pointermove', e => { if (timer && start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 12) stop(); });
+    for (const type of ['pointerup', 'pointercancel', 'pointerleave']) box.addEventListener(type, stop);
+    box.addEventListener('contextmenu', e => e.preventDefault());
+  }
+
   // ---------- pages: the arrows and a swipe ----------
   function turn(d) {
     const a = area(), p = pageNow(a) + d;
@@ -357,16 +625,17 @@
 
   // ---------- tapping a table ----------
   function tapTable(id, s) {
-    if (Date.now() - swiped < 400) return;
+    if (Date.now() - swiped < 400 || Date.now() - longAt < 700) return;
     if (s.kind === 'reserved') { pop = { kind: 'reserved', id: s.booking.id, table: id }; render(); return; }
     if (s.order?.paidQr) { pop = { kind: 'qr', uid: s.order.uid, table: id }; render(); return; }
-    if (mode === 'pick' && s.kind === 'free') { choose(id); return; }
-    close(); window.RestroCounter?.openTable(id);
+    if (mode === 'pick' && s.kind === 'free') { choose(s.join ? s.join.tables[0] : id, s.join); return; }
+    close(); window.RestroCounter?.openTable(s.order?.tables?.[0] || s.join?.tables?.[0] || id);
   }
-  function choose(id) {
+  // (a free merged group: its first table, the others with it)
+  function choose(id, j = null) {
     const t = tableById.get(id), done = pick?.onPick;
     close();
-    done?.({ id: t.id, name: t.name, seats: t.seats });
+    done?.({ id: t.id, name: t.name, seats: t.seats, joined: j ? j.tables.filter(x => x !== t.id) : [] });
   }
 
   // ---------- the menu (F02): the Counter menu's look; any tap outside closes it ----------
@@ -487,13 +756,17 @@
   }
 
   // ---------- the toast (A5: the Counter's toast, bottom centre just above the page dots) ----------
+  // (an error, the Counter's: "Kitchen printer offline · TABLE MOVED slip not sent" with RETRY and ✕, until one is tapped)
   function say(m) {
     if (typeof m === 'string') m = { t: m };
     clearTimeout(toastTimer);
-    toastNode = el('div', { class: 'fl-toast', role: 'status' }, el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || ''),
-      m.undo ? el('button', { type: 'button', onclick: () => { clearTimeout(toastTimer); toastNode?.remove(); toastNode = null; m.undo(); } }, 'UNDO') : null);
+    const drop = () => { clearTimeout(toastTimer); toastNode?.remove(); toastNode = null; }, err = m.kind === 'error';
+    toastNode = el('div', { class: `fl-toast${err ? ' err' : ''}`, role: err ? 'alert' : 'status' }, el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || ''),
+      m.undo ? el('button', { type: 'button', onclick: () => { drop(); m.undo(); } }, 'UNDO') : null,
+      m.retry ? el('button', { type: 'button', onclick: () => { drop(); m.retry(); } }, 'RETRY') : null,
+      err ? el('button', { type: 'button', class: 'x', 'aria-label': 'Dismiss', onclick: drop }, icon('x')) : null);
     root.querySelector('.fl-toast')?.remove(); root.append(toastNode);
-    toastTimer = setTimeout(() => { toastNode?.remove(); toastNode = null; }, m.undo ? 4000 : 2600);
+    if (!err) toastTimer = setTimeout(() => { toastNode?.remove(); toastNode = null; }, m.undo ? 4000 : 2600);
   }
 
   // ---------- open, close, back ----------
@@ -502,14 +775,20 @@
     if (!dialog.open) return false;
     if (pop) { closePop(); return true; }
     if (menuOpen) { menuOpen = false; render(); return true; }
+    // (Move / Merge, Move items: the confirm pop-up first; then back to the Floor, or the Counter it came from, as it was)
+    if (mmPop) { closeMMPop(); return true; }
+    if ((mode === 'mm' || mode === 'items') && mm) {
+      if (mm.back === 'counter') { close(); window.RestroCounter?.resume?.(); return true; }
+      mode = 'view'; mm = null; render(); return true;
+    }
     if (from === 'counter') { const picking = mode === 'pick'; close(); if (!picking) window.RestroCounter?.resume?.(); return true; }
     if (mode === 'reserve') { close(); return true; }
     return false;
   }
   dialog.addEventListener('cancel', e => { if (goBack()) e.preventDefault(); });
-  dialog.addEventListener('close', () => { pick = null; res = null; chosen = []; menuOpen = false; pop = null; mode = 'view'; clearInterval(tick); clearTimeout(toastTimer); toastNode = null; });
+  dialog.addEventListener('close', () => { pick = null; res = null; chosen = []; menuOpen = false; pop = null; mm = null; mmPop = null; mode = 'view'; clearInterval(tick); clearTimeout(toastTimer); toastNode = null; });
   // (A1) the top bar, the lock or Recent apps close the menu or a pop-up, and only that
-  window.addEventListener('restro:close-popups', () => { if (!dialog.open || (!pop && !menuOpen)) return; if (pop) closePop(); menuOpen = false; render(); });
+  window.addEventListener('restro:close-popups', () => { if (!dialog.open || (!pop && !menuOpen && !mmPop)) return; if (pop) closePop(); menuOpen = false; mmPop = null; render(); });
   window.addEventListener('restro:data-changed', () => { if (dialog.open) render(); });
   window.addEventListener('restro:bookings-changed', () => { if (dialog.open) render(); });
   window.addEventListener('restro:pager-docked', () => { if (dialog.open) render(); });
@@ -517,18 +796,24 @@
   window.RestroFloor = Object.freeze({
     // open() from the home screen; open({ pick: true, current, onPick(table) }) from the Counter's Table box (the Floor
     // with "‹ Counter": a free table goes on the order, a busy one opens its order); open({ from: 'counter' }).
+    // open({ mm: { table } }): the Counter's Move / Merge tables, that order's table picked; open({ items: { from, uid,
+    // count, dishes, preview(to), apply(to) } }): the Counter's Move items (E2, E3)
     open(options = {}) {
       // (picking a table for the Counter's order, or for a reservation: the Counter, or the reservation's form, stays
       // open under the Floor, and comes back once a table is picked or Back is tapped)
       const over = Boolean(options.pick || options.reserve);
       if (!over) document.querySelectorAll('dialog[open]').forEach(d => { if (d !== dialog) d.close(); });
-      mode = options.reserve ? 'reserve' : options.pick ? 'pick' : 'view'; menuOpen = false; pop = null;
-      from = options.reserve ? 'form' : options.pick || options.from === 'counter' ? 'counter' : 'home';
+      mode = options.reserve ? 'reserve' : options.pick ? 'pick' : options.items ? 'items' : options.mm ? 'mm' : 'view'; menuOpen = false; pop = null; mmPop = null;
+      from = options.reserve ? 'form' : options.pick || options.from === 'counter' || options.mm || options.items ? 'counter' : 'home';
+      mm = options.items ? { kind: 'items', back: 'counter', sel: [], from: options.items.from, uid: options.items.uid, to: null, items: options.items }
+        : options.mm ? { kind: 'mm', back: 'counter', sel: [] } : null;
       pick = options.pick ? { current: options.current || null, onPick: typeof options.onPick === 'function' ? options.onPick : null } : null;
       res = options.reserve ? { ...options.reserve, onPick: typeof options.reserve.onPick === 'function' ? options.reserve.onPick : null } : null;
       chosen = res ? (res.tables || []).filter(id => tableById.has(id)) : [];
-      const current = tableById.get(options.current || options.table || chosen[0] || '') || (res?.area && areaById.get(res.area)?.tables[0]);
+      const current = tableById.get(options.current || options.table || options.mm?.table || options.items?.from || chosen[0] || '') || (res?.area && areaById.get(res.area)?.tables[0]);
       if (current) { areaId = current.area; pageOf[current.area] = current.page; }
+      // (Move / Merge from the Counter: its order's table, picked)
+      if (mm?.kind === 'mm' && options.mm.table) { const u = unitOf(options.mm.table, live()); if (u && !cantPick(u)) mm.sel = [u.key]; }
       render();
       if (!dialog.open) dialog.showModal();
       dialog.querySelector('#floor-title')?.focus({ preventScroll: true });

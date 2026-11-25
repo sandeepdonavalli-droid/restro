@@ -3,9 +3,9 @@
 // - stroke icons: Lucide (ISC licence, assets/icons/LUCIDE-LICENSE.txt), 24 x 24, stroke 2, round ends;
 // - filled icons: Google's Material Symbols Rounded (Apache 2.0), as the Counter's, on its 960 grid (the pager: the
 //   Counter's own);
-// - our own: Move / Merge (two tables joined) and Move items (lines with an arrow), as the menu rows draw them; the
-//   armchair (guests and seats), drawn to the designs' own chair on a 30 x 30 grid (the glyph fills it); walk-in (a
-//   person walking), on a 12 x 17 grid.
+// - our own: Merge (two tables side by side) and the long arrow of Move, as Move / Merge draws them; Move items (lines
+//   with an arrow); the armchair (guests and seats), drawn to the designs' own chair on a 30 x 30 grid (the glyph fills
+//   it); walk-in (a person walking), on a 12 x 17 grid.
 // RestroFloorIcons.svg(name, cls): a new <svg>, aria-hidden, data-i = its name (for sizes per icon in the styles).
 (() => {
   const STROKE = {
@@ -43,8 +43,10 @@
     'circle-check': "<circle cx='12' cy='12' r='10'/><path d='m16 9-5.5 5.5L8 12'/>",
     plus: "<path d='M5 12h14'/><path d='M12 5v14'/>",
     minus: "<path d='M5 12h14'/>",
-    // (ours) two tables joined: Move / Merge tables, Merge, Unmerge
-    merge: "<rect x='2.5' y='7' width='8.5' height='10' rx='3'/><rect x='13' y='7' width='8.5' height='10' rx='3'/><path d='M11 12h2'/>",
+    // (ours) two tables side by side: Merge and Unmerge (MM1–MM6b, their buttons and pop-ups), as drawn
+    merge: "<rect x='2.975' y='6.975' width='7.95' height='10.05' rx='2.4' stroke-width='2.15'/><rect x='13.075' y='6.975' width='7.95' height='10.05' rx='2.4' stroke-width='2.15'/>",
+    // (ours) the long arrow of Move, Move table, Move here and Move 7 items (MM1–CM8), as drawn
+    'arrow-long': "<path d='M4 12h16M14 6l6 6-6 6' stroke-width='2.3'/>",
     // (ours) three lines and an arrow: Move items
     'move-items': "<path d='M3 6h14'/><path d='M3 12h9'/><path d='M3 18h9'/><path d='M15 18h6'/><path d='m18.5 15.5 2.5 2.5-2.5 2.5'/>"
   };

@@ -882,6 +882,44 @@ html[data-nav="bar"] .cx-pu.dish.pick{top:50%;max-height:calc(100% - calc(23.333
 .cx-fclr{flex:none;align-self:center;width:calc(24 * var(--u));height:calc(24 * var(--u));margin:0 0 0 calc(8 * var(--u));padding:0;border:0;border-radius:99px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;color:#57534E;box-shadow:inset 0 0 0 1px #DCE3EE;cursor:pointer}
 .cx-fclr[hidden]{display:none}
 
+/* ---------- Move items (Update Pack 8, E3: CM5) ---------- */
+/* "Move items" (the order number's size) with "Tap the dishes to move · set how many" under it; Select all, blue, right */
+.cx-mvh{justify-content:space-between;padding:calc(9.3 * var(--u)) 0 0;margin-bottom:calc(12.75 * var(--u))}
+.cx-mvt{display:flex;flex-direction:column;line-height:1.15}
+.cx-mvt h2{margin:0;font-size:calc(19.3 * var(--u));font-weight:700;line-height:inherit;white-space:nowrap}
+.cx-mvt h2:focus{outline:none}
+.cx-mvt small{font-size:calc(13.6 * var(--u));font-weight:500;color:#57534E;white-space:nowrap}
+.cx-mvall{margin:0 calc(7 * var(--u)) 0 0;padding:calc(6 * var(--u)) 0 calc(6 * var(--u)) calc(10 * var(--u));border:0;background:none;color:#2F6FDE;font:inherit;font-size:calc(14.9 * var(--u));font-weight:700;cursor:pointer}
+/* a line: its tick, then name · quantity · amount as on the order; ticked, light blue across the panel */
+.cx-mv>.cx-row{grid-template-columns:calc(33.4 * var(--u)) minmax(0,1fr) auto minmax(calc(91.7 * var(--u)),auto);column-gap:calc(10 * var(--u))}
+.cx-mv .cx-nm,.cx-mv .cx-stp,.cx-mv .cx-lt{grid-row:1}
+.cx-mv .cx-mcs,.cx-mv .cx-cmt{grid-column:2 / 5}
+.cx-tick{grid-row:1;align-self:start;width:calc(26.7 * var(--u));height:calc(26.7 * var(--u));margin:calc(13.3 * var(--u)) 0 0;padding:0;border:0;border-radius:50%;display:grid;place-items:center;background:#FFFFFF;box-shadow:inset 0 0 0 calc(2.1 * var(--u)) #C6CBD2;color:#FFFFFF;cursor:pointer}
+.cx-mv.on .cx-tick{background:#2F6FDE;box-shadow:none}
+.cx-mv.on{margin:0 calc(-20 * var(--u));background:#EEF4FF;box-shadow:inset 0 -1px 0 #D6E2FB}
+.cx-mv.on>.cx-row{padding-left:calc(22 * var(--u));padding-right:calc(22 * var(--u))}
+/* the quantity: − (where the order's is) · "3 of 8" from where its number is · +; not ticked, the number alone, centred
+   between − and the order's own + */
+.cx-mvq{min-width:calc(133.3 * var(--u))}
+.cx-mvq.off{height:calc(40 * var(--u))}
+.cx-mvn{min-width:calc(53.3 * var(--u));box-sizing:border-box;padding-left:calc(11.3 * var(--u));display:flex;align-items:center;gap:calc(7.3 * var(--u))}
+.cx-mvq.off .cx-mvn{width:calc(74.2 * var(--u));margin-left:calc(40 * var(--u));padding:0;justify-content:center}
+.cx-mvn b{font-size:calc(16 * var(--u));font-weight:700;color:#57534E}
+.cx-mv.on .cx-mvn b{color:#2F6FDE}
+.cx-mvn small{font-size:calc(13.5 * var(--u));font-weight:500;color:#57534E}
+.cx-mvq .cx-sb:disabled{color:#C4C0BC;cursor:default}
+.cx-mvq .cx-sb:disabled:active{background:transparent}
+/* what is picked, above the buttons: "7 items selected from 3 dishes" and what they come to */
+.cx-mvs{gap:calc(11.7 * var(--u));padding-top:calc(8 * var(--u))}
+.cx-mvsum{display:flex;align-items:baseline;justify-content:space-between;gap:calc(10 * var(--u));font-size:calc(14.8 * var(--u));font-weight:500;color:#44403C}
+.cx-mvsum b{font-weight:800;color:#1C1917}
+.cx-mvsum>b{font-size:calc(15.3 * var(--u))}
+.cx-mvgo{gap:calc(10 * var(--u))}
+.cx-mvgo:disabled{opacity:.5}
+/* the menu side greyed (the page's grey over it) with the hint in the middle; nothing on it can be tapped */
+.cx-mvcover{position:absolute;inset:0 calc(-20 * var(--u)) 0 calc(-20 * var(--u));z-index:30;display:grid;place-items:center;background:rgba(243,244,247,.78)}
+.cx-mvcover span{height:calc(53.3 * var(--u));box-sizing:border-box;padding:0 calc(24.6 * var(--u));display:flex;align-items:center;border-radius:calc(14 * var(--u));background:#FFFFFF;box-shadow:0 calc(2 * var(--u)) calc(10 * var(--u)) rgba(15,23,42,.12);font-size:calc(17 * var(--u));font-weight:600;color:#44403C;white-space:nowrap}
+
 /* ---------- Print bill (a browser's printing; the Android app prints it itself) ---------- */
 #print-bill{display:none}
 /* Counter Update 7 (25_printed-bill): 80 mm, black only, every size the template's (its slip is 384 wide inside the
