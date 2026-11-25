@@ -25,13 +25,13 @@ html[data-home-theme="aurora"]:not([data-app-open]) .home-indicator{background:r
   display:grid;place-items:center;background:rgba(0,0,0,.82);color:#F5F5F4;box-shadow:0 4px 12px rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation}
 .system-lock:active{background:#000000}
 /* (Update Pack 8, A1) Swipe mode: what scrolls under the round lock shows softly blurred around it, and a pop-up's dimming
-   leaves a soft clear ring around it (the scrims below), so the lock is never dimmed or covered. A tap on the lock only
-   locks; a tap next to it reaches what is there. */
+   is lighter in a soft ring around it (the scrims below, as F04-F07 draw it), so the lock is never dimmed or covered. A
+   tap on the lock only locks; a tap next to it reaches what is there. */
 html:not([data-nav="bar"]) .system-lock::before{content:"";position:absolute;inset:calc(-22 * var(--fu));z-index:-1;border-radius:50%;pointer-events:none;
   -webkit-backdrop-filter:blur(calc(5 * var(--fu)));backdrop-filter:blur(calc(5 * var(--fu)));-webkit-mask:radial-gradient(closest-side,#000 62%,transparent);mask:radial-gradient(closest-side,#000 62%,transparent)}
 html:not([data-nav="bar"]) :is(.cx-scrim,.ctr-sheet-wrap,.cx-hscrim,.cx-layer-menu,.or-scrim,.qrp-scrim,.qrs-scrim,.st-pscrim,.fl-scrim,.bk-scrim){
-  -webkit-mask:radial-gradient(circle at calc(100% - 46 * var(--fu)) calc(100% - 44 * var(--fu)),transparent calc(34 * var(--fu)),#000 calc(64 * var(--fu)));
-  mask:radial-gradient(circle at calc(100% - 46 * var(--fu)) calc(100% - 44 * var(--fu)),transparent calc(34 * var(--fu)),#000 calc(64 * var(--fu)))}
+  -webkit-mask:radial-gradient(circle at calc(100% - 46 * var(--fu)) calc(100% - 44 * var(--fu)),rgba(0,0,0,.55) calc(30 * var(--fu)),#000 calc(45 * var(--fu)));
+  mask:radial-gradient(circle at calc(100% - 46 * var(--fu)) calc(100% - 44 * var(--fu)),rgba(0,0,0,.55) calc(30 * var(--fu)),#000 calc(45 * var(--fu)))}
 /* Home on Aurora Dark: the lock in the Midnight style (Update Pack 2: Home at 1080), a raised navy with a soft white edge */
 html[data-home-theme="aurora"]:not([data-app-open]):not([data-nav="bar"]) .system-lock{background:#1E2A42;box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) rgba(255,255,255,.18),0 calc(6 * var(--fu)) calc(16 * var(--fu)) rgba(0,0,0,.5)}
 html[data-home-theme="aurora"]:not([data-app-open]):not([data-nav="bar"]) .system-lock:active{background:#000000}

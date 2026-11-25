@@ -91,10 +91,10 @@
 .fl-t.attn.rect,.fl-t.attn.square{background:radial-gradient(farthest-side,#CCD8F8 8%,#D7D3F1 45%,#DFCDE4 70%,#EBC4CD 100%,#F2BCC1 125%)!important}
 @keyframes fl-glow{0%{box-shadow:inset 0 0 0 calc(2 * var(--fu)) #E59A9C,0 0 calc(32 * var(--fu)) 0 rgba(229,83,90,.6)}70%{box-shadow:inset 0 0 0 calc(2 * var(--fu)) #E59A9C,0 0 calc(48 * var(--fu)) calc(16 * var(--fu)) rgba(229,83,90,0)}100%{box-shadow:inset 0 0 0 calc(2 * var(--fu)) #E59A9C,0 0 calc(32 * var(--fu)) 0 rgba(229,83,90,0)}}
 @media (prefers-reduced-motion:reduce){.fl-t.attn{animation:none;box-shadow:inset 0 0 0 calc(2 * var(--fu)) #E59A9C,0 0 calc(32 * var(--fu)) 0 rgba(229,83,90,.6)}}
-/* The server's initials: a white pill at the top right, its edge in the table's own edge colour */
+/* The server's initials: a white pill at the top right, a 1.5 px edge in the table's own edge colour (B2's words; the pictures draw 1 px) */
 .fl-srv{position:absolute;right:calc(14 * var(--fu));top:calc(14 * var(--fu));height:calc(30 * var(--fu));min-width:calc(46 * var(--fu));box-sizing:border-box;padding:0 calc(10 * var(--fu));display:grid;place-items:center;border-radius:999px;background:#FFFFFF;
-  box-shadow:inset 0 0 0 calc(1 * var(--fu)) #86AAED,0 calc(1 * var(--fu)) calc(4 * var(--fu)) rgba(15,23,42,.14);font-size:calc(13 * var(--fu));font-style:normal;font-weight:800;color:#1E4FB8}
-.fl-t.bill .fl-srv{box-shadow:inset 0 0 0 calc(1 * var(--fu)) #E3C04E,0 calc(1 * var(--fu)) calc(4 * var(--fu)) rgba(15,23,42,.14);color:#836604}
+  box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) #86AAED,0 calc(1 * var(--fu)) calc(4 * var(--fu)) rgba(15,23,42,.14);font-size:calc(13 * var(--fu));font-style:normal;font-weight:800;color:#1E4FB8}
+.fl-t.bill .fl-srv{box-shadow:inset 0 0 0 calc(1.5 * var(--fu)) #E3C04E,0 calc(1 * var(--fu)) calc(4 * var(--fu)) rgba(15,23,42,.14);color:#836604}
 .fl-t.round .fl-srv{right:50%;top:calc(-10 * var(--fu));transform:translateX(50%)}
 /* A call from the table (Help bell): white with a soft red edge, centred at the top */
 .fl-call{position:absolute;left:50%;top:calc(14 * var(--fu));height:calc(30 * var(--fu));box-sizing:border-box;padding:0 calc(11.5 * var(--fu)) 0 calc(12.4 * var(--fu));display:flex;align-items:center;gap:calc(7 * var(--fu));border-radius:999px;background:#FFFFFF;
@@ -146,7 +146,7 @@ html[data-nav="bar"] .fl-sums{right:calc(30 * var(--fu))}
 .fl-sep{display:block;height:1px;margin:calc(5 * var(--fu)) calc(-7.5 * var(--fu)) calc(6.75 * var(--fu)) calc(-6.5 * var(--fu));background:#E7E5E4}
 
 /* ---------- the pop-ups (B6; F04–F07): the Counter pop-up's look ---------- */
-.fl-scrim{position:absolute;inset:0;z-index:30;display:grid;place-items:center;background:rgba(15,23,42,.38);animation:fl-fade .14s ease-out}
+.fl-scrim{position:absolute;inset:0;z-index:30;display:grid;place-items:center;background:rgba(15,23,42,.42);animation:fl-fade .14s ease-out}
 @keyframes fl-fade{from{opacity:0}}
 .fl-pop{position:relative;width:calc(752 * var(--fu));box-sizing:border-box;padding:calc(24 * var(--fu)) calc(27 * var(--fu)) calc(26.5 * var(--fu));border-radius:calc(28 * var(--fu));background:#F3F4F7;box-shadow:0 calc(30 * var(--fu)) calc(80 * var(--fu)) rgba(15,23,42,.35);animation:fl-in .16s ease-out}
 .fl-pop-h{display:flex;align-items:center;gap:calc(14 * var(--fu));height:calc(52 * var(--fu))}
