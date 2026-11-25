@@ -26,7 +26,7 @@
   const dialogs=[...document.querySelectorAll('dialog')];
   const navigation=[...bar.querySelectorAll('.system-control')];
   const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
-  const fullApps='.counter-app,.floor-app,.orders-app,.settings-app,.customers-app,.employees-app,.qr-studio-app';
+  const fullApps='.counter-app,.floor-app,.bookings-app,.orders-app,.settings-app,.customers-app,.employees-app,.qr-studio-app';
   let locked=false;
   try{locked=sessionStorage.getItem('restro.screenLocked')==='true';}catch{}
   // A swipe on the bar under way, windows on their way home (or back), and Recent apps while it shows

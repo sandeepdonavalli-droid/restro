@@ -368,8 +368,11 @@ texts, they have to be registered on DLT and with Meta before they can go.
 
 **Pagers.** One pool of pagers for every app (A6): a pager given to a waitlist guest or a reservation is out until it
 is docked (`restro:pager-docked`, above), and giving it to an order or another guest takes it back from the booking
-that had it. Buzz on the waitlist calls `pager.buzz(number)`, as Orders' Buzz does, and keeps the result on the guest
-(`msgs`, kind `buzz`).
+that had it. Every Assign pager button opens the Counter's Assign pager pop-up, and the pagers out with an order, a
+reservation or a waitlist guest show "In use" in it. A pager tapped on the NFC spot (`restro:pager-tapped`, above)
+while a New or Edit reservation is on screen goes on that reservation at once, with Undo (one in use is refused:
+"Pager 7 is in use"); with no reservation on screen it does what it did before (the Counter, Orders). Buzz on the
+waitlist calls `pager.buzz(number)`, as Orders' Buzz does, and keeps the result on the guest (`msgs`, kind `buzz`).
 
 **Help bell requests on the Floor** (Pack 7 H1: the bell on a Table QR). When the cloud reports a request, dispatch on
 every tablet:

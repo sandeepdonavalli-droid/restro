@@ -56,6 +56,9 @@
   // mode: 'view' (the Floor), 'pick' (the Counter's Table box: the Floor, a free table goes on the order), and later
   // 'reserve' / 'seat' (bookings.js), 'mm' / 'items' (Move / Merge, Move items).
   let mode = 'view', from = 'home', pick = null, areaId = null, menuOpen = false, pop = null;
+  // (C3) mode 'reserve': the booking being placed ({ back, who, guests, at, except, when, tables, area, picked, join,
+  // onPick }) and the tables picked on the Floor so far
+  let res = null, chosen = [];
   const pageOf = {};               // the page each area is on
   try { const saved = localStorage.getItem('restro.floor.area.v1'); if (areaById.has(saved)) areaId = saved; } catch {}
   if (!areaId) areaId = areas[0]?.id || null;
@@ -128,6 +131,7 @@
   function render() {
     const now = Date.now(), L = live(now), a = area();
     root.dataset.mode = mode;
+    if (mode === 'reserve' && res) { renderReserve(a, L, now); return; }
     const parts = [head(L, now), canvas(a, L, now), bottom(a, L)];
     if (menuOpen) parts.push(el('div', { class: 'fl-catch', onclick: () => { menuOpen = false; render(); } }), menuCard());
     if (pop) parts.push(popLayer(L, now));
@@ -143,7 +147,7 @@
     const B = window.RestroBookings, waiting = B?.waitingNow?.(now)?.length || 0;
     return el('header', { class: 'fl-top' }, nav, el('span', { class: 'fl-title-ic' }, appArt('floor')), el('h2', { id: 'floor-title', tabindex: '-1' }, 'Floor'),
       el('div', { class: 'fl-areas-wrap' }, el('nav', { class: 'fl-areas', role: 'tablist', 'aria-label': 'Areas' }, ...areas.map(x => areaPill(x, L, now)))),
-      el('button', { type: 'button', class: 'fl-wait', onclick: () => window.RestroBookingsApp?.open({ tab: 'waitlist', from: 'floor' }) },
+      el('button', { type: 'button', class: 'fl-wait', onclick: () => window.RestroBookingsApp?.open?.({ tab: 'waitlist', from: 'floor', floorFrom: from }) },
         icon('timer'), 'Waitlist', el('em', {}, String(waiting))),
       el('button', { type: 'button', class: `fl-menu-btn${menuOpen ? ' on' : ''}`, 'aria-label': 'Menu', 'aria-haspopup': 'menu', 'aria-expanded': String(menuOpen), onclick: () => { menuOpen = !menuOpen; render(); } }, burger()));
   }
@@ -233,6 +237,99 @@
       el('div', { class: 'fl-sums' }, el('span', {}, 'Guests now ', el('b', {}, String(n.guests))), el('span', {}, 'Due here ', el('b', { class: 'due' }, money(n.due)))));
   }
 
+  // ---------- Pick a table for a reservation (C3: N05–N07) ----------
+  // The real Floor, picking: "‹ New reservation", "Pick a table", the party (name · guests · day and time) in a black pill,
+  // Join tables; the areas on their own row with what is free there for this party then; the tables as they are for it:
+  // free (white, its seats), too small ("N/A · 4 seats", dashed; pickable with Join tables), occupied now ("Seated 18
+  // min", faded: a booking within the next 2 hours) and booked ("Booked 9:00 PM", grey), which can't be picked; the one
+  // picked with a blue ring and a tick. A tap picks a table and goes back to the form. With Join tables on, taps tick
+  // tables of one area (across its pages; tables of another area start again there), and Done takes them.
+  function renderReserve(a, L, now) {
+    const B = window.RestroBookings; if (!B?.tablesFor) return;
+    const all = B.tablesFor({ at: res.at, guests: res.guests, except: res.except, now });
+    const info = new Map(areas.map(x => [x.id, B.areaFor(x.id, all, res.guests)]));
+    root.replaceChildren(reserveHead(info), reserveCanvas(a, L, all, now), reserveBottom(a, all));
+    if (toastNode) root.append(toastNode);
+  }
+  function reserveHead(info) {
+    const who = [res.who, `${res.guests} guest${res.guests === 1 ? '' : 's'}`, res.when].filter(Boolean);
+    const pill = x => {
+      const n = info.get(x.id), on = x.id === areaId;
+      const count = n.free ? `${n.free} free${n.maybe ? ` · ${n.maybe} maybe` : ''}` : res.join && n.join ? `join ${n.join}` : n.maybe ? `${n.maybe} maybe` : 'none';
+      return el('button', { type: 'button', role: 'tab', 'aria-selected': String(on), class: `fl-area${on ? ' on' : ''}${count === 'none' ? ' dim' : ''}`, 'data-area': x.id, onclick: () => goArea(x.id) },
+        el('span', { class: 'fl-area-n' }, x.name), el('span', { class: 'fl-free rs' }, count));
+    };
+    return el('header', { class: 'fl-top rs' },
+      el('button', { type: 'button', class: 'fl-back', onclick: goBack }, icon('chevron-left'), res.back || 'New reservation'),
+      el('h2', { id: 'floor-title', tabindex: '-1' }, 'Pick a table'),
+      el('div', { class: 'fl-ctx' }, ...who.flatMap((w, i) => (i ? [el('i', { 'aria-hidden': 'true' }), el('span', {}, w)] : [el('span', {}, w)]))),
+      el('button', { type: 'button', role: 'switch', 'aria-checked': String(Boolean(res.join)), class: `fl-join${res.join ? ' on' : ''}`, onclick: () => toggleJoin(info) }, 'Join tables', el('i', { 'aria-hidden': 'true' })),
+      el('div', { class: 'fl-areas-wrap rs' }, el('nav', { class: 'fl-areas', role: 'tablist', 'aria-label': 'Areas' }, ...areas.map(pill))));
+  }
+  function reserveCanvas(a, L, all, now) {
+    const page = pageNow(a), pages = pagesOf(a), drawn = new Set(), tiles = [];
+    for (const t of a.tables.filter(x => x.page === page)) {
+      if (drawn.has(t.id)) continue;
+      const s = all.get(t.id); if (!s) continue;
+      const busy = s.state === 'busy' || s.state === 'maybe', o = busy ? L.state.get(t.id)?.order || null : null;
+      // (an occupied merged group: one tile, as on the Floor)
+      if (o && o.tables.length > 1) {
+        const row = sideBySide(o.tables.map(id => tableById.get(id)).filter(x => x && x.area === a.id && x.page === page));
+        if (row) { row.forEach(x => drawn.add(x.id)); tiles.push(reserveTile(row, s, o, now)); continue; }
+      }
+      drawn.add(t.id); tiles.push(reserveTile([t], s, o, now));
+    }
+    const arrows = [page > 0 ? el('button', { type: 'button', class: 'fl-arrow l', 'aria-label': 'Previous page', onclick: () => turn(-1) }, icon('chevron-left')) : null,
+      page < pages - 1 ? el('button', { type: 'button', class: 'fl-arrow r', 'aria-label': 'Next page', onclick: () => turn(1) }, icon('chevron-right')) : null];
+    const box = el('div', { class: 'fl-canvas' }, ...tiles, ...arrows);
+    swipes(box);
+    return box;
+  }
+  // (the tables a little smaller than on the Floor itself, where they stand: as N05–N07 draw them)
+  function reserveTile(group, s, o, now) {
+    const x = Math.min(...group.map(t => t.x)), y = Math.min(...group.map(t => t.y)), w = Math.max(...group.map(t => t.x + t.w)) - x, h = Math.max(...group.map(t => t.y + t.h)) - y;
+    const t0 = group[0], shape = group.length > 1 ? 'rect' : t0.shape, sel = chosen.includes(t0.id);
+    const kind = s.state === 'booked' ? 'bk' : o || s.state === 'busy' || s.state === 'maybe' ? 'oc' : sel || s.fits || res.join ? 'ok' : 'na';
+    const number = o && o.tables.length > 1 ? o.tables.map(tableName).filter(Boolean).join(' + ') : t0.name;
+    const line = kind === 'bk' ? el('span', { class: 'fl-ln' }, `Booked ${clock(s.booking.at)}`)
+      : kind === 'oc' ? el('span', { class: 'fl-ln time' }, icon('clock'), `Seated ${since(o?.at || now, now)}`)
+        : kind === 'na' ? el('span', { class: 'fl-ln' }, `N/A · ${t0.seats} seats`)
+          : el('span', { class: 'fl-ln seat' }, icon('chair'), `${t0.seats} seats`);
+    const label = `Table ${number}, ${{ ok: `${t0.seats} seats`, na: `too small, ${t0.seats} seats`, oc: 'occupied now, can’t pick', bk: `booked ${clock(s.booking?.at || now)}, can’t pick` }[kind]}${sel ? ', picked' : ''}`;
+    return el('button', { type: 'button', class: `fl-t rs ${shape} ${kind}${sel ? ' sel' : ''}`, 'data-id': t0.id, 'aria-label': label, 'aria-disabled': kind === 'ok' ? null : 'true',
+      style: `left:${fu(x)};top:${fu(y)};width:${fu(w - 24)};height:${fu(h - 24)}`, onclick: () => { if (kind === 'ok') tapReserve(t0.id); } },
+    el('span', { class: 'fl-in' }, el('b', { class: o && o.tables.length > 1 ? 'fl-no join' : 'fl-no' }, number), line),
+    sel ? el('em', { class: 'fl-tick', 'aria-hidden': 'true' }, icon('check')) : null);
+  }
+  function tapReserve(id) {
+    if (Date.now() - swiped < 400) return;
+    if (!res.join) { const done = res.onPick; close(); done?.([id]); return; }
+    if (chosen.includes(id)) chosen = chosen.filter(x => x !== id);
+    else { if (chosen.length && tableById.get(chosen[0])?.area !== tableById.get(id)?.area) chosen = []; chosen = [...chosen, id]; }
+    render();
+  }
+  function toggleJoin() {
+    res.join = !res.join;
+    if (!res.join) { const all = window.RestroBookings.tablesFor({ at: res.at, guests: res.guests, except: res.except }); chosen = chosen.filter(id => all.get(id)?.fits).slice(0, 1); }
+    render();
+  }
+  function reserveBottom(a) {
+    const pages = pagesOf(a), page = pageNow(a);
+    const dots = pages > 1 ? el('div', { class: 'fl-dots', role: 'tablist', 'aria-label': 'Pages' }, ...Array.from({ length: pages }, (_, i) => el('button', { type: 'button', role: 'tab', 'aria-selected': String(i === page), 'aria-label': `Page ${i + 1}`, class: i === page ? 'on' : '', onclick: () => { pageOf[a.id] = i; render(); } }))) : null;
+    if (res.join) {
+      const ts = chosen.map(id => tableById.get(id)).filter(Boolean), seats = ts.reduce((n, t) => n + t.seats, 0);
+      return el('footer', { class: 'fl-bot rs' },
+        el('div', { class: 'fl-joined' }, el('b', {}, ts.length ? ts.map(t => `Table ${t.name}`).join(' + ') : 'Tap the tables to join'), el('i', { 'aria-hidden': 'true' }),
+          el('span', { class: seats >= res.guests ? 'ok' : 'short' }, el('b', {}, `${seats} seats`), ` for ${res.guests} guest${res.guests === 1 ? '' : 's'}`)),
+        dots, el('button', { type: 'button', class: 'fl-done', disabled: !ts.length, onclick: () => { const done = res.onPick, ids = [...chosen]; close(); done?.(ids); } }, icon('check'), 'Done'));
+    }
+    const sw = (cls, label) => el('span', { class: 'fl-lg' }, el('i', { class: `fl-sw ${cls}` }), label);
+    const how = res.picked === 'current' ? 'current table' : res.picked === 'floor' ? 'picked on the Floor' : 'auto-picked';
+    return el('footer', { class: 'fl-bot rs' },
+      el('div', { class: 'fl-legend rs' }, sw('r-free', 'Free'), sw('r-oc', 'Occupied now · can’t pick'), sw('r-bk', 'Booked · can’t pick'), sw('r-na', `N/A · fewer than ${res.guests} seats`)),
+      dots, el('p', { class: 'fl-hint' }, 'Tap a table to choose it', chosen.length ? ` · now: ${chosen.map(id => `Table ${tableName(id)}`).join(' + ')} (${how})` : ''));
+  }
+
   // ---------- pages: the arrows and a swipe ----------
   function turn(d) {
     const a = area(), p = pageNow(a) + d;
@@ -272,8 +369,8 @@
     return el('div', { class: 'fl-menu', role: 'menu', 'aria-label': 'Floor menu' },
       row(appArt('counter'), 'Counter', () => { close(); window.RestroCounter?.open(); }, null, 'app'),
       row(appArt('orders'), 'Orders', () => { close(); window.RestroOrders?.open(); }, null, 'app'),
-      row(icon('calendar'), 'New reservation', () => window.RestroBookingsApp?.newReservation({ from: 'floor' }), null, 'blue'),
-      row(icon('calendar'), 'Reservations', () => window.RestroBookingsApp?.open({ tab: 'reservations', from: 'floor' }), el('em', {}, String(left))),
+      row(icon('calendar'), 'New reservation', () => window.RestroBookingsApp?.newReservation?.({ from: 'floor', floorFrom: from }), null, 'blue'),
+      row(icon('calendar'), 'Reservations', () => window.RestroBookingsApp?.open?.({ tab: 'reservations', from: 'floor', floorFrom: from }), el('em', {}, String(left))),
       el('i', { class: 'fl-sep', role: 'separator' }),
       row(icon('layout-grid'), 'Edit layout', () => { render(); say({ b: 'Edit layout', t: ' · coming soon' }); }));
   }
@@ -304,7 +401,7 @@
       el('div', { class: 'fl-who' }, el('b', {}, B.nameOf(r) || 'Guest'), el('span', {}, r.phone ? el('span', {}, icon('phone'), phoneText(r)) : null, el('span', {}, icon('chair'), guestsText(r.guests)))));
     const note = r.note ? el('div', { class: 'fl-card fl-note' }, el('i', { class: 'fl-note-ic' }, noteIcon()), el('div', {}, el('small', {}, 'Note'), el('b', {}, r.note))) : null;
     const meta = el('div', { class: 'fl-card fl-meta' },
-      el('div', {}, el('small', {}, 'Mode'), el('b', {}, icon(r.how === 'walkin' ? 'footprints' : 'phone'), r.how === 'walkin' ? 'Walk-in' : 'By phone')),
+      el('div', {}, el('small', {}, 'Mode'), el('b', {}, icon(r.how === 'walkin' ? 'walk' : 'phone'), r.how === 'walkin' ? 'Walk-in' : 'By phone')),
       el('div', {}, el('small', {}, 'Taken by'), el('b', {}, icon('user'), firstOf(r.by) || '—')),
       el('div', {}, el('small', {}, 'At'), el('b', {}, icon('clock'), clock(r.createdAt))));
     const cancel = el('button', { type: 'button', class: 'fl-btn red', onclick: () => { pop = { kind: 'cancel', id: r.id, table: pop.table, back: pop.kind }; render(); } }, icon('calendar-x'), 'Cancel reservation');
@@ -386,7 +483,7 @@
   function say(m) {
     if (typeof m === 'string') m = { t: m };
     clearTimeout(toastTimer);
-    toastNode = el('div', { class: 'fl-toast', role: 'status' }, m.b ? el('b', {}, m.b) : null, m.t || '',
+    toastNode = el('div', { class: 'fl-toast', role: 'status' }, el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || ''),
       m.undo ? el('button', { type: 'button', onclick: () => { clearTimeout(toastTimer); toastNode?.remove(); toastNode = null; m.undo(); } }, 'UNDO') : null);
     root.querySelector('.fl-toast')?.remove(); root.append(toastNode);
     toastTimer = setTimeout(() => { toastNode?.remove(); toastNode = null; }, m.undo ? 4000 : 2600);
@@ -399,10 +496,11 @@
     if (pop) { closePop(); return true; }
     if (menuOpen) { menuOpen = false; render(); return true; }
     if (from === 'counter') { const picking = mode === 'pick'; close(); if (!picking) window.RestroCounter?.resume?.(); return true; }
+    if (mode === 'reserve') { close(); return true; }
     return false;
   }
   dialog.addEventListener('cancel', e => { if (goBack()) e.preventDefault(); });
-  dialog.addEventListener('close', () => { pick = null; menuOpen = false; pop = null; mode = 'view'; clearInterval(tick); clearTimeout(toastTimer); toastNode = null; });
+  dialog.addEventListener('close', () => { pick = null; res = null; chosen = []; menuOpen = false; pop = null; mode = 'view'; clearInterval(tick); clearTimeout(toastTimer); toastNode = null; });
   // (A1) the top bar, the lock or Recent apps close the menu or a pop-up, and only that
   window.addEventListener('restro:close-popups', () => { if (!dialog.open || (!pop && !menuOpen)) return; if (pop) closePop(); menuOpen = false; render(); });
   window.addEventListener('restro:data-changed', () => { if (dialog.open) render(); });
@@ -413,13 +511,16 @@
     // open() from the home screen; open({ pick: true, current, onPick(table) }) from the Counter's Table box (the Floor
     // with "‹ Counter": a free table goes on the order, a busy one opens its order); open({ from: 'counter' }).
     open(options = {}) {
-      // (picking a table for the Counter's order: the Counter stays open under the Floor, and comes back once a table is
-      // picked or Back is tapped)
-      if (!options.pick) document.querySelectorAll('dialog[open]').forEach(d => { if (d !== dialog) d.close(); });
-      mode = options.pick ? 'pick' : 'view'; menuOpen = false; pop = null;
-      from = options.pick || options.from === 'counter' ? 'counter' : 'home';
+      // (picking a table for the Counter's order, or for a reservation: the Counter, or the reservation's form, stays
+      // open under the Floor, and comes back once a table is picked or Back is tapped)
+      const over = Boolean(options.pick || options.reserve);
+      if (!over) document.querySelectorAll('dialog[open]').forEach(d => { if (d !== dialog) d.close(); });
+      mode = options.reserve ? 'reserve' : options.pick ? 'pick' : 'view'; menuOpen = false; pop = null;
+      from = options.reserve ? 'form' : options.pick || options.from === 'counter' ? 'counter' : 'home';
       pick = options.pick ? { current: options.current || null, onPick: typeof options.onPick === 'function' ? options.onPick : null } : null;
-      const current = tableById.get(options.current || options.table || '');
+      res = options.reserve ? { ...options.reserve, onPick: typeof options.reserve.onPick === 'function' ? options.reserve.onPick : null } : null;
+      chosen = res ? (res.tables || []).filter(id => tableById.has(id)) : [];
+      const current = tableById.get(options.current || options.table || chosen[0] || '') || (res?.area && areaById.get(res.area)?.tables[0]);
       if (current) { areaId = current.area; pageOf[current.area] = current.page; }
       render();
       if (!dialog.open) dialog.showModal();
@@ -433,6 +534,6 @@
     table: id => { const t = tableById.get(id); return t ? { ...t } : null; },
     areaOf: id => tableById.get(id)?.area || null,
     areas: () => areas.map(a => ({ id: a.id, name: a.name, tables: a.tables.map(t => ({ ...t })) })),
-    get tables() { return tables.map(({ id, name, seats, area: a, shape, page }) => ({ id, name, seats, area: a, shape, page })); }
+    get tables() { return tables.map(({ id, name, seats, area: a, shape, page, x, y, w, h }) => ({ id, name, seats, area: a, shape, page, x, y, w, h })); }
   });
 })();

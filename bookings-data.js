@@ -84,6 +84,70 @@
   const lateOnes = (now = Date.now()) => res.filter(r => active(r) && now - r.at >= RULES.lateAfter && sameDay(r.at, now));
   const leftToday = (now = Date.now()) => res.filter(r => active(r) && sameDay(r.at, now) && r.at + RULES.lateAfter > now - HOUR * 24).length;
 
+  // ---------- tables for a booking (C2, C3) ----------
+  // Each table of the floor plan as it is for a booking of `guests` at `at` (Edit: `except`, the booking itself, whose own
+  // table counts as free for it): 'free'; 'booked' (another booking on it inside 2 hours of `at`: C1); and, for a booking
+  // within the next 2 hours, who is at it now: 'maybe' (occupied, its bill already printed) or 'busy' (occupied). A
+  // booking further out only looks at the bookings. fits: it seats the party on its own.
+  const SOON = 2 * HOUR;
+  function tablesFor({ at, guests, except = null, now = Date.now() }) {
+    const plan = window.RestroFloor?.tables || [], soon = at - now <= SOON, out = new Map(), held = new Map();
+    if (soon) for (const o of window.RestroCounter?.floorOrders?.(now) || []) for (const t of o.tables) if (!held.has(t)) held.set(t, o);
+    for (const t of plan) {
+      const b = bookedAt(t.id, at, except), o = held.get(t.id);
+      const state = b ? 'booked' : o ? (o.bill ? 'maybe' : 'busy') : 'free';
+      out.set(t.id, { ...t, state, booking: b ? copy(b) : null, order: o ? { tables: o.tables, at: o.at, bill: o.bill } : null, fits: t.seats >= guests });
+    }
+    return out;
+  }
+  // Tables that stand next to each other on the floor plan (the same page, at most 80 apart, side by side or one under
+  // the other): the auto-pick joins only these (C2). Picked by hand on the Floor, any tables of one area join (C3).
+  const NEAR = 80;
+  const nextTo = (a, b) => a.area === b.area && a.page === b.page && (
+    (Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w) <= NEAR && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y)) ||
+    (Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h) <= NEAR && Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x)));
+  // The fewest free tables next to each other that seat the party (then the fewest spare seats; then the floor plan's
+  // order), up to 6 tables; or null
+  function joinFor(list, guests) {
+    const free = list.filter(t => t.state === 'free'), order = new Map(free.map((t, i) => [t.id, i]));
+    let level = free.map(t => [t]);
+    for (let k = 2; k <= 6 && level.length; k++) {
+      const seen = new Set(), next = [];
+      for (const set of level) for (const t of free) {
+        if (set.includes(t) || !set.some(s => nextTo(s, t))) continue;
+        const grown = [...set, t].sort((p, q) => order.get(p.id) - order.get(q.id)), key = grown.map(x => x.id).join('+');
+        if (!seen.has(key)) { seen.add(key); next.push(grown); }
+      }
+      const ok = next.filter(s => s.reduce((n, t) => n + t.seats, 0) >= guests);
+      if (ok.length) {
+        const spare = s => s.reduce((n, t) => n + t.seats, 0) - guests;
+        return ok.sort((p, q) => spare(p) - spare(q) || order.get(p[0].id) - order.get(q[0].id))[0];
+      }
+      if (next.length > 4000) break; // (a very large area: no further)
+      level = next;
+    }
+    return null;
+  }
+  // An area for a booking: its tables that seat the party (free, maybe), and the auto-pick there (C2: an exact-fit free
+  // table, else the closest single bigger one, else neighbouring free tables joined): { free, maybe, join (how many
+  // tables), pick: { tables: [ids], kind: 'exact' | 'bigger' | 'join' } | null }
+  function areaFor(areaId, all, guests) {
+    const list = [...all.values()].filter(t => t.area === areaId);
+    const free = list.filter(t => t.state === 'free' && t.fits), maybe = list.filter(t => t.state === 'maybe' && t.fits);
+    const exact = free.find(t => t.seats === guests), bigger = [...free].sort((p, q) => p.seats - q.seats)[0];
+    let pick = exact ? { tables: [exact.id], kind: 'exact' } : bigger ? { tables: [bigger.id], kind: 'bigger' } : null, join = 0;
+    if (!pick) { const j = joinFor(list, guests); if (j) { join = j.length; pick = { tables: j.map(t => t.id), kind: 'join' }; } }
+    return { id: areaId, free: free.length, maybe: maybe.length, join, pick, seats: pick ? pick.tables.reduce((n, id) => n + (all.get(id)?.seats || 0), 0) : 0 };
+  }
+  // The best area for a booking when none was chosen: an exact fit first (the floor plan's order of areas), else the
+  // closest bigger single table, else the fewest tables joined (then the fewest spare seats)
+  function bestArea(areas) {
+    const withPick = areas.filter(a => a.pick);
+    return withPick.find(a => a.pick.kind === 'exact')
+      || withPick.filter(a => a.pick.kind === 'bigger').sort((p, q) => p.seats - q.seats)[0]
+      || withPick.filter(a => a.pick.kind === 'join').sort((p, q) => p.join - q.join || p.seats - q.seats)[0] || null;
+  }
+
   function saveReservation(input) {
     const now = Date.now(), was = input.id ? res.find(r => r.id === input.id) : null;
     const rec = cleanRes({ ...(was || {}), ...input, id: was ? was.id : newId('b'), createdAt: was ? was.createdAt : now, by: was ? was.by : staff(),
@@ -227,6 +291,7 @@
     waitlist: () => wait.map(copy),
     waiting: id => copy(wait.find(w => w.id === id)),
     nameOf, tablesFree, bookedAt, reservedOn: (t, now) => copy(reservedOn(t, now)), nextOn: (t, now) => copy(nextOn(t, now)), lockedSoon, badgeOn,
+    tablesFor, areaFor, bestArea, nextTo, SOON,
     lateOnes: now => lateOnes(now).map(copy), leftToday, waitingNow: now => waitingNow(now).map(copy), position,
     saveReservation, cancel: cancelRes, noShow: noShowRes, seat: seatRes, lateSeen: id => { const r = res.find(x => x.id === id); if (r) { r.lateSeen = Date.now(); saveRes(); } },
     addWaiting, editWaiting, removeWaiting, putBack, seatWaiting,

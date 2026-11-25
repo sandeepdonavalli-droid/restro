@@ -12,8 +12,8 @@ window.RestroFloorPlan = {
       { id: 'T22', name: '22', seats: 4, shape: 'rect', page: 0, x: 408, y: 70, w: 278, h: 208 },
       { id: 'T23', name: '23', seats: 2, shape: 'round', page: 0, x: 718, y: 70, w: 208, h: 208 },
       { id: 'T24', name: '24', seats: 2, shape: 'round', page: 0, x: 958, y: 70, w: 208, h: 208 },
-      { id: 'T25', name: '25', seats: 6, shape: 'rect', page: 0, x: 98, y: 340, w: 358, h: 208 },
-      { id: 'T26', name: '26', seats: 4, shape: 'rect', page: 0, x: 488, y: 340, w: 278, h: 208 }
+      { id: 'T25', name: '25', seats: 8, shape: 'rect', page: 0, x: 98, y: 340, w: 358, h: 208 },
+      { id: 'T26', name: '26', seats: 8, shape: 'rect', page: 0, x: 488, y: 340, w: 278, h: 208 }
     ] },
     { id: 'ac-hall', name: 'AC hall', tables: [
       { id: 'T1', name: '1', seats: 2, shape: 'round', page: 0, x: 98, y: 80, w: 198, h: 198 },
@@ -43,7 +43,7 @@ window.RestroFloorPlan = {
       { id: 'T33', name: '33', seats: 6, shape: 'rect', page: 0, x: 718, y: 70, w: 358, h: 208 },
       { id: 'T34', name: '34', seats: 2, shape: 'round', page: 0, x: 98, y: 340, w: 208, h: 208 },
       { id: 'T35', name: '35', seats: 2, shape: 'round', page: 0, x: 358, y: 340, w: 208, h: 208 },
-      { id: 'T36', name: '36', seats: 4, shape: 'rect', page: 0, x: 618, y: 340, w: 278, h: 208 }
+      { id: 'T36', name: '36', seats: 6, shape: 'rect', page: 0, x: 618, y: 340, w: 278, h: 208 }
     ] },
     { id: 'patio', name: 'Patio', tables: [
       { id: 'T41', name: '41', seats: 4, shape: 'square', page: 0, x: 98, y: 70, w: 208, h: 208 },

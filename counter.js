@@ -933,6 +933,8 @@
       }
     }
     storeOrders([entry, ...others]);
+    // (Update Pack 8, A6: one pool) a pager handed out here comes back from a booking or a waitlist guest that had it
+    if (!untouched && !record && cleanPager(entry.pager)) window.RestroBookings?.pagerTaken?.(cleanPager(entry.pager));
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     // The kitchen printer: the CHANGED slip, then the KOT (with its number)
     if (changed) printSlip(kitchenSlip(entry, changed));
@@ -1186,6 +1188,7 @@
   // while it isn't paid, in Orders once it is.
   window.addEventListener('restro:pager-tapped', e => {
     const n = cleanPager(Number(e.detail?.number)); if (!n) return;
+    if (window.RestroBookingsApp?.pagerTapped?.(n)) return; // (Update Pack 8, A6: a booking's form on screen took it)
     if (dialog.open) { if (!sheet || sheet === 'pager') choosePager(n, true); return; }
     const o = (pagerHolders(loadOrders()).get(n) || [])[0];
     if (!o) { toast(`Pager ${n} isn’t out`); return; }
@@ -3732,17 +3735,7 @@
     if (sheet === 'pager') {
       // (a pager is in use while another order has it, until the pager is docked back, whether that order is open or
       // closed; a saved order's held copy has the saved order's)
-      const inUse = new Set([...held.filter(h => h.number).map(h => cleanPager(h.pager)), ...[...pagerHolders(loadOrders())].filter(([, os]) => os.some(o => !isMine(o))).map(([n]) => n)].filter(Boolean));
-      const choose = n => choosePager(n);
-      const grid = el('div', { class: 'ctr-pagers', role: 'radiogroup', 'aria-label': 'Pagers' },
-        ...Array.from({ length: PAGERS }, (_, i) => i + 1).map(n => {
-          const on = order.pager === n, busy = !on && inUse.has(n);
-          return el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), class: `ctr-pager-key${on ? ' on' : ''}${busy ? ' busy' : ''}`, 'aria-label': `Pager ${n}${busy ? ', in use' : ''}`, onclick: () => choose(n) },
-            el('strong', {}, String(n)), busy ? el('span', {}, 'In use') : null);
-        }));
-      return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) { sheet = null; render(); } } },
-        el('div', { class: 'ctr-sheet ctr-pager-sheet', role: 'dialog', 'aria-label': 'Assign pager' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Assign pager'), close), grid,
-          order.pager ? el('button', { type: 'button', class: 'ctr-secondary ctr-sheet-wide', onclick: () => choose(0) }, 'Remove pager') : null));
+      return pagerSheet({ current: order.pager, inUse: pagersInUse(), choose: n => choosePager(n), close: () => { sheet = null; render(); } });
     }
     // Orders: every saved order, newest first, with its payment status (Paid or Due) and where it is with the kitchen.
     // Tap an order to see its items; an order not paid yet has Open, to add items or take the payment.
@@ -3810,6 +3803,26 @@
           el('button', { type: 'button', class: 'primary-button ctr-complete', onclick: () => { sheet = null; receipt = null; render(); dialog.querySelector('#counter-title')?.focus({ preventScroll: true }); } }, 'New order')));
     }
     return null;
+  }
+
+  // Assign pager (Update Pack 3; Update Pack 8, A6: the one pop-up every app's Assign pager opens): the pagers by number,
+  // the one in use with an order, a booking or a waitlist guest marked "In use". busyOk: an in-use pager can be chosen
+  // (the Counter then asks whether the customer kept it or handed it back); otherwise it can't.
+  function pagersInUse(exceptBooking = null) {
+    return new Set([...held.filter(h => h.number).map(h => cleanPager(h.pager)), ...[...pagerHolders(loadOrders())].filter(([, os]) => os.some(o => !isMine(o))).map(([n]) => n),
+      ...(window.RestroBookings?.pagersOut?.() || []).filter(p => p.id !== exceptBooking).map(p => cleanPager(p.n))].filter(Boolean));
+  }
+  function pagerSheet({ current, inUse, choose, close, busyOk = true }) {
+    const x = el('button', { type: 'button', class: 'ctr-icon-button', 'aria-label': 'Close', onclick: close }, svg(ICON.close));
+    const grid = el('div', { class: 'ctr-pagers', role: 'radiogroup', 'aria-label': 'Pagers' },
+      ...Array.from({ length: PAGERS }, (_, i) => i + 1).map(n => {
+        const on = current === n, busy = !on && inUse.has(n);
+        return el('button', { type: 'button', role: 'radio', 'aria-checked': String(on), 'aria-disabled': busy && !busyOk ? 'true' : null, class: `ctr-pager-key${on ? ' on' : ''}${busy ? ' busy' : ''}`, 'aria-label': `Pager ${n}${busy ? ', in use' : ''}`,
+          onclick: () => { if (!busy || busyOk) choose(n); } }, el('strong', {}, String(n)), busy ? el('span', {}, 'In use') : null);
+      }));
+    return el('div', { class: 'ctr-sheet-wrap', onclick: e => { if (e.target.classList.contains('ctr-sheet-wrap')) close(); } },
+      el('div', { class: 'ctr-sheet ctr-pager-sheet', role: 'dialog', 'aria-label': 'Assign pager' }, el('div', { class: 'ctr-sheet-head' }, el('h3', {}, 'Assign pager'), x), grid,
+        current ? el('button', { type: 'button', class: 'ctr-secondary ctr-sheet-wide', onclick: () => choose(0) }, 'Remove pager') : null));
   }
 
   function render() {
@@ -4307,6 +4320,12 @@
       }
       return out;
     },
+    // (Update Pack 8, A6) the Assign pager pop-up for another app's screen (a booking, a waitlist guest): a pager in use
+    // can't be chosen there. → the pop-up (its dimming and card) to put in that screen
+    pagerPicker({ current = 0, except = null, onPick, onClose } = {}) {
+      return pagerSheet({ current: cleanPager(current), inUse: pagersInUse(except), busyOk: false, choose: n => onPick?.(n), close: () => onClose?.() });
+    },
+    pagerInUse: (n, exceptBooking = null) => pagersInUse(exceptBooking).has(cleanPager(n)),
     // (Paid by QR, Update Pack 8 F06) how it was paid and when, when the kitchen finished it, its last round
     paidInfo(uid) {
       const o = loadOrders().find(x => idOf(x) === uid); if (!o) return null;
