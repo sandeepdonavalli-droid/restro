@@ -251,7 +251,7 @@ start with the RESTRO Android app.
 
 **Notify sends at once** (Update Pack 8, A3: no pop-up anywhere, in Orders, Bookings or on the Floor): the "Order
 ready" text (below), or "Order scheduled" while a scheduled order's KOT waits, on the restaurant's channel. The channel
-is chosen in Settings › Messages (still to be drawn); until then it is the earlier choice, `restro.readyMessage.v1`:
+is chosen in Settings › Orders' Order-ready message (`restro.readyMessage.v1`; there until Settings › Messages is drawn):
 WhatsApp, falling back to SMS when the number has no WhatsApp or WhatsApp fails, else SMS. The Bill and Running late
 texts were choices in the pop-up, so they don't go for now. The result is the line under the button (green sent, red
 failed) and the bar at the bottom, as before.

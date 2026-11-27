@@ -381,15 +381,20 @@
     ['cards', 'Cards', 'One card per order, bigger buttons, easy to tap.']];
   const ORDER_ROWS = [['classic', 'Classic rows', 'One panel with thin lines between orders. Square-ish buttons.'], ['pills', 'Floating pills', 'Each order floats as a soft rounded pill. Round buttons.']];
   const ordersPic = (view, rows) => livePic(() => { const p = window.RestroOrders?.preview?.({ view, rows }); return { node: p?.node || el('span'), sample: Boolean(p?.sample), cls: 'orders-app' }; });
-  // (Update Pack 8, A3: the order-ready message's channel is no longer chosen here; one Settings › Messages page, to be
-  // drawn, will choose the channel for every message. Until then the choice made here before stays: restro.readyMessage.v1.)
+  // The order-ready message (Update Pack 4): sent by itself when the kitchen marks an order done (orders.js), by SMS (the
+  // default), by WhatsApp falling back to SMS, or not at all. The restaurant's, on every tablet. Every Notify (Orders,
+  // Bookings) sends at once on this channel, with no pop-up (Update Pack 8, A3). (Owner, 27 Nov 2026: it stays here until
+  // the one Settings › Messages page of Update Pack 8, A4 is drawn.)
+  const READY_SEND = [['sms', 'SMS'], ['whatsapp', 'WhatsApp (falls back to SMS)'], ['off', 'Off']];
   builders.orders = () => rebuild(ordersHost, () => {
     const v = Prefs.scoped('orders').value, set = next => Prefs.setScoped('orders', next);
     return [
       card('', secHead('Order list view', 'Same orders, buttons, filters and rules in every view. Only the layout changes.'),
         radioGrid('Order list view', ORDER_VIEWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic(id, v.rows) })), v.view, id => set({ ...v, view: id }))),
       card('', secHead('Row style', 'Applies to every view above. New restaurants start with Classic rows.'),
-        radioGrid('Row style', ORDER_ROWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic('classic', id) })), v.rows, id => set({ ...v, rows: id })))
+        radioGrid('Row style', ORDER_ROWS.map(([id, name, text]) => ({ id, name, text, pic: () => ordersPic('classic', id) })), v.rows, id => set({ ...v, rows: id }))),
+      card('', secHead('Order-ready message', 'Sent by itself when the kitchen marks an order done and the order has the customer’s phone number.'),
+        tiles('Order-ready message', READY_SEND.map(([value, label]) => ({ value, label })), Prefs.get('readyMessage').send, value => Prefs.set('readyMessage', { send: value })))
     ];
   });
 

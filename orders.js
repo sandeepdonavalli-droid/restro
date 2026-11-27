@@ -1200,8 +1200,8 @@
 
   // ---------- pop-ups ----------
   // Notify (Update Pack 8, A3: no pop-up any more; it replaces OR-P01): a tap sends the message straight away, "Order
-  // ready" ("Order scheduled" while a scheduled order's KOT waits), on the restaurant's channel: Settings › Messages (to
-  // be drawn; until then the one chosen before in Settings › Orders, SMS unless WhatsApp was picked), WhatsApp falling
+  // ready" ("Order scheduled" while a scheduled order's KOT waits), on the restaurant's channel: Settings › Orders'
+  // Order-ready message (until the Settings › Messages page is drawn; SMS unless WhatsApp is picked), WhatsApp falling
   // back to SMS. Through the RESTRO Android app (RESTRODevice.whatsapp, RESTRODevice.sms). The result is only the short
   // bar under the button: green sent (notifiedAt), red failed (notifyFailedAt); no message and no Retry: the button
   // sends again.
