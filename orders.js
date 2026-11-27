@@ -1105,16 +1105,15 @@
 
   // ---------- the order-ready text and the buzz, by themselves (Update Pack 4; ANDROID-BRIDGE.md) ----------
   // When the kitchen screen marks an order complete (kitchenDoneAt), the customer gets the "Order ready" text, as
-  // Settings › Orders says (SMS, WhatsApp falling back to SMS, or Off), when the order has their phone number, and the
-  // order's pager buzzes when it has one out. The main system sends them, or a tablet working on its own, so each goes
-  // out once however many tablets there are: the order keeps which Done mark was handled (readyAutoFor, and when:
-  // readyAutoAt) before anything goes. Not for a delivery app's orders (they have Ready), nor for a Done mark over 30
-  // minutes old (a main system that was off).
-  // Once for each Done mark (owner, 13 Nov 2026): dishes added to an order that isn't paid yet, after it was ready, send
-  // it back to the kitchen (its Done mark is cleared; the dishes already done stay done, only the added ones wait); when
-  // they are done, the text and the buzz go again. A paid order
-  // can't take more dishes (it doesn't open on the Counter): more food is a new order, with its own number, and the pager
-  // goes to that order.
+  // Settings › Messages & notifications says (SMS, WhatsApp falling back to SMS, or Off), when the order has their phone
+  // number, and the order's pager buzzes when it has one out. The main system sends them, or a tablet working on its
+  // own, so each goes out once however many tablets there are: the order keeps which Done mark was handled
+  // (readyAutoFor, and when: readyAutoAt) before anything goes. Not for a delivery app's orders (they have Ready), nor
+  // for a Done mark over 30 minutes old (a main system that was off). Once for each Done mark (owner, 13 Nov 2026):
+  // dishes added to an order that isn't paid yet, after it was ready, send it back to the kitchen (its Done mark is
+  // cleared; the dishes already done stay done, only the added ones wait); when they are done, the text and the buzz go
+  // again. A paid order can't take more dishes (it doesn't open on the Counter): more food is a new order, with its own
+  // number, and the pager goes to that order.
   const AUTO_WITHIN = 30 * 60000;
   const sendsHere = () => { const s = window.RestroSync?.status?.(); return !s || Boolean(s.device?.main) || !s.paired; };
   async function textReady(r, how) {
@@ -1200,11 +1199,10 @@
 
   // ---------- pop-ups ----------
   // Notify (Update Pack 8, A3: no pop-up any more; it replaces OR-P01): a tap sends the message straight away, "Order
-  // ready" ("Order scheduled" while a scheduled order's KOT waits), on the restaurant's channel: Settings › Orders'
-  // Order-ready message (until the Settings › Messages page is drawn; SMS unless WhatsApp is picked), WhatsApp falling
-  // back to SMS. Through the RESTRO Android app (RESTRODevice.whatsapp, RESTRODevice.sms). The result is only the short
-  // bar under the button: green sent (notifiedAt), red failed (notifyFailedAt); no message and no Retry: the button
-  // sends again.
+  // ready" ("Order scheduled" while a scheduled order's KOT waits), on the restaurant's channel: Settings › Messages &
+  // notifications, Order-ready message (SMS unless WhatsApp is picked), WhatsApp falling back to SMS. Through the RESTRO
+  // Android app (RESTRODevice.whatsapp, RESTRODevice.sms). The result is only the short bar under the button: green sent
+  // (notifiedAt), red failed (notifyFailedAt); no message and no Retry: the button sends again.
   const msgChannel = () => (window.RestroPrefs?.get?.('readyMessage')?.send === 'whatsapp' ? 'whatsapp' : 'sms');
   function openNotify(r) { sendNotify(r, msgChannel(), r.kot.look === 'q' ? 'scheduled' : 'ready'); }
   function message(r, template) {

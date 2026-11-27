@@ -222,8 +222,8 @@
   }
 
   // ---------- messages (A3, A4) ----------
-  // The channel: Settings › Orders' Order-ready message (until the Settings › Messages page is drawn; SMS unless WhatsApp
-  // is picked), WhatsApp falling back to SMS ("If the number has no WhatsApp, send SMS instead", on by default).
+  // The channel: Settings › Messages & notifications, Order-ready message (SMS unless WhatsApp is picked), WhatsApp
+  // falling back to SMS ("If the number has no WhatsApp, send SMS instead", on by default).
   const channel = () => (window.RestroPrefs?.get?.('readyMessage')?.send === 'whatsapp' ? 'whatsapp' : 'sms');
   const shop = () => { const n = (localStorage.getItem('restro.restaurantName') || '').trim(); return n && n !== 'RESTAURANT NAME' ? n : ''; };
   const clock = t => { const d = new Date(t), h = d.getHours(); return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };

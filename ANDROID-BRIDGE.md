@@ -251,7 +251,7 @@ start with the RESTRO Android app.
 
 **Notify sends at once** (Update Pack 8, A3: no pop-up anywhere, in Orders, Bookings or on the Floor): the "Order
 ready" text (below), or "Order scheduled" while a scheduled order's KOT waits, on the restaurant's channel. The channel
-is chosen in Settings › Orders' Order-ready message (`restro.readyMessage.v1`; there until Settings › Messages is drawn):
+is chosen in Settings › Messages & notifications, Order-ready message (`restro.readyMessage.v1`):
 WhatsApp, falling back to SMS when the number has no WhatsApp or WhatsApp fails, else SMS. The Bill and Running late
 texts were choices in the pop-up, so they don't go for now. The result is the line under the button (green sent, red
 failed) and the bar at the bottom, as before.
@@ -281,7 +281,7 @@ doesn't match its registered template exactly, so a word changed here has to be 
 if the order has a phone number, the buzz if it has a pager out. With neither, nothing happens. The main system sends
 them (a tablet working on its own sends its own), so each goes out once however many tablets there are (orders.js,
 built 12 Nov 2026, tried with a pretend Done mark):
-- **The text** is Notify's "Order ready" (below), by **Settings › Orders › Order-ready message**: SMS (the default),
+- **The text** is Notify's "Order ready" (below), by **Settings › Messages & notifications › Order-ready message**: SMS (the default),
   WhatsApp (falls back to SMS) or Off (`restro.readyMessage.v1`, the restaurant's, synced). Off stops only the text;
   the pager still buzzes.
 - **Once for each Done mark:** the order keeps which Done mark it handled (`readyAutoFor`, the `kitchenDoneAt` it
