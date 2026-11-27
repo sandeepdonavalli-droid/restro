@@ -132,7 +132,7 @@
   function fromBooking(r, opts = {}) {
     const d = new Date(r.at), k = bizKey(r.at);
     return { ...fresh(opts), id: r.id, how: r.how, phone: r.phone, first: r.first, last: r.last, guests: r.guests, day: k, h: d.getHours(), m: d.getMinutes() - (d.getMinutes() % 5),
-      note: r.note, area: F()?.areaOf?.(r.tables[0]) || null, chosen: true, tables: [...r.tables], picked: 'current', pager: r.pager && !r.pagerBackAt ? r.pager : 0, prepaid: r.prepaid || 0, was: r };
+      note: r.note, area: F()?.areaOf?.(r.tables[0]) || null, chosen: true, tables: [...r.tables], picked: 'current', pager: r.pager && !r.pagerBackAt ? r.pager : 0, pagerShared: r.pagerShared === true && !r.pagerBackAt, prepaid: r.prepaid || 0, was: r };
   }
   const atOf = () => atOn(f.day, f.h, f.m);
   const tablesNow = () => B()?.tablesFor?.({ at: atOf(), guests: f.guests, except: f.id }) || new Map();
@@ -363,7 +363,7 @@
   // The Reservation card: the table (or tables joined) as they stand on the floor, what it is, Assign pager, the
   // summary row
   function reservationCard(all, now) {
-    const at = atOf(), ts = f.tables.map(id => all.get(id) || F()?.table?.(id)).filter(Boolean), areaName = ts.length ? (F()?.areas?.().find(a => a.id === ts[0].area)?.name || '') : '';
+    const at = atOf(), ts = f.tables.map(id => all.get(id) || F()?.table?.(id)).filter(Boolean), areaName = [...new Set(ts.map(t => F()?.areas?.().find(a => a.id === t.area)?.name).filter(Boolean))].join(' + '); // (tables joined across areas: both)
     const seats = ts.reduce((n, t) => n + (t.seats || 0), 0), names = ts.map(t => t.name);
     const hint = f.picked === 'current' ? 'current table' : f.picked === 'floor' ? 'picked on the Floor' : 'auto-picked table';
     let title, sub;
@@ -441,9 +441,9 @@
   function save() {
     if (!canSave()) return;
     const rec = B().saveReservation({ id: f.id || undefined, first: f.first.trim(), last: f.last.trim(), phone: f.phone, code: country().code, how: f.how, guests: f.guests, at: atOf(),
-      tables: f.tables, note: f.note.trim(), pager: f.pager || 0, pagerAt: f.pager ? (f.was?.pager === f.pager ? f.was.pagerAt : Date.now()) : null, pagerBackAt: null });
+      tables: f.tables, note: f.note.trim(), pager: f.pager || 0, pagerAt: f.pager ? (f.was?.pager === f.pager ? f.was.pagerAt : Date.now()) : null, pagerBackAt: null, pagerShared: Boolean(f.pager && f.pagerShared) });
     if (!rec) { say('Pick a table first'); return; }
-    if (rec.pager) B().pagerTaken?.(rec.pager, rec.id);
+    handOn(rec, f.was);
     const words = `${rec.tables.length > 1 ? 'Tables' : 'Table'} ${rec.tables.map(id => F()?.tableName?.(id) || id).join(' + ')}`, who = rec.first || B().nameOf(rec) || 'Guest';
     const msg = { b: f.id ? `${who}’s reservation changed` : `${who}’s reservation saved`, t: ` · ${words}, ${whenWords(bizKey(rec.at), rec.at)}` };
     leave(msg, rec.id);
@@ -485,13 +485,34 @@
   // ---------- Assign pager (A6): the Counter's pop-up; a pager tapped on the NFC spot: at once, with Undo ----------
   // (the form on screen: the reservation's or the waitlist's)
   const form = () => (view === 'wait' ? wf : view === 'res' ? f : null);
+  // (owner, 27 Nov 2026) a pager someone else has (an order, a booking, a waitlist guest), picked or tapped, asks first
+  // as the Counter does: "Pager 7 is still with #1012" · Same customer (they keep it too) / Handed back (it moves here).
+  // pagerOpen: true (Assign pager) or { ask: n, tapped } (the question)
+  const askOf = (s, n) => window.RestroCounter?.pagerAsk?.({ n, except: s.id, here: view === 'wait' ? 'this guest' : 'this booking',
+    onPick: shared => givePager(s, n, shared, pagerOpen?.tapped), onClose: () => { pagerOpen = false; render(); } }) || null;
   function pagerLayer() {
     const host = el('div', { class: 'bk-pagerhost' }), s = form();
-    const built = s && window.RestroCounter?.pagerPicker?.({ current: s.pager, except: s.id, onPick: n => { s.pager = n; s.nfc = null; pagerOpen = false; render(); }, onClose: () => { pagerOpen = false; render(); } });
+    const built = !s ? null : pagerOpen?.ask ? askOf(s, pagerOpen.ask)
+      : window.RestroCounter?.pagerPicker?.({ current: s.pager, except: s.id, onPick: n => choosePager(s, n), onClose: () => { pagerOpen = false; render(); } });
     if (built) host.append(built); else { pagerOpen = false; }
     return host;
   }
-  function undoPager() { const s = form(); if (!s?.nfc) return; s.pager = s.nfc.was; s.nfc = null; render(); }
+  function choosePager(s, n, tapped = false) {
+    if (n && n !== s.pager && askOf(s, n)) { pagerOpen = { ask: n, tapped }; render(); return; }
+    givePager(s, n, n === s.pager && s.pagerShared, tapped);
+  }
+  // (an NFC tap: at once, with Undo)
+  function givePager(s, n, shared, tapped = false) {
+    s.nfc = tapped ? { was: s.pager, shared: s.pagerShared } : null;
+    s.pager = n; s.pagerShared = Boolean(n && shared); pagerOpen = false; render();
+  }
+  function undoPager() { const s = form(); if (!s?.nfc) return; s.pager = s.nfc.was; s.pagerShared = s.nfc.shared === true; s.nfc = null; render(); }
+  // Saved with a pager newly given: Handed back takes it from whoever had it (bookings, waitlist guests, orders); Same
+  // customer leaves it with them too
+  function handOn(rec, was) {
+    if (!rec.pager || rec.pagerShared || (was && was.pager === rec.pager && !was.pagerBackAt)) return;
+    B().pagerTaken?.(rec.pager, rec.id); window.RestroCounter?.pagerHandedOn?.(rec.pager);
+  }
   // (counter.js asks first: true when Bookings took the tap) A form on screen: the pager is theirs at once, with Undo.
   // The lists with nothing open (A6): the guest or the booking holding that pager, picked.
   function pagerTapped(n) {
@@ -499,9 +520,7 @@
     if (pad || pagerOpen || L.pop || L.menu) return true;
     if (view === 'list') { listPager(n); return true; }
     const s = form(); if (!s) return false;
-    const busy = window.RestroCounter?.pagerInUse?.(n, s.id);
-    if (busy) { say({ b: `Pager ${n}`, t: ' is in use' }); return true; }
-    s.nfc = { was: s.pager }; s.pager = n; render(); return true;
+    choosePager(s, n, true); return true;
   }
 
   // ======================================================================================================================
@@ -865,7 +884,7 @@
   const QUOTES = [10, 15, 20, 30, 45, 60];
   function openWait(id) {
     const w = id ? B()?.waiting?.(id) : null; if (id && (!w || !activeW(w))) return;
-    wf = w ? { id: w.id, phone: w.phone, first: w.first, last: w.last, filled: false, guests: w.guests, quote: w.quote, quoted: true, area: w.area, note: w.note, pager: w.pager && !w.pagerBackAt ? w.pager : 0, nfc: null, was: w }
+    wf = w ? { id: w.id, phone: w.phone, first: w.first, last: w.last, filled: false, guests: w.guests, quote: w.quote, quoted: true, area: w.area, note: w.note, pager: w.pager && !w.pagerBackAt ? w.pager : 0, pagerShared: w.pagerShared === true && !w.pagerBackAt, nfc: null, was: w }
       : { id: null, phone: '', first: '', last: '', filled: false, guests: 2, quote: 30, quoted: false, area: 'any', note: '', pager: 0, nfc: null, was: null };
     view = 'wait'; pad = null; pagerOpen = false; L.menu = null; L.pop = null;
     if (dialog.open) render(); else show();
@@ -986,10 +1005,10 @@
   }
   function saveWait() {
     const data = { first: wf.first.trim(), last: wf.last.trim(), phone: wf.phone, code: country().code, guests: wf.guests, quote: wf.quote, area: wf.area, note: wf.note.trim(),
-      pager: wf.pager || 0, pagerAt: wf.pager ? (wf.was?.pager === wf.pager ? wf.was.pagerAt : Date.now()) : null, pagerBackAt: null };
+      pager: wf.pager || 0, pagerAt: wf.pager ? (wf.was?.pager === wf.pager ? wf.was.pagerAt : Date.now()) : null, pagerBackAt: null, pagerShared: Boolean(wf.pager && wf.pagerShared) };
     const rec = wf.id ? B()?.editWaiting?.(wf.id, data) : B()?.addWaiting?.(data);
     if (!rec) { say('Add a name first'); return; }
-    if (rec.pager) B().pagerTaken?.(rec.pager, rec.id);
+    handOn(rec, wf.was);
     const who = firstOf(nameWords(rec)) || 'Guest';
     leaveWait({ b: wf?.id ? `${who}’s details saved` : `${who} added to the waitlist`, t: wf?.id ? '' : ` · quoted ${rec.quote} min` }, rec.id);
   }

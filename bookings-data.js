@@ -36,18 +36,21 @@
     if (!r || typeof r !== 'object' || typeof r.id !== 'string' || !time(r.at)) return null;
     return { id: r.id, first: text(r.first, 40), last: text(r.last, 40), phone: digits(r.phone), code: /^\d{1,3}$/.test(String(r.code || '')) ? String(r.code) : '91',
       how: r.how === 'walkin' ? 'walkin' : 'phone', guests: int(r.guests, 1, 99, 2), at: time(r.at), tables: cleanTables(r.tables), note: text(r.note, 200),
-      pager: int(r.pager, 0, 999), pagerAt: time(r.pagerAt), pagerBackAt: time(r.pagerBackAt), status: RES_STATUS.includes(r.status) ? r.status : 'upcoming',
+      pager: int(r.pager, 0, 999), pagerAt: time(r.pagerAt), pagerBackAt: time(r.pagerBackAt), pagerShared: r.pagerShared === true && int(r.pager, 0, 999) > 0,
+      status: RES_STATUS.includes(r.status) ? r.status : 'upcoming',
       createdAt: time(r.createdAt) || Date.now(), by: text(r.by, 60) || null, prepaid: int(r.prepaid, 0, 1e9), msgs: cleanMsgs(r.msgs),
-      seatedAt: time(r.seatedAt), orderUid: typeof r.orderUid === 'string' ? r.orderUid : null, statusAt: time(r.statusAt), statusBy: text(r.statusBy, 60) || null,
+      seatedAt: time(r.seatedAt), orderUid: typeof r.orderUid === 'string' ? r.orderUid : null, freedAt: time(r.freedAt), statusAt: time(r.statusAt), statusBy: text(r.statusBy, 60) || null,
       remindedAt: time(r.remindedAt), lateSeen: time(r.lateSeen), editedAt: time(r.editedAt), editedBy: text(r.editedBy, 60) || null };
   }
   function cleanWait(w) {
     if (!w || typeof w !== 'object' || typeof w.id !== 'string' || !time(w.addedAt)) return null;
     return { id: w.id, first: text(w.first, 40), last: text(w.last, 40), phone: digits(w.phone), code: /^\d{1,3}$/.test(String(w.code || '')) ? String(w.code) : '91',
       guests: int(w.guests, 1, 99, 2), quote: int(w.quote, 1, 240, 30), area: typeof w.area === 'string' && w.area ? w.area : 'any', note: text(w.note, 200),
-      pager: int(w.pager, 0, 999), pagerAt: time(w.pagerAt), pagerBackAt: time(w.pagerBackAt), addedAt: time(w.addedAt), by: text(w.by, 60) || null,
+      pager: int(w.pager, 0, 999), pagerAt: time(w.pagerAt), pagerBackAt: time(w.pagerBackAt), pagerShared: w.pagerShared === true && int(w.pager, 0, 999) > 0,
+      addedAt: time(w.addedAt), by: text(w.by, 60) || null,
       status: WAIT_STATUS.includes(w.status) ? w.status : 'waiting', notifiedAt: time(w.notifiedAt), msgs: cleanMsgs(w.msgs), seatedAt: time(w.seatedAt),
-      tables: cleanTables(w.tables), removedAt: time(w.removedAt), removedBy: text(w.removedBy, 60) || null, wasStatus: WAIT_STATUS.includes(w.wasStatus) ? w.wasStatus : null };
+      tables: cleanTables(w.tables), orderUid: typeof w.orderUid === 'string' ? w.orderUid : null, freedAt: time(w.freedAt), removedAt: time(w.removedAt), removedBy: text(w.removedBy, 60) || null,
+      wasStatus: WAIT_STATUS.includes(w.wasStatus) ? w.wasStatus : null };
   }
   let res = load(RES_KEY).map(cleanRes).filter(Boolean), wait = load(WAIT_KEY).map(cleanWait).filter(Boolean);
   const saveRes = () => store(RES_KEY, res), saveWait = () => store(WAIT_KEY, wait);
@@ -94,6 +97,8 @@
   function tablesFor({ at, guests, except = null, now = Date.now(), lock = false }) {
     const plan = window.RestroFloor?.tables || [], soon = at - now <= SOON, out = new Map(), held = new Map();
     if (soon) for (const o of window.RestroCounter?.floorOrders?.(now) || []) for (const t of o.tables) if (!held.has(t)) held.set(t, o);
+    // (a party seated with no order yet holds its tables too)
+    if (soon) for (const h of seatedHolds(now)) for (const t of h.tables) if (!held.has(t)) held.set(t, { tables: h.tables, at: h.at, bill: false });
     for (const t of plan) {
       const b = lock ? res.filter(r => r.id !== except && r.tables.includes(t.id) && locks(r, at)).sort((p, q) => p.at - q.at)[0] || null : bookedAt(t.id, at, except), o = held.get(t.id);
       const state = b ? 'booked' : o ? (o.bill ? 'maybe' : 'busy') : 'free';
@@ -102,7 +107,8 @@
     return out;
   }
   // Tables that stand next to each other on the floor plan (the same page, at most 80 apart, side by side or one under
-  // the other): the auto-pick joins only these (C2). Picked by hand on the Floor, any tables of one area join (C3).
+  // the other): the auto-pick joins only these (C2). Picked by hand on the Floor, any tables join, in any area (owner,
+  // 27 Nov 2026).
   const NEAR = 80;
   const nextTo = (a, b) => a.area === b.area && a.page === b.page && (
     (Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w) <= NEAR && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y)) ||
@@ -202,10 +208,42 @@
   // #N on the list: the order they were added in, among those still waiting
   const position = id => { const list = waitingNow().sort((a, b) => a.addedAt - b.addedAt); const i = list.findIndex(w => w.id === id); return i < 0 ? null : i + 1; };
 
+  // ---------- seated, no order yet (owner, 27 Nov 2026) ----------
+  // A party seated (a reservation, or a waitlist guest given a table on the Floor) holds its tables, Occupied on the
+  // Floor, until an order is on one of them (it takes over: orderUid) or the order on the Counter is deleted before it was
+  // ever saved (freeSeat: freedAt). Only on the business day they were seated. → [{ id, kind: 'res' | 'wait', tables,
+  // guests, at (seated), name, phone, code }]
+  const bizDay = t => window.RestroSync?.dayOf?.(t) || dayKey(t);
+  const tablesOn = o => [o.table, ...(Array.isArray(o.joined) ? o.joined : [])].filter(t => typeof t === 'string' && t);
+  function seatedHolds(now = Date.now()) {
+    const recs = [...res, ...wait].filter(b => b.status === 'seated' && b.seatedAt && !b.orderUid && !b.freedAt && b.tables.length && bizDay(b.seatedAt) === bizDay(now));
+    if (!recs.length) return [];
+    const orders = window.RestroCounter?.orders?.() || [], out = [];
+    let a = 0, b = 0;
+    for (const r of recs) {
+      const o = orders.find(x => !x.cancelledBy && ((!r.addedAt && x.booking === r.id)
+        || (tablesOn(x).some(t => r.tables.includes(t)) && (!x.paidAt || (Number(x.createdAt) || 0) >= r.seatedAt - 60000))));
+      if (o) { r.orderUid = o.uid || `n${o.number}`; if (r.addedAt) b++; else a++; continue; }
+      out.push({ id: r.id, kind: r.addedAt ? 'wait' : 'res', tables: [...r.tables], guests: r.guests, at: r.seatedAt, name: nameOf(r), phone: r.phone, code: r.code });
+    }
+    if (a) saveRes(); if (b) saveWait();
+    return out;
+  }
+  function freeSeat(tables, now = Date.now()) {
+    const ts = new Set(cleanTables(tables)); let a = 0, b = 0;
+    for (const h of seatedHolds(now)) {
+      if (!h.tables.some(t => ts.has(t))) continue;
+      const r = (h.kind === 'wait' ? wait : res).find(x => x.id === h.id); if (!r) continue;
+      r.freedAt = now; if (h.kind === 'wait') b++; else a++;
+    }
+    if (a) saveRes(); if (b) saveWait();
+    return a + b;
+  }
+
   // ---------- pagers (A6: one pool for every app) ----------
   // Pagers out with a booking or a waitlist guest (not docked back yet)
   const pagersOut = () => [...res.filter(r => r.pager && !r.pagerBackAt && (active(r) || r.status === 'seated')), ...wait.filter(w => w.pager && !w.pagerBackAt && ['waiting', 'notified', 'seated', 'left', 'noshow'].includes(w.status))]
-    .map(b => ({ n: b.pager, id: b.id, kind: b.addedAt ? 'wait' : 'res', name: nameOf(b) }));
+    .map(b => ({ n: b.pager, id: b.id, kind: b.addedAt ? 'wait' : 'res', name: nameOf(b), guests: b.guests, at: b.addedAt ? null : b.at }));
   window.addEventListener('restro:pager-docked', e => {
     const n = Math.round(Number(e.detail?.number)); if (!n) return;
     let a = 0, b = 0;
@@ -296,6 +334,7 @@
     lateOnes: now => lateOnes(now).map(copy), leftToday, waitingNow: now => waitingNow(now).map(copy), position,
     saveReservation, cancel: cancelRes, noShow: noShowRes, seat: seatRes, lateSeen: id => { const r = res.find(x => x.id === id); if (r) { r.lateSeen = Date.now(); saveRes(); } },
     addWaiting, editWaiting, removeWaiting, putBack, seatWaiting,
-    pagersOut, pagerTaken, message, buzz, textOf, channel
+    pagersOut, pagerTaken, message, buzz, textOf, channel,
+    seatedHolds: now => seatedHolds(now), freeSeat
   });
 })();

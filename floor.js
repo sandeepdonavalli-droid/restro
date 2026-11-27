@@ -81,6 +81,15 @@
     const B = window.RestroBookings, byTable = new Map(), groups = [];
     // (an order not paid yet before one paid by QR that is still at the table)
     const orders = [...(window.RestroCounter?.floorOrders?.(now) || [])].sort((p, q) => Number(p.paidQr) - Number(q.paidQr));
+    // (owner, 27 Nov 2026) a party seated with no order yet holds its tables: Occupied, its guests and since when (seated)
+    const busy = new Set(orders.flatMap(o => o.tables));
+    for (const h of B?.seatedHolds?.(now) || []) {
+      const ts = h.tables.filter(t => tableById.has(t));
+      if (!ts.length || ts.some(t => busy.has(t))) continue;
+      orders.push({ uid: null, number: null, tables: ts, guests: h.guests, at: h.at, total: 0, due: 0, server: null, bill: false, paidQr: false, freeAt: null, confirm: false,
+        items: 0, sent: false, dirty: false, left: [], seated: h });
+      ts.forEach(t => busy.add(t));
+    }
     // (a Help bell made at a table before its order moved away goes with the guests, to the order's table now (MM5): the
     // first move away from that table after the bell takes it)
     const tookWith = new Map(), movedAt = new Map();
@@ -274,7 +283,8 @@
   // free (white, its seats), too small ("N/A · 4 seats", dashed; pickable with Join tables), occupied now ("Seated 18
   // min", faded: a booking within the next 2 hours) and booked ("Booked 9:00 PM", grey), which can't be picked; the one
   // picked with a blue ring and a tick. A tap picks a table and goes back to the form. With Join tables on, taps tick
-  // tables of one area (across its pages; tables of another area start again there), and Done takes them.
+  // tables in any area, across its pages (owner, 27 Nov 2026: staff may join tables of different areas; the auto-pick
+  // joins only tables next to each other), a blue dot on another area holding one; Done takes them.
   function renderReserve(a, L, now) {
     const B = window.RestroBookings; if (!B?.tablesFor) return;
     const all = B.tablesFor({ at: res.seat ? now : res.at, guests: res.guests, except: res.except, now, lock: Boolean(res.seat) });
@@ -288,8 +298,9 @@
     const pill = x => {
       const n = info.get(x.id), on = x.id === areaId, maybe = res.seat ? 0 : n.maybe;
       const count = n.free ? `${n.free} free${maybe ? ` · ${maybe} maybe` : ''}` : res.join && n.join ? `join ${n.join}` : maybe ? `${maybe} maybe` : 'none';
-      return el('button', { type: 'button', role: 'tab', 'aria-selected': String(on), class: `fl-area${on ? ' on' : ''}${count === 'none' ? ' dim' : ''}`, 'data-area': x.id, onclick: () => goArea(x.id) },
-        el('span', { class: 'fl-area-n' }, x.name), el('span', { class: 'fl-free rs' }, count));
+      const dot = !on && chosen.some(id => tableById.get(id)?.area === x.id);
+      return el('button', { type: 'button', role: 'tab', 'aria-selected': String(on), 'aria-label': dot ? `${x.name}, a table picked here` : null, class: `fl-area${on ? ' on' : ''}${count === 'none' ? ' dim' : ''}`, 'data-area': x.id, onclick: () => goArea(x.id) },
+        el('span', { class: 'fl-area-n' }, x.name), el('span', { class: 'fl-free rs' }, count), dot ? el('i', { class: 'fl-mmdot', 'aria-hidden': 'true' }) : null);
     };
     return el('header', { class: `fl-top rs${res.seat ? ' seat' : ''}` },
       el('button', { type: 'button', class: 'fl-back', onclick: goBack }, icon('chevron-left'), res.back || 'New reservation'),
@@ -339,7 +350,7 @@
     if (!res.join && res.seat) { chosen = [id]; render(); return; }
     if (!res.join) { const done = res.onPick; close(); done?.([id]); return; }
     if (chosen.includes(id)) chosen = chosen.filter(x => x !== id);
-    else { if (chosen.length && tableById.get(chosen[0])?.area !== tableById.get(id)?.area) chosen = []; chosen = [...chosen, id]; }
+    else chosen = [...chosen, id];
     render();
   }
   function toggleJoin() {
@@ -396,6 +407,7 @@
     if (u.s.kind === 'reserved') return { b: `Table ${tableName(u.key)} is reserved for ${clock(u.s.booking.at)}`, t: ' · it can’t be picked' };
     if (u.order?.dirty) return { b: `${unitWord(u)}’s order isn’t saved yet`, t: ' · save it on the Counter first' };
     if (u.order?.confirm) return { b: unitWord(u), t: ' has a QR payment to confirm first' };
+    if (u.order?.seated) return { b: `${unitWord(u)}’s guests have no order yet`, t: ' · start it on the Counter first' };
     return null;
   }
   // (from a long-press on the Floor, back: 'floor'; from the Counter, 'counter')
@@ -635,10 +647,18 @@
   // ---------- tapping a table ----------
   function tapTable(id, s) {
     if (Date.now() - swiped < 400 || Date.now() - longAt < 700) return;
-    if (s.kind === 'reserved') { pop = { kind: 'reserved', id: s.booking.id, table: id }; render(); return; }
+    // (picking a table for the Counter's order: "Table 4 is reserved for ‹name›" · Cancel / Seat now; owner, 27 Nov 2026)
+    if (s.kind === 'reserved') { pop = { kind: mode === 'pick' ? 'pickres' : 'reserved', id: s.booking.id, table: id }; render(); return; }
     if (s.order?.paidQr) { pop = { kind: 'qr', uid: s.order.uid, table: id }; render(); return; }
     if (mode === 'pick' && s.kind === 'free') { choose(s.join ? s.join.tables[0] : id, s.join); return; }
+    if (s.order?.seated) { close(); openSeated(s.order); return; }
     close(); window.RestroCounter?.openTable(s.order?.tables?.[0] || s.join?.tables?.[0] || id);
+  }
+  // (a party seated with no order yet: the Counter on its tables, with its guests and who they are)
+  function openSeated(o) {
+    const h = o.seated;
+    window.RestroCounter?.seatBooking?.({ table: o.tables[0], tables: o.tables, guests: o.guests, booking: h.kind === 'res' ? h.id : null,
+      customer: h.phone ? { name: h.name, mobile: h.phone, code: h.code } : null }) || window.RestroCounter?.openTable(o.tables[0]);
   }
   // (a free merged group: its first table, the others with it)
   function choose(id, j = null) {
@@ -663,7 +683,7 @@
   // ---------- the pop-ups (the Counter pop-up's look) ----------
   function popLayer(L, now) {
     const card = pop.kind === 'reserved' ? reservedCard(now, false) : pop.kind === 'late' ? reservedCard(now, true) : pop.kind === 'cancel' ? cancelCard()
-      : pop.kind === 'qr' ? qrCard(L, now) : null;
+      : pop.kind === 'qr' ? qrCard(L, now) : pop.kind === 'pickres' ? pickResCard(now) : null;
     if (!card) { pop = null; return el('span'); }
     return el('div', { class: 'fl-scrim', onclick: e => { if (e.target === e.currentTarget) closePop(); } }, card);
   }
@@ -697,6 +717,30 @@
     return el('div', { class: `fl-pop res${late ? ' late' : ''}`, role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'fl-pop-t' },
       popHead(icon(late ? 'clock' : 'calendar'), late ? 'orange' : '', `Table ${t ? t.name : tablesWord} · ${late ? 'Running late' : 'Reserved'}`),
       top, note, meta, el('div', { class: 'fl-btns three' }, cancel, middle, seat));
+  }
+  // (owner, 27 Nov 2026) A reserved table picked for the Counter's order: "Table 4 is reserved for ‹name›", the booking
+  // as F04 shows it (the time, the name, phone and guests; the note), then Cancel (the pick only: back to the tables) and
+  // Seat now (the order on the Counter takes the booking's tables, its guests and its customer; the booking is seated)
+  function pickResCard(now) {
+    const B = window.RestroBookings, r = B?.reservation(pop.id);
+    if (!r || r.status !== 'upcoming') return null;
+    const t = tableById.get(pop.table) || tableById.get(r.tables[0]), mins = Math.round((r.at - now) / MIN), name = B.nameOf(r) || 'a guest';
+    const chip = mins < -14 ? el('em', { class: 'fl-ochip' }, `${-mins} min late`) : el('em', { class: 'fl-in-chip' }, mins > 0 ? `in ${mins} min` : mins === 0 ? 'now' : `${-mins} min ago`);
+    const top = el('div', { class: 'fl-card fl-res-top' }, el('div', { class: 'fl-when' }, el('b', {}, clock(r.at)), chip), el('i', { class: 'fl-vr' }),
+      el('div', { class: 'fl-who' }, el('b', {}, B.nameOf(r) || 'Guest'), el('span', {}, r.phone ? el('span', {}, icon('phone'), phoneText(r)) : null, el('span', {}, icon('chair'), guestsText(r.guests)))));
+    const note = r.note ? el('div', { class: 'fl-card fl-note' }, el('i', { class: 'fl-note-ic' }, noteIcon()), el('div', {}, el('small', {}, 'Note'), el('b', {}, r.note))) : null;
+    return el('div', { class: 'fl-pop res pick', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'fl-pop-t' },
+      popHead(icon('calendar'), '', `Table ${t ? t.name : r.tables.map(tableName).join(' + ')} is reserved for ${name}`),
+      top, note,
+      el('div', { class: 'fl-btns two' },
+        el('button', { type: 'button', class: 'fl-btn white', onclick: closePop }, 'Cancel'),
+        el('button', { type: 'button', class: 'fl-btn solid', onclick: () => seatPicked(r) }, icon('armchair'), 'Seat now')));
+  }
+  function seatPicked(r) {
+    const table = pop.table && r.tables.includes(pop.table) ? pop.table : r.tables[0], t = tableById.get(table), done = pick?.onPick;
+    pop = null; close();
+    done?.({ id: t.id, name: t.name, seats: t.seats, joined: r.tables.filter(x => x !== t.id), guests: r.guests,
+      booking: { id: r.id, customer: r.phone ? { name: window.RestroBookings.nameOf(r), mobile: r.phone, code: r.code } : null } });
   }
   function noteIcon() {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true');

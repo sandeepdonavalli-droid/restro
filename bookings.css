@@ -5,7 +5,8 @@
 .bookings-app[open]{display:block}
 .bookings-app::backdrop{background:transparent}
 .bk-root{position:absolute;inset:0;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;color:#1C1917;line-height:normal}
-.bk-root button{margin:0;padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* (not in the Counter's pager question, .cx-askhost: its own buttons; :where keeps this as weak as before) */
+.bk-root button:where(:not(.cx-askhost *)){margin:0;padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .bk-root button:focus-visible{outline:2px solid #2F6FDE;outline-offset:2px}
 .bk-root button:disabled{cursor:default}
 .bk-root .fi{flex:none;display:block}

@@ -926,7 +926,7 @@
     if (tapped && n) say({ b: `Pager ${n}`, t: ' assigned', undo: () => { if (order !== target) return; Object.assign(order, was); render(); } });
   }
   function choosePager(n, tapped = false) {
-    if (n && n !== order.pager && pagerOthers(n).length) { pagerAsk = { n, tapped }; sheet = 'pagerask'; render(); return; }
+    if (n && n !== order.pager && (pagerOthers(n).length || bookingHolders(n).length)) { pagerAsk = { n, tapped }; sheet = 'pagerask'; render(); return; }
     givePager(n, n === order.pager && order.pagerShared, tapped);
   }
   function cancelPagerAsk() { sheet = null; pagerAsk = null; render(); }
@@ -951,8 +951,11 @@
     // (Update Pack 4, CS10: a scheduled order whose KOT is still queued: why first, and nothing prints in the kitchen)
     if (saved && cleanTime(saved.readyAt) && !saved.sentAt) { closeMenu(); openVoid(null, 0, true); return; }
     if (!deleteArmed) { deleteArmed = true; render(); dialog.querySelector('.cx-mi.del')?.focus({ preventScroll: true }); return; }
-    const n = order.number;
+    const n = order.number, tables = !n && usesTable(order) ? recTables(order) : [];
     dropSaved();
+    // (owner, 27 Nov 2026: a party seated that leaves before ordering; the order deleted before it was ever saved frees
+    // the table they held)
+    if (tables.length) window.RestroBookings?.freeSeat?.(tables);
     fresh(); toast(n ? `Order ${ticket(n)} deleted` : 'Order deleted');
   }
   // The saved order on screen (and its held copy) comes off Orders and Held
@@ -1200,7 +1203,8 @@
     // (Update Pack 8, E1: a free merged group is done once an order is saved on it: the order keeps its tables)
     if (usesTable(entry)) dropJoins(recTables(entry));
     // (Update Pack 8, A6: one pool) a pager handed out here comes back from a booking or a waitlist guest that had it
-    if (!untouched && !record && cleanPager(entry.pager)) window.RestroBookings?.pagerTaken?.(cleanPager(entry.pager));
+    // (unless the customer kept it for this order too: Same customer)
+    if (!untouched && !record && cleanPager(entry.pager) && !entry.pagerShared) window.RestroBookings?.pagerTaken?.(cleanPager(entry.pager));
     if (order.heldId) { held = held.filter(h => h.heldId !== order.heldId); store(HELD_KEY, held); }
     // The kitchen printer: the CHANGED slip, then the KOT (with its number)
     if (changed) printSlip(kitchenSlip(entry, changed));
@@ -1892,6 +1896,12 @@
         // (Update 7: the guest count, asked in the Dining app the first time the table is picked for the order)
         if (cleanGuests(table.guests)) order.guests = table.guests;
         if (!order.type) { order.type = 'dine-in'; order.lines.forEach(l => { l.type = l.type || 'dine-in'; }); tidy(); } // a table means Dine in
+        // (owner, 27 Nov 2026: a reserved table picked, then Seat now: the booking's party is seated on this order)
+        if (table.booking?.id) {
+          if (table.booking.customer?.mobile && !order.customer) order.customer = cleanCustomer({ id: `bk-${table.booking.id}`, ...table.booking.customer });
+          order.booking = table.booking.id;
+          window.RestroBookings?.seat?.(table.booking.id, order.uid || null);
+        }
         render();
       };
       // (Update Pack 5, H1, CT1) a table with a Pending QR order: the table shows picked under "Table 3 has a pending QR
@@ -3742,23 +3752,34 @@
   }
   // Pager still out with another order (Update Pack 3): "Pager 5 is still with #1012" · "<customer> · Paid · Ready", then
   // Same customer / Handed back. The other order's payment in Orders' words and colours (Update Pack 5, owner 12 Nov
-  // 2026): Due orange, Part paid red, Paid black (Midnight: its orange, red and white).
-  function pagerAskCard(hold) {
-    const { n, tapped } = pagerAsk, others = pagerOthers(n), first = others[0], nums = others.map(o => ticket(o.number));
-    const title = `Pager ${n} is still with ${nums.length > 2 ? `${nums[0]} and ${nums.length - 1} more` : nums.join(' and ')}`;
+  // 2026): Due orange, Part paid red, Paid black (Midnight: its orange, red and white). (Owner, 27 Nov 2026: one pool, one
+  // question: a booking or a waitlist guest that has it too, "… is still with ‹first name›" · "Waitlist · 4 guests"; and the
+  // same question in Bookings' forms, RestroCounter.pagerAsk, there "Moves to this guest" or "this booking".)
+  const bookingHolders = (n, except = null) => (window.RestroBookings?.pagersOut?.() || []).filter(p => cleanPager(p.n) === n && p.id !== except);
+  function askCard({ n, orders, books, here, pick, close, hold }) {
+    const first = orders[0], b1 = books[0], count = orders.length + books.length;
+    const names = [...orders.map(o => ticket(o.number)), ...books.map(b => firstOf(b.name) || 'a guest')];
+    const title = `Pager ${n} is still with ${names.length > 2 ? `${names[0]} and ${names.length - 1} more` : names.join(' and ')}`;
     const who = o => o.customer?.name || (usesTable(o) ? `Table ${tableName(o.table)}` : typeLabel[o.type] || '');
     const kitchen = o => o.kitchenDoneAt ? 'Ready' : o.sentAt ? 'In kitchen' : cleanTime(o.readyAt) ? `Scheduled ${timeOf(o.readyAt).toUpperCase()}` : '';
     const pay = o => (o.paidAt ? el('span', { class: 'cx-payw' }, 'Paid') : partPaid(o) ? el('span', { class: 'cx-payw part' }, 'Part paid') : el('span', { class: 'cx-payw due' }, 'Due'));
-    const sub = (!first ? [] : others.length === 1 ? [who(first), pay(first), kitchen(first)] : [who(first), `${others.length} orders`]).filter(Boolean).flatMap((x, i) => (i ? [' · ', x] : [x]));
-    const tile = (icon, name, what, shared) => el('button', { type: 'button', class: 'cx-pk', onpointerdown: hold, onmousedown: hold, onclick: () => givePager(n, shared, tapped) },
+    const guests = b => (b.guests ? `${b.guests} guest${b.guests === 1 ? '' : 's'}` : '');
+    const booked = b => (b.kind === 'wait' ? ['Waitlist', guests(b)] : ['Reservation', cleanTime(b.at) ? timeOf(b.at).toUpperCase() : '', guests(b)]);
+    const sub = (count > 1 ? [first ? who(first) : b1.name, `${count} ${books.length ? 'holders' : 'orders'}`] : first ? [who(first), pay(first), kitchen(first)] : booked(b1))
+      .filter(Boolean).flatMap((x, i) => (i ? [' · ', x] : [x]));
+    const tile = (icon, name, what, shared) => el('button', { type: 'button', class: 'cx-pk', onpointerdown: hold, onmousedown: hold, onclick: () => pick(shared) },
       el('span', { class: 'cx-av', 'aria-hidden': 'true' }, mi(icon, 20)), el('b', {}, name), el('small', {}, what));
     return el('div', { class: 'cx-pu server pagerask', role: 'dialog', 'aria-label': title },
       el('div', { class: 'cx-pu-head' },
         el('div', { class: 'cx-dh pg' }, el('i', { 'aria-hidden': 'true' }, mi('vibration', 22)), el('div', { class: 'cx-steph' }, el('b', {}, title), el('span', {}, ...sub))),
-        closeX(cancelPagerAsk, hold)),
+        closeX(close, hold)),
       el('div', { class: 'cx-pkl' },
-        tile('person', 'Same customer', others.length > 1 ? 'All keep it' : 'Both keep it', true),
-        tile('move_table', 'Handed back', 'Moves to this order', false)));
+        tile('person', 'Same customer', count > 1 ? 'All keep it' : 'Both keep it', true),
+        tile('move_table', 'Handed back', `Moves to ${here}`, false)));
+  }
+  function pagerAskCard(hold) {
+    const { n, tapped } = pagerAsk;
+    return askCard({ n, orders: pagerOthers(n), books: bookingHolders(n), here: 'this order', pick: shared => givePager(n, shared, tapped), close: cancelPagerAsk, hold });
   }
   // Change server: the restaurant's staff (Staff app), the one serving it light blue
   function serverCard(hold) {
@@ -4560,7 +4581,8 @@
         if (booking) order.booking = booking;
         render();
       }
-      if (booking) window.RestroBookings?.seat?.(booking, order.uid || null);
+      // (a party already seated, opened again from its table on the Floor, stays seated as it was)
+      if (booking && window.RestroBookings?.reservation?.(booking)?.status !== 'seated') window.RestroBookings?.seat?.(booking, order.uid || null);
       return true;
     },
     // From the Orders app: Counter opens on that saved order (not paid yet), to add items or take the payment.
@@ -4660,12 +4682,33 @@
     // ({ uid } or { join }). Each resolves { ok, slip: { printed, what, retry } or null }.
     joins: () => loadJoins().map(j => ({ id: j.id, tables: j.tables.filter(t => typeof t === 'string' && t) })),
     mmMove, mmMerge, mmUnmerge, mergePreview,
-    // (Update Pack 8, A6) the Assign pager pop-up for another app's screen (a booking, a waitlist guest): a pager in use
-    // can't be chosen there. → the pop-up (its dimming and card) to put in that screen
+    // (Update Pack 8, A6) the Assign pager pop-up for another app's screen (a booking, a waitlist guest). A pager in use
+    // can be chosen there too (owner, 27 Nov 2026): that screen then asks, as the Counter does (pagerAsk). → the pop-up
+    // (its dimming and card) to put in that screen
     pagerPicker({ current = 0, except = null, onPick, onClose } = {}) {
-      return pagerSheet({ current: cleanPager(current), inUse: pagersInUse(except), busyOk: false, choose: n => onPick?.(n), close: () => onClose?.() });
+      return pagerSheet({ current: cleanPager(current), inUse: pagersInUse(except), busyOk: true, choose: n => onPick?.(n), close: () => onClose?.() });
     },
     pagerInUse: (n, exceptBooking = null) => pagersInUse(exceptBooking).has(cleanPager(n)),
+    // (owner, 27 Nov 2026) the Counter's "Pager 7 is still with #1012" question for another app's screen: who has it (the
+    // orders, bookings and waitlist guests, but `except`), then Same customer (onPick(true): they keep it too) or Handed
+    // back (onPick(false): it moves to `here`, "this guest" or "this booking"). → the dimming and the card, or null when
+    // nobody else has it
+    pagerAsk({ n, except = null, here = 'this guest', onPick, onClose } = {}) {
+      n = cleanPager(n); const orders = n ? pagerHolders(loadOrders()).get(n) || [] : [], books = n ? bookingHolders(n, except) : [];
+      if (!orders.length && !books.length) return null;
+      const hold = e => e.preventDefault();
+      return el('div', { class: 'ctr-root cx-askhost', onclick: e => { if (e.target === e.currentTarget) onClose?.(); } },
+        askCard({ n, orders, books, here, pick: shared => onPick?.(shared), close: () => onClose?.(), hold }));
+    },
+    // (owner, 27 Nov 2026) a pager handed back and given to a booking or a waitlist guest: it comes back from every order
+    // that has it (as when it is given to another order). → how many
+    pagerHandedOn(n) {
+      n = cleanPager(n); if (!n) return 0;
+      const list = loadOrders(), had = pagerHolders(list).get(n) || [], now = Date.now();
+      for (const o of had) o.pagerBackAt = now;
+      if (had.length) storeOrders(list);
+      return had.length;
+    },
     // (Paid by QR, Update Pack 8 F06) how it was paid and when, when the kitchen finished it, its last round
     paidInfo(uid) {
       const o = loadOrders().find(x => idOf(x) === uid); if (!o) return null;
