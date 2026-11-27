@@ -478,15 +478,16 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-done.wide{width:100%;margin-top:calc(18 * var(--u))}
 .cx-layer button:focus-visible{outline:2px solid #1E5BD6;outline-offset:2px}
 
-/* Modifiers: 1004 wide, 42 from the order; its top 166 down (over the Desserts / Beverages row) or, once taller,
-   centred on the menu (counter.js placePop); at most 775 tall, then the groups scroll and the dish and the bottom row
+/* Modifiers: 1004 wide, 42 from the order; its top 80 down, level with the top of the categories (owner, 27 Nov 2026:
+   over Starters, Biryani & Rice and the rest; it was 166, over the second row) or, once taller, centred on the menu
+   (counter.js placePop); at most 775 tall, then the groups scroll and the dish and the bottom row
    stay. A group: its title 17/700 and a badge 24 tall 12/700 ("Required · pick 1" amber, "Optional" grey; red while a
    required group is left empty, with "Choose a spice level to continue" 15/700 red), 10 apart; then its choices, 12
    apart: 1-3 choices a third of the row each, 4 or more a quarter each, four to a row. A choice: 84 tall, radius 22,
    17/700, its add-on price under its name the same; chosen: light blue with a check (Update 5: spice level too; amber
    is no longer used for a choice here). The bottom row, 20 apart: the note on a line (13/600 "Note", then the pen and the note 17 on a 1.5 grey
    underline) · round - and + 52 (raised) with the number 24/800 blue between · Done 220 wide. */
-.cx-pu.mods{left:calc(574 * var(--u));width:calc(1004 * var(--u));max-height:calc(775 * var(--u))}
+.cx-pu.mods{left:calc(574 * var(--u));top:var(--pu-top,calc(80 * var(--u)));width:calc(1004 * var(--u));max-height:calc(775 * var(--u))}
 .cx-pu.mods>.cx-pu-head{padding:calc(24 * var(--u)) calc(26 * var(--u)) calc(14 * var(--u))}
 .cx-pu-groups{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:calc(6 * var(--u)) calc(26 * var(--u)) 0}
 .cx-mg{margin-bottom:calc(22 * var(--u))}
@@ -543,12 +544,13 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-qk[hidden]{display:none}
 .cx-key:active{background:#EEF0F4}
 
-/* Note: 940 wide, 88 from the order, centred on the menu; while the note line has the keyboard, 14 from the top (above
-   the keyboard), its underline blue and 2, and the quick notes one row that scrolls (fading out on the right). The
+/* Note: 940 wide, 88 from the order, its top level with the top of the categories (owner, 27 Nov 2026: up over Starters,
+   Biryani & Rice and the rest, as the modifier pop-up: placePop() in counter.js); while the note line has the keyboard,
+   14 from the top (above the keyboard), its underline blue and 2, and the quick notes one row that scrolls (fading out on the right). The
    note line: "Note" 13/600, then the pen 22 and the note 18 (line 1.45) on a 1.5 grey underline. "Quick notes" 13/600,
    then the chips, 10 apart: raised white pills 56 tall, 16/700, 20 each side; light blue while their words are in the
    note. Under them "Clear note" 16/700 grey ........ Done. */
-.cx-pu.note{left:calc(620 * var(--u));top:50%;width:calc(940 * var(--u));padding:calc(24 * var(--u)) calc(26 * var(--u)) calc(22 * var(--u));transform:translateY(-50%)}
+.cx-pu.note{left:calc(620 * var(--u));top:var(--pu-top,calc(80 * var(--u)));width:calc(940 * var(--u));padding:calc(24 * var(--u)) calc(26 * var(--u)) calc(22 * var(--u))}
 .cx-pu.note.typing{top:calc(14 * var(--u));transform:none}
 .cx-pu.note>.cx-pu-head{margin-bottom:calc(18 * var(--u))}
 .cx-nf{display:block;cursor:text}

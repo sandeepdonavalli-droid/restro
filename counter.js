@@ -3991,13 +3991,18 @@
     paint();
     return card;
   }
-  // The modifier pop-up: its top 206 down the menu (over its Desserts / Beverages row) while it fits there with 24 to
-  // spare at the bottom; a taller one is centred on the menu. At most 775 tall (the groups then scroll, the dish and the
-  // bottom row stay).
+  // The modifier pop-up and the note pop-up (the order's, a dish's): the top level with the top of the categories, over
+  // Starters, Biryani & Rice and the rest (owner, 27 Nov 2026; before, the modifier pop-up's was over the second row and
+  // the note pop-up was centred), while it fits there with 20 to spare at the bottom; a taller one is centred on the
+  // menu. The modifier pop-up is at most 775 tall (the groups then scroll, the dish and the bottom row stay). (A note
+  // being typed sits 14 from the top, above the keyboard: .typing in counter.css.)
   function placePop() {
-    const pu = dialog.querySelector('.cx-pu.mods:not(.noting)'), panel = dialog.querySelector('.cx-order'); if (!pu || !panel) return;
-    const u = panel.offsetWidth / 532, room = pu.parentElement.clientHeight, h = pu.offsetHeight;
-    pu.style.top = `${166 * u + h + 20 * u <= room ? 166 * u : Math.max(0, (room - h) / 2)}px`;
+    const panel = dialog.querySelector('.cx-order'); if (!panel) return;
+    const u = panel.offsetWidth / 532;
+    for (const pu of dialog.querySelectorAll('.cx-layer .cx-pu.mods:not(.noting), .cx-layer .cx-pu.note:not(.typing)')) {
+      const room = pu.parentElement.clientHeight, h = pu.offsetHeight;
+      pu.style.setProperty('--pu-top', `${80 * u + h + 20 * u <= room ? 80 * u : Math.max(0, (room - h) / 2)}px`);
+    }
   }
   // (A pop-up whose line is gone closes. A line is "edit" only while its modifier pop-up is open, the note pop-up opened
   // from it included.)
