@@ -1989,8 +1989,8 @@
 
   // ---------- the toast (QS6, QS28) ----------
   const toastEl = el('div', { class: 'qrs-toast', role: 'status', 'aria-live': 'polite', hidden: true });
-  // (ic: the tick, or null for none, as "Coming soon")
-  function toast(text, action, ic = 'check') {
+  // (ic: an icon, or none: owner, 27 Nov 2026, no tick on a message any more, in every app)
+  function toast(text, action, ic = null) {
     clearTimeout(toastTimer);
     toastEl.replaceChildren(...[ic ? el('span', { class: 'qrs-toast-i' }, icon(ic)) : null, el('span', {}, text), action ? el('button', { type: 'button', class: 'qrs-toast-btn', onclick: () => { toastEl.hidden = true; action[1](); } }, action[0]) : null].filter(Boolean));
     toastEl.hidden = false;

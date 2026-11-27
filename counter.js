@@ -1554,8 +1554,8 @@
   }
 
   // ---------- messages (Counter Update 7; Update Pack 4, A4) ----------
-  // One place, one look: a dark bar at the bottom of the menu, level with Save and Pay, as wide as what it says (icon ·
-  // message · UNDO / RETRY ✕, no empty stretch). Confirmations (a green tick) go after 2 s ("Order #1033 saved · KOT prints
+  // One place, one look: a dark bar at the bottom of the menu, level with Save and Pay, as wide as what it says (message
+  // · UNDO / RETRY ✕, no empty stretch). Confirmations (no tick: owner, 27 Nov 2026) go after 2 s ("Order #1033 saved · KOT prints
   // at 9:30 pm"), Undo after 4 s ("Chicken biryani removed · UNDO"), errors (a red "!", a red left edge) stay until Retry
   // or ✕ ("Kitchen printer offline · KOT #3 not sent"). One at a time: a new one takes the old one's place. Its time stops
   // while a finger is on it, and follows Android's accessibility "Time to take action" (RESTRODevice.recommendedTimeout,
@@ -1591,9 +1591,12 @@
     const act = fn => () => { dropMsg(); fn(); };
     const hold = () => holdMsg(true), let_go = () => holdMsg(false);
     const err = m.kind === 'error';
-    return el('div', { class: `cx-msg ${m.kind}${m.kind === 'confirm' ? ' plain' : ''}`, role: err ? 'alert' : 'status',
+    // (owner, 27 Nov 2026: no tick on a message any more, in every app; an error keeps its red "!". With no button, the
+    // text sits as far from the right as from the left, as CM4 and CM9 draw it)
+    const plain = !err && !m.undo && !m.retry;
+    return el('div', { class: `cx-msg ${m.kind}${plain ? ' plain' : ''}`, role: err ? 'alert' : 'status',
       onpointerdown: hold, onpointerup: let_go, onpointercancel: let_go, onpointerleave: let_go },
-      el('i', { class: 'cx-msg-i', 'aria-hidden': 'true' }, err ? el('b', {}, '!') : mi('check', 16)),
+      err ? el('i', { class: 'cx-msg-i', 'aria-hidden': 'true' }, el('b', {}, '!')) : null,
       el('span', {}, m.b ? el('b', {}, m.b) : null, m.t || '', m.sub ? ` · ${m.sub}` : ''),
       m.undo ? el('button', { type: 'button', onclick: act(m.undo) }, 'UNDO') : null,
       m.retry ? el('button', { type: 'button', onclick: act(m.retry) }, 'RETRY') : null,

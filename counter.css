@@ -739,7 +739,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
    the navigation bar, where that space is gone, level with Save and Pay as before); UNDO #93C5FD 800; an error 64 tall
    with a red left edge, RETRY and ✕ */
 .cx-msg{position:absolute;left:calc(552 * var(--u));bottom:calc(21.333 * var(--u));z-index:39;width:max-content;max-width:calc(100% - calc(576 * var(--u)));height:calc(54 * var(--u));box-sizing:border-box;display:flex;align-items:center;gap:calc(14.6 * var(--u));padding:0 calc(8 * var(--u)) 0 calc(20.8 * var(--u));border-radius:calc(16 * var(--u));background:#1F2937;color:#FFFFFF;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;font-size:calc(15.7 * var(--u));line-height:normal;box-shadow:0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35);animation:cx-fade .14s ease-out}
-/* (Update Pack 4, A4: as wide as what it says; a green tick, or a red "!" on an error) */
+/* (Update Pack 4, A4: as wide as what it says; a red "!" on an error; owner, 27 Nov 2026: no green tick any more) */
 .cx-msg-i{flex:none;width:calc(19 * var(--u));height:calc(19 * var(--u));border-radius:999px;display:grid;place-items:center;background:#4ADE80;color:#1F2937;font-style:normal}
 .cx-msg-i svg{width:calc(14 * var(--u));height:calc(14 * var(--u))}
 .cx-msg .cx-msg-i b{font-size:calc(13 * var(--u));font-weight:900;line-height:1}
@@ -747,7 +747,7 @@ dialog.counter-app{top:var(--top-banner-height);bottom:0;background:#F3F4F7;colo
 .cx-msg b{font-weight:700}
 .cx-msg button{flex:none;height:calc(44 * var(--u));margin:0;padding:0 calc(16 * var(--u));border:0;border-radius:calc(10 * var(--u));background:transparent;color:#93C5FD;font:inherit;font-size:calc(16 * var(--u));font-weight:800;letter-spacing:.04em;cursor:pointer}
 .cx-msg button:active{background:rgba(255,255,255,.08)}
-.cx-msg.plain{padding-right:calc(18 * var(--u))}
+.cx-msg.plain{padding-right:calc(20.8 * var(--u))}
 .cx-msg.error{box-shadow:inset calc(5 * var(--u)) 0 0 #EF4444,0 calc(10 * var(--u)) calc(30 * var(--u)) rgba(15,23,42,.35)}
 .cx-msg.error .cx-msg-i{background:#F8A9AC}
 .cx-msg.error button{color:#FCA5A5}

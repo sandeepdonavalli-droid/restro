@@ -586,7 +586,8 @@
     if (!msg) { bar.hidden = true; bar.replaceChildren(); return; }
     const act = msg.undo ? ['UNDO', msg.undo] : msg.retry ? ['RETRY', msg.retry] : null, error = msg.kind === 'error', busy = msg.kind === 'busy', warn = msg.kind === 'warn';
     bar.className = `or-msg${error ? ' error' : busy ? ' busy' : warn ? ' warn' : ''}`;
-    bar.replaceChildren(...[msg.ic ? el('span', { class: 'or-msg-g', 'aria-hidden': 'true' }, icon(msg.ic)) : el('span', { class: 'or-msg-i', 'aria-hidden': 'true' }, busy ? null : error ? el('b', {}, '!') : icon('check')),
+    // (owner, 27 Nov 2026: no tick on a message any more; an error keeps its red "!", the wait its spinner)
+    bar.replaceChildren(...[msg.ic ? el('span', { class: 'or-msg-g', 'aria-hidden': 'true' }, icon(msg.ic)) : busy || error ? el('span', { class: 'or-msg-i', 'aria-hidden': 'true' }, busy ? null : el('b', {}, '!')) : null,
       el('span', { class: 'or-msg-t' }, msg.lead || '', msg.bold ? el('b', {}, msg.bold) : null, msg.text || ''),
       act ? el('button', { type: 'button', class: 'or-msg-a', onclick: () => { const run = act[1]; clearTimeout(msg?.timer); msg = null; paintMsg(); run(); } }, act[0]) : null,
       error || warn ? el('button', { type: 'button', class: 'or-msg-x', 'aria-label': 'Close', onclick: () => { msg = null; paintMsg(); } }, icon('close')) : null].filter(Boolean));

@@ -891,13 +891,13 @@
 .qrs-md-dot.on::after{content:'';position:absolute;inset:calc(-5.5 * var(--fu));border:calc(2.5 * var(--fu)) solid #1C1917;border-radius:50%}
 
 /* ---------- the dark message (QS6, QS28): centred on the screen, above the foot ---------- */
-.qrs-toast{position:absolute;left:50%;bottom:calc(104 * var(--fu));z-index:40;transform:translateX(-50%);display:flex;align-items:center;min-height:calc(54 * var(--fu));box-sizing:border-box;padding:calc(10 * var(--fu)) calc(22 * var(--fu)) calc(10 * var(--fu)) calc(16 * var(--fu));border-radius:calc(30 * var(--fu));background:#1C1917;color:#FFFFFF;box-shadow:0 calc(10 * var(--fu)) calc(28 * var(--fu)) rgba(17,24,39,.28);white-space:nowrap}
+.qrs-toast{position:absolute;left:50%;bottom:calc(104 * var(--fu));z-index:40;transform:translateX(-50%);display:flex;align-items:center;min-height:calc(54 * var(--fu));box-sizing:border-box;padding:calc(10 * var(--fu)) calc(22 * var(--fu));border-radius:calc(30 * var(--fu));background:#1C1917;color:#FFFFFF;box-shadow:0 calc(10 * var(--fu)) calc(28 * var(--fu)) rgba(17,24,39,.28);white-space:nowrap}
+/* (owner, 27 Nov 2026: no tick any more, so the text sits 22 from either end) */
 .qrs-toast[hidden]{display:none}
 .qrs-toast-i{flex:none;width:calc(24 * var(--fu));height:calc(24 * var(--fu));display:grid;place-items:center;border-radius:50%;background:#16A34A;color:#FFFFFF}
 .qrs-toast-i .qi{width:calc(15 * var(--fu));height:calc(15 * var(--fu));stroke-width:3.2}
 .qrs-toast>span:not(.qrs-toast-i){font-size:calc(16 * var(--fu));font-weight:600}
 .qrs-toast-i+span{margin-left:calc(12 * var(--fu))}
-.qrs-toast:not(:has(.qrs-toast-i)){padding-left:calc(22 * var(--fu))}
 .qrs-toast:has(.qrs-toast-btn){min-height:calc(60 * var(--fu));padding-right:calc(14 * var(--fu))}
 .qrs-toast-btn{display:inline-flex;align-items:center;gap:calc(8 * var(--fu));height:calc(32 * var(--fu));margin-left:calc(18 * var(--fu))!important;padding:0 calc(14 * var(--fu))!important;border-radius:calc(16 * var(--fu));background:#FFFFFF!important;color:#1C1917!important;font-size:calc(15 * var(--fu))!important;font-weight:700!important}
 .qrs-toast-btn .qi{width:calc(16 * var(--fu));height:calc(16 * var(--fu))}
